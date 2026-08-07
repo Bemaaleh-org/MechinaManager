@@ -1,0 +1,14 @@
+# סודות — לעולם לא ב-git
+.env
+.env.*
+!.env.example
+
+# תלויות ותוצרי בנייה
+node_modules/
+dist/
+build/
+.vercel/
+
+# מערכת הפעלה ועורכים
+.DS_Store
+*.log

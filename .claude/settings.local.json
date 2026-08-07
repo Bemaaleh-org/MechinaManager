@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(awk 'length\\($0\\) < 300' mechina-kitchen.jsx)",
+      "Bash(git init *)",
+      "Bash(git add *)"
+    ]
+  }
+}
