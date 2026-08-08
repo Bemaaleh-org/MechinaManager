@@ -12,16 +12,12 @@
    App.jsx לא יודע דבר מכל זה — החוזה נשאר get/set.
    ============================================================ */
 
-import { SEED_USERS, SEED_DUTY } from "./seeds.js";
-
 /** מצב ריק שלם, למקרה שאין עדיין שום דבר שמור מקומית */
 const emptyShell = () => ({
   v: 1,
   products: [],
   moves: [],
   lists: [],
-  users: SEED_USERS.map((u) => ({ ...u })),
-  duty: { ...SEED_DUTY },
   countDraft: null,
   lastCountAt: null,
 });

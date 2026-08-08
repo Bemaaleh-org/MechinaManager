@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { CSS } from "./styles.js";
 import { LOGO } from "./logo.js";
 import { storage } from "./storage.js";
-import { SEED_USERS, SEED_DUTY } from "./seeds.js";
 import { api, setUnauthorizedHandler } from "./api.js";
 import Login from "./Login.jsx";
 import { testDate } from "./testDate.js";
@@ -191,8 +190,6 @@ const freshState = () => {
     products,
     moves: [],
     lists: syncLiveLists(products, [], "אוטומטי"),
-    users: SEED_USERS.map((u) => ({ ...u })),
-    duty: { ...SEED_DUTY },
     countDraft: null,
     lastCountAt: null,
   };
@@ -205,8 +202,8 @@ const freshState = () => {
    בודק מול השרת מי מחובר. אין סשן — מסך כניסה. השרת ניתק
    באמצע העבודה — חזרה למסך הכניסה עם ההסבר שהשרת נתן.
 
-   ⚠ המסכים עדיין משתמשים ב-SEED_USERS לתצוגה. ההחלפה לזהות
-     האמיתית מגיעה בחלק הבא; האכיפה כבר עכשיו בשרת.
+   הזהות מגיעה מהסשן בלבד — גם בשרת וגם על המסך. אין יותר
+   רשימת משתמשים בקוד.
    ============================================================ */
 export default function App() {
   const [auth, setAuth] = useState(undefined); // undefined=בודק, null=לא מחובר
@@ -241,7 +238,6 @@ export default function App() {
 
 function Kitchen({ auth, onSignedOut }) {
   const [st, setSt] = useState(null);
-  const [me, setMe] = useState("u1");
   const [tab, setTab] = useState("home");
   const [toast, setToast] = useState(null);
   const [modal, setModal] = useState(null);
@@ -285,7 +281,13 @@ function Kitchen({ auth, onSignedOut }) {
 
   if (!st) return (<><style>{CSS}</style><div className="kx"><div className="empty" style={{ paddingTop: 100 }}><div className="e1">טוען מלאי…</div></div></div></>);
 
-  const user = st.users.find((u) => u.id === me) || st.users[0];
+  /* הזהות מגיעה מהסשן בלבד. בורר המשתמשים הוסר — הוא נראה
+     כאילו הוא מחליף זהות ולא החליף דבר מרגע שהאכיפה עברה לשרת. */
+  const user = {
+    id: auth.itemId || "session",
+    name: auth.name || "תורן",
+    role: auth.isManager ? "manager" : "trainee",
+  };
   /* ⚠ התפקיד מגיע מהסשן בשרת, לא מבחירת המשתמש במסך. בחירת
      המשתמש נשארה לתצוגה עד שתוחלף בחלק הבא, אבל היא כבר לא
      קובעת מה מותר — לא כאן ובוודאי לא בשרת. */
@@ -603,7 +605,7 @@ function Kitchen({ auth, onSignedOut }) {
         </nav>
 
         {toast && <div className="toast">{toast}</div>}
-        {modal && <Modal ctx={ctx} modal={modal} close={() => setModal(null)} me={me} setMe={setMe} />}
+        {modal && <Modal ctx={ctx} modal={modal} close={() => setModal(null)} />}
       </div>
     </>
   );
@@ -1842,6 +1844,17 @@ function Catalog({ ctx }) {
 
 function Report({ ctx }) {
   const { st } = ctx;
+
+  /* שיבוץ התורנויות מגיע מלוח ב-monday, לא מקבוע בקוד.
+     כישלון או היעדר שורה משאירים תאים ריקים, והדוח מציג "—". */
+  const [dutyWeek, setDutyWeek] = useState(null);
+  useEffect(() => {
+    let live = true;
+    api.getDutyWeek(testDate() || undefined)
+      .then((d) => live && setDutyWeek(d))
+      .catch(() => live && setDutyWeek({ days: [[], [], [], [], [], [], []], found: false }));
+    return () => { live = false; };
+  }, []);
   const now = new Date();
   const months = Array.from({ length: 6 }, (_, i) => { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); return d; });
   const [mi, setMi] = useState(0);
@@ -1887,11 +1900,11 @@ function Report({ ctx }) {
     if (d.getDay() === 2) due.push(gotWeeklyCount);  // weekly count — Tuesday
     if (d.getDay() === 3) due.push(gotApproval);     // shopping approval — Wednesday
     const allDone = due.every(Boolean);
-    const dutyId = st.duty[d.getDay()];
-    const duty = st.users.find((u) => u.id === dutyId);
+    const names = dutyWeek?.days?.[d.getDay()] || [];
     return { d, dk, isFuture, isToday, allDone,
       status: isFuture ? "future" : (allDone ? "done" : "missed"),
-      dutyName: duty ? duty.name : "—" };
+      duty: names,
+      dutyName: names.length ? names.join(", ") : "—" };
   });
 
   const exportExcel = () => {
@@ -1973,7 +1986,11 @@ function Report({ ctx }) {
                 : <div className={"wk-mark " + (w.status === "done" ? "done" : "miss")}>
                     <span style={{ color: "#fff" }}>{w.status === "done" ? <I.check /> : <I.x width="15" height="15" />}</span>
                   </div>}
-              <div className="who2">{w.dutyName.split(" ")[0]}</div>
+              {/* התא צר — שם ראשון, ומונה כשיש יותר מתורן אחד */}
+              <div className="who2">
+                {w.duty.length === 0 ? "—"
+                  : w.duty[0].split(" ")[0] + (w.duty.length > 1 ? ` +${w.duty.length - 1}` : "")}
+              </div>
             </div>
           ))}
         </div>
@@ -2017,63 +2034,111 @@ function Report({ ctx }) {
   );
 }
 
+/* ⚠ המסך הזה היה עורך: בורר לכל יום ששמר למצב מקומי בלבד ונעלם
+   ברענון. מסך שנראה כמו עורך ולא שומר לשום מקום הוא באג, לא
+   פשרה — ולכן הבוררים הוסרו.
+
+   השיבוץ נערך בלוח ב-monday, וכאן רק מוצג. */
 function Team({ ctx }) {
-  const { st, setSt, isMgr, say } = ctx;
-  const trainees = st.users.filter((u) => u.role === "trainee");
+  const [duty, setDuty] = useState(null);
+  const [users, setUsers] = useState(null);
+
+  useEffect(() => {
+    let live = true;
+    api.getDutyWeek(testDate() || undefined)
+      .then((d) => live && setDuty(d))
+      .catch(() => live && setDuty({ days: [[], [], [], [], [], [], []], found: false }));
+    api.getUsers()
+      .then((r) => live && setUsers(r.users || []))
+      .catch(() => live && setUsers([]));
+    return () => { live = false; };
+  }, []);
+
   return (
     <>
       <div className="card" style={{ marginBottom: 14, padding: "12px 14px" }}>
         <div style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600, lineHeight: 1.5 }}>
-          {isMgr ? "סגן המנהל מעדכן כאן את התורנים לתקופה. רק התורן של אותו יום מקבל את המשימות." 
-                 : "רק סגן או מנהל המכינה יכולים לשנות את התורנויות."}
+          שיבוץ התורנויות נערך בלוח <strong>“מלאי מטבח – שיבוץ תורנויות”</strong> ב-monday.
+          כאן הוא מוצג בלבד. שינוי בלוח מופיע כאן תוך כחצי דקה.
         </div>
       </div>
-      <div className="rows" style={{ marginBottom: 16 }}>
-        {DAYS.map((d, i) => (
-          <div className="row" key={i}>
-            <div className="r-main"><div className="r-name">יום {d}</div></div>
-            <select disabled={!isMgr} value={st.duty[i] || ""}
-              onChange={(e) => { setSt((s) => ({ ...s, duty: { ...s.duty, [i]: e.target.value } })); say("התורנות עודכנה"); }}
-              style={{ minHeight: 44, borderRadius: 10, border: "1px solid var(--line2)", padding: "0 10px",
-                background: "var(--surface)", fontWeight: 700, fontSize: 14 }}>
-              <option value="">–</option>
-              {trainees.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
-          </div>
-        ))}
+
+      <div className="sec-label" style={{ marginTop: 0 }}>
+        {duty?.week ? `שיבוץ לשבוע ${duty.week}` : "שיבוץ השבוע"}
       </div>
 
+      {duty && !duty.found ? (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="led-empty">אין שורת שיבוץ לשבוע הזה בלוח.</div>
+        </div>
+      ) : (
+        <div className="rows" style={{ marginBottom: 16 }}>
+          {DAYS.map((d, i) => {
+            const names = duty?.days?.[i] || [];
+            return (
+              <div className="row" key={i}>
+                <div className="r-main"><div className="r-name">יום {d}</div></div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: names.length ? "var(--ink)" : "var(--faint)" }}>
+                  {duty ? (names.length ? names.join(", ") : "—") : "…"}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <div className="sec-label">משתמשים</div>
-      <div className="rows">
-        {st.users.map((u) => (
-          <div className="row" key={u.id}>
-            <div className="r-main">
-              <div className="r-name">{u.name}</div>
-              <div className="r-meta">{u.title || "חניך"}</div>
-            </div>
-            <span className={"pill " + (u.role === "manager" ? "p-ok" : "")}
-              style={u.role !== "manager" ? { background: "var(--bg)", color: "var(--muted)" } : undefined}>
-              {u.role === "manager" ? "מנהל" : "חניך"}
-            </span>
-          </div>
-        ))}
+      <div className="card" style={{ marginBottom: 10, padding: "12px 14px" }}>
+        <div style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600, lineHeight: 1.5 }}>
+          המשתמשים וההרשאות נערכים בלוח <strong>“מלאי מטבח – משתמשים והרשאות”</strong> ב-monday.
+          כאן הם מוצגים בלבד. קודי הכניסה אינם מוצגים ואינם יוצאים מהשרת.
+        </div>
       </div>
+
+      {!users ? (
+        <div className="card"><div className="led-empty">טוען…</div></div>
+      ) : (
+        <div className="rows">
+          {users.map((u) => (
+            <div className="row" key={u.id} style={u.active ? undefined : { opacity: .55 }}>
+              <div className="r-main">
+                <div className="r-name">{u.name}</div>
+                <div className="r-meta">{u.active ? "פעיל" : "כובה"}</div>
+              </div>
+              <span className={"pill " + (u.kind === "מנהל" ? "p-ok" : "")}
+                style={u.kind !== "מנהל" ? { background: "var(--bg)", color: "var(--muted)" } : undefined}>
+                {u.kind}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }
 
 /* ============================ MODALS ============================ */
-function Modal({ ctx, modal, close, me, setMe }) {
-  if (modal.t === "user") return <UserModal ctx={ctx} close={close} me={me} setMe={setMe} />;
+function Modal({ ctx, modal, close }) {
+  if (modal.t === "user") return <UserModal ctx={ctx} close={close} />;
   if (modal.t === "product") return <ProductModal ctx={ctx} close={close} p={modal.p} />;
   if (modal.t === "addItem") return <AddItemModal ctx={ctx} close={close} listId={modal.listId} />;
   if (modal.t === "newProduct") return <NewProductModal ctx={ctx} close={close} listId={modal.listId} sup={modal.sup} name0={modal.name0} />;
   return null;
 }
 
-function UserModal({ ctx, close, me, setMe }) {
-  const { st, auth, onSignedOut } = ctx;
+/* ⚠ כאן היה בורר משתמשים: רשימת שמות שכל לחיצה עליה "החליפה
+   זהות". מרגע שהאכיפה עברה לשרת הוא לא החליף דבר — אותו באג
+   בדיוק שהיה בטאב התורנויות. הוסר.
+
+   הזהות מגיעה מהסשן. תורן יכול להחליף את השם שבחר; מנהל לא —
+   שמו נקבע לפי הקוד האישי שאיתו נכנס. */
+function UserModal({ ctx, close }) {
+  const { auth, onSignedOut, say } = ctx;
   const [out, setOut] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [roster, setRoster] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
 
   const signOut = () => {
     if (out) return;
@@ -2081,47 +2146,67 @@ function UserModal({ ctx, close, me, setMe }) {
     api.logout().finally(() => onSignedOut());
   };
 
+  const openPicker = () => {
+    setErr(null);
+    api.me()
+      .then((m) => { setRoster(m.roster || []); setPicking(true); })
+      .catch((e) => setErr(e.message));
+  };
+
+  const choose = (name) => {
+    if (busy) return;
+    setBusy(true); setErr(null);
+    api.setMyName(name)
+      .then(() => { say("השם עודכן ל" + name); close(); window.location.reload(); })
+      .catch((e) => setErr(e.message))
+      .finally(() => setBusy(false));
+  };
+
   return (
     <div className="scrim" onClick={close}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-h"><h3>מי משתמש עכשיו</h3><button onClick={close}><I.x /></button></div>
+        <div className="sheet-h"><h3>הזהות שלי</h3><button onClick={close}><I.x /></button></div>
         <div className="sheet-b">
-          {/* הזהות האמיתית — זו שהשרת מכיר */}
-          <div className="card" style={{ marginBottom: 14, padding: "12px 14px" }}>
-            <div style={{ fontSize: 13.5, fontWeight: 700 }}>
-              מחוברים כ־{auth?.name || "תורן"}
-              <span style={{ color: "var(--muted)", fontWeight: 600 }}>
-                {" · "}{auth?.isManager ? "מנהל" : "תורן"}
-              </span>
+          <div className="card" style={{ marginBottom: 14, padding: "14px 16px" }}>
+            <div style={{ fontSize: 12, color: "var(--faint)", fontWeight: 700, marginBottom: 3 }}>
+              {auth?.isManager ? "מנהל" : "תורן"}
             </div>
-            <button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} disabled={out} onClick={signOut}>
-              {out ? "מתנתק…" : "התנתקות"}
-            </button>
+            <div style={{ fontSize: 18, fontWeight: 900, letterSpacing: "-.3px" }}>
+              {auth?.name || "תורן"}
+            </div>
+            <div style={{ fontSize: 12.5, color: "var(--muted)", fontWeight: 600, marginTop: 6, lineHeight: 1.5 }}>
+              {auth?.isManager
+                ? "השם נקבע לפי הקוד האישי שאיתו נכנסת."
+                : "השם משמש לתיעוד הדיווחים. אפשר להחליף אותו."}
+            </div>
           </div>
 
-          <div className="sec-label" style={{ marginTop: 0 }}>חניכים</div>
-          <div className="rows" style={{ marginBottom: 14 }}>
-            {st.users.filter((u) => u.role === "trainee").map((u) => (
-              <button className="row" key={u.id} style={{ width: "100%", textAlign: "right" }}
-                onClick={() => { setMe(u.id); close(); }}>
-                <div className="r-main"><div className="r-name">{u.name}</div></div>
-                {me === u.id && <span style={{ color: "var(--ok)" }}><I.check /></span>}
-              </button>
-            ))}
-          </div>
-          <div className="sec-label">הנהלה</div>
-          <div className="rows">
-            {st.users.filter((u) => u.role === "manager").map((u) => (
-              <button className="row" key={u.id} style={{ width: "100%", textAlign: "right" }}
-                onClick={() => { setMe(u.id); close(); }}>
-                <div className="r-main"><div className="r-name">{u.name}</div><div className="r-meta">{u.title}</div></div>
-                {me === u.id && <span style={{ color: "var(--ok)" }}><I.check /></span>}
-              </button>
-            ))}
-          </div>
-          <div style={{ fontSize: 12.5, color: "var(--faint)", marginTop: 14, fontWeight: 600, lineHeight: 1.5 }}>
-            בפרוטוטייפ בוחרים משתמש ידנית. בגרסה האמיתית תהיה התחברות אישית לכל חניך.
-          </div>
+          {err && <div className="login-err" style={{ marginBottom: 12 }}>{err}</div>}
+
+          {!auth?.isManager && !picking && (
+            <button className="btn btn-ghost" style={{ marginBottom: 9 }} onClick={openPicker}>
+              שינוי שם
+            </button>
+          )}
+
+          {picking && (
+            <>
+              <div className="sec-label" style={{ marginTop: 0 }}>בחרו שם</div>
+              <div className="login-roster" style={{ marginBottom: 14 }}>
+                {roster.map((r) => (
+                  <button key={r.id} className="login-name" disabled={busy}
+                    onClick={() => choose(r.name)}>
+                    {r.name}
+                    {r.name === auth?.name && <span style={{ color: "var(--ok)", marginRight: 8 }}>✓</span>}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          <button className="btn btn-ghost" disabled={out} onClick={signOut}>
+            {out ? "מתנתק…" : "התנתקות"}
+          </button>
         </div>
       </div>
     </div>

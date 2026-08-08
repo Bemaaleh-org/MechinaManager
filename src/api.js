@@ -55,6 +55,9 @@ export const api = {
   me: () => get("/api/me"),
   setMyName: (name) => post("/api/me", { name }),
 
+  /** רשימת משתמשים לתצוגה. בלי קודים, מנהל בלבד. */
+  getUsers: () => get("/api/users"),
+
   /** רשימות הקניות, כל אחת עם השורות שלה */
   getLists: () => get("/api/lists"),
 
@@ -64,6 +67,10 @@ export const api = {
   /** תורני היום מלוח השיבוץ. רשימה ריקה = אין מה להציג. */
   getDutyToday: (date) =>
     get("/api/duty-today" + (date ? `?date=${encodeURIComponent(date)}` : "")),
+
+  /** שיבוץ השבוע כולו — 7 תאים לפי אינדקס היום. קריאה בלבד. */
+  getDutyWeek: (date) =>
+    get("/api/duty-week" + (date ? `?date=${encodeURIComponent(date)}` : "")),
 
   /* --- משימות ניקיון שבועיות --- */
 

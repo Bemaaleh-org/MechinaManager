@@ -39,6 +39,30 @@ function israelDayIndex(at) {
   return { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[wd];
 }
 
+/** מפרק תא לשמות. פסיקים כמפריד, רווחים מיותרים נזרקים. */
+const parseNames = (raw) =>
+  (raw || "").split(",").map((s) => s.trim()).filter(Boolean);
+
+/**
+ * שיבוץ השבוע כולו — שבעה תאים לפי אינדקס היום.
+ * משמש את דוח המנהל, ייצוא האקסל ומסך התורנויות, כדי שכולם
+ * יקראו מאותו מקום ולא יציגו דברים שונים.
+ */
+export async function dutyWeek(at = new Date()) {
+  const week = weekId(at);
+  const rows = await dutyRows();
+  const row = rows.find((r) => r.name.trim() === week);
+
+  if (!row) return { week, days: DUTY_DAY_COLS.map(() => []), found: false };
+
+  return {
+    week,
+    days: DUTY_DAY_COLS.map((c) =>
+      parseNames((row.column_values.find((x) => x.id === c) || {}).text)),
+    found: true,
+  };
+}
+
 export async function dutyToday(at = new Date()) {
   const week = weekId(at);
   const dayIdx = israelDayIndex(at);
