@@ -583,7 +583,7 @@ function Kitchen({ auth, onSignedOut }) {
 
         <main className="wrap">
           {tab === "home" && <Home ctx={ctx} />}
-          {tab === "daily" && <Daily ctx={ctx} modes={["usage", "waste"]} title="שימוש בסחורה" />}
+          {tab === "daily" && <Daily ctx={ctx} modes={["usage", "waste"]} title="שימוש במצרכים" />}
           {tab === "receive" && <Receive ctx={ctx} />}
           {tab === "count" && <Count ctx={ctx} />}
           {tab === "shop" && <Shop ctx={ctx} />}
@@ -636,13 +636,13 @@ function Home({ ctx }) {
   const anyApproved = st.lists.some((l) => l.status === "approved" || l.status === "purchased");
 
   const rows = [
-    { k: "r", when: "בוקר", t: "קבלת סחורה", s: receiptDone ? "עודכן היום" : "מה הגיע היום למחסן", done: receiptDone,
+    { k: "r", when: "בוקר", t: "קבלת מצרכים", s: receiptDone ? "עודכן היום" : "מה הגיע היום למחסן", done: receiptDone,
       due: !receiptDone && h >= 9, go: () => setTab("receive") },
-    { k: "e", when: "ערב", t: "ספירת מלאי יומית", s: eveningDone ? "עודכן היום" : "מוצרים טריים בלבד – דקה וחצי", done: eveningDone,
+    { k: "e", when: "ערב", t: "שימוש במצרכים", s: eveningDone ? "עודכן היום" : "מוצרים טריים בלבד – דקה וחצי", done: eveningDone,
       due: !eveningDone && afterSix, go: () => setTab("daily") },
     { k: "c", when: "שלישי", t: "ספירת מלאי שבועית", s: countedThisWeek ? "בוצעה השבוע" : (isTue ? "היום – כולל סימון תוקף" : "בשלישי בערב"),
       done: !!countedThisWeek, due: isTue && !countedThisWeek, go: () => setTab("count") },
-    { k: "s", when: isWed ? "היום" : "רביעי", t: "רשימת קניות ואישור",
+    { k: "s", when: isWed ? "היום" : "רביעי", t: "רשימת קניות",
       s: anyApproved ? "הרשימה אושרה על ידי המנהל" : (openLists.length ? statusText(openLists[0]) : "נוצרת אחרי הספירה"),
       done: anyApproved, due: !anyApproved && ((isTue && countedThisWeek) || isWed), go: () => setTab("shop") },
   ];
@@ -1012,7 +1012,7 @@ function Daily({ ctx, modes = ["receipt", "usage", "waste"], title }) {
     }
     commitMoves(entries, mode);
     setVals({}); setReasons({}); setConfirm(null);
-    say(({ receipt: "נקלטה סחורה", usage: "נרשם שימוש", waste: "נרשם פחת" }[mode]) + " – " + entries.length + " מוצרים");
+    say(({ receipt: "נקלטו מצרכים", usage: "נרשם שימוש", waste: "נרשם פחת" }[mode]) + " – " + entries.length + " מוצרים");
   };
 
   return (
@@ -1408,11 +1408,11 @@ function Receive({ ctx }) {
 
   return (
     <>
-      <h2 className="screen-title">קבלת סחורה</h2>
+      <h2 className="screen-title">קבלת מצרכים</h2>
 
       {awaiting.length > 0 ? (
         <>
-          <div className="sec-label">ממתינות לסחורה</div>
+          <div className="sec-label">ממתינות למצרכים</div>
           <div className="rows" style={{ marginBottom: 18 }}>
             {awaiting.map((l) => (
               <button className="row" key={l.id} style={{ width: "100%", textAlign: "right" }}
@@ -1430,7 +1430,7 @@ function Receive({ ctx }) {
       ) : (
         <div className="card" style={{ marginBottom: 18, padding: "12px 14px" }}>
           <div style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600, lineHeight: 1.5 }}>
-            אין כרגע רשימה מאושרת שממתינה לסחורה. אפשר לקלוט סחורה שהגיעה בלי הזמנה, למטה.
+            אין כרגע רשימה מאושרת שממתינה למצרכים. אפשר לקלוט מצרכים שהגיעו בלי הזמנה, למטה.
           </div>
         </div>
       )}
@@ -1601,7 +1601,7 @@ function ListDetail({ ctx, list, back, receiveOnly = false }) {
               כדי שלא יהיו שני מקומות שמתחילים את אותה פעולה. */}
           <button className="btn btn-primary" style={{ marginBottom: 9 }}
             onClick={() => setTab("receive")}>
-            הסחורה הגיעה? עברו למסך קבלת סחורה
+            המצרכים הגיעו? עברו למסך קבלת מצרכים
           </button>
           <div style={{ fontSize: 12.5, color: "var(--faint)", fontWeight: 600, margin: "0 4px 12px", lineHeight: 1.5 }}>
             עדכון מה שהגיע בפועל מתבצע במסך “קבלה” בשורת הניווט.
@@ -1619,7 +1619,7 @@ function ListDetail({ ctx, list, back, receiveOnly = false }) {
 /* ============================ MANAGE ============================ */
 function Manage({ ctx }) {
   const [sub, setSub] = useState("dash");
-  const tabs = [["dash", "קניות"], ["report", "דוח תקופתי"], ["catalog", "קטלוג"], ["stock", "תיקון מלאי"], ["team", "תורנויות"]];
+  const tabs = [["dash", "עלויות"], ["report", "דוח תקופתי"], ["catalog", "קטלוג"], ["stock", "תיקון מלאי"], ["team", "תורנויות"]];
   return (
     <>
       <div className="seg seg-scroll">
@@ -1711,7 +1711,7 @@ function PurchaseDash({ ctx }) {
     <>
       <div className="card" style={{ marginBottom: 14, padding: "12px 14px" }}>
         <div style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600, lineHeight: 1.5 }}>
-          סטטוס הקניות מתחילת {mName}. כל רשימה שאושרה נכנסת לכאן. העלות היא לפי מה שאושר; המלאי בפועל מתעדכן בקבלת הסחורה.
+          סטטוס הקניות מתחילת {mName}. כל רשימה שאושרה נכנסת לכאן. העלות היא לפי מה שאושר; המלאי בפועל מתעדכן בקבלת המצרכים.
         </div>
       </div>
 
@@ -1739,7 +1739,7 @@ function PurchaseDash({ ctx }) {
             )}
             {awaitingReceipt > 0 && (
               <div className="row">
-                <div className="r-main"><div className="r-name">אושרו – ממתינות לקבלת סחורה</div>
+                <div className="r-main"><div className="r-name">אושרו – ממתינות לקבלת מצרכים</div>
                   <div className="r-meta">המלאי יתעדכן כשהחניך יסמן מה הגיע</div></div>
                 <span className="pill p-ok">{awaitingReceipt}</span>
               </div>
@@ -1760,7 +1760,7 @@ function PurchaseDash({ ctx }) {
               <div className="r-main">
                 <div className="r-name">{SUPPLIERS[l.sup]}
                   {l.status === "purchased" && <span className="pill p-ok" style={{ marginRight: 6 }}>נקלטה</span>}
-                  {l.status === "approved" && <span className="pill p-new" style={{ marginRight: 6 }}>ממתינה לסחורה</span>}
+                  {l.status === "approved" && <span className="pill p-new" style={{ marginRight: 6 }}>ממתינה למצרכים</span>}
                 </div>
                 <div className="r-meta num">
                   {new Date(l.approvedAt).toLocaleDateString("he-IL")} • {l.items.length} שורות • אישר {l.approvedBy || "—"}
@@ -2008,7 +2008,7 @@ function Report({ ctx }) {
           <div className="e2">הדוח מתמלא מעצמו מהעדכונים היומיים ומהספירות.</div></div></div>
       ) : (<>
         <div className="stats" style={{ marginBottom: 10 }}>
-          <div className="stat"><div className="k">נקנה</div><div className="v">{shek(buy)}</div><div className="n">קבלות סחורה</div></div>
+          <div className="stat"><div className="k">נקנה</div><div className="v">{shek(buy)}</div><div className="n">קבלות מצרכים</div></div>
           <div className="stat ok"><div className="k">נצרך</div><div className="v">{shek(use)}</div><div className="n">שימוש מדווח</div></div>
           <div className="stat clay"><div className="k">פחת</div><div className="v">{shek(waste)}</div>
             <div className="n">{wasteRate.toFixed(1)}% מהצריכה</div></div>
