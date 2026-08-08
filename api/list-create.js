@@ -11,18 +11,20 @@
    ============================================================ */
 
 import { BOARDS, LABELS } from "../shared/boards.js";
+import { withAuth, actorName } from "./_session.js";
 import { listColumns } from "../shared/mapper.js";
 import { gql } from "./_monday.js";
 import { loadLists, dedupeEmptyDrafts } from "./lists.js";
 
-export default async function handler(req, res) {
+async function handler(req, res, session) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "רק POST נתמך כאן" });
   }
 
   try {
     const body = req.body ?? (await readJson(req));
-    const { sup, user } = body || {};
+    const { sup } = body || {};
+    const user = { name: actorName(session) };
     if (!LABELS.sup[sup]) return res.status(400).json({ error: `ספק לא מוכר: ${sup}` });
 
     let { lists } = await loadLists();
@@ -62,3 +64,5 @@ async function readJson(req) {
   const raw = Buffer.concat(chunks).toString("utf8");
   return raw ? JSON.parse(raw) : {};
 }
+
+export default withAuth(handler);

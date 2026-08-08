@@ -4,6 +4,7 @@
    ============================================================ */
 
 import { BOARDS } from "../shared/boards.js";
+import { withAuth } from "./_session.js";
 import { toProduct } from "../shared/mapper.js";
 import { allItems } from "./_monday.js";
 
@@ -16,20 +17,26 @@ export async function loadCatalog() {
     .sort((a, b) => (a.cat || "").localeCompare(b.cat || "", "he") || a.name.localeCompare(b.name, "he"));
 }
 
-export default async function handler(req, res) {
+async function handler(req, res, session) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "רק GET נתמך כאן" });
   }
 
   try {
-    const products = await loadCatalog();
+    const all = await loadCatalog();
 
-    // TODO (שלב ההרשאות): כאן ייכנס סינון המחירים לפי תפקיד המשתמש.
-    // כרגע אין עדיין התחברות אישית, ולכן אין למי לסנן — והשדה מוחזר במלואו.
+    /* ⚠ סינון מחירים — דרישה מסעיף 3 במסמך ההעברה.
+       לחניך המחיר לא מוסתר בתצוגה אלא פשוט לא יוצא מהשרת.
+       מי שיפתח כלי פיתוח או יקרא ל-endpoint ישירות לא ימצא אותו. */
+    const products = session.isManager
+      ? all
+      : all.map(({ price, ...rest }) => rest);
 
-    res.status(200).json({ products, count: products.length });
+    res.status(200).json({ products, count: products.length, prices: session.isManager });
   } catch (e) {
     console.error("[catalog]", e);
     res.status(502).json({ error: "שליפת הקטלוג מ-monday נכשלה" });
   }
 }
+
+export default withAuth(handler);

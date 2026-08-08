@@ -17,6 +17,7 @@
    ============================================================ */
 
 import { BOARDS, COLS, LABELS } from "../shared/boards.js";
+import { withAuth, actorName } from "./_session.js";
 import { toProduct, toMove, moveColumns, productColumns } from "../shared/mapper.js";
 import { gql, allItems } from "./_monday.js";
 
@@ -120,7 +121,7 @@ async function listMoves(req, res) {
   });
 }
 
-export default async function handler(req, res) {
+async function handler(req, res, session) {
   if (req.method === "GET") {
     try {
       return await listMoves(req, res);
@@ -136,7 +137,9 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body ?? (await readJson(req));
-    const { type, user, entries } = body || {};
+    // ⚠ הזהות מגיעה מהסשן, לא מגוף הבקשה. מה שהדפדפן מצהיר מתעלמים ממנו.
+    const { type, entries } = body || {};
+    const user = actorName(session);
 
     if (!TYPES.includes(type)) {
       return res.status(400).json({ error: `סוג תנועה לא מוכר: ${type}` });
@@ -169,3 +172,5 @@ async function readJson(req) {
   const raw = Buffer.concat(chunks).toString("utf8");
   return raw ? JSON.parse(raw) : {};
 }
+
+export default withAuth(handler);

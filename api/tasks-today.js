@@ -10,6 +10,7 @@
    ============================================================ */
 
 import { gql } from "./_monday.js";
+import { withAuth } from "./_session.js";
 import { TASK_BOARDS, TASK_COLS, DONE } from "../shared/tasks-boards.js";
 import { weekId, israelDayLetter } from "../shared/week.js";
 
@@ -92,7 +93,7 @@ function parseTestDate(raw) {
   return at;
 }
 
-export default async function handler(req, res) {
+async function handler(req, res, session) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "רק GET נתמך כאן" });
   }
@@ -106,3 +107,5 @@ export default async function handler(req, res) {
     res.status(502).json({ error: "שליפת משימות היום נכשלה" });
   }
 }
+
+export default withAuth(handler);

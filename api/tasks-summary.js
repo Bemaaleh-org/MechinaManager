@@ -15,6 +15,7 @@
    ============================================================ */
 
 import { gql } from "./_monday.js";
+import { withAuth } from "./_session.js";
 import { TASK_BOARDS, TASK_COLS, DONE, DAYS } from "../shared/tasks-boards.js";
 import { weekId } from "../shared/week.js";
 
@@ -56,7 +57,7 @@ export async function weekSummary(at = new Date()) {
   };
 }
 
-export default async function handler(req, res) {
+async function handler(req, res, session) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "רק GET נתמך כאן" });
   }
@@ -67,3 +68,5 @@ export default async function handler(req, res) {
     res.status(502).json({ error: "שליפת סיכום המשימות נכשלה" });
   }
 }
+
+export default withAuth(handler, { manager: true });

@@ -24,6 +24,7 @@
    ============================================================ */
 
 import { gql } from "./_monday.js";
+import { withAuth } from "./_session.js";
 import { TASK_BOARDS, TASK_COLS, DONE } from "../shared/tasks-boards.js";
 import { weekId } from "../shared/week.js";
 
@@ -182,7 +183,7 @@ export async function ensureWeek(at = new Date()) {
   return { week, created, tasks: template.length, cleaned: removed };
 }
 
-export default async function handler(req, res) {
+async function handler(req, res, session) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "רק POST נתמך כאן" });
   }
@@ -193,3 +194,5 @@ export default async function handler(req, res) {
     res.status(502).json({ error: e.message });
   }
 }
+
+export default withAuth(handler);

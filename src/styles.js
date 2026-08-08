@@ -74,6 +74,27 @@ export const CSS = `
   font-weight:500;white-space:pre-wrap}
 .led-empty{padding:26px 16px;text-align:center;font-size:13.5px;color:var(--muted);font-weight:600}
 
+/* מסך כניסה */
+.login{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px 18px;background:var(--bg)}
+.login-box{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);
+  border-radius:20px;padding:28px 22px 24px;text-align:center}
+.login-logo{width:64px;height:64px;object-fit:contain;margin:0 auto 12px;display:block}
+.login-h{font-size:22px;font-weight:900;letter-spacing:-.4px;margin-bottom:20px}
+.login-lbl{display:block;text-align:right;font-size:13px;font-weight:800;margin-bottom:7px}
+.login-input{width:100%;min-height:52px;background:var(--bg);border:1.5px solid var(--line2);
+  border-radius:12px;padding:0 14px;font-size:17px;outline:none;text-align:center;letter-spacing:2px;
+  margin-bottom:14px;font-family:inherit}
+.login-input:focus{border-color:var(--accent)}
+.login-notice{background:var(--amber-soft);border:1px solid var(--amber);border-radius:12px;
+  padding:11px 13px;font-size:13px;font-weight:700;line-height:1.5;margin-bottom:18px;text-align:right}
+.login-err{background:var(--clay-soft);color:var(--clay);border-radius:10px;padding:9px 12px;
+  font-size:13px;font-weight:700;margin-bottom:12px;text-align:right}
+.login-hint{font-size:12.5px;color:var(--muted);font-weight:600;line-height:1.6;margin-top:14px;text-align:right}
+.login-roster{display:flex;flex-direction:column;gap:7px;max-height:46vh;overflow-y:auto;margin-top:4px}
+.login-name{min-height:48px;background:var(--bg);border:1px solid var(--line);border-radius:12px;
+  font-size:15px;font-weight:700;padding:0 14px;text-align:right}
+.login-name:active{background:var(--line)}
+
 /* חיווי מצב בדיקה — מכוון להיות בולט ולא נעים להתעלם ממנו */
 .test-banner{display:flex;align-items:flex-start;gap:9px;margin-bottom:9px;padding:11px 13px;
   border-radius:12px;background:var(--amber-soft);border:1px solid var(--amber);

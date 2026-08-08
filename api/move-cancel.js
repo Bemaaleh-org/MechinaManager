@@ -11,12 +11,13 @@
    ============================================================ */
 
 import { BOARDS, COLS } from "../shared/boards.js";
+import { withAuth } from "./_session.js";
 import { toProduct, toMove } from "../shared/mapper.js";
 import { gql } from "./_monday.js";
 
 const CV = `column_values { id text value ... on BoardRelationValue { linked_item_ids } }`;
 
-export default async function handler(req, res) {
+async function handler(req, res, session) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "רק POST נתמך כאן" });
   }
@@ -86,3 +87,5 @@ async function readJson(req) {
   const raw = Buffer.concat(chunks).toString("utf8");
   return raw ? JSON.parse(raw) : {};
 }
+
+export default withAuth(handler);

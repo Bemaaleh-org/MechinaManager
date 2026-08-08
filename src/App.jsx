@@ -3,7 +3,8 @@ import { CSS } from "./styles.js";
 import { LOGO } from "./logo.js";
 import { storage } from "./storage.js";
 import { SEED_USERS, SEED_DUTY } from "./seeds.js";
-import { api } from "./api.js";
+import { api, setUnauthorizedHandler } from "./api.js";
+import Login from "./Login.jsx";
 /* ============================================================
    מערכת ניהול מלאי — מטבח המכינה
    פרוטוטייפ עובד. נתונים נשמרים ומשותפים לכל מי שפותח את האפליקציה.
@@ -197,7 +198,47 @@ const freshState = () => {
 };
 
 /* ============================================================ */
+/* ============================================================
+   שער הכניסה
+   ------------------------------------------------------------
+   בודק מול השרת מי מחובר. אין סשן — מסך כניסה. השרת ניתק
+   באמצע העבודה — חזרה למסך הכניסה עם ההסבר שהשרת נתן.
+
+   ⚠ המסכים עדיין משתמשים ב-SEED_USERS לתצוגה. ההחלפה לזהות
+     האמיתית מגיעה בחלק הבא; האכיפה כבר עכשיו בשרת.
+   ============================================================ */
 export default function App() {
+  const [auth, setAuth] = useState(undefined); // undefined=בודק, null=לא מחובר
+  const [notice, setNotice] = useState(null);
+
+  const check = useCallback(() => {
+    api.me()
+      .then((m) => { setAuth(m); setNotice(null); })
+      .catch(() => setAuth(null));
+  }, []);
+
+  useEffect(() => {
+    setUnauthorizedHandler((msg) => { setAuth(null); setNotice(msg); });
+    check();
+    return () => setUnauthorizedHandler(null);
+  }, [check]);
+
+  if (auth === undefined) {
+    return (<><style>{CSS}</style><div className="kx">
+      <div className="empty" style={{ paddingTop: 100 }}><div className="e1">רגע…</div></div>
+    </div></>);
+  }
+
+  if (auth === null || auth.needsName) {
+    return (<><style>{CSS}</style>
+      <Login notice={notice} onDone={check} />
+    </>);
+  }
+
+  return <Kitchen auth={auth} onSignedOut={() => { setAuth(null); setNotice("התנתקת בהצלחה."); }} />;
+}
+
+function Kitchen({ auth, onSignedOut }) {
   const [st, setSt] = useState(null);
   const [me, setMe] = useState("u1");
   const [tab, setTab] = useState("home");
@@ -244,7 +285,10 @@ export default function App() {
   if (!st) return (<><style>{CSS}</style><div className="kx"><div className="empty" style={{ paddingTop: 100 }}><div className="e1">טוען מלאי…</div></div></div></>);
 
   const user = st.users.find((u) => u.id === me) || st.users[0];
-  const isMgr = user.role === "manager";
+  /* ⚠ התפקיד מגיע מהסשן בשרת, לא מבחירת המשתמש במסך. בחירת
+     המשתמש נשארה לתצוגה עד שתוחלף בחלק הבא, אבל היא כבר לא
+     קובעת מה מותר — לא כאן ובוודאי לא בשרת. */
+  const isMgr = auth.isManager;
   const today = new Date();
   const dutyId = st.duty[today.getDay()];
   const dutyUser = st.users.find((u) => u.id === dutyId);
@@ -512,7 +556,7 @@ export default function App() {
       return { ...s, products: ex ? s.products.map((x) => (x.id === p.id ? p : x)) : [...s.products, p] };
     });
 
-  const ctx = { st, setSt, user, isMgr, say, setModal, commitMoves, undoMove, finishCount, makeList, patchList, receiveList,
+  const ctx = { st, setSt, user, isMgr, say, setModal, auth, onSignedOut, commitMoves, undoMove, finishCount, makeList, patchList, receiveList,
     rowSetQty, rowRemove, rowAdd,
     upsertProduct, lowStock, soonList, pendingProducts, receiptDone, eveningDone, countedThisWeek, isTue, isWed,
     afterSix, dutyUser, needsApproval, openLists, setTab };
@@ -2017,12 +2061,33 @@ function Modal({ ctx, modal, close, me, setMe }) {
 }
 
 function UserModal({ ctx, close, me, setMe }) {
-  const { st } = ctx;
+  const { st, auth, onSignedOut } = ctx;
+  const [out, setOut] = useState(false);
+
+  const signOut = () => {
+    if (out) return;
+    setOut(true);
+    api.logout().finally(() => onSignedOut());
+  };
+
   return (
     <div className="scrim" onClick={close}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-h"><h3>מי משתמש עכשיו</h3><button onClick={close}><I.x /></button></div>
         <div className="sheet-b">
+          {/* הזהות האמיתית — זו שהשרת מכיר */}
+          <div className="card" style={{ marginBottom: 14, padding: "12px 14px" }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700 }}>
+              מחוברים כ־{auth?.name || "תורן"}
+              <span style={{ color: "var(--muted)", fontWeight: 600 }}>
+                {" · "}{auth?.isManager ? "מנהל" : "תורן"}
+              </span>
+            </div>
+            <button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} disabled={out} onClick={signOut}>
+              {out ? "מתנתק…" : "התנתקות"}
+            </button>
+          </div>
+
           <div className="sec-label" style={{ marginTop: 0 }}>חניכים</div>
           <div className="rows" style={{ marginBottom: 14 }}>
             {st.users.filter((u) => u.role === "trainee").map((u) => (

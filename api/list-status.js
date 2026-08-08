@@ -14,12 +14,12 @@
        אישור ישן על רשימה שנפתחה מחדש לעריכה
      • רשימה ריקה לא נשלחת לאישור
 
-   ⚠ בדיקת התפקיד נשענת על מה שהדפדפן מצהיר, כי אין עדיין
-     התחברות אישית. זו הגנה מפני טעות, לא מפני זדון. האכיפה
-     האמיתית נכנסת בשלב ההרשאות.
+   ⚠ התפקיד נקבע מהסשן בשרת. מה שהדפדפן שולח בגוף הבקשה
+     אינו משפיע — בקשה שמצהירה "מנהל" בלי סשן של מנהל תידחה.
    ============================================================ */
 
 import { BOARDS, COLS, LABELS } from "../shared/boards.js";
+import { withAuth, actorName } from "./_session.js";
 import { gql } from "./_monday.js";
 import { loadLists } from "./lists.js";
 
@@ -34,7 +34,7 @@ const ALLOWED = {
 /** המעבר היחיד שחניך רשאי לבצע */
 const TRAINEE_ALLOWED = [["draft", "pending"]];
 
-export async function planStatusChange({ listId, to, user }) {
+export async function planStatusChange({ listId, to, user, isManager }) {
   if (!listId) throw new Error("לא צוינה רשימה");
   if (!LABELS.listStatus[to]) throw new Error(`סטטוס לא מוכר: ${to}`);
 
@@ -50,7 +50,6 @@ export async function planStatusChange({ listId, to, user }) {
     throw new Error(`מעבר לא חוקי: ${LABELS.listStatus[from]} ← ${LABELS.listStatus[to]}`);
   }
 
-  const isManager = user?.role === "manager";
   const traineeMay = TRAINEE_ALLOWED.some(([f, t]) => f === from && t === to);
   if (!isManager && !traineeMay) {
     throw new Error("רק מנהל רשאי לבצע את המעבר הזה");
@@ -100,14 +99,18 @@ export async function applyStatusChange(plan) {
   };
 }
 
-export default async function handler(req, res) {
+async function handler(req, res, session) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "רק POST נתמך כאן" });
   }
 
   try {
     const body = req.body ?? (await readJson(req));
-    const plan = await planStatusChange(body);
+    // ⚠ התפקיד נקבע מהסשן. הצהרת הדפדפן אינה נבדקת ואינה משפיעה.
+    const plan = await planStatusChange({
+      listId: body?.listId, to: body?.to,
+      user: { name: actorName(session) }, isManager: session.isManager,
+    });
     const result = await applyStatusChange(plan);
     res.status(200).json({ ok: true, describe: plan.describe, ...result });
   } catch (e) {
@@ -123,3 +126,5 @@ async function readJson(req) {
   const raw = Buffer.concat(chunks).toString("utf8");
   return raw ? JSON.parse(raw) : {};
 }
+
+export default withAuth(handler);

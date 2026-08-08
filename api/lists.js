@@ -11,6 +11,7 @@
    ============================================================ */
 
 import { BOARDS } from "../shared/boards.js";
+import { withAuth } from "./_session.js";
 import { toList, toRow } from "../shared/mapper.js";
 import { allItems, gql } from "./_monday.js";
 
@@ -82,13 +83,17 @@ export async function dedupeEmptyDrafts(lists) {
   return removed;
 }
 
-export default async function handler(req, res) {
+async function handler(req, res, session) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "רק GET נתמך כאן" });
   }
 
   try {
-    const { lists, orphans } = await loadLists();
+    const { lists: raw, orphans } = await loadLists();
+
+    // עלות הרשימה היא נתון כספי — לא יוצאת לחניך
+    const lists = session.isManager ? raw : raw.map(({ cost, ...rest }) => rest);
+
     res.status(200).json({
       lists,
       count: lists.length,
@@ -100,3 +105,5 @@ export default async function handler(req, res) {
     res.status(502).json({ error: "שליפת רשימות הקניות נכשלה" });
   }
 }
+
+export default withAuth(handler);

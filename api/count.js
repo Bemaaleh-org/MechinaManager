@@ -16,19 +16,22 @@
    ============================================================ */
 
 import { BOARDS, COLS, LABELS } from "../shared/boards.js";
+import { withAuth, actorName } from "./_session.js";
 import { toProduct, moveColumns, productColumns } from "../shared/mapper.js";
 import { gql } from "./_monday.js";
 
 const CV = `column_values { id text value ... on BoardRelationValue { linked_item_ids } }`;
 
-export default async function handler(req, res) {
+async function handler(req, res, session) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "רק POST נתמך כאן" });
   }
 
   try {
     const body = req.body ?? (await readJson(req));
-    const { user, entries } = body || {};
+    // ⚠ הזהות מגיעה מהסשן, לא מגוף הבקשה
+    const { entries } = body || {};
+    const user = actorName(session);
 
     if (!Array.isArray(entries) || entries.length === 0) {
       return res.status(400).json({ error: "לא נשלחו ספירות" });
@@ -116,3 +119,5 @@ async function readJson(req) {
   const raw = Buffer.concat(chunks).toString("utf8");
   return raw ? JSON.parse(raw) : {};
 }
+
+export default withAuth(handler);

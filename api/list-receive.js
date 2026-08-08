@@ -18,6 +18,7 @@
    ============================================================ */
 
 import { BOARDS, COLS, LABELS } from "../shared/boards.js";
+import { withAuth, actorName } from "./_session.js";
 import { gql } from "./_monday.js";
 import { commitEntry } from "./moves.js";
 import { loadLists } from "./lists.js";
@@ -104,14 +105,15 @@ export async function applyReceive(plan) {
   return done;
 }
 
-export default async function handler(req, res) {
+async function handler(req, res, session) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "רק POST נתמך כאן" });
   }
 
   try {
     const body = req.body ?? (await readJson(req));
-    const plan = await planReceive(body);
+    // הזהות מהסשן, לא מגוף הבקשה
+    const plan = await planReceive({ ...body, user: { name: actorName(session) } });
     const done = await applyReceive(plan);
     res.status(200).json({
       ok: true,
@@ -132,3 +134,5 @@ async function readJson(req) {
   const raw = Buffer.concat(chunks).toString("utf8");
   return raw ? JSON.parse(raw) : {};
 }
+
+export default withAuth(handler);

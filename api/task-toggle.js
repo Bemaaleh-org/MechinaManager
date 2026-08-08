@@ -16,6 +16,7 @@
    ============================================================ */
 
 import { gql } from "./_monday.js";
+import { withAuth } from "./_session.js";
 import { TASK_BOARDS, TASK_COLS, DONE } from "../shared/tasks-boards.js";
 
 const E = TASK_COLS.execution;
@@ -42,7 +43,7 @@ export async function setTaskDone(rowId, done, at = new Date()) {
   return { rowId: String(rowId), done };
 }
 
-export default async function handler(req, res) {
+async function handler(req, res, session) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "רק POST נתמך כאן" });
   }
@@ -65,3 +66,5 @@ async function readJson(req) {
   const raw = Buffer.concat(chunks).toString("utf8");
   return raw ? JSON.parse(raw) : {};
 }
+
+export default withAuth(handler);

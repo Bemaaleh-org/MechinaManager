@@ -5,6 +5,18 @@
    רואה טוקן — רק כתובות מקומיות שהשרת מטפל בהן.
    ============================================================ */
 
+/* מנוי על אירוע ניתוק. כשהשרת מחזיר 401 — פג תוקף, הקוד הוחלף
+   או ההרשאה כובתה — האפליקציה חוזרת למסך הכניסה עם הסבר,
+   במקום להציג שגיאה או מסך ריק. */
+let onUnauthorized = null;
+export const setUnauthorizedHandler = (fn) => { onUnauthorized = fn; };
+
+function handle401(path, data) {
+  if (onUnauthorized && !path.startsWith("/api/login") && !path.startsWith("/api/logout")) {
+    onUnauthorized(data.error || "נדרשת כניסה מחדש");
+  }
+}
+
 async function post(path, body) {
   let r;
   try {
@@ -18,6 +30,7 @@ async function post(path, body) {
   }
 
   const data = await r.json().catch(() => ({}));
+  if (r.status === 401) handle401(path, data);
   if (!r.ok) throw new Error(data.error || `השרת החזיר שגיאה ${r.status}`);
   return data;
 }
@@ -30,11 +43,18 @@ async function get(path) {
     throw new Error("אין חיבור לשרת");
   }
   const data = await r.json().catch(() => ({}));
+  if (r.status === 401) handle401(path, data);
   if (!r.ok) throw new Error(data.error || `השרת החזיר שגיאה ${r.status}`);
   return data;
 }
 
 export const api = {
+  /* --- כניסה וזהות --- */
+  login: (code) => post("/api/login", { code }),
+  logout: () => post("/api/logout", {}),
+  me: () => get("/api/me"),
+  setMyName: (name) => post("/api/me", { name }),
+
   /** רשימות הקניות, כל אחת עם השורות שלה */
   getLists: () => get("/api/lists"),
 

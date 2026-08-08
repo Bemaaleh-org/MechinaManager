@@ -18,6 +18,7 @@
    ============================================================ */
 
 import { BOARDS, COLS, LABELS } from "../shared/boards.js";
+import { withAuth } from "./_session.js";
 import { rowColumns, listColumns } from "../shared/mapper.js";
 import { gql } from "./_monday.js";
 import { loadCatalog } from "./catalog.js";
@@ -142,7 +143,7 @@ async function createRow({ listId, pid, name, qty, auto }) {
   );
 }
 
-export default async function handler(req, res) {
+async function handler(req, res, session) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "רק POST נתמך כאן" });
   }
@@ -171,3 +172,5 @@ export default async function handler(req, res) {
     res.status(502).json({ error: e.message });
   }
 }
+
+export default withAuth(handler);
