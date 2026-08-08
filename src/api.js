@@ -61,6 +61,10 @@ export const api = {
   getCatalog: () => get("/api/catalog"),
   getMoves: () => get("/api/moves"),
 
+  /** תורני היום מלוח השיבוץ. רשימה ריקה = אין מה להציג. */
+  getDutyToday: (date) =>
+    get("/api/duty-today" + (date ? `?date=${encodeURIComponent(date)}` : "")),
+
   /* --- משימות ניקיון שבועיות --- */
 
   /** מוודא שקיימות שורות ביצוע לשבוע הנוכחי. אידמפוטנטי. */
@@ -74,7 +78,8 @@ export const api = {
   setTaskDone: (rowId, done) => post("/api/task-toggle", { rowId, done }),
 
   /** סיכום שבועי למנהל. קריאה בלבד, ברמת יום — בלי שמות. */
-  getTasksSummary: () => get("/api/tasks-summary"),
+  getTasksSummary: (date) =>
+    get("/api/tasks-summary" + (date ? `?date=${encodeURIComponent(date)}` : "")),
 
   /** קבלת סחורה: כמויות לפי rowId. סוגרת את הרשימה ומעדכנת מלאי. */
   receiveList: ({ listId, user, received }) =>

@@ -57,13 +57,27 @@ export async function weekSummary(at = new Date()) {
   };
 }
 
+/* אותו אימות תאריך שקיים ב-tasks-today: פורמט מדויק, ודחייה של
+   תאריך שאינו קיים (31 בפברואר) במקום גלגול שקט ליום אחר. */
+function parseTestDate(raw) {
+  if (!raw) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) throw new Error("תאריך בדיקה לא תקין. הפורמט: YYYY-MM-DD");
+  const at = new Date(`${raw}T12:00:00Z`);
+  if (Number.isNaN(at.getTime())) throw new Error("תאריך בדיקה לא תקין");
+  if (at.toISOString().slice(0, 10) !== raw) throw new Error("תאריך בדיקה לא תקין — היום הזה לא קיים");
+  return at;
+}
+
 async function handler(req, res, session) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "רק GET נתמך כאן" });
   }
   try {
-    res.status(200).json(await weekSummary());
+    const testAt = parseTestDate(req.query?.date);
+    const data = await weekSummary(testAt || new Date());
+    res.status(200).json(testAt ? { ...data, testMode: true } : data);
   } catch (e) {
+    if (/תאריך בדיקה/.test(e.message)) return res.status(400).json({ error: e.message });
     console.error("[tasks-summary]", e);
     res.status(502).json({ error: "שליפת סיכום המשימות נכשלה" });
   }

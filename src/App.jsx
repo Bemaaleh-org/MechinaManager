@@ -5,6 +5,7 @@ import { storage } from "./storage.js";
 import { SEED_USERS, SEED_DUTY } from "./seeds.js";
 import { api, setUnauthorizedHandler } from "./api.js";
 import Login from "./Login.jsx";
+import { testDate } from "./testDate.js";
 /* ============================================================
    מערכת ניהול מלאי — מטבח המכינה
    פרוטוטייפ עובד. נתונים נשמרים ומשותפים לכל מי שפותח את האפליקציה.
@@ -290,8 +291,6 @@ function Kitchen({ auth, onSignedOut }) {
      קובעת מה מותר — לא כאן ובוודאי לא בשרת. */
   const isMgr = auth.isManager;
   const today = new Date();
-  const dutyId = st.duty[today.getDay()];
-  const dutyUser = st.users.find((u) => u.id === dutyId);
 
   /* --- derived --- */
   const lowStock = st.products.filter((p) => !p.pending && p.stock < p.min);
@@ -559,7 +558,7 @@ function Kitchen({ auth, onSignedOut }) {
   const ctx = { st, setSt, user, isMgr, say, setModal, auth, onSignedOut, commitMoves, undoMove, finishCount, makeList, patchList, receiveList,
     rowSetQty, rowRemove, rowAdd,
     upsertProduct, lowStock, soonList, pendingProducts, receiptDone, eveningDone, countedThisWeek, isTue, isWed,
-    afterSix, dutyUser, needsApproval, openLists, setTab };
+    afterSix, needsApproval, openLists, setTab };
 
   return (
     <>
@@ -613,9 +612,21 @@ function Kitchen({ auth, onSignedOut }) {
 /* ============================ HOME ============================ */
 function Home({ ctx }) {
   const { st, lowStock, soonList, receiptDone, eveningDone, countedThisWeek, isTue, isWed, afterSix,
-    dutyUser, setTab, isMgr, needsApproval, openLists, pendingProducts } = ctx;
+    setTab, isMgr, needsApproval, openLists, pendingProducts } = ctx;
   const h = new Date().getHours();
   const [openPanel, setOpenPanel] = useState(null);
+
+  /* שיבוץ התורנויות מגיע מלוח ייעודי ב-monday, לא מהקוד.
+     כישלון או היעדר שיבוץ משאירים רשימה ריקה — ואז שורת התורן
+     לא מוצגת כלל. המשימות בכרטיס אינן תלויות בזה. */
+  const [duty, setDuty] = useState([]);
+  useEffect(() => {
+    let live = true;
+    api.getDutyToday(testDate() || undefined)
+      .then((d) => live && setDuty(d.names || []))
+      .catch(() => live && setDuty([]));
+    return () => { live = false; };
+  }, []);
 
   const listApprovedToday = st.lists.some((l) =>
     (l.status === "approved" || (l.status === "purchased" && l.purchasedAt && sameDay(l.purchasedAt))) &&
@@ -713,7 +724,10 @@ function Home({ ctx }) {
       <div className="ledger">
         <div className="led-head">
           <span className="d">{DAYS[new Date().getDay()]}</span>
-          <span className="duty">תורן: {dutyUser ? dutyUser.name : "לא הוגדר"}</span>
+          {/* אין שיבוץ להיום — השורה פשוט לא קיימת. בלי מציין מקום. */}
+          {duty.length > 0 && (
+            <span className="duty">{duty.length === 1 ? "תורן: " : "תורנים: "}{duty.join(", ")}</span>
+          )}
         </div>
         {rows.map((r) => (
           <button key={r.k} className={"led-item" + (r.done ? " done" : "")} onClick={r.go}>
@@ -768,7 +782,7 @@ function TasksWeekSummary() {
 
   useEffect(() => {
     let live = true;
-    api.getTasksSummary()
+    api.getTasksSummary(testDate() || undefined)
       .then((d) => live && setData(d))
       .catch(() => live && setFailed(true));
     return () => { live = false; };
@@ -840,14 +854,11 @@ function TodayTasks() {
 
   /* פרמטר בדיקה: ?date=YYYY-MM-DD מציג את משימות אותו יום.
      תצוגה בלבד — הסימון נכתב לשורות האמיתיות של אותו יום ושבוע. */
-  const testDate = useMemo(() => {
-    const d = new URLSearchParams(window.location.search).get("date");
-    return /^\d{4}-\d{2}-\d{2}$/.test(d || "") ? d : null;
-  }, []);
+  const testAt = useMemo(() => testDate(), []);
 
   const load = useCallback(
-    () => api.getTodayTasks(testDate).then(setData).catch((e) => setErr(e.message)),
-    [testDate]
+    () => api.getTodayTasks(testAt).then(setData).catch((e) => setErr(e.message)),
+    [testAt]
   );
 
   useEffect(() => {
@@ -884,10 +895,10 @@ function TodayTasks() {
   };
 
   /* חיווי בולט, כדי שאף תורן לא יעבוד במצב בדיקה בלי לדעת */
-  const banner = testDate ? (
+  const banner = testAt ? (
     <div className="test-banner">
       <I.warn />
-      <span>מצב בדיקה — מציג את יום {data?.day || testDate}
+      <span>מצב בדיקה — מציג את יום {data?.day || testAt}
         {data?.week ? ` (שבוע ${data.week})` : ""}. הסרת ‎?date‎ מהכתובת מחזירה להיום.</span>
     </div>
   ) : null;

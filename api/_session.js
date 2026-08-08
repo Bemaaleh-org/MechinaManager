@@ -19,10 +19,10 @@
 import crypto from "node:crypto";
 import { gql } from "./_monday.js";
 import { AUTH_BOARD, AUTH_COLS, KIND } from "../shared/auth-board.js";
+import { cached } from "./_cache.js";
 
 const COOKIE = "mk_session";
 const TTL_DAYS = 7;
-const CACHE_MS = 30_000;
 const REFRESH_WHEN_LEFT_MS = 6 * 24 * 60 * 60 * 1000; // מרעננים כשנשאר פחות מ-6 ימים
 
 function secret() {
@@ -38,29 +38,22 @@ const hmac = (data) => crypto.createHmac("sha256", secret()).update(data).digest
 export const fingerprint = (code) => b64(hmac("code:" + code)).slice(0, 22);
 
 /* ---------- מטמון לוח המשתמשים ---------- */
-let cache = { at: 0, rows: null };
-
 export async function authRows({ force = false } = {}) {
-  const now = Date.now();
-  if (!force && cache.rows && now - cache.at < CACHE_MS) return cache.rows;
-
-  const cols = JSON.stringify([AUTH_COLS.kind, AUTH_COLS.code, AUTH_COLS.active]);
-  const d = await gql(
-    `{ boards(ids:[${AUTH_BOARD}]){ items_page(limit:500){ items {
-         id name column_values(ids:${cols}){ id text } } } } }`
-  );
-  const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
-  cache = {
-    at: now,
-    rows: d.boards[0].items_page.items.map((i) => ({
+  return cached("auth-rows", async () => {
+    const cols = JSON.stringify([AUTH_COLS.kind, AUTH_COLS.code, AUTH_COLS.active]);
+    const d = await gql(
+      `{ boards(ids:[${AUTH_BOARD}]){ items_page(limit:500){ items {
+           id name column_values(ids:${cols}){ id text } } } } }`
+    );
+    const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
+    return d.boards[0].items_page.items.map((i) => ({
       id: String(i.id),
       name: i.name,
       kind: val(i, AUTH_COLS.kind),
       code: val(i, AUTH_COLS.code),
       active: val(i, AUTH_COLS.active) === "v",
-    })),
-  };
-  return cache.rows;
+    }));
+  }, { force });
 }
 
 /** רשימת החניכים הפעילים — שמות בלבד, בלי קודים */
