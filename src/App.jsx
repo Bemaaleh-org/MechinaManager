@@ -794,9 +794,16 @@ function TodayTasks() {
   const [open, setOpen] = useState(null);
   const [busy, setBusy] = useState(null);
 
+  /* פרמטר בדיקה: ?date=YYYY-MM-DD מציג את משימות אותו יום.
+     תצוגה בלבד — הסימון נכתב לשורות האמיתיות של אותו יום ושבוע. */
+  const testDate = useMemo(() => {
+    const d = new URLSearchParams(window.location.search).get("date");
+    return /^\d{4}-\d{2}-\d{2}$/.test(d || "") ? d : null;
+  }, []);
+
   const load = useCallback(
-    () => api.getTodayTasks().then(setData).catch((e) => setErr(e.message)),
-    []
+    () => api.getTodayTasks(testDate).then(setData).catch((e) => setErr(e.message)),
+    [testDate]
   );
 
   useEffect(() => {
@@ -832,11 +839,21 @@ function TodayTasks() {
       .finally(() => setBusy(null));
   };
 
+  /* חיווי בולט, כדי שאף תורן לא יעבוד במצב בדיקה בלי לדעת */
+  const banner = testDate ? (
+    <div className="test-banner">
+      <I.warn />
+      <span>מצב בדיקה — מציג את יום {data?.day || testDate}
+        {data?.week ? ` (שבוע ${data.week})` : ""}. הסרת ‎?date‎ מהכתובת מחזירה להיום.</span>
+    </div>
+  ) : null;
+
   if (err && !data) return null; // לא מפילים את עמוד הבית בגלל המשימות
   if (!data) {
     return (
       <>
         <div className="sec-label">משימות ניקיון</div>
+        {banner}
         <div className="ledger"><div className="led-empty">טוען…</div></div>
       </>
     );
@@ -846,6 +863,7 @@ function TodayTasks() {
     return (
       <>
         <div className="sec-label">משימות ניקיון</div>
+        {banner}
         <div className="ledger">
           <div className="led-empty">
             {data.restDay ? "שבת — אין משימות ניקיון היום. שבת שלום." : "אין משימות ניקיון מוגדרות ליום הזה."}
@@ -858,6 +876,7 @@ function TodayTasks() {
   return (
     <>
       <div className="sec-label">משימות ניקיון</div>
+      {banner}
       <div className="ledger">
         <div className="led-head">
           <span className="d">{data.day}</span>

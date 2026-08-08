@@ -74,6 +74,12 @@ export const CSS = `
   font-weight:500;white-space:pre-wrap}
 .led-empty{padding:26px 16px;text-align:center;font-size:13.5px;color:var(--muted);font-weight:600}
 
+/* חיווי מצב בדיקה — מכוון להיות בולט ולא נעים להתעלם ממנו */
+.test-banner{display:flex;align-items:flex-start;gap:9px;margin-bottom:9px;padding:11px 13px;
+  border-radius:12px;background:var(--amber-soft);border:1px solid var(--amber);
+  color:var(--ink);font-size:12.5px;font-weight:700;line-height:1.5}
+.test-banner svg{flex:0 0 auto;margin-top:1px;color:var(--amber)}
+
 /* סיכום משימות למנהל — תצוגה בלבד, אין בו אזורי לחיצה */
 .tsum-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
   padding:2px 2px 12px;border-bottom:1px solid var(--line);margin-bottom:4px}

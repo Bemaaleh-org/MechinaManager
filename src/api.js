@@ -46,8 +46,9 @@ export const api = {
   /** מוודא שקיימות שורות ביצוע לשבוע הנוכחי. אידמפוטנטי. */
   ensureWeek: () => post("/api/tasks-week", {}),
 
-  /** משימות היום לפי שעון ישראל */
-  getTodayTasks: () => get("/api/tasks-today"),
+  /** משימות היום לפי שעון ישראל. date אופציונלי — מצב בדיקה בלבד. */
+  getTodayTasks: (date) =>
+    get("/api/tasks-today" + (date ? `?date=${encodeURIComponent(date)}` : "")),
 
   /** מסמן משימה. שולח את המצב הרצוי, לא "הפוך". */
   setTaskDone: (rowId, done) => post("/api/task-toggle", { rowId, done }),

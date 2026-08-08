@@ -72,13 +72,36 @@ export async function todayTasks(at = new Date()) {
   };
 }
 
+/* ------------------------------------------------------------
+   פרמטר בדיקה: ?date=YYYY-MM-DD
+   גורם ל-endpoint להחזיר את משימות אותו יום, כאילו הוא היום.
+
+   ⚠ תצוגה בלבד. השורות שמוחזרות הן השורות האמיתיות של אותו
+     יום ואותו שבוע, ולכן סימון "בוצע" נכתב למקום הנכון —
+     לא לשורה מדומה ולא ליום הנוכחי.
+   ------------------------------------------------------------ */
+function parseTestDate(raw) {
+  if (!raw) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) throw new Error("תאריך בדיקה לא תקין. הפורמט: YYYY-MM-DD");
+  // אמצע היום ב-UTC, כדי שהתאריך בישראל יהיה זה שנתבקש
+  const at = new Date(`${raw}T12:00:00Z`);
+  if (Number.isNaN(at.getTime())) throw new Error("תאריך בדיקה לא תקין");
+  // JavaScript מגלגל בשקט תאריך שאינו קיים (31 בפברואר → 3 במרץ).
+  // בודקים שהתאריך חזר כמו שנשלח, כדי לא להציג יום אחר ממה שביקשת.
+  if (at.toISOString().slice(0, 10) !== raw) throw new Error("תאריך בדיקה לא תקין — היום הזה לא קיים");
+  return at;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "רק GET נתמך כאן" });
   }
   try {
-    res.status(200).json(await todayTasks());
+    const testAt = parseTestDate(req.query?.date);
+    const data = await todayTasks(testAt || new Date());
+    res.status(200).json(testAt ? { ...data, testMode: true, testDate: req.query.date } : data);
   } catch (e) {
+    if (/תאריך בדיקה/.test(e.message)) return res.status(400).json({ error: e.message });
     console.error("[tasks-today]", e);
     res.status(502).json({ error: "שליפת משימות היום נכשלה" });
   }
