@@ -52,6 +52,9 @@ export const api = {
   /** מסמן משימה. שולח את המצב הרצוי, לא "הפוך". */
   setTaskDone: (rowId, done) => post("/api/task-toggle", { rowId, done }),
 
+  /** סיכום שבועי למנהל. קריאה בלבד, ברמת יום — בלי שמות. */
+  getTasksSummary: () => get("/api/tasks-summary"),
+
   /** קבלת סחורה: כמויות לפי rowId. סוגרת את הרשימה ומעדכנת מלאי. */
   receiveList: ({ listId, user, received }) =>
     post("/api/list-receive", { listId, user: { name: user.name }, received }),

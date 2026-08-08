@@ -712,6 +712,74 @@ function Home({ ctx }) {
   );
 }
 
+/* ============ סיכום משימות ניקיון — למנהל, קריאה בלבד ============ */
+/* מציג ביצוע ברמת יום לשבוע הנוכחי בלבד.
+   ⚠ בכוונה אין כאן: שמות, מי סימן, ולא אפשרות לסמן או לבטל.
+   האחריות היומית משותפת, והסיכום נועד לראות אם היום נסגר —
+   לא מי סגר אותו. למי שרוצה לרדת לרזולוציה או אחורה בזמן,
+   הלוח ב-monday פתוח. */
+function TasksWeekSummary() {
+  const [data, setData] = useState(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    api.getTasksSummary()
+      .then((d) => live && setData(d))
+      .catch(() => live && setFailed(true));
+    return () => { live = false; };
+  }, []);
+
+  if (failed) return null; // לא מפילים את הדוח בגלל הסיכום
+  if (!data) {
+    return (
+      <>
+        <div className="sec-label">משימות ניקיון – השבוע</div>
+        <div className="card"><div className="led-empty">טוען…</div></div>
+      </>
+    );
+  }
+  if (!data.days.length) {
+    return (
+      <>
+        <div className="sec-label">משימות ניקיון – השבוע</div>
+        <div className="card"><div className="led-empty">אין משימות מוגדרות לשבוע {data.week}.</div></div>
+      </>
+    );
+  }
+
+  const allDone = data.total > 0 && data.done === data.total;
+
+  return (
+    <>
+      <div className="sec-label">משימות ניקיון – השבוע</div>
+      <div className="card" style={{ marginBottom: 8 }}>
+        <div className="tsum-head">
+          <span className="tsum-week">שבוע {data.week}</span>
+          <span className={"tsum-total" + (allDone ? " ok" : "")}>
+            {data.done} מתוך {data.total} בוצעו
+          </span>
+        </div>
+        {data.days.map((d) => {
+          const full = d.done === d.total;
+          return (
+            <div className={"tsum-row" + (full ? " full" : "")} key={d.day}>
+              <span className="tsum-day">
+                {full && <span className="tsum-v"><I.check /></span>}
+                יום {d.day}
+              </span>
+              <span className="tsum-count">{d.done} מתוך {d.total} בוצעו</span>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ fontSize: 12, color: "var(--faint)", fontWeight: 600, margin: "0 4px 18px", lineHeight: 1.5 }}>
+        האחריות היומית משותפת לכל תורני היום. לפירוט ברמת משימה — הלוח ב-monday.
+      </div>
+    </>
+  );
+}
+
 /* ==================== משימות ניקיון היום ==================== */
 /* כרטיס נפרד בעמוד הבית של החניך. הנתונים חיים בלוח משלהם
    ולא ב-st, ולכן הרכיב מנהל את הטעינה שלו — אבל לפי אותו דפוס
@@ -1839,6 +1907,9 @@ function Report({ ctx }) {
       <div style={{ fontSize: 12, color: "var(--faint)", fontWeight: 600, margin: "0 4px 18px", lineHeight: 1.5 }}>
         ✓ כל המשימות של היום בוצעו &nbsp;•&nbsp; ✗ יום עם משימה שלא בוצעה &nbsp;•&nbsp; פס אפור – יום שטרם הגיע
       </div>
+
+      {/* נוסף מתחת ללוח הקיים, לא במקומו */}
+      <TasksWeekSummary />
 
       {inMonth.length === 0 ? (
         <div className="card"><div className="empty">

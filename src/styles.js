@@ -73,6 +73,21 @@ export const CSS = `
 .task-detail{padding:0 16px 14px 55px;font-size:13.5px;line-height:1.6;color:var(--muted);
   font-weight:500;white-space:pre-wrap}
 .led-empty{padding:26px 16px;text-align:center;font-size:13.5px;color:var(--muted);font-weight:600}
+
+/* סיכום משימות למנהל — תצוגה בלבד, אין בו אזורי לחיצה */
+.tsum-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+  padding:2px 2px 12px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.tsum-week{font-size:14.5px;font-weight:800}
+.tsum-total{font-size:12.5px;font-weight:700;color:var(--muted)}
+.tsum-total.ok{color:var(--ok)}
+.tsum-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 2px;
+  border-bottom:1px solid var(--line)}
+.tsum-row:last-child{border-bottom:none}
+.tsum-day{display:flex;align-items:center;gap:7px;font-size:14.5px;font-weight:700}
+.tsum-row.full .tsum-day{color:var(--ok)}
+.tsum-v{display:grid;place-items:center;width:18px;height:18px;border-radius:6px;background:var(--ok);color:#fff}
+.tsum-count{font-size:13px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+.tsum-row.full .tsum-count{color:var(--ok)}
 .chev{color:var(--line2);flex:0 0 auto}
 .when{font-size:11px;font-weight:800;letter-spacing:.6px;color:var(--faint);
   background:var(--bg);padding:3px 8px;border-radius:6px;flex:0 0 auto}
