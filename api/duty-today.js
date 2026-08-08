@@ -16,6 +16,7 @@
 
 import { gql } from "./_monday.js";
 import { withAuth } from "./_session.js";
+import { parseTestDate } from "./_test-date.js";
 import { cached } from "./_cache.js";
 import { DUTY_BOARD, DUTY_DAY_COLS } from "../shared/duty-board.js";
 import { weekId } from "../shared/week.js";
@@ -80,17 +81,6 @@ export async function dutyToday(at = new Date()) {
     .filter(Boolean);
 
   return { week, names, reason: names.length ? null : "התא ריק" };
-}
-
-/* אותו אימות תאריך שקיים ב-tasks-today — כולל דחיית תאריך שאינו
-   קיים, כדי ששני המסכים יתנהגו זהה מול אותו פרמטר. */
-function parseTestDate(raw) {
-  if (!raw) return null;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) throw new Error("תאריך בדיקה לא תקין. הפורמט: YYYY-MM-DD");
-  const at = new Date(`${raw}T12:00:00Z`);
-  if (Number.isNaN(at.getTime())) throw new Error("תאריך בדיקה לא תקין");
-  if (at.toISOString().slice(0, 10) !== raw) throw new Error("תאריך בדיקה לא תקין — היום הזה לא קיים");
-  return at;
 }
 
 async function handler(req, res) {

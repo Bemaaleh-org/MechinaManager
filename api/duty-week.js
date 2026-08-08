@@ -11,16 +11,9 @@
    ============================================================ */
 
 import { withAuth } from "./_session.js";
+import { parseTestDate } from "./_test-date.js";
 import { dutyWeek } from "./duty-today.js";
 
-function parseTestDate(raw) {
-  if (!raw) return null;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) throw new Error("תאריך בדיקה לא תקין. הפורמט: YYYY-MM-DD");
-  const at = new Date(`${raw}T12:00:00Z`);
-  if (Number.isNaN(at.getTime())) throw new Error("תאריך בדיקה לא תקין");
-  if (at.toISOString().slice(0, 10) !== raw) throw new Error("תאריך בדיקה לא תקין — היום הזה לא קיים");
-  return at;
-}
 
 async function handler(req, res) {
   if (req.method !== "GET") {

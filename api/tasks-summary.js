@@ -16,6 +16,7 @@
 
 import { gql } from "./_monday.js";
 import { withAuth } from "./_session.js";
+import { parseTestDate } from "./_test-date.js";
 import { TASK_BOARDS, TASK_COLS, DONE, DAYS } from "../shared/tasks-boards.js";
 import { weekId } from "../shared/week.js";
 
@@ -55,17 +56,6 @@ export async function weekSummary(at = new Date()) {
     total: days.reduce((a, d) => a + d.total, 0),
     done: days.reduce((a, d) => a + d.done, 0),
   };
-}
-
-/* אותו אימות תאריך שקיים ב-tasks-today: פורמט מדויק, ודחייה של
-   תאריך שאינו קיים (31 בפברואר) במקום גלגול שקט ליום אחר. */
-function parseTestDate(raw) {
-  if (!raw) return null;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) throw new Error("תאריך בדיקה לא תקין. הפורמט: YYYY-MM-DD");
-  const at = new Date(`${raw}T12:00:00Z`);
-  if (Number.isNaN(at.getTime())) throw new Error("תאריך בדיקה לא תקין");
-  if (at.toISOString().slice(0, 10) !== raw) throw new Error("תאריך בדיקה לא תקין — היום הזה לא קיים");
-  return at;
 }
 
 async function handler(req, res, session) {

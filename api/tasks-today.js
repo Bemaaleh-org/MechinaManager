@@ -11,6 +11,7 @@
 
 import { gql } from "./_monday.js";
 import { withAuth } from "./_session.js";
+import { parseTestDate } from "./_test-date.js";
 import { TASK_BOARDS, TASK_COLS, DONE } from "../shared/tasks-boards.js";
 import { weekId, israelDayLetter } from "../shared/week.js";
 
@@ -71,26 +72,6 @@ export async function todayTasks(at = new Date()) {
     doneCount: tasks.filter((t) => t.done).length,
     restDay: false,
   };
-}
-
-/* ------------------------------------------------------------
-   פרמטר בדיקה: ?date=YYYY-MM-DD
-   גורם ל-endpoint להחזיר את משימות אותו יום, כאילו הוא היום.
-
-   ⚠ תצוגה בלבד. השורות שמוחזרות הן השורות האמיתיות של אותו
-     יום ואותו שבוע, ולכן סימון "בוצע" נכתב למקום הנכון —
-     לא לשורה מדומה ולא ליום הנוכחי.
-   ------------------------------------------------------------ */
-function parseTestDate(raw) {
-  if (!raw) return null;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) throw new Error("תאריך בדיקה לא תקין. הפורמט: YYYY-MM-DD");
-  // אמצע היום ב-UTC, כדי שהתאריך בישראל יהיה זה שנתבקש
-  const at = new Date(`${raw}T12:00:00Z`);
-  if (Number.isNaN(at.getTime())) throw new Error("תאריך בדיקה לא תקין");
-  // JavaScript מגלגל בשקט תאריך שאינו קיים (31 בפברואר → 3 במרץ).
-  // בודקים שהתאריך חזר כמו שנשלח, כדי לא להציג יום אחר ממה שביקשת.
-  if (at.toISOString().slice(0, 10) !== raw) throw new Error("תאריך בדיקה לא תקין — היום הזה לא קיים");
-  return at;
 }
 
 async function handler(req, res, session) {
