@@ -41,6 +41,17 @@ export const api = {
   getCatalog: () => get("/api/catalog"),
   getMoves: () => get("/api/moves"),
 
+  /* --- משימות ניקיון שבועיות --- */
+
+  /** מוודא שקיימות שורות ביצוע לשבוע הנוכחי. אידמפוטנטי. */
+  ensureWeek: () => post("/api/tasks-week", {}),
+
+  /** משימות היום לפי שעון ישראל */
+  getTodayTasks: () => get("/api/tasks-today"),
+
+  /** מסמן משימה. שולח את המצב הרצוי, לא "הפוך". */
+  setTaskDone: (rowId, done) => post("/api/task-toggle", { rowId, done }),
+
   /** קבלת סחורה: כמויות לפי rowId. סוגרת את הרשימה ומעדכנת מלאי. */
   receiveList: ({ listId, user, received }) =>
     post("/api/list-receive", { listId, user: { name: user.name }, received }),

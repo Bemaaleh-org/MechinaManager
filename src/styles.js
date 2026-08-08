@@ -57,6 +57,22 @@ export const CSS = `
 .led-txt .t{font-size:15.5px;font-weight:700;letter-spacing:-.2px}
 .led-txt .s{font-size:12.5px;color:var(--muted);margin-top:1px;font-weight:500}
 .led-item.done .led-txt .t{color:var(--faint);text-decoration:line-through;text-decoration-thickness:1.5px}
+
+/* משימות ניקיון — יושבות בתוך .ledger ומשתמשות באותם מרווחים,
+   טיפוגרפיה ו-tick של שורות הצ'ק ליסט שמעליהן. ההבדל היחיד:
+   השורה מתפצלת לשני אזורי לחיצה, סימון והרחבה. */
+.task-row{border-bottom:1px solid var(--line)}
+.task-row:last-child{border-bottom:none}
+.task-main{display:flex;align-items:center;gap:13px;padding:14px 16px;min-height:62px}
+.task-tick{flex:0 0 26px;display:grid;place-items:center}
+.task-txt{flex:1;min-width:0;text-align:right;display:block}
+.task-txt .t{display:block;font-size:15.5px;font-weight:700;letter-spacing:-.2px}
+.task-txt .s{display:block;font-size:12.5px;color:var(--muted);margin-top:1px;font-weight:500}
+.task-row.done .task-txt .t{color:var(--faint);text-decoration:line-through;text-decoration-thickness:1.5px}
+.task-more{flex:0 0 24px;color:var(--faint);display:grid;place-items:center}
+.task-detail{padding:0 16px 14px 55px;font-size:13.5px;line-height:1.6;color:var(--muted);
+  font-weight:500;white-space:pre-wrap}
+.led-empty{padding:26px 16px;text-align:center;font-size:13.5px;color:var(--muted);font-weight:600}
 .chev{color:var(--line2);flex:0 0 auto}
 .when{font-size:11px;font-weight:800;letter-spacing:.6px;color:var(--faint);
   background:var(--bg);padding:3px 8px;border-radius:6px;flex:0 0 auto}

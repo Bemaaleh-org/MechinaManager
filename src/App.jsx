@@ -687,6 +687,9 @@ function Home({ ctx }) {
         ))}
       </div>
 
+      {/* משימות הניקיון של היום — למסך החניך בלבד */}
+      {!isMgr && <TodayTasks />}
+
       {isMgr && (
         <>
           <div className="sec-label">תמונת מצב</div>
@@ -705,6 +708,124 @@ function Home({ ctx }) {
           </div>
         </>
       )}
+    </>
+  );
+}
+
+/* ==================== משימות ניקיון היום ==================== */
+/* כרטיס נפרד בעמוד הבית של החניך. הנתונים חיים בלוח משלהם
+   ולא ב-st, ולכן הרכיב מנהל את הטעינה שלו — אבל לפי אותו דפוס
+   שכבר קיים בדיווחי המלאי: עדכון אופטימי, קריאה לשרת, ואז
+   משיכה מחדש מהמקור. אם השרת דוחה — חוזרים אחורה.
+
+   כל תורני היום אחראים יחד. אין חלוקה אישית ואין רישום של מי
+   סימן, וזו החלטה ולא השמטה. */
+function TodayTasks() {
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState(null);
+  const [open, setOpen] = useState(null);
+  const [busy, setBusy] = useState(null);
+
+  const load = useCallback(
+    () => api.getTodayTasks().then(setData).catch((e) => setErr(e.message)),
+    []
+  );
+
+  useEffect(() => {
+    let live = true;
+    // יצירת השבוע אם חסר, ואז טעינה. כישלון ביצירה לא חוסם —
+    // ייתכן ששבוע כבר קיים ורק הקריאה נכשלה.
+    api.ensureWeek()
+      .catch(() => {})
+      .then(() => live && load());
+    return () => { live = false; };
+  }, [load]);
+
+  const toggle = (t) => {
+    if (busy) return;
+    const next = !t.done;
+    setBusy(t.rowId);
+    // אופטימי
+    setData((d) => ({
+      ...d,
+      tasks: d.tasks.map((x) => (x.rowId === t.rowId ? { ...x, done: next } : x)),
+      doneCount: d.doneCount + (next ? 1 : -1),
+    }));
+    api.setTaskDone(t.rowId, next)
+      .then(() => load()) // מושכים מחדש — כך גם סימון של תורן אחר נכנס
+      .catch(() => {
+        setData((d) => ({
+          ...d,
+          tasks: d.tasks.map((x) => (x.rowId === t.rowId ? { ...x, done: t.done } : x)),
+          doneCount: d.doneCount + (next ? -1 : 1),
+        }));
+        setErr("הסימון לא נשמר");
+      })
+      .finally(() => setBusy(null));
+  };
+
+  if (err && !data) return null; // לא מפילים את עמוד הבית בגלל המשימות
+  if (!data) {
+    return (
+      <>
+        <div className="sec-label">משימות ניקיון</div>
+        <div className="ledger"><div className="led-empty">טוען…</div></div>
+      </>
+    );
+  }
+
+  if (data.restDay || !data.tasks.length) {
+    return (
+      <>
+        <div className="sec-label">משימות ניקיון</div>
+        <div className="ledger">
+          <div className="led-empty">
+            {data.restDay ? "שבת — אין משימות ניקיון היום. שבת שלום." : "אין משימות ניקיון מוגדרות ליום הזה."}
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="sec-label">משימות ניקיון</div>
+      <div className="ledger">
+        <div className="led-head">
+          <span className="d">{data.day}</span>
+          <span className="duty">{data.doneCount} מתוך {data.total}</span>
+        </div>
+
+        {data.tasks.map((t) => (
+          <div key={t.rowId} className={"task-row" + (t.done ? " done" : "")}>
+            <div className="task-main">
+              <button className="task-tick" aria-pressed={t.done} disabled={busy === t.rowId}
+                onClick={() => toggle(t)}>
+                <span className={"tick" + (t.done ? " on" : "")}>
+                  {t.done && <span style={{ color: "#fff" }}><I.check /></span>}
+                </span>
+              </button>
+
+              <button className="task-txt" onClick={() => setOpen(open === t.rowId ? null : t.rowId)}>
+                <span className="t">{t.name}</span>
+                <span className="s">{t.focus}</span>
+              </button>
+
+              {t.detail && (
+                <button className="task-more" onClick={() => setOpen(open === t.rowId ? null : t.rowId)}
+                  aria-label="פירוט">
+                  <span style={{ display: "inline-block", transform: open === t.rowId ? "rotate(90deg)" : "rotate(-90deg)" }}>
+                    <I.chev />
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {open === t.rowId && t.detail && <div className="task-detail">{t.detail}</div>}
+          </div>
+        ))}
+      </div>
+      {err && <div style={{ fontSize: 12.5, color: "var(--clay)", fontWeight: 700, margin: "6px 4px 0" }}>{err}</div>}
     </>
   );
 }

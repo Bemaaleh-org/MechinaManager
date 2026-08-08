@@ -28,6 +28,11 @@ function israelParts(at = new Date()) {
   };
 }
 
+/** אות היום כפי שהיא בלוחות המשימות. שבת מחזירה null — אין בה משימות. */
+export function israelDayLetter(at = new Date()) {
+  return ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", null][israelParts(at).dow];
+}
+
 /** ראשון ושבת של השבוע שבו נמצא הרגע הנתון */
 export function weekBounds(at = new Date()) {
   const p = israelParts(at);
