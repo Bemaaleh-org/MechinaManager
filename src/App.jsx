@@ -538,7 +538,8 @@ export default function App() {
 
         <main className="wrap">
           {tab === "home" && <Home ctx={ctx} />}
-          {tab === "daily" && <Daily ctx={ctx} />}
+          {tab === "daily" && <Daily ctx={ctx} modes={["usage", "waste"]} title="שימוש בסחורה" />}
+          {tab === "receive" && <Receive ctx={ctx} />}
           {tab === "count" && <Count ctx={ctx} />}
           {tab === "shop" && <Shop ctx={ctx} />}
           {tab === "manage" && (isMgr ? <Manage ctx={ctx} /> : <Home ctx={ctx} />)}
@@ -547,7 +548,8 @@ export default function App() {
         <nav className="nav">
           {(isMgr
             ? [["home", "בית", I.home], ["shop", "קניות", I.cart], ["manage", "ניהול", I.gear]]
-            : [["home", "בית", I.home], ["daily", "יומי", I.day], ["count", "ספירה", I.count], ["shop", "קניות", I.cart]]
+            : [["home", "בית", I.home], ["daily", "שימוש", I.day], ["receive", "קבלה", I.download],
+               ["count", "ספירה", I.count], ["shop", "קניות", I.cart]]
           ).map(([k, label, Icon]) => (
             <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>
               <Icon />
@@ -578,7 +580,7 @@ function Home({ ctx }) {
 
   const rows = [
     { k: "r", when: "בוקר", t: "קבלת סחורה", s: receiptDone ? "עודכן היום" : "מה הגיע היום למחסן", done: receiptDone,
-      due: !receiptDone && h >= 9, go: () => setTab("daily") },
+      due: !receiptDone && h >= 9, go: () => setTab("receive") },
     { k: "e", when: "ערב", t: "ספירת מלאי יומית", s: eveningDone ? "עודכן היום" : "מוצרים טריים בלבד – דקה וחצי", done: eveningDone,
       due: !eveningDone && afterSix, go: () => setTab("daily") },
     { k: "c", when: "שלישי", t: "ספירת מלאי שבועית", s: countedThisWeek ? "בוצעה השבוע" : (isTue ? "היום – כולל סימון תוקף" : "בשלישי בערב"),
@@ -713,9 +715,12 @@ const statusText = (l) => ({
 }[l.status] || "");
 
 /* ============================ DAILY ============================ */
-function Daily({ ctx }) {
+/* modes קובע אילו מצבים זמינים במסך. ברירת המחדL היא שלושתם,
+   כדי שמסלול המנהל (ניהול ← תיקון מלאי) יישאר כפי שהיה.
+   הלוגיקה עצמה — commitMoves והמצבים — לא השתנתה. */
+function Daily({ ctx, modes = ["receipt", "usage", "waste"], title }) {
   const { st, commitMoves, undoMove, say, user } = ctx;
-  const [mode, setMode] = useState("usage");
+  const [mode, setMode] = useState(modes.includes("usage") ? "usage" : modes[0]);
   const [vals, setVals] = useState({});
   const [reasons, setReasons] = useState({});
   const [confirm, setConfirm] = useState(null);
@@ -747,11 +752,21 @@ function Daily({ ctx }) {
 
   return (
     <>
-      <div className="seg">
-        <button className={mode === "receipt" ? "on" : ""} onClick={() => setMode("receipt")}>קבלה</button>
-        <button className={mode === "usage" ? "on" : ""} onClick={() => setMode("usage")}>שימוש</button>
-        <button className={mode === "waste" ? "on clay" : ""} onClick={() => setMode("waste")}>פחת</button>
-      </div>
+      {title && <h2 className="screen-title">{title}</h2>}
+
+      {modes.length > 1 && (
+        <div className="seg">
+          {modes.includes("receipt") && (
+            <button className={mode === "receipt" ? "on" : ""} onClick={() => setMode("receipt")}>קבלה</button>
+          )}
+          {modes.includes("usage") && (
+            <button className={mode === "usage" ? "on" : ""} onClick={() => setMode("usage")}>שימוש</button>
+          )}
+          {modes.includes("waste") && (
+            <button className={mode === "waste" ? "on clay" : ""} onClick={() => setMode("waste")}>פחת</button>
+          )}
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 14, padding: "12px 14px" }}>
         <div style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600, lineHeight: 1.5 }}>
@@ -1108,9 +1123,62 @@ function Shop({ ctx }) {
   );
 }
 
-function ListDetail({ ctx, list, back }) {
-  const { st, patchList, isMgr, user, say, receiveList, setModal } = ctx;
-  const [receiving, setReceiving] = useState(false);
+/* receiveOnly: נפתח ישירות ממסך הקבלה. המסך נכנס מיד למצב קבלה,
+   וחזרה ממנו מחזירה לטאב הקבלה ולא לתצוגת הרשימה. */
+/* ============================ RECEIVE ============================ */
+/* מסך קבלת סחורה. שני מסלולים במקום אחד:
+   למעלה — רשימות מאושרות שממתינות לסחורה, שנפתחות למסך הקבלה
+   הקיים ב-ListDetail. מתחת — קליטה חופשית, שהיא מצב receipt של
+   Daily. שני הרכיבים משומשים כמו שהם; אין כאן לוגיקת נתונים. */
+function Receive({ ctx }) {
+  const { st } = ctx;
+  const [open, setOpen] = useState(null);
+
+  const awaiting = st.lists.filter((l) => l.status === "approved");
+
+  if (open) {
+    const l = st.lists.find((x) => x.id === open);
+    if (l) return <ListDetail ctx={ctx} list={l} back={() => setOpen(null)} receiveOnly />;
+  }
+
+  return (
+    <>
+      <h2 className="screen-title">קבלת סחורה</h2>
+
+      {awaiting.length > 0 ? (
+        <>
+          <div className="sec-label">ממתינות לסחורה</div>
+          <div className="rows" style={{ marginBottom: 18 }}>
+            {awaiting.map((l) => (
+              <button className="row" key={l.id} style={{ width: "100%", textAlign: "right" }}
+                onClick={() => setOpen(l.id)}>
+                <span style={{ color: "var(--accent)", flex: "0 0 auto" }}><I.cart /></span>
+                <div className="r-main">
+                  <div className="r-name">{SUPPLIERS[l.sup]}</div>
+                  <div className="r-meta">{l.items.length} מוצרים{l.approvedBy ? " • אושרה על ידי " + l.approvedBy : ""}</div>
+                </div>
+                <span className="chev" style={{ transform: "scaleX(-1)" }}><I.chev /></span>
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="card" style={{ marginBottom: 18, padding: "12px 14px" }}>
+          <div style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600, lineHeight: 1.5 }}>
+            אין כרגע רשימה מאושרת שממתינה לסחורה. אפשר לקלוט סחורה שהגיעה בלי הזמנה, למטה.
+          </div>
+        </div>
+      )}
+
+      <div className="sec-label">קליטה חופשית – בלי רשימה</div>
+      <Daily ctx={ctx} modes={["receipt"]} />
+    </>
+  );
+}
+
+function ListDetail({ ctx, list, back, receiveOnly = false }) {
+  const { st, patchList, isMgr, user, say, receiveList, setModal, setTab } = ctx;
+  const [receiving, setReceiving] = useState(receiveOnly);
   const [got, setGot] = useState(() => {
     const o = {}; list.items.forEach((it) => (o[it.pid] = String(it.qty))); return o;
   });
@@ -1137,7 +1205,8 @@ function ListDetail({ ctx, list, back }) {
     const diffs = list.items.filter((it) => Number(got[it.pid]) !== it.qty);
     return (
       <>
-        <button className="btn btn-ghost btn-sm" style={{ marginBottom: 14 }} onClick={() => setReceiving(false)}>
+        <button className="btn btn-ghost btn-sm" style={{ marginBottom: 14 }}
+          onClick={() => (receiveOnly ? back() : setReceiving(false))}>
           <I.chev /> חזרה
         </button>
         <div className="card" style={{ marginBottom: 14, padding: "12px 14px" }}>
@@ -1263,9 +1332,15 @@ function ListDetail({ ctx, list, back }) {
 
       {list.status === "approved" && (
         <>
-          <button className="btn btn-primary" style={{ marginBottom: 9 }} onClick={() => setReceiving(true)}>
-            הסחורה הגיעה – עדכן קבלה
+          {/* פעולת הקבלה עברה לטאב ייעודי. כאן נשארת רק הפניה אליו,
+              כדי שלא יהיו שני מקומות שמתחילים את אותה פעולה. */}
+          <button className="btn btn-primary" style={{ marginBottom: 9 }}
+            onClick={() => setTab("receive")}>
+            הסחורה הגיעה? עברו למסך קבלת סחורה
           </button>
+          <div style={{ fontSize: 12.5, color: "var(--faint)", fontWeight: 600, margin: "0 4px 12px", lineHeight: 1.5 }}>
+            עדכון מה שהגיע בפועל מתבצע במסך “קבלה” בשורת הניווט.
+          </div>
           <button className="btn btn-ghost"
             onClick={() => { ctx.patchList(list.id, { status: "missed" }); say("סומן שהקנייה התפספסה"); back(); }}>
             הקנייה התפספסה

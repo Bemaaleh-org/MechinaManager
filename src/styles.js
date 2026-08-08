@@ -34,6 +34,9 @@ export const CSS = `
 
 .wrap{padding:16px 14px 24px;max-width:640px;margin:0 auto}
 .sec-label{font-size:11.5px;font-weight:800;letter-spacing:.9px;color:var(--faint);margin:22px 2px 9px}
+/* כותרת מסך מלאה, מעל בורר המצבים */
+.screen-title{font-size:22px;font-weight:900;letter-spacing:-.3px;margin:2px 2px 14px;line-height:1.25}
+.screen-title + .sec-label{margin-top:4px}
 .sec-label:first-child{margin-top:4px}
 
 /* ---- day ledger (signature) ---- */
@@ -157,8 +160,11 @@ export const CSS = `
 /* nav */
 .nav{position:fixed;bottom:0;right:0;left:0;z-index:50;background:var(--surface);border-top:1px solid var(--line);
   display:flex;padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
-.nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;
+/* min-width:0 מונע מהכיתוב למתוח את הכפתור מעבר לחלקו; nowrap מונע
+   שבירה לשתי שורות. נבדק עם 5 טאבים ברוחב 360px. */
+.nav button{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;
   font-size:10.5px;font-weight:700;color:var(--faint);position:relative;min-height:58px;justify-content:center}
+.nav button span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .nav button.on{color:var(--accent)}
 .nav .bdg{position:absolute;top:2px;left:calc(50% - 20px);background:var(--clay);color:#fff;font-size:10px;font-weight:800;
   min-width:17px;height:17px;border-radius:99px;display:grid;place-items:center;padding:0 4px}
