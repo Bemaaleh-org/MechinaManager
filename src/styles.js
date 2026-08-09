@@ -21,7 +21,12 @@ export const CSS = `
 .num{font-variant-numeric:tabular-nums}
 
 /* ---- shell ---- */
-.top{position:sticky;top:0;z-index:40;background:var(--accent);color:#fff;padding:12px 16px 12px}
+/* ⚠ אזור בטוח באייפון. עם black-translucent + viewport-fit=cover
+   האפליקציה מצוירת מתחת לשעון ולמצלמה, ובלי הריפוד הזה הכותרת
+   נחתכת. env() מחזיר 0 בדפדפן רגיל ובאנדרואיד, ולכן זה לא משנה
+   כלום שם. */
+.top{position:sticky;top:0;z-index:40;background:var(--accent);color:#fff;
+  padding:calc(12px + env(safe-area-inset-top)) 16px 12px}
 .top-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .top h1{font-size:18px;font-weight:800;letter-spacing:-.4px;line-height:1.15}
 .top .sub{font-size:12px;opacity:.72;font-weight:500;margin-top:2px}
@@ -32,7 +37,9 @@ export const CSS = `
   padding:7px 11px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap}
 .who .dot{width:7px;height:7px;border-radius:50%;background:#7FB3E0}
 
-.wrap{padding:16px 14px 24px;max-width:640px;margin:0 auto}
+.wrap{padding:16px 14px 24px;max-width:640px;margin:0 auto;
+  padding-right:calc(14px + env(safe-area-inset-right));
+  padding-left:calc(14px + env(safe-area-inset-left))}
 .sec-label{font-size:11.5px;font-weight:800;letter-spacing:.9px;color:var(--faint);margin:22px 2px 9px}
 /* כותרת מסך מלאה, מעל בורר המצבים */
 .screen-title{font-size:22px;font-weight:900;letter-spacing:-.3px;margin:2px 2px 14px;line-height:1.25}
@@ -74,10 +81,12 @@ export const CSS = `
   font-weight:500;white-space:pre-wrap}
 .led-empty{padding:26px 16px;text-align:center;font-size:13.5px;color:var(--muted);font-weight:600}
 
-/* מסך כניסה — משתמש במחלקות הקיימות (.top .card .fld .btn .rows).
-   נשארו רק שתי התאמות שאין להן מקבילה: מרכוז אנכי, ורשימת
-   השמות שצריכה לגלול כשיש 33 חניכים. */
-.kx-login{padding-bottom:24px;display:flex;flex-direction:column;min-height:100vh;min-height:100dvh}
+/* מסך כניסה — משתמש במחלקות הקיימות (.card .fld .btn .rows).
+   נשאר רק מרכוז אנכי, גודל הלוגו, ורשימת השמות שצריכה לגלול
+   כשיש 33 חניכים. */
+.login-mark{display:block;width:132px;height:132px;object-fit:contain;margin:0 auto 22px}
+.kx-login{padding-bottom:calc(24px + env(safe-area-inset-bottom));
+  display:flex;flex-direction:column;min-height:100vh;min-height:100dvh}
 .kx-login .wrap{width:100%;margin-top:auto;margin-bottom:auto}
 .kx-login .rows{max-height:52vh;overflow-y:auto}
 .kx-login .row:last-child{border-bottom:none}

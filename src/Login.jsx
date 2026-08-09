@@ -1,20 +1,18 @@
 /* ============================================================
    מסך כניסה
    ------------------------------------------------------------
-   שני שלבים: קוד, ואצל חניך גם בחירת שם מהרשימה.
+   במרכז: הלוגו, שדה הקוד וכפתור הכניסה. שום דבר מעבר.
+   אצל חניך מתווסף שלב שני — בחירת שם מרשימת החניכים.
 
    ⚠ הקוד נשלח לשרת ולא נשמר בשום מקום בדפדפן. השרת מחזיר
      עוגייה חתומה (HttpOnly) שגם JavaScript לא יכול לקרוא.
 
-   עיצוב: המסך עטוף ב-.kx כמו שאר האפליקציה. כל הטוקנים —
-   צבעים, גופן, כיווניות — מוגדרים שם, ובלי העטיפה המסך היה
-   נראה כמו דף חיצוני. משתמש במחלקות הקיימות בלבד:
-   .top .card .fld .btn .rows .alert — בלי ערכים חדשים.
+   הלוגו הוא אייקון ה-PWA — העיגול בלבד, בלי הכיתוב
+   "במעלה הדרך", שממילא חוזר בשם האפליקציה.
    ============================================================ */
 
 import React, { useState } from "react";
 import { api } from "./api.js";
-import { LOGO } from "./logo.js";
 
 export default function Login({ notice, onDone }) {
   const [step, setStep] = useState("code"); // code | name
@@ -48,48 +46,33 @@ export default function Login({ notice, onDone }) {
 
   return (
     <div className="kx kx-login">
-      <header className="top">
-        <div className="top-row">
-          <div>
-            <h1>מטבח המכינה</h1>
-            <div className="sub">עמותת במעלה הדרך</div>
-          </div>
-          <div className="brand-coin" aria-label="במעלה הדרך">
-            <img src={LOGO} alt="לוגו במעלה הדרך" />
-          </div>
-        </div>
-      </header>
-
       <main className="wrap">
+        <img className="login-mark" src="/icon-512.png" alt="במעלה הדרך" />
+
+        {/* הודעות אמיתיות בלבד: קוד שהוחלף, תוקף שפג, הרשאה שכובתה */}
         {notice && (
           <div className="alert a-amber">
             <div style={{ flex: 1 }}><div className="bd" style={{ marginTop: 0 }}>{notice}</div></div>
           </div>
         )}
 
+        {err && (
+          <div className="alert a-clay">
+            <div style={{ flex: 1 }}><div className="ttl">{err}</div></div>
+          </div>
+        )}
+
         {step === "code" ? (
           <form className="card" onSubmit={submitCode}>
-            <div className="fld" style={{ marginBottom: err ? 11 : 16 }}>
+            <div className="fld">
               <label htmlFor="code">קוד כניסה</label>
               <input id="code" type="password" inputMode="text" autoComplete="one-time-code"
                 value={code} disabled={busy} autoFocus
                 onChange={(e) => setCode(e.target.value)} placeholder="הזינו את הקוד" />
             </div>
-
-            {err && (
-              <div className="alert a-clay">
-                <div style={{ flex: 1 }}><div className="ttl">{err}</div></div>
-              </div>
-            )}
-
             <button className="btn btn-primary" type="submit" disabled={busy || !code.trim()}>
               {busy ? "בודק…" : "כניסה"}
             </button>
-
-            <div style={{ fontSize: 12.5, color: "var(--muted)", fontWeight: 600,
-                          lineHeight: 1.6, marginTop: 14 }}>
-              תורנים נכנסים עם הקוד המשותף. מנהלים — עם הקוד האישי.
-            </div>
           </form>
         ) : (
           <>
@@ -100,12 +83,6 @@ export default function Login({ notice, onDone }) {
                 השם משמש לתיעוד הדיווחים. אפשר להחליף אותו בכל עת מתוך האפליקציה.
               </div>
             </div>
-
-            {err && (
-              <div className="alert a-clay">
-                <div style={{ flex: 1 }}><div className="ttl">{err}</div></div>
-              </div>
-            )}
 
             <div className="rows">
               {roster.map((r) => (

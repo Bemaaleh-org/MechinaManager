@@ -233,7 +233,10 @@ export default function App() {
     </>);
   }
 
-  return <Kitchen auth={auth} onSignedOut={() => { setAuth(null); setNotice("התנתקת בהצלחה."); }} />;
+  /* התנתקות יזומה לא מציגה הודעה — המשתמש יודע שלחץ עליה.
+     ההודעות במסך הכניסה שמורות למה שקרה בלי שביקש: הקוד הוחלף,
+     תוקף פג, הרשאה כובתה. */
+  return <Kitchen auth={auth} onSignedOut={() => { setAuth(null); setNotice(null); }} />;
 }
 
 function Kitchen({ auth, onSignedOut }) {
@@ -582,6 +585,25 @@ function Kitchen({ auth, onSignedOut }) {
         </header>
 
         <main className="wrap">
+          {/* ⚠ כשל טעינה נראה אחרת מ"אין נתונים". בלי הבאנר הזה
+              מטבח ריק ותקלת רשת נראים זהים, וזה מה שהסתיר את הבאג
+              שבו הקטלוג חזר ריק בייצור. */}
+          {st.loadFailed && (
+            <div className="alert a-clay" style={{ marginBottom: 14 }}>
+              <span style={{ marginTop: 1 }}><I.warn /></span>
+              <div style={{ flex: 1 }}>
+                <div className="ttl">לא הצלחנו לטעון את הנתונים</div>
+                <div className="bd">
+                  מה שמוצג כאן אינו מעודכן ואסור להסתמך עליו. בדקו חיבור לאינטרנט ורעננו.
+                </div>
+                <button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }}
+                  onClick={() => window.location.reload()}>
+                  נסו שוב
+                </button>
+              </div>
+            </div>
+          )}
+
           {tab === "home" && <Home ctx={ctx} />}
           {tab === "daily" && <Daily ctx={ctx} modes={["usage", "waste"]} title="שימוש במצרכים" />}
           {tab === "receive" && <Receive ctx={ctx} />}
