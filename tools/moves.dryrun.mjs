@@ -5,7 +5,7 @@
    הרצה:  node --env-file=.env tools/moves.dryrun.mjs
    ============================================================ */
 
-import { commitEntry } from "../api/moves.js";
+import { commitEntry } from "../api/_moves.js";
 import { moveColumns, productColumns } from "../shared/mapper.js";
 import { COLS } from "../shared/boards.js";
 

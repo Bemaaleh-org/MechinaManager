@@ -19,7 +19,7 @@ import { withAuth } from "./_session.js";
 import { rowColumns } from "../shared/mapper.js";
 import { gql } from "./_monday.js";
 import { loadCatalog } from "./catalog.js";
-import { loadLists } from "./lists.js";
+import { loadLists } from "./_lists.js";
 
 const ACTIONS = ["add", "setQty", "remove"];
 

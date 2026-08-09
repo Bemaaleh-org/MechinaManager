@@ -20,8 +20,8 @@
 import { BOARDS, COLS, LABELS } from "../shared/boards.js";
 import { withAuth, actorName } from "./_session.js";
 import { gql } from "./_monday.js";
-import { commitEntry } from "./moves.js";
-import { loadLists } from "./lists.js";
+import { commitEntry } from "./_moves.js";
+import { loadLists } from "./_lists.js";
 import { loadCatalog } from "./catalog.js";
 
 export async function planReceive(body) {

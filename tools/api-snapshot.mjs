@@ -10,6 +10,10 @@
    ⚠ בקשות POST נשלחות עם גוף ריק כדי לתעד את מסלול האימות
      ולא לשנות נתונים. שני חריגים אידמפוטנטיים מסומנים למטה.
 
+   ⚠ התווית בתיעוד היא שם נקודת הקצה ההיסטורי, גם אחרי שהפונקציות
+     אוחדו. הכתובת בפועל נגזרת ממנה ב-URL_OF. כך התיעוד שנשמר
+     לפני האיחוד ניתן להשוואה שורה מול שורה עם זה שאחריו.
+
    הרצה:
      node --env-file=.env tools/api-snapshot.mjs <קובץ-פלט>
 
@@ -22,14 +26,47 @@ import { authRows } from "../api/_session.js";
 const BASE = "http://localhost:5173";
 const OUT = process.argv[2] || "tools/snapshot.txt";
 
+/* ---------- מיפוי תווית → כתובת בפועל ---------- */
+const URL_OF = {
+  "/api/catalog": "/api/catalog",
+  "/api/users": "/api/users",
+  "/api/lists": "/api/lists?action=read",
+  "/api/moves": "/api/moves?action=read",
+  "/api/duty-today": "/api/duty?action=today",
+  "/api/duty-week": "/api/duty?action=week",
+  "/api/tasks-today": "/api/tasks?action=today",
+  "/api/tasks-summary": "/api/tasks?action=summary",
+  "/api/login": "/api/auth?action=login",
+  "/api/logout": "/api/auth?action=logout",
+  "/api/me": "/api/auth?action=me",
+  "/api/move-cancel": "/api/moves?action=cancel",
+  "/api/count": "/api/moves?action=count",
+  "/api/list-create": "/api/lists?action=create",
+  "/api/list-row": "/api/lists?action=row",
+  "/api/list-status": "/api/lists?action=status",
+  "/api/list-receive": "/api/lists?action=receive",
+  "/api/task-toggle": "/api/tasks?action=toggle",
+  "/api/lists-sync": "/api/lists?action=sync",
+  "/api/tasks-week": "/api/tasks?action=ensure",
+};
+
+/** /api/moves הוא קריאה ב-GET ודיווח ב-POST */
+function urlFor(label, method) {
+  if (label === "/api/moves" && method === "POST") return "/api/moves?action=commit";
+  return URL_OF[label];
+}
+
+/** מוסיף פרמטר לכתובת שכבר עשויה להכיל אחד */
+const addParam = (url, param) => url + (url.includes("?") ? "&" : "?") + param;
+
 /* ---------- כלים ---------- */
 const jar = {};
-async function call(path, { method = "GET", body, as = null } = {}) {
+async function call(url, { method = "GET", body, as = null } = {}) {
   const headers = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (as && jar[as]) headers.Cookie = jar[as];
 
-  const r = await fetch(BASE + path, {
+  const r = await fetch(BASE + url, {
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -109,16 +146,22 @@ say("=".repeat(78));
 
 /* --- כניסה --- */
 say("\n### כניסה");
-const t1 = await call("/api/login", { method: "POST", body: { code: sharedCode }, as: "trainee" });
+const loginUrl = URL_OF["/api/login"];
+const meUrl = URL_OF["/api/me"];
+
+const t1 = await call(loginUrl, { method: "POST", body: { code: sharedCode }, as: "trainee" });
 say(`  תורן  — קוד משותף        ${signature(t1)}`);
+
 const roster = t1.data.roster || [];
 if (roster.length) {
-  const pick = await call("/api/me", { method: "POST", body: { name: roster[0].name }, as: "trainee" });
+  const pick = await call(meUrl, { method: "POST", body: { name: roster[0].name }, as: "trainee" });
   say(`  תורן  — בחירת שם         ${signature(pick)}`);
 }
-const m1 = await call("/api/login", { method: "POST", body: { code: managerCode }, as: "manager" });
+
+const m1 = await call(loginUrl, { method: "POST", body: { code: managerCode }, as: "manager" });
 say(`  מנהל  — קוד אישי         ${signature(m1)}`);
-const bad = await call("/api/login", { method: "POST", body: { code: "___שגוי___" } });
+
+const bad = await call(loginUrl, { method: "POST", body: { code: "___שגוי___" } });
 say(`  קוד שגוי                 ${signature(bad)}`);
 
 /* --- כל נקודת קצה בשלושה הקשרים --- */
@@ -126,10 +169,10 @@ for (const label of ["ללא סשן", "תורן", "מנהל"]) {
   const as = label === "ללא סשן" ? null : label === "תורן" ? "trainee" : "manager";
   say(`\n### ${label}`);
   for (const e of ENDPOINTS) {
-    if (as === null && (e.p === "/api/login" || e.p === "/api/logout")) continue;
-    if (as && (e.p === "/api/login" || e.p === "/api/logout")) continue; // לא לנתק את הסשן
+    // login ו-logout נבדקו למעלה; קריאה חוזרת הייתה מנתקת את הסשן
+    if (e.p === "/api/login" || e.p === "/api/logout") continue;
     const method = e.body === undefined ? "GET" : "POST";
-    const r = await call(e.p, { method, body: e.body, as });
+    const r = await call(urlFor(e.p, method), { method, body: e.body, as });
     const tag = `${method} ${e.p}${e.note ? ` (${e.note})` : ""}`;
     say(`  ${tag.padEnd(52)} ${signature(r)}`);
   }
@@ -138,8 +181,8 @@ for (const label of ["ללא סשן", "תורן", "מנהל"]) {
 /* --- סינון מחירים --- */
 say("\n### סינון מחירים");
 for (const [label, as] of [["תורן", "trainee"], ["מנהל", "manager"]]) {
-  const c = await call("/api/catalog", { as });
-  const l = await call("/api/lists", { as });
+  const c = await call(URL_OF["/api/catalog"], { as });
+  const l = await call(URL_OF["/api/lists"], { as });
   const hasPrice = (c.data.products || []).some((p) => "price" in p);
   const hasCost = (l.data.lists || []).some((x) => "cost" in x);
   say(`  ${label.padEnd(6)} catalog.price=${hasPrice ? "קיים" : "מסונן"}   lists.cost=${hasCost ? "קיים" : "מסונן"}`);
@@ -147,9 +190,10 @@ for (const [label, as] of [["תורן", "trainee"], ["מנהל", "manager"]]) {
 
 /* --- פרמטר התאריך --- */
 say("\n### פרמטר ?date=");
-for (const [q, label] of [["", "ללא"], ["?date=2026-08-16", "תקין"], ["?date=2026-02-31", "פסול"]]) {
+for (const [q, label] of [["", "ללא"], ["date=2026-08-16", "תקין"], ["date=2026-02-31", "פסול"]]) {
   for (const p of ["/api/tasks-today", "/api/duty-today", "/api/tasks-summary", "/api/duty-week"]) {
-    const r = await call(p + q, { as: "manager" });
+    const url = q ? addParam(URL_OF[p], q) : URL_OF[p];
+    const r = await call(url, { as: "manager" });
     const w = r.data && r.data.week;
     const tm = r.data && r.data.testMode;
     say(`  ${label.padEnd(6)} ${p.padEnd(22)} ${String(r.status).padEnd(4)} week=${String(w).padEnd(16)} testMode=${tm === true}`);

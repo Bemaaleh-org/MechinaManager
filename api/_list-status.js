@@ -21,7 +21,7 @@
 import { BOARDS, COLS, LABELS } from "../shared/boards.js";
 import { withAuth, actorName } from "./_session.js";
 import { gql } from "./_monday.js";
-import { loadLists } from "./lists.js";
+import { loadLists } from "./_lists.js";
 
 const ALLOWED = {
   draft: ["pending", "approved"],

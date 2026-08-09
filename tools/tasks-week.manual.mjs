@@ -9,7 +9,7 @@
    אין צורך לפתוח את האפליקציה.
    ============================================================ */
 
-import { ensureWeek, dedupeWeek } from "../api/tasks-week.js";
+import { ensureWeek, dedupeWeek } from "../api/_tasks-week.js";
 import { gql } from "../api/_monday.js";
 import { TASK_BOARDS, TASK_COLS, DONE } from "../shared/tasks-boards.js";
 import { weekId, weekBounds } from "../shared/week.js";

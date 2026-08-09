@@ -22,7 +22,7 @@ import { withAuth } from "./_session.js";
 import { rowColumns, listColumns } from "../shared/mapper.js";
 import { gql } from "./_monday.js";
 import { loadCatalog } from "./catalog.js";
-import { loadLists, dedupeEmptyDrafts } from "./lists.js";
+import { loadLists, dedupeEmptyDrafts } from "./_lists.js";
 
 /** הכמות להשלמה עד היעד, מעוגלת כלפי מעלה לחצי יחידה */
 const toOrder = (p) => Math.ceil((p.target - p.stock) * 2) / 2;

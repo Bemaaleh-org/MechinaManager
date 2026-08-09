@@ -14,7 +14,7 @@ import { BOARDS, LABELS } from "../shared/boards.js";
 import { withAuth, actorName } from "./_session.js";
 import { listColumns } from "../shared/mapper.js";
 import { gql } from "./_monday.js";
-import { loadLists, dedupeEmptyDrafts } from "./lists.js";
+import { loadLists, dedupeEmptyDrafts } from "./_lists.js";
 
 async function handler(req, res, session) {
   if (req.method !== "POST") {

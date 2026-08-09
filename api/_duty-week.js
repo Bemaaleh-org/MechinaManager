@@ -12,7 +12,7 @@
 
 import { withAuth } from "./_session.js";
 import { parseTestDate } from "./_test-date.js";
-import { dutyWeek } from "./duty-today.js";
+import { dutyWeek } from "./_duty-today.js";
 
 
 async function handler(req, res) {
