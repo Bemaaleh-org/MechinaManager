@@ -2,10 +2,10 @@
    הרצה יבשה של דיווח יומי — לא כותבת דבר ל-monday.
    קוראת את מצב המוצר ומדפיסה בדיוק מה הייתה כותבת.
 
-   הרצה:  node --env-file=.env api/moves.dryrun.mjs
+   הרצה:  node --env-file=.env tools/moves.dryrun.mjs
    ============================================================ */
 
-import { commitEntry } from "./moves.js";
+import { commitEntry } from "../api/moves.js";
 import { moveColumns, productColumns } from "../shared/mapper.js";
 import { COLS } from "../shared/boards.js";
 

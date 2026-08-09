@@ -4,14 +4,14 @@
    יוצר את עמודת "סדר תצוגה" ואת התוויות בשלוש עמודות הסטטוס.
    אידמפוטנטי: הרצה חוזרת לא משכפלת דבר.
 
-   הרצה:  node --env-file=.env api/tasks-schema.mjs
+   הרצה:  node --env-file=.env tools/tasks-schema.mjs
 
    ⚠ update_status_column דורס את כל התוויות. לכן שולחים תמיד את
      הרשימה המלאה, כשכל תווית קיימת נושאת את ה-id שלה. ראה
      מיפוי-לוחות.md — אותה מלכודת שנתקלנו בה בלוחות המלאי.
    ============================================================ */
 
-import { gql } from "./_monday.js";
+import { gql } from "../api/_monday.js";
 import { TASK_BOARDS, TASK_COLS, DONE, DAYS } from "../shared/tasks-boards.js";
 
 const EXEC = TASK_BOARDS.execution;

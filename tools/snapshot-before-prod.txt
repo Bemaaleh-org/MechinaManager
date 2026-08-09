@@ -1,0 +1,93 @@
+==============================================================================
+תיעוד חוזה נקודות הקצה
+סביבה: VERCEL (production)
+==============================================================================
+
+### כניסה
+  תורן  — קוד משותף        200  { kind:string, name:null, needsName:boolean, ok:boolean, roster:[33× {id,name}] }
+  תורן  — בחירת שם         200  { name:string, ok:boolean }
+  מנהל  — קוד אישי         200  { kind:string, name:string, needsName:boolean, ok:boolean, roster:[] }
+  קוד שגוי                 401  שגיאה: "קוד שגוי"
+
+### ללא סשן
+  GET /api/catalog                                     401  שגיאה: "נדרשת כניסה מחדש"
+  GET /api/lists                                       401  שגיאה: "נדרשת כניסה מחדש"
+  GET /api/moves                                       401  שגיאה: "נדרשת כניסה מחדש"
+  GET /api/users                                       401  שגיאה: "נדרשת כניסה מחדש"
+  GET /api/duty-today                                  401  שגיאה: "נדרשת כניסה מחדש"
+  GET /api/duty-week                                   401  שגיאה: "נדרשת כניסה מחדש"
+  GET /api/tasks-today                                 401  שגיאה: "נדרשת כניסה מחדש"
+  GET /api/tasks-summary                               401  שגיאה: "נדרשת כניסה מחדש"
+  POST /api/me (בלי שם)                                401  שגיאה: "נדרשת כניסה מחדש"
+  POST /api/moves (בלי סוג תנועה)                      401  שגיאה: "נדרשת כניסה מחדש"
+  POST /api/move-cancel (בלי מזהה)                     401  שגיאה: "נדרשת כניסה מחדש"
+  POST /api/count (בלי ספירות)                         401  שגיאה: "נדרשת כניסה מחדש"
+  POST /api/list-create (בלי ספק)                      401  שגיאה: "נדרשת כניסה מחדש"
+  POST /api/list-row (בלי פעולה)                       401  שגיאה: "נדרשת כניסה מחדש"
+  POST /api/list-status (בלי רשימה)                    401  שגיאה: "נדרשת כניסה מחדש"
+  POST /api/list-receive (בלי רשימה)                   401  שגיאה: "נדרשת כניסה מחדש"
+  POST /api/task-toggle (בלי משימה)                    401  שגיאה: "נדרשת כניסה מחדש"
+  POST /api/lists-sync (⚠ אידמפוטנטי — מסנכרן בפועל)   401  שגיאה: "נדרשת כניסה מחדש"
+  POST /api/tasks-week (⚠ אידמפוטנטי — השבוע כבר קיים) 401  שגיאה: "נדרשת כניסה מחדש"
+
+### תורן
+  GET /api/catalog                                     200  { count:number, prices:boolean, products:[12× {cat,exp,expiryFlag,id,min,name,pending,stock,stockStatus,sup,target,tracking,unit}] }
+  GET /api/lists                                       200  { count:number, lists:[3× {approvedAt,approvedBy,createdAt,createdBy,id,items,name,purchasedAt,status,sup}], orphanRows:number, rows:number }
+  GET /api/moves                                       200  { count:number, moves:[44× {cancelled,id,pid,qty,reason,ts,type,user}], since:string, skippedNoDate:number }
+  GET /api/users                                       403  שגיאה: "הפעולה מותרת למנהל בלבד"
+  GET /api/duty-today                                  200  { names:[1× string], reason:null, week:string }
+  GET /api/duty-week                                   200  { days:[7× [1× …]], found:boolean, week:string }
+  GET /api/tasks-today                                 200  { day:string, doneCount:number, restDay:boolean, tasks:[4× {detail,done,focus,name,order,rowId}], total:number, week:string }
+  GET /api/tasks-summary                               403  שגיאה: "הפעולה מותרת למנהל בלבד"
+  POST /api/me (בלי שם)                                400  שגיאה: "השם אינו ברשימת החניכים הפעילים"
+  POST /api/moves (בלי סוג תנועה)                      400  שגיאה: "סוג תנועה לא מוכר: undefined"
+  POST /api/move-cancel (בלי מזהה)                     400  שגיאה: "לא צוין דיווח לביטול"
+  POST /api/count (בלי ספירות)                         400  שגיאה: "לא נשלחו ספירות"
+  POST /api/list-create (בלי ספק)                      400  שגיאה: "ספק לא מוכר: undefined"
+  POST /api/list-row (בלי פעולה)                       400  שגיאה: "פעולה לא מוכרת: undefined"
+  POST /api/list-status (בלי רשימה)                    400  שגיאה: "לא צוינה רשימה"
+  POST /api/list-receive (בלי רשימה)                   400  שגיאה: "לא צוינה רשימה"
+  POST /api/task-toggle (בלי משימה)                    400  שגיאה: "לא צוינה משימה"
+  POST /api/lists-sync (⚠ אידמפוטנטי — מסנכרן בפועל)   200  { changed:boolean, cleaned:[], ok:boolean, plan:{ createLists:[], createRows:[], deleteRows:[], unchanged:[1× …], updateCosts:[] } }
+  POST /api/tasks-week (⚠ אידמפוטנטי — השבוע כבר קיים) 200  { created:number, existing:number, ok:boolean, reason:string, week:string }
+
+### מנהל
+  GET /api/catalog                                     200  { count:number, prices:boolean, products:[12× {cat,exp,expiryFlag,id,min,name,pending,price,stock,stockStatus,sup,target,tracking,unit}] }
+  GET /api/lists                                       200  { count:number, lists:[3× {approvedAt,approvedBy,cost,createdAt,createdBy,id,items,name,purchasedAt,status,sup}], orphanRows:number, rows:number }
+  GET /api/moves                                       200  { count:number, moves:[44× {cancelled,id,pid,qty,reason,ts,type,user}], since:string, skippedNoDate:number }
+  GET /api/users                                       200  { count:number, users:[38× {active,id,kind,name}] }
+  GET /api/duty-today                                  200  { names:[1× string], reason:null, week:string }
+  GET /api/duty-week                                   200  { days:[7× [1× …]], found:boolean, week:string }
+  GET /api/tasks-today                                 200  { day:string, doneCount:number, restDay:boolean, tasks:[4× {detail,done,focus,name,order,rowId}], total:number, week:string }
+  GET /api/tasks-summary                               200  { days:[6× {day,done,total}], done:number, total:number, week:string }
+  POST /api/me (בלי שם)                                403  שגיאה: "שם המנהל נקבע לפי הקוד האישי"
+  POST /api/moves (בלי סוג תנועה)                      400  שגיאה: "סוג תנועה לא מוכר: undefined"
+  POST /api/move-cancel (בלי מזהה)                     400  שגיאה: "לא צוין דיווח לביטול"
+  POST /api/count (בלי ספירות)                         400  שגיאה: "לא נשלחו ספירות"
+  POST /api/list-create (בלי ספק)                      400  שגיאה: "ספק לא מוכר: undefined"
+  POST /api/list-row (בלי פעולה)                       400  שגיאה: "פעולה לא מוכרת: undefined"
+  POST /api/list-status (בלי רשימה)                    400  שגיאה: "לא צוינה רשימה"
+  POST /api/list-receive (בלי רשימה)                   400  שגיאה: "לא צוינה רשימה"
+  POST /api/task-toggle (בלי משימה)                    400  שגיאה: "לא צוינה משימה"
+  POST /api/lists-sync (⚠ אידמפוטנטי — מסנכרן בפועל)   200  { changed:boolean, cleaned:[], ok:boolean, plan:{ createLists:[], createRows:[], deleteRows:[], unchanged:[1× …], updateCosts:[] } }
+  POST /api/tasks-week (⚠ אידמפוטנטי — השבוע כבר קיים) 200  { created:number, existing:number, ok:boolean, reason:string, week:string }
+
+### סינון מחירים
+  תורן   catalog.price=מסונן   lists.cost=מסונן
+  מנהל   catalog.price=קיים   lists.cost=קיים
+
+### פרמטר ?date=
+  ללא    /api/tasks-today       200  week=9-15.8.2026      testMode=false
+  ללא    /api/duty-today        200  week=9-15.8.2026      testMode=false
+  ללא    /api/tasks-summary     200  week=9-15.8.2026      testMode=false
+  ללא    /api/duty-week         200  week=9-15.8.2026      testMode=false
+  תקין   /api/tasks-today       200  week=9-15.8.2026      testMode=false
+  תקין   /api/duty-today        200  week=9-15.8.2026      testMode=false
+  תקין   /api/tasks-summary     200  week=9-15.8.2026      testMode=false
+  תקין   /api/duty-week         200  week=9-15.8.2026      testMode=false
+  פסול   /api/tasks-today       200  week=9-15.8.2026      testMode=false
+  פסול   /api/duty-today        200  week=9-15.8.2026      testMode=false
+  פסול   /api/tasks-summary     200  week=9-15.8.2026      testMode=false
+  פסול   /api/duty-week         200  week=9-15.8.2026      testMode=false
+
+==============================================================================

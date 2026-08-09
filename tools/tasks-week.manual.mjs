@@ -2,15 +2,15 @@
    נקודת בדיקה ידנית — שבוע המשימות
    ------------------------------------------------------------
    הרצה:
-     node --env-file=.env api/tasks-week.manual.mjs           מצב בלבד, בלי לכתוב
-     node --env-file=.env api/tasks-week.manual.mjs --create   יוצר את השבוע אם חסר
-     node --env-file=.env api/tasks-week.manual.mjs --race     שתי ריצות במקביל, בדיקת המנגנון
+     node --env-file=.env tools/tasks-week.manual.mjs           מצב בלבד, בלי לכתוב
+     node --env-file=.env tools/tasks-week.manual.mjs --create   יוצר את השבוע אם חסר
+     node --env-file=.env tools/tasks-week.manual.mjs --race     שתי ריצות במקביל, בדיקת המנגנון
 
    אין צורך לפתוח את האפליקציה.
    ============================================================ */
 
-import { ensureWeek, dedupeWeek } from "./tasks-week.js";
-import { gql } from "./_monday.js";
+import { ensureWeek, dedupeWeek } from "../api/tasks-week.js";
+import { gql } from "../api/_monday.js";
 import { TASK_BOARDS, TASK_COLS, DONE } from "../shared/tasks-boards.js";
 import { weekId, weekBounds } from "../shared/week.js";
 
