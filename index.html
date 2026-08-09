@@ -3,8 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0f2c4c" />
-    <title>מטבח המכינה</title>
+
+    <title>מטבח במעלה הדרך</title>
+
+    <!-- צבע הכרום סביב האפליקציה. הכחול הכהה מהלוגו. -->
+    <meta name="theme-color" content="#012E58" />
+
+    <!-- PWA: פתיחה כאפליקציה עצמאית, בלי שורת כתובת -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- iOS מתעלמת מהמניפסט וצריכה את אלה בנפרד.
+         mobile-web-app-capable הוא התקן החדש; apple-* נשאר
+         כי iOS עדיין נשענת עליו. שניהם חיים יחד. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="מטבח" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
   </head>
   <body>
     <div id="root"></div>
