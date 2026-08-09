@@ -7,8 +7,9 @@
    ⚠ הקוד נשלח לשרת ולא נשמר בשום מקום בדפדפן. השרת מחזיר
      עוגייה חתומה (HttpOnly) שגם JavaScript לא יכול לקרוא.
 
-   הלוגו הוא אייקון ה-PWA — העיגול בלבד, בלי הכיתוב
-   "במעלה הדרך", שממילא חוזר בשם האפליקציה.
+   הלוגו הוא logo-mark.png — העיגול ברקע שקוף, בלי הכיתוב
+   "במעלה הדרך". אייקוני ה-PWA למסך הבית נשארים עם רקע לבן,
+   כי שם המערכת חותכת אותם ממילא.
    ============================================================ */
 
 import React, { useState } from "react";
@@ -47,7 +48,7 @@ export default function Login({ notice, onDone }) {
   return (
     <div className="kx kx-login">
       <main className="wrap">
-        <img className="login-mark" src="/icon-512.png" alt="במעלה הדרך" />
+        <img className="login-mark" src="/logo-mark.png" alt="במעלה הדרך" />
 
         {/* הודעות אמיתיות בלבד: קוד שהוחלף, תוקף שפג, הרשאה שכובתה */}
         {notice && (

@@ -2,6 +2,12 @@
 export const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800;900&display=swap');
 
+/* ⚠ שוליי ברירת המחדל של הדפדפן על body יצרו רצועה בהירה מעל
+   הסרגל הכחול באייפון. ה-reset למטה מכסה רק את .kx וצאצאיו.
+   רקע כחול על body מבטיח שגם בגלילת יתר ובזמן הטעינה — לפני
+   ש-React מרנדר — לא תופיע רצועה בהירה בקצה העליון. */
+html,body{margin:0;padding:0;background:#012E58}
+
 .kx, .kx *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
 .kx{
   --bg:#EEF1F5; --surface:#fff; --ink:#152234; --muted:#5F6B7C; --faint:#94A0B0;
@@ -22,10 +28,12 @@ export const CSS = `
 
 /* ---- shell ---- */
 /* ⚠ אזור בטוח באייפון. עם black-translucent + viewport-fit=cover
-   האפליקציה מצוירת מתחת לשעון ולמצלמה, ובלי הריפוד הזה הכותרת
-   נחתכת. env() מחזיר 0 בדפדפן רגיל ובאנדרואיד, ולכן זה לא משנה
-   כלום שם. */
-.top{position:sticky;top:0;z-index:40;background:var(--accent);color:#fff;
+   האפליקציה מצוירת מתחת לשעון ולמצלמה.
+
+   הריפוד הוא בתוך האלמנט ולכן הרקע הכחול מכסה גם אותו — הכחול
+   מגיע עד קצה המסך, והתוכן בלבד נדחף מטה. env() מחזיר 0 בדפדפן
+   רגיל ובאנדרואיד, ולכן שם שום דבר לא משתנה. */
+.top{position:sticky;top:0;z-index:40;background:#012E58;color:#fff;
   padding:calc(12px + env(safe-area-inset-top)) 16px 12px}
 .top-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .top h1{font-size:18px;font-weight:800;letter-spacing:-.4px;line-height:1.15}
@@ -84,10 +92,17 @@ export const CSS = `
 /* מסך כניסה — משתמש במחלקות הקיימות (.card .fld .btn .rows).
    נשאר רק מרכוז אנכי, גודל הלוגו, ורשימת השמות שצריכה לגלול
    כשיש 33 חניכים. */
-.login-mark{display:block;width:132px;height:132px;object-fit:contain;margin:0 auto 22px}
+/* רקע שקוף, בלי מסגרת ובלי צל — הסמל עומד בפני עצמו */
+.login-mark{display:block;width:140px;height:140px;object-fit:contain;
+  margin:0 auto 24px;border:none;box-shadow:none;background:none}
 .kx-login{padding-bottom:calc(24px + env(safe-area-inset-bottom));
   display:flex;flex-direction:column;min-height:100vh;min-height:100dvh}
-.kx-login .wrap{width:100%;margin-top:auto;margin-bottom:auto}
+.kx-login .wrap{width:100%;margin-top:auto;margin-bottom:auto;
+  padding-top:calc(16px + env(safe-area-inset-top))}
+/* למסך הכניסה אין סרגל כחול, ולכן השעון הלבן היה יושב על רקע
+   בהיר ולא נקרא. רצועה כחולה בגובה האזור הבטוח בלבד. */
+.kx-login::before{content:"";position:fixed;top:0;right:0;left:0;
+  height:env(safe-area-inset-top);background:#012E58;z-index:5}
 .kx-login .rows{max-height:52vh;overflow-y:auto}
 .kx-login .row:last-child{border-bottom:none}
 .login-err{background:var(--clay-soft);color:var(--clay);border-radius:10px;padding:9px 12px;
