@@ -1,6 +1,14 @@
 /* ============================================================
    POST /api/tasks-week
-   מוודא שקיימות שורות ביצוע לשבוע הנוכחי. אם קיימות — לא נוגע.
+   מוודא שכל משימה פעילה בתבנית קיימת כשורת ביצוע בשבוע הנוכחי.
+
+   לא "קיים או לא" אלא השוואה: מה יש בתבנית, מה יש בשבוע, ומה
+   חסר. משימה שנוספה לתבנית באמצע שבוע נכנסת מיד ולא מחכה ליום
+   ראשון הבא.
+
+   ⚠ מוסיפה בלבד. שורת ביצוע קיימת לא נמחקת ולא משנה שם — גם אם
+     המשימה כובתה או נמחקה מהתבנית — ושורה שסומנה "בוצע" לא
+     נוגעים בה בשום מסלול.
 
    ============================================================
    על נכונות מול ריצה מקבילה — לקרוא לפני שינוי
@@ -143,26 +151,44 @@ export async function dedupeWeek(week) {
 export async function ensureWeek(at = new Date()) {
   const week = weekId(at);
 
-  // 1. קיים כבר?
-  const existing = await executionFor(week);
-  if (existing.length) {
-    return { week, created: 0, reason: "השבוע כבר קיים", existing: existing.length };
-  }
-
-  // 2. תבנית
+  // 1. תבנית
   const template = await activeTemplate();
   if (!template.length) {
     return { week, created: 0, reason: "אין שורות פעילות בתבנית" };
   }
 
-  // 3. עוגן — שורה אחת בלבד, לפני שמשקיעים ביצירת כל השאר
+  /* 2. השוואה במקום "קיים או לא".
+     משימה שנוספה לתבנית באמצע שבוע לא הופיעה עד יום ראשון הבא,
+     כי הבדיקה הישנה שאלה רק אם יש שורות כלשהן לשבוע.
+
+     ⚠ מוסיפה בלבד. שורה קיימת לא נמחקת, לא משנה שם, ולא נוגעים
+       בה אם סומנה "בוצע" — גם כשהמשימה כובתה או נמחקה מהתבנית. */
+  const existing = await executionFor(week);
+  const have = new Set(existing.map((r) => r.templateId).filter(Boolean));
+  const missing = template.filter((t) => !have.has(t.id));
+
+  if (!missing.length) {
+    return { week, created: 0, reason: "השבוע מלא", existing: existing.length };
+  }
+
+  /* 3. שבוע שכבר רץ — משלימים את החסרות בלבד.
+     בלי עוגן: מדובר במעט שורות, ואם שתי ריצות ייצרו את אותה
+     משימה פעמיים, רשת הביטחון שבסוף מתכנסת לשורה אחת. */
+  if (existing.length) {
+    for (const task of missing) await createRow(task, week);
+    const cleaned = await dedupeWeek(week);
+    return { week, created: missing.length, filled: true,
+             tasks: template.length, existing: existing.length, cleaned };
+  }
+
+  // 4. שבוע ריק — מסלול העוגן, שמונע יצירת עשרות שורות כפולות
   const anchorTask = template[0];
   const anchorId = await createRow(anchorTask, week);
 
-  // 4. שהייה, כדי ששתי ריצות מקבילות יספיקו לראות זו את העוגן של זו
+  // 5. שהייה, כדי ששתי ריצות מקבילות יספיקו לראות זו את העוגן של זו
   await sleep(SETTLE_MS);
 
-  // 5. הכרעה דטרמיניסטית: מי שיצר את העוגן בעל המזהה הנמוך — ממשיך
+  // 6. הכרעה דטרמיניסטית: מי שיצר את העוגן בעל המזהה הנמוך — ממשיך
   const anchors = (await executionFor(week)).filter((r) => r.templateId === anchorTask.id);
   const winner = [...anchors].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))[0];
 
@@ -172,14 +198,14 @@ export async function ensureWeek(at = new Date()) {
     return { week, created: 0, reason: "ריצה מקבילה הקדימה", yieldedTo: winner.id };
   }
 
-  // 6. שאר המשימות
+  // 7. שאר המשימות
   let created = 1;
   for (const task of template.slice(1)) {
     await createRow(task, week);
     created++;
   }
 
-  // 7. רשת הביטחון — כאן מובטחת הנכונות
+  // 8. רשת הביטחון — כאן מובטחת הנכונות
   const removed = await dedupeWeek(week);
 
   return { week, created, tasks: template.length, cleaned: removed };
