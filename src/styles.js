@@ -85,6 +85,9 @@ html,body{margin:0;padding:0;background:#012E58}
 .task-txt .s{display:block;font-size:12.5px;color:var(--muted);margin-top:1px;font-weight:500}
 .task-row.done .task-txt .t{color:var(--faint);text-decoration:line-through;text-decoration-thickness:1.5px}
 .task-more{flex:0 0 24px;color:var(--faint);display:grid;place-items:center}
+/* חץ ניווט למשימה שיש לה יעד. כהה יותר מחץ הפירוט, כי הניווט
+   הוא הפעולה העיקרית בשורה כזו. */
+.task-go{flex:0 0 30px;color:var(--accent);display:grid;place-items:center;min-height:44px}
 .task-detail{padding:0 16px 14px 55px;font-size:13.5px;line-height:1.6;color:var(--muted);
   font-weight:500;white-space:pre-wrap}
 .led-empty{padding:26px 16px;text-align:center;font-size:13.5px;color:var(--muted);font-weight:600}
@@ -154,10 +157,15 @@ html,body{margin:0;padding:0;background:#012E58}
   border-radius:13px;font-weight:800;font-size:15.5px;letter-spacing:-.2px;transition:transform .08s,opacity .15s}
 .btn:active{transform:scale(.985)}
 .btn:disabled{opacity:.42}
-.btn-primary{background:var(--accent);color:#fff}
-.btn-ghost{background:var(--surface);border:1.5px solid var(--line2);color:var(--ink)}
-.btn-clay{background:var(--clay);color:#fff}
-.btn-ok{background:var(--ok);color:#fff}
+/* ⚠ הכללים האלה חייבים להיות מקודמים ב-.kx.
+   ‎.kx button‎ למעלה מאפס רקע וצבע, והסגוליות שלו (0,1,1) גבוהה
+   מזו של ‎.btn-primary‎ לבדו (0,1,0) — כלומר ‎background:none‎ ניצח,
+   והכפתורים הוצגו כטקסט כהה בלי מלבן. הקידומת מעלה את הסגוליות
+   ל-(0,2,0) ומחזירה את העיצוב המקורי. */
+.kx .btn-primary{background:var(--accent);color:#fff}
+.kx .btn-ghost{background:var(--surface);border:1.5px solid var(--line2);color:var(--ink)}
+.kx .btn-clay{background:var(--clay);color:#fff}
+.kx .btn-ok{background:var(--ok);color:#fff}
 .btn-sm{min-height:42px;font-size:14px;border-radius:11px;padding:0 14px;width:auto}
 
 /* ---- segmented ---- */

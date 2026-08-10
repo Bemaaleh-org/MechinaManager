@@ -17,6 +17,7 @@ export const TASK_COLS = {
     detail: "long_text_mm60fm5z",
     active: "boolean_mm60xf44",
     order: "numeric_mm60f6bb",
+    target: "color_mm638qs", // יעד ניווט. ריק = משימה רגילה.
   },
   execution: {
     day: "color_mm60qaac",
@@ -34,3 +35,13 @@ export const DONE = { no: "לא בוצע", yes: "בוצע" };
 
 /** ימי השבוע כפי שהם מופיעים בתבנית */
 export const DAYS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳"];
+
+/* תווית היעד בלוח → מפתח הטאב באפליקציה.
+   ערך שאינו ברשימה מתעלמים ממנו, והמשימה מתנהגת כרגילה —
+   כדי שתווית חדשה בלוח לא תשבור את המסך. */
+export const TARGET_TAB = {
+  "קבלה": "receive",
+  "שימוש": "daily",
+  "ספירה": "count",
+  "קניות": "shop",
+};

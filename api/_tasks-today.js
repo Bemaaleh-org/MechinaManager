@@ -12,7 +12,7 @@
 import { gql } from "./_monday.js";
 import { withAuth } from "./_session.js";
 import { parseTestDate } from "./_test-date.js";
-import { TASK_BOARDS, TASK_COLS, DONE } from "../shared/tasks-boards.js";
+import { TASK_BOARDS, TASK_COLS, DONE, TARGET_TAB } from "../shared/tasks-boards.js";
 import { weekId, israelDayLetter } from "../shared/week.js";
 
 const T = TASK_COLS.template;
@@ -48,8 +48,14 @@ export async function todayTasks(at = new Date()) {
     allItems(TASK_BOARDS.template),
   ]);
 
-  const detailOf = new Map(
-    templateRows.map((t) => [String(t.id), val(t, T.detail)])
+  /* הפירוט והיעד מגיעים שניהם מלוח התבנית, דרך אותו חיבור
+     לפי "מזהה משימה בתבנית". לכן לא נדרשת עמודה נוספת בלוח
+     הביצוע — שינוי יעד בתבנית משפיע מיד גם על שבוע שכבר נוצר. */
+  const fromTemplate = new Map(
+    templateRows.map((t) => [String(t.id), {
+      detail: val(t, T.detail),
+      target: TARGET_TAB[val(t, T.target)] || null,
+    }])
   );
 
   const tasks = execRows
@@ -60,7 +66,8 @@ export async function todayTasks(at = new Date()) {
       focus: val(r, E.focus),
       done: val(r, E.done) === DONE.yes,
       order: Number(val(r, E.order)) || 0,
-      detail: detailOf.get(val(r, E.templateId)) || "",
+      detail: fromTemplate.get(val(r, E.templateId))?.detail || "",
+      target: fromTemplate.get(val(r, E.templateId))?.target || null,
     }))
     .sort((a, b) => a.order - b.order || a.rowId.localeCompare(b.rowId, undefined, { numeric: true }));
 

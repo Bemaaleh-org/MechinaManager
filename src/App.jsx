@@ -662,8 +662,10 @@ function Home({ ctx }) {
       due: !receiptDone && h >= 9, go: () => setTab("receive") },
     { k: "e", when: "ערב", t: "שימוש במצרכים", s: eveningDone ? "עודכן היום" : "מוצרים טריים בלבד – דקה וחצי", done: eveningDone,
       due: !eveningDone && afterSix, go: () => setTab("daily") },
-    { k: "c", when: "שלישי", t: "ספירת מלאי שבועית", s: countedThisWeek ? "בוצעה השבוע" : (isTue ? "היום – כולל סימון תוקף" : "בשלישי בערב"),
-      done: !!countedThisWeek, due: isTue && !countedThisWeek, go: () => setTab("count") },
+    /* ספירת המלאי השבועית הוסרה מכאן והפכה למשימה בלוח התבנית,
+       ומופיעה בכרטיס "משימות יומיות" ביום ג׳.
+       countedThisWeek עדיין מחושב — הוא מזין את התנאי של רשימת
+       הקניות למטה, שנפתחת רק אחרי שנספר. */
     { k: "s", when: isWed ? "היום" : "רביעי", t: "רשימת קניות",
       s: anyApproved ? "הרשימה אושרה על ידי המנהל" : (openLists.length ? statusText(openLists[0]) : "נוצרת אחרי הספירה"),
       done: anyApproved, due: !anyApproved && ((isTue && countedThisWeek) || isWed), go: () => setTab("shop") },
@@ -770,7 +772,7 @@ function Home({ ctx }) {
       </div>
 
       {/* משימות הניקיון של היום — למסך החניך בלבד */}
-      {!isMgr && <TodayTasks />}
+      {!isMgr && <TodayTasks setTab={setTab} />}
 
       {isMgr && (
         <>
@@ -816,7 +818,7 @@ function TasksWeekSummary() {
   if (!data) {
     return (
       <>
-        <div className="sec-label">משימות ניקיון – השבוע</div>
+        <div className="sec-label">משימות יומיות – השבוע</div>
         <div className="card"><div className="led-empty">טוען…</div></div>
       </>
     );
@@ -824,7 +826,7 @@ function TasksWeekSummary() {
   if (!data.days.length) {
     return (
       <>
-        <div className="sec-label">משימות ניקיון – השבוע</div>
+        <div className="sec-label">משימות יומיות – השבוע</div>
         <div className="card"><div className="led-empty">אין משימות מוגדרות לשבוע {data.week}.</div></div>
       </>
     );
@@ -834,7 +836,7 @@ function TasksWeekSummary() {
 
   return (
     <>
-      <div className="sec-label">משימות ניקיון – השבוע</div>
+      <div className="sec-label">משימות יומיות – השבוע</div>
       <div className="card" style={{ marginBottom: 8 }}>
         <div className="tsum-head">
           <span className="tsum-week">שבוע {data.week}</span>
@@ -870,7 +872,7 @@ function TasksWeekSummary() {
 
    כל תורני היום אחראים יחד. אין חלוקה אישית ואין רישום של מי
    סימן, וזו החלטה ולא השמטה. */
-function TodayTasks() {
+function TodayTasks({ setTab }) {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
   const [open, setOpen] = useState(null);
@@ -931,7 +933,7 @@ function TodayTasks() {
   if (!data) {
     return (
       <>
-        <div className="sec-label">משימות ניקיון</div>
+        <div className="sec-label">משימות יומיות</div>
         {banner}
         <div className="ledger"><div className="led-empty">טוען…</div></div>
       </>
@@ -941,11 +943,11 @@ function TodayTasks() {
   if (data.restDay || !data.tasks.length) {
     return (
       <>
-        <div className="sec-label">משימות ניקיון</div>
+        <div className="sec-label">משימות יומיות</div>
         {banner}
         <div className="ledger">
           <div className="led-empty">
-            {data.restDay ? "שבת — אין משימות ניקיון היום. שבת שלום." : "אין משימות ניקיון מוגדרות ליום הזה."}
+            {data.restDay ? "שבת — אין משימות יומיות היום. שבת שלום." : "אין משימות יומיות מוגדרות ליום הזה."}
           </div>
         </div>
       </>
@@ -954,7 +956,7 @@ function TodayTasks() {
 
   return (
     <>
-      <div className="sec-label">משימות ניקיון</div>
+      <div className="sec-label">משימות יומיות</div>
       {banner}
       <div className="ledger">
         <div className="led-head">
@@ -972,7 +974,10 @@ function TodayTasks() {
                 </span>
               </button>
 
-              <button className="task-txt" onClick={() => setOpen(open === t.rowId ? null : t.rowId)}>
+              {/* משימה עם יעד: השם מנווט, והפירוט נפתח דרך החץ.
+                  משימה רגילה: השם פותח את הפירוט, כמו קודם. */}
+              <button className="task-txt"
+                onClick={() => (t.target ? setTab(t.target) : setOpen(open === t.rowId ? null : t.rowId))}>
                 <span className="t">{t.name}</span>
                 <span className="s">{t.focus}</span>
               </button>
@@ -981,6 +986,15 @@ function TodayTasks() {
                 <button className="task-more" onClick={() => setOpen(open === t.rowId ? null : t.rowId)}
                   aria-label="פירוט">
                   <span style={{ display: "inline-block", transform: open === t.rowId ? "rotate(90deg)" : "rotate(-90deg)" }}>
+                    <I.chev />
+                  </span>
+                </button>
+              )}
+
+              {/* חץ ניווט — רק במשימה שיש לה יעד */}
+              {t.target && (
+                <button className="task-go" onClick={() => setTab(t.target)} aria-label="מעבר">
+                  <span style={{ display: "inline-block", transform: "scaleX(-1)" }}>
                     <I.chev />
                   </span>
                 </button>
@@ -1058,7 +1072,7 @@ function Daily({ ctx, modes = ["receipt", "usage", "waste"], title }) {
       <div className="card" style={{ marginBottom: 14, padding: "12px 14px" }}>
         <div style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600, lineHeight: 1.5 }}>
           {mode === "receipt" && "מה הגיע היום למחסן. אם זו אספקה מול הזמנה מאושרת – עדיף לעדכן דרך מסך הקניות."}
-          {mode === "usage" && "רק מוצרים טריים. היבשים נספרים בשלישי ולא צריך לדווח עליהם."}
+          {mode === "usage" && "במה השתמשנו היום"}
           {mode === "waste" && "חובה לציין סיבה לכל פריט. זה מה שמאפשר לזהות דפוסי בזבוז בסוף החודש."}
         </div>
       </div>
