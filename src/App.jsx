@@ -660,7 +660,7 @@ function Home({ ctx }) {
   const rows = [
     { k: "r", when: "בוקר", t: "קבלת מצרכים", s: receiptDone ? "עודכן היום" : "מה הגיע היום למחסן", done: receiptDone,
       due: !receiptDone && h >= 9, go: () => setTab("receive") },
-    { k: "e", when: "ערב", t: "שימוש במצרכים", s: eveningDone ? "עודכן היום" : "מוצרים טריים בלבד – דקה וחצי", done: eveningDone,
+    { k: "e", when: "ערב", t: "שימוש במצרכים", s: eveningDone ? "עודכן היום" : "במה השתמשנו היום", done: eveningDone,
       due: !eveningDone && afterSix, go: () => setTab("daily") },
     /* ספירת המלאי השבועית הוסרה מכאן והפכה למשימה בלוח התבנית,
        ומופיעה בכרטיס "משימות יומיות" ביום ג׳.
