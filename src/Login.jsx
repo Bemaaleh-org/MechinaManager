@@ -49,6 +49,7 @@ export default function Login({ notice, onDone }) {
     <div className="kx kx-login">
       <main className="wrap">
         <img className="login-mark" src="/logo-mark.png" alt="במעלה הדרך" />
+        <div className="login-title">מכינת ניר עוז</div>
 
         {/* הודעות אמיתיות בלבד: קוד שהוחלף, תוקף שפג, הרשאה שכובתה */}
         {notice && (

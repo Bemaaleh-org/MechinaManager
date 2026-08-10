@@ -97,7 +97,13 @@ html,body{margin:0;padding:0;background:#012E58}
    כשיש 33 חניכים. */
 /* רקע שקוף, בלי מסגרת ובלי צל — הסמל עומד בפני עצמו */
 .login-mark{display:block;width:140px;height:140px;object-fit:contain;
-  margin:0 auto 24px;border:none;box-shadow:none;background:none}
+  margin:0 auto 16px;border:none;box-shadow:none;background:none}
+/* מתקרב באופי לכיתוב שבלוגו בלי להטמיע פונט חיצוני: Heebo 800,
+   הכחול של הסמל, ומרווח אותיות מעט צר כמו במקור.
+   משקל 800 נטען ב-@import בראש הקובץ — לא נופל לברירת מחדל. */
+.login-title{font-family:'Heebo',system-ui,sans-serif;font-weight:800;
+  font-size:26px;color:#012E58;text-align:center;letter-spacing:-.5px;
+  line-height:1.2;margin:0 0 26px}
 .kx-login{padding-bottom:calc(24px + env(safe-area-inset-bottom));
   display:flex;flex-direction:column;min-height:100vh;min-height:100dvh}
 .kx-login .wrap{width:100%;margin-top:auto;margin-bottom:auto;
