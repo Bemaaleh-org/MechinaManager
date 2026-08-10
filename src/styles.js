@@ -127,14 +127,30 @@ html,body{margin:0;padding:0;background:#012E58}
 .tsum-week{font-size:14.5px;font-weight:800}
 .tsum-total{font-size:12.5px;font-weight:700;color:var(--muted)}
 .tsum-total.ok{color:var(--ok)}
+/* שורת יום היא כפתור שפותח פירוט. width ו-text-align נדרשים
+   כי button לא יורש אותם. */
 .tsum-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 2px;
-  border-bottom:1px solid var(--line)}
+  border-bottom:1px solid var(--line);width:100%;text-align:right;min-height:48px}
+.tsum-row:active{background:#F5F7FA}
 .tsum-row:last-child{border-bottom:none}
 .tsum-day{display:flex;align-items:center;gap:7px;font-size:14.5px;font-weight:700}
 .tsum-row.full .tsum-day{color:var(--ok)}
 .tsum-v{display:grid;place-items:center;width:18px;height:18px;border-radius:6px;background:var(--ok);color:#fff}
 .tsum-count{font-size:13px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
 .tsum-row.full .tsum-count{color:var(--ok)}
+
+/* פירוט יום — תצוגה בלבד. אין כאן אזורי לחיצה, ולכן שורות
+   ולא כפתורים. הריבוע הוא חיווי מצב, לא פקד. */
+.tday-row{display:flex;align-items:center;gap:12px;padding:12px 2px;
+  border-bottom:1px solid var(--line);min-height:56px}
+.tday-row:last-child{border-bottom:none}
+.tday-txt{flex:1;min-width:0}
+.tday-txt .t{display:block;font-size:14.5px;font-weight:700;letter-spacing:-.2px}
+.tday-txt .s{display:block;font-size:12px;color:var(--muted);margin-top:2px;font-weight:500}
+.tday-row.done .tday-txt .t{color:var(--faint)}
+.tday-state{flex:0 0 auto;font-size:12px;font-weight:800;color:var(--clay);
+  background:var(--clay-soft);padding:4px 9px;border-radius:7px;white-space:nowrap}
+.tday-state.ok{color:var(--ok);background:var(--ok-soft)}
 .chev{color:var(--line2);flex:0 0 auto}
 .when{font-size:11px;font-weight:800;letter-spacing:.6px;color:var(--faint);
   background:var(--bg);padding:3px 8px;border-radius:6px;flex:0 0 auto}

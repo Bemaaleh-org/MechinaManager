@@ -88,6 +88,11 @@ export const api = {
   getTasksSummary: (date) =>
     get("/api/tasks?action=summary" + (date ? `&date=${encodeURIComponent(date)}` : "")),
 
+  /** פירוט משימות של יום אחד. מנהל בלבד, קריאה בלבד. */
+  getTasksDay: (day, date) =>
+    get(`/api/tasks?action=day&day=${encodeURIComponent(day)}`
+        + (date ? `&date=${encodeURIComponent(date)}` : "")),
+
   /** קבלת סחורה: כמויות לפי rowId. סוגרת את הרשימה ומעדכנת מלאי. */
   receiveList: ({ listId, user, received }) =>
     post("/api/lists?action=receive", { listId, user: { name: user.name }, received }),

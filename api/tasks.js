@@ -2,6 +2,7 @@
    /api/tasks — משימות הניקיון
      ?action=today     GET    משימות היום
      ?action=summary   GET    סיכום שבועי (מנהל בלבד)
+     ?action=day       GET    פירוט יום אחד (מנהל בלבד)
      ?action=ensure    POST   יצירת שורות השבוע
      ?action=toggle    POST   סימון משימה
 
@@ -12,7 +13,8 @@
 import { router } from "./_router.js";
 import today from "./_tasks-today.js";
 import summary from "./_tasks-summary.js";
+import day from "./_tasks-day.js";
 import ensure from "./_tasks-week.js";
 import toggle from "./_task-toggle.js";
 
-export default router({ today, summary, ensure, toggle });
+export default router({ today, summary, day, ensure, toggle });

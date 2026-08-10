@@ -796,6 +796,83 @@ function Home({ ctx }) {
   );
 }
 
+/* ============ פירוט יום — למנהל, קריאה בלבד ============ */
+/* ⚠ אותם כללים כמו הסיכום: אין שמות, אין מי סימן, ואין תאריך
+   סימון — הוא לא מזהה אדם אבל מגלה מתי, וזה מעקב שלא התכוונו
+   אליו. השאילתה בשרת מצומצמת במפורש. */
+function TaskDayDetail({ day, onBack }) {
+  const [data, setData] = useState(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    api.getTasksDay(day, testDate() || undefined)
+      .then((d) => live && setData(d))
+      .catch(() => live && setFailed(true));
+    return () => { live = false; };
+  }, [day]);
+
+  const back = (
+    <button className="btn btn-ghost btn-sm" style={{ marginBottom: 12 }} onClick={onBack}>
+      <I.chev /> חזרה לסיכום
+    </button>
+  );
+
+  if (failed) {
+    return (<>{back}<div className="card"><div className="led-empty">שליפת הפירוט נכשלה.</div></div></>);
+  }
+  if (!data) {
+    return (<>{back}<div className="card"><div className="led-empty">טוען…</div></div></>);
+  }
+
+  const allDone = data.total > 0 && data.doneCount === data.total;
+
+  return (
+    <>
+      {back}
+      <div className="sec-label" style={{ marginTop: 0 }}>
+        יום {data.day} · שבוע {data.week}
+      </div>
+
+      {!data.total ? (
+        <div className="card" style={{ marginBottom: 18 }}>
+          <div className="led-empty">
+            {data.unknownDay ? "אין משימות ביום הזה." : "אין משימות מוגדרות ליום הזה."}
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="card" style={{ marginBottom: 8 }}>
+            <div className="tsum-head">
+              <span className="tsum-week">{data.doneCount} מתוך {data.total} בוצעו</span>
+              <span className={"tsum-total" + (allDone ? " ok" : "")}>
+                {allDone ? "היום נסגר" : "בתהליך"}
+              </span>
+            </div>
+            {data.tasks.map((t, i) => (
+              <div className={"tday-row" + (t.done ? " done" : "")} key={i}>
+                <span className={"tick" + (t.done ? " on" : "")}>
+                  {t.done && <span style={{ color: "#fff" }}><I.check /></span>}
+                </span>
+                <span className="tday-txt">
+                  <span className="t">{t.name}</span>
+                  <span className="s">{t.focus}</span>
+                </span>
+                <span className={"tday-state" + (t.done ? " ok" : "")}>
+                  {t.done ? "בוצע" : "לא בוצע"}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--faint)", fontWeight: 600, margin: "0 4px 18px", lineHeight: 1.5 }}>
+            תצוגה בלבד. האחריות היומית משותפת לכל תורני היום.
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
 /* ============ סיכום משימות ניקיון — למנהל, קריאה בלבד ============ */
 /* מציג ביצוע ברמת יום לשבוע הנוכחי בלבד.
    ⚠ בכוונה אין כאן: שמות, מי סימן, ולא אפשרות לסמן או לבטל.
@@ -805,6 +882,7 @@ function Home({ ctx }) {
 function TasksWeekSummary() {
   const [data, setData] = useState(null);
   const [failed, setFailed] = useState(false);
+  const [openDay, setOpenDay] = useState(null);
 
   useEffect(() => {
     let live = true;
@@ -813,6 +891,8 @@ function TasksWeekSummary() {
       .catch(() => live && setFailed(true));
     return () => { live = false; };
   }, []);
+
+  if (openDay) return <TaskDayDetail day={openDay} onBack={() => setOpenDay(null)} />;
 
   if (failed) return null; // לא מפילים את הדוח בגלל הסיכום
   if (!data) {
@@ -847,13 +927,15 @@ function TasksWeekSummary() {
         {data.days.map((d) => {
           const full = d.done === d.total;
           return (
-            <div className={"tsum-row" + (full ? " full" : "")} key={d.day}>
+            <button className={"tsum-row" + (full ? " full" : "")} key={d.day}
+              onClick={() => setOpenDay(d.day)}>
               <span className="tsum-day">
                 {full && <span className="tsum-v"><I.check /></span>}
                 יום {d.day}
               </span>
               <span className="tsum-count">{d.done} מתוך {d.total} בוצעו</span>
-            </div>
+              <span className="chev"><I.chev /></span>
+            </button>
           );
         })}
       </div>
