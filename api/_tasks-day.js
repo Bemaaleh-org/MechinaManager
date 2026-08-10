@@ -3,12 +3,15 @@
    פירוט משימות של יום אחד בשבוע הנוכחי, למנהל.
 
    ⚠ פרטיות — לא לשנות בלי כוונה מפורשת:
-     השאילתה מושכת חמש עמודות בלבד — שבוע, יום, מוקד, בוצע,
-     סדר תצוגה — ואת שם המשימה.
+     מלוח הביצוע נמשכות ארבע עמודות — שבוע, יום, מוקד, בוצע —
+     ומזהה המשימה בתבנית, שנחוץ לשליפת סדר התצוגה.
 
-     לא נמשכים: תאריך סימון, מזהה משימה בתבנית, ומזהה הפריט.
-     תאריך הסימון אינו מזהה אדם, אבל הוא מגלה מתי בוצעה כל
-     משימה — וזה מעקב שלא התכוונו אליו.
+     לא נמשכים: תאריך סימון ומזהה הפריט. תאריך הסימון אינו
+     מזהה אדם, אבל הוא מגלה מתי בוצעה כל משימה — וזה מעקב
+     שלא התכוונו אליו.
+
+     מזהה המשימה בתבנית אינו נתון אישי — הוא מצביע על שורה
+     בלוח התבנית, לא על אדם.
 
    קריאה בלבד. אין כאן שום נתיב כתיבה.
    ============================================================ */
@@ -20,6 +23,20 @@ import { TASK_BOARDS, TASK_COLS, DONE, DAYS } from "../shared/tasks-boards.js";
 import { weekId } from "../shared/week.js";
 
 const E = TASK_COLS.execution;
+const T = TASK_COLS.template;
+
+/** סדר התצוגה לכל משימה בתבנית, לפי מזהה השורה */
+async function templateOrder() {
+  const cols = JSON.stringify([T.order]);
+  const d = await gql(
+    `{ boards(ids:[${TASK_BOARDS.template}]){ items_page(limit:500){ items {
+         id column_values(ids:${cols}){ id text } } } } }`
+  );
+  return new Map(d.boards[0].items_page.items.map((i) => [
+    String(i.id),
+    Number((i.column_values[0] || {}).text) || 0,
+  ]));
+}
 
 export async function dayDetail(dayLetter, at = new Date()) {
   const week = weekId(at);
@@ -28,7 +45,11 @@ export async function dayDetail(dayLetter, at = new Date()) {
     return { week, day: dayLetter, tasks: [], total: 0, doneCount: 0, unknownDay: true };
   }
 
-  const cols = JSON.stringify([E.week, E.day, E.focus, E.done, E.order]);
+  /* ⚠ E.order (numeric_mm61bawn בלוח הביצוע) נטוש — הסדר נשלף
+     מהתבנית. העמודה נשארה בלוח כדי לא לשבור נתונים קיימים,
+     אבל שום קוד לא קורא אותה עוד. */
+  const cols = JSON.stringify([E.week, E.day, E.focus, E.done, E.templateId]);
+  const orderMap = await templateOrder();
 
   const rows = [];
   let cursor = null;
@@ -52,7 +73,10 @@ export async function dayDetail(dayLetter, at = new Date()) {
       name: r.name,
       focus: val(r, E.focus),
       done: val(r, E.done) === DONE.yes,
-      order: Number(val(r, E.order)) || 0,
+      // שורה שהמשימה שלה נמחקה מהתבנית — לסוף הרשימה, לא לראשה
+      order: orderMap.has(val(r, E.templateId))
+        ? orderMap.get(val(r, E.templateId))
+        : Infinity,
     }))
     .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name, "he"));
 

@@ -88,6 +88,8 @@ async function createRow(task, week) {
     [E.done]: { label: DONE.no },
     [E.week]: week,
     [E.templateId]: task.id,
+    // נכתב לקריאוּת בלוח בלבד — אף מסך לא קורא אותו. ראה ההערה
+    // ליד E.order ב-shared/tasks-boards.js.
     [E.order]: String(task.order),
   };
   const r = await gql(

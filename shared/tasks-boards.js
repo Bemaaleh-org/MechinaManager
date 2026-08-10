@@ -26,6 +26,10 @@ export const TASK_COLS = {
     week: "text_mm60fpta",
     markedAt: "date_mm605ddy",
     templateId: "text_mm6099ve",
+    /* ⚠ נטושה. סדר התצוגה נשלף מהתבנית דרך templateId, ואף מסך
+       לא קורא את העמודה הזו. היא עדיין נכתבת ביצירת שבוע כדי
+       שהלוח יישאר קריא למי שמסתכל בו ב-monday — אבל אין להסתמך
+       עליה, ושורה שנוצרה ידנית בלעדיה תמוין נכון בכל מקרה. */
     order: "numeric_mm61bawn",
   },
 };

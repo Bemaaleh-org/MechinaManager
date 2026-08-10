@@ -55,8 +55,20 @@ export async function todayTasks(at = new Date()) {
     templateRows.map((t) => [String(t.id), {
       detail: val(t, T.detail),
       target: TARGET_TAB[val(t, T.target)] || null,
+      order: Number(val(t, T.order)) || 0,
     }])
   );
+
+  /* ⚠ סדר התצוגה נשלף מהתבנית ולא מהעמודה המקבילה בלוח הביצוע.
+     שם הוא הועתק פעם אחת ביצירת השבוע, ולכן שינוי סדר בתבנית לא
+     השפיע על שבוע רץ, ושורה שנוצרה ידנית קיבלה סדר ריק וקפצה לראש.
+
+     שורה שאין לה משימה בתבנית — נמחקה — מקבלת Infinity ויורדת
+     לסוף הרשימה במקום לקפוץ לראשה. */
+  const orderOf = (r) => {
+    const t = fromTemplate.get(val(r, E.templateId));
+    return t ? t.order : Infinity;
+  };
 
   const tasks = execRows
     .filter((r) => val(r, E.week) === week && val(r, E.day) === day)
@@ -65,7 +77,7 @@ export async function todayTasks(at = new Date()) {
       name: r.name,
       focus: val(r, E.focus),
       done: val(r, E.done) === DONE.yes,
-      order: Number(val(r, E.order)) || 0,
+      order: orderOf(r),
       detail: fromTemplate.get(val(r, E.templateId))?.detail || "",
       target: fromTemplate.get(val(r, E.templateId))?.target || null,
     }))
