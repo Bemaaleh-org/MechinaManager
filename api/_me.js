@@ -20,12 +20,20 @@ export default async function handler(req, res) {
         isManager: session.isManager,
         needsName: session.kind === "trainee" && !session.name,
         roster: session.kind === "trainee" ? await traineeRoster() : [],
+        /* ⚠ נוסף רק לחניך. אצל תורן ומנהל התשובה נשארת זהה
+           בתו למה שהייתה, וכך גם התיעוד ב-api-snapshot. */
+        ...(session.isStudent ? { isStudent: true, isLeader: session.isLeader } : {}),
       });
     }
 
     if (req.method === "POST") {
       if (session.isManager) {
         return res.status(403).json({ error: "שם המנהל נקבע לפי הקוד האישי" });
+      }
+      /* ⚠ שם החניך מגיע מלוח המכינה ומאומת מול תעודת הזהות.
+         בניגוד לתורן, אין כאן מה לבחור ואין מה להצהיר. */
+      if (session.isStudent) {
+        return res.status(403).json({ error: "שם החניך נקבע לפי תעודת הזהות" });
       }
       const body = req.body ?? (await readJson(req));
       const name = String(body?.name || "").trim();

@@ -20,6 +20,7 @@ import crypto from "node:crypto";
 import { gql } from "./_monday.js";
 import { AUTH_BOARD, AUTH_COLS, KIND } from "../shared/auth-board.js";
 import { cached } from "./_cache.js";
+import { studentRows } from "./_student-rows.js";
 
 const COOKIE = "mk_session";
 const TTL_DAYS = 7;
@@ -125,6 +126,35 @@ export async function requireAuth(req, res) {
   if (!payload) throw new AuthError("נדרשת כניסה מחדש");
   if (!payload.exp || payload.exp < Date.now()) throw new AuthError("תוקף הכניסה פג");
 
+  /* ---------- חניך: לוח אחר, אותם כללים ----------
+     ⚠ החניך אינו יושב בלוח ההרשאות אלא בלוח החניכים של המכינה,
+       ולכן הענף הזה מקדים את השליפה מ-authRows. שכבת הקודים של
+       המטבח לא נוגעת בו ולא מושפעת ממנו.
+
+     ⚠ אותה התחייבות כמו במטבח: שינוי בלוח מנתק מיד. כובה
+       "פעיל", השורה נמחקה או שהת"ז תוקנה — הסשן נפסל. */
+  if (payload.kind === "student") {
+    const row = (await studentRows()).find((r) => r.id === payload.itemId);
+    if (!row) throw new AuthError("ההרשאה בוטלה");
+    if (!row.active) throw new AuthError("החניך אינו רשום כפעיל");
+    if (!row.tz || fingerprint(row.tz) !== payload.cfp) {
+      throw new AuthError("פרטי הכניסה השתנו – נדרשת כניסה מחדש");
+    }
+
+    if (res && payload.exp - Date.now() < REFRESH_WHEN_LEFT_MS) {
+      setSession(res, { kind: "student", itemId: row.id, name: row.name, cfp: payload.cfp });
+    }
+
+    return {
+      kind: "student",
+      itemId: row.id,
+      name: row.name, // ⚠ מאומת מול הלוח, לא מוצהר כמו אצל תורן
+      isManager: false,
+      isStudent: true,
+      isLeader: row.leader, // מוביל שבוע — נקרא טרי בכל בקשה
+    };
+  }
+
   const rows = await authRows();
   const row = rows.find((r) => r.id === payload.itemId);
 
@@ -140,8 +170,10 @@ export async function requireAuth(req, res) {
   return {
     kind: payload.kind, // "manager" | "trainee"
     itemId: payload.itemId,
-    name: payload.name || null, // אצל חניך: השם שבחר. מוצהר, לא מאומת.
+    name: payload.name || null, // אצל תורן: השם שבחר. מוצהר, לא מאומת.
     isManager: payload.kind === "manager",
+    isStudent: false,
+    isLeader: false,
   };
 }
 
@@ -159,12 +191,35 @@ export async function requireManager(req, res) {
   return s;
 }
 
-/** עוטף handler: מאמת, ומחזיר 401/403 מסודר במקום להתפוצץ */
-export function withAuth(handler, { manager = false } = {}) {
+/**
+ * עוטף handler: מאמת, ומחזיר 401/403 מסודר במקום להתפוצץ.
+ *
+ *   withAuth(h)                    מטבח — תורן או מנהל. ⚠ חניך נדחה.
+ *   withAuth(h, {manager:true})    מנהל בלבד.
+ *   withAuth(h, {student:true})    כל מי שמחובר, כולל חניך.
+ *   withAuth(h, {marker:true})     מנהל או מוביל שבוע.
+ *
+ * ⚠ ברירת המחדל דוחה חניכים, ולא במקרה. 19 נקודות הקצה של המטבח
+ *   נכתבו כשהמחוברים היחידים היו תורנים ומנהלים. אילו ברירת
+ *   המחדל הייתה מתירה, הוספת החניכים הייתה פותחת להם את המלאי,
+ *   הרשימות והדיווחים בבת אחת — בלי ששורה אחת בקבצים ההם השתנתה.
+ *   פתיחה לחניך היא החלטה מפורשת לכל נקודת קצה בנפרד.
+ */
+export function withAuth(handler, { manager = false, marker = false, student = false } = {}) {
   return async (req, res) => {
     let session;
     try {
-      session = manager ? await requireManager(req, res) : await requireAuth(req, res);
+      session = await requireAuth(req, res);
+
+      if (manager && !session.isManager) {
+        throw new AuthError("הפעולה מותרת למנהל בלבד", 403);
+      }
+      if (marker && !session.isManager && !session.isLeader) {
+        throw new AuthError("הפעולה מותרת למנהל או למוביל שבוע בלבד", 403);
+      }
+      if (!manager && !marker && !student && session.isStudent) {
+        throw new AuthError("הפעולה אינה זמינה לחניכים", 403);
+      }
     } catch (e) {
       const status = e instanceof AuthError ? e.status : 500;
       return res.status(status).json({ error: e.message, authRequired: status === 401 });

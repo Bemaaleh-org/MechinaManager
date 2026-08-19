@@ -1,0 +1,135 @@
+/* ============================================================
+   POST /api/attendance?action=decide   { requestId, decision }
+   decision: "approve" | "reject"        מנהל בלבד
+
+   אישור בקשה יוצר את שורת ההיעדרות בו ברגע. זה החיבור היחיד
+   בין השניים — אין הקלדה כפולה ואין מצב שבו בקשה מאושרת אינה
+   מופיעה בלוח השנתי של החניך.
+
+   ⚠ הכללים נבדקים שוב כאן, בזמן ההחלטה, ולא רק בזמן ההגשה.
+     חניך יכול להגיש שלוש בקשות חופש כשלכל אחת בנפרד יש מכסה;
+     אישור שלושתן היה חורג. הבדיקה בהגשה נועדה לחסוך לו הגשה
+     לחינם — הבדיקה שקובעת היא זו.
+
+   ⚠ שורת היעדרות שכבר קיימת לאותו יום אינה נדרסת. הבקשה
+     מאושרת, אבל לא נוצרת שורה שנייה — עדיף מצב גלוי מאשר
+     כפילות שקטה בלוח השנתי.
+   ============================================================ */
+
+import { withAuth, actorName } from "./_session.js";
+import { studentRows } from "./_student-rows.js";
+import { gql } from "./_monday.js";
+import {
+  loadCalendar, loadAbsences, loadMarked, summarize, israelToday,
+  vacationRule, createAbsence, invalidateAttendance,
+} from "./_attendance-data.js";
+import { loadRequests, invalidateRequests } from "./_requests.js";
+import {
+  MECHINA_BOARDS, MECHINA_COLS, ABSENCE, ABSENCE_SOURCE, REQ_STATUS,
+} from "../shared/mechina-boards.js";
+
+const R = MECHINA_COLS.requests;
+
+async function handler(req, res, session) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "רק POST נתמך כאן" });
+  }
+
+  try {
+    const body = req.body ?? (await readJson(req));
+    const requestId = String(body?.requestId || "").trim();
+    const decision = String(body?.decision || "");
+
+    if (!requestId) return res.status(400).json({ error: "לא צוינה בקשה" });
+    if (!["approve", "reject"].includes(decision)) {
+      return res.status(400).json({ error: "החלטה לא מוכרת" });
+    }
+
+    const [requests, cal, rows, absences, marked] = await Promise.all([
+      loadRequests({ force: true }), loadCalendar(), studentRows(),
+      loadAbsences({ force: true }), loadMarked(),
+    ]);
+
+    const request = requests.find((r) => r.id === requestId);
+    if (!request) return res.status(404).json({ error: "הבקשה אינה נמצאת" });
+
+    /* ⚠ בקשה שכבר הוכרעה לא משנה כיוון. מנהל שני שפותח את המסך
+       הישן ולוחץ לא הופך החלטה של הראשון בלי שאיש יידע. */
+    if (request.status !== REQ_STATUS.pending) {
+      return res.status(409).json({
+        error: `הבקשה כבר ${request.status}` + (request.decidedBy ? ` על ידי ${request.decidedBy}` : ""),
+      });
+    }
+
+    const student = rows.find((r) => r.id === request.studentId);
+    if (!student) return res.status(404).json({ error: "החניך אינו נמצא" });
+
+    const day = cal.byDate.get(request.date) || null;
+    let absenceId = null;
+
+    if (decision === "approve") {
+      if (!day) return res.status(400).json({ error: "התאריך אינו בלוח השנה של המכינה" });
+
+      if (request.type === ABSENCE.vacation) {
+        const rule = vacationRule(day);
+        if (!rule.allowed) return res.status(400).json({ error: rule.reason });
+
+        const sum = summarize(request.studentId, { absences, marked, byDate: cal.byDate });
+        const q = sum.quota.find((x) => x.half === day.half);
+        if (!q) return res.status(400).json({ error: "התאריך אינו בתוך מחצית" });
+        if (q.left <= 0) {
+          return res.status(400).json({ error: `נוצלו כל ${q.total} ימי החופש ב${day.half}` });
+        }
+      }
+
+      const already = absences.find(
+        (a) => a.studentId === request.studentId && a.date === request.date);
+
+      if (!already) {
+        absenceId = await createAbsence({
+          studentId: request.studentId,
+          studentName: student.name,
+          date: request.date,
+          type: request.type,
+          detail: request.detail,
+          source: ABSENCE_SOURCE.request,
+        });
+      }
+    }
+
+    const status = decision === "approve" ? REQ_STATUS.approved : REQ_STATUS.rejected;
+    await gql(
+      `mutation($b:ID!,$i:ID!,$v:JSON!){ change_multiple_column_values(board_id:$b,item_id:$i,column_values:$v,create_labels_if_missing:false){ id } }`,
+      {
+        b: MECHINA_BOARDS.requests, i: requestId,
+        v: JSON.stringify({
+          [R.status]: { label: status },
+          [R.by]: actorName(session).slice(0, 120),
+          [R.decided]: { date: israelToday() },
+        }),
+      }
+    );
+
+    invalidateRequests();
+    invalidateAttendance();
+
+    res.status(200).json({
+      ok: true, id: requestId, status,
+      absenceCreated: Boolean(absenceId),
+      /* היה כבר סימון לאותו יום — המסך מודיע ולא שותק */
+      alreadyAbsent: decision === "approve" && !absenceId,
+    });
+  } catch (e) {
+    console.error("[request-decide]", e);
+    res.status(502).json({ error: "עדכון הבקשה נכשל" });
+  }
+}
+
+async function readJson(req) {
+  const chunks = [];
+  for await (const c of req) chunks.push(c);
+  const raw = Buffer.concat(chunks).toString("utf8");
+  return raw ? JSON.parse(raw) : {};
+}
+
+export default withAuth(handler, { manager: true });
