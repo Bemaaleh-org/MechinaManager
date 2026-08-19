@@ -4,6 +4,7 @@ import { LOGO } from "./logo.js";
 import { storage } from "./storage.js";
 import { api, setUnauthorizedHandler } from "./api.js";
 import Login from "./Login.jsx";
+import { MechinaApp, MechinaStaff } from "./Mechina.jsx";
 import { testDate } from "./testDate.js";
 /* ============================================================
    מערכת ניהול מלאי — מטבח המכינה
@@ -24,6 +25,7 @@ const I = {
   plus: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" {...p}><path d="M12 5v14M5 12h14"/></svg>,
   clock: (p) => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="9"/><path d="M12 7v5.5l3.5 2"/></svg>,
   download: (p) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3v12M7 11l5 5 5-5M4 20h16"/></svg>,
+  users: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="9" cy="8" r="3.4"/><path d="M3 20c0-3.3 2.7-5.4 6-5.4s6 2.1 6 5.4"/><path d="M16 5.2a3.4 3.4 0 0 1 0 6.6M18 20c0-2.4-1-4.1-2.6-5"/></svg>,
   edit: (p) => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>,
 };
 
@@ -227,7 +229,12 @@ export default function App() {
     </div></>);
   }
 
-  if (auth === null || auth.needsName) {
+  /* ⚠ needsName אינו חוסם יותר. שלב בחירת השם הוסר ממסך הכניסה,
+     ותורן שלא בחר שם נכנס ישירות — הדיווחים שלו נרשמים על
+     "תורן". אילו התנאי היה נשאר, תורן היה חוזר למסך הכניסה
+     בלולאה אינסופית: השרת ממשיך להחזיר needsName=true והמסך
+     כבר לא מציע דרך לספק שם. */
+  if (auth === null) {
     return (<><style>{CSS}</style>
       <Login notice={notice} onDone={check} />
     </>);
@@ -236,12 +243,27 @@ export default function App() {
   /* התנתקות יזומה לא מציגה הודעה — המשתמש יודע שלחץ עליה.
      ההודעות במסך הכניסה שמורות למה שקרה בלי שביקש: הקוד הוחלף,
      תוקף פג, הרשאה כובתה. */
-  return <Kitchen auth={auth} onSignedOut={() => { setAuth(null); setNotice(null); }} />;
+  const signedOut = () => { setAuth(null); setNotice(null); };
+
+  /* ⚠ חניך מקבל שלד משלו ולא את המטבח. השרת דוחה סשן חניך מכל
+     נקודות הקצה של המטבח, ולכן טאב מטבח אצלו היה מוביל למסך
+     שגיאה בלבד. ראו withAuth ב-api/_session.js. */
+  if (auth.isStudent) {
+    return (<><style>{CSS}</style>
+      <MechinaApp auth={auth} onSignedOut={signedOut} />
+    </>);
+  }
+
+  return <Kitchen auth={auth} onSignedOut={signedOut} />;
 }
 
 function Kitchen({ auth, onSignedOut }) {
   const [st, setSt] = useState(null);
   const [tab, setTab] = useState("home");
+  /* ⚠ אצל המנהל הניווט התחתון עבר לרמת התחום — מטבח, נוכחות,
+     בקשות — והמסכים הפנימיים של המטבח ירדו לבורר שמעל התוכן.
+     אצל תורן שום דבר מזה לא קיים והניווט נשאר כשהיה. */
+  const [section, setSection] = useState("kitchen");
   const [toast, setToast] = useState(null);
   const [modal, setModal] = useState(null);
   const saveT = useRef(null);
@@ -604,26 +626,52 @@ function Kitchen({ auth, onSignedOut }) {
             </div>
           )}
 
-          {tab === "home" && <Home ctx={ctx} />}
-          {tab === "daily" && <Daily ctx={ctx} modes={["usage", "waste"]} title="שימוש במצרכים" />}
-          {tab === "receive" && <Receive ctx={ctx} />}
-          {tab === "count" && <Count ctx={ctx} />}
-          {tab === "shop" && <Shop ctx={ctx} />}
-          {tab === "manage" && (isMgr ? <Manage ctx={ctx} /> : <Home ctx={ctx} />)}
+          {section === "kitchen" && (
+            <>
+              {/* בורר המסכים של המטבח. אצל תורן הניווט התחתון
+                  ממלא את התפקיד הזה ואין צורך בו. */}
+              {isMgr && (
+                <div className="seg">
+                  {[["home", "בית"], ["shop", "קניות"], ["manage", "ניהול"]].map(([k, l]) => (
+                    <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>
+                  ))}
+                </div>
+              )}
+
+              {tab === "home" && <Home ctx={ctx} />}
+              {tab === "daily" && <Daily ctx={ctx} modes={["usage", "waste"]} title="שימוש במצרכים" />}
+              {tab === "receive" && <Receive ctx={ctx} />}
+              {tab === "count" && <Count ctx={ctx} />}
+              {tab === "shop" && <Shop ctx={ctx} />}
+              {tab === "manage" && (isMgr ? <Manage ctx={ctx} /> : <Home ctx={ctx} />)}
+            </>
+          )}
+
+          {/* ⚠ תחום המכינה יושב בקובץ נפרד ואינו נוגע במטבח.
+              ההרשאה נאכפת בשרת; הבדיקה כאן היא תצוגה בלבד. */}
+          {section === "mechina" && isMgr && <MechinaStaff say={say} />}
         </main>
 
+        {/* ⚠ שני ניווטים שונים לשני תפקידים.
+            מנהל — ניווט ברמת התחום: מטבח, נוכחות, בקשות.
+            תורן — בדיוק הניווט שהיה, בלי שינוי. */}
         <nav className="nav">
-          {(isMgr
-            ? [["home", "בית", I.home], ["shop", "קניות", I.cart], ["manage", "ניהול", I.gear]]
+          {isMgr
+            ? [["kitchen", "מטבח", I.home], ["mechina", "נוכחות", I.users]].map(([k, label, Icon]) => (
+                <button key={k} className={section === k ? "on" : ""} onClick={() => setSection(k)}>
+                  <Icon />
+                  <span>{label}</span>
+                  {k === "kitchen" && navBadge > 0 && <span className="bdg">{navBadge}</span>}
+                </button>
+              ))
             : [["home", "בית", I.home], ["daily", "שימוש", I.day], ["receive", "קבלה", I.download],
-               ["count", "ספירה", I.count], ["shop", "קניות", I.cart]]
-          ).map(([k, label, Icon]) => (
-            <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>
-              <Icon />
-              <span>{label}</span>
-              {k === "home" && navBadge > 0 && <span className="bdg">{navBadge}</span>}
-            </button>
-          ))}
+               ["count", "ספירה", I.count], ["shop", "קניות", I.cart]].map(([k, label, Icon]) => (
+                <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>
+                  <Icon />
+                  <span>{label}</span>
+                  {k === "home" && navBadge > 0 && <span className="bdg">{navBadge}</span>}
+                </button>
+              ))}
         </nav>
 
         {toast && <div className="toast">{toast}</div>}

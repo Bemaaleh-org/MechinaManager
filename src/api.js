@@ -11,8 +11,16 @@
 let onUnauthorized = null;
 export const setUnauthorizedHandler = (fn) => { onUnauthorized = fn; };
 
+/* מסלולי כניסה — 401 מהם הוא "הקוד שגוי", לא "פג התוקף", ולכן
+   אסור שיפעילו את מסך הכניסה מחדש עם הודעת ניתוק. */
+const LOGIN_PATHS = [
+  "/api/auth?action=login",
+  "/api/auth?action=logout",
+  "/api/students?action=login",
+];
+
 function handle401(path, data) {
-  if (onUnauthorized && !path.startsWith("/api/auth?action=login") && !path.startsWith("/api/auth?action=logout")) {
+  if (onUnauthorized && !LOGIN_PATHS.some((p) => path.startsWith(p))) {
     onUnauthorized(data.error || "נדרשת כניסה מחדש");
   }
 }
@@ -128,4 +136,51 @@ export const api = {
 
   /** ספירה שבועית: קובעת מלאי וסימון תוקף */
   finishCount: ({ user, entries }) => post("/api/moves?action=count", { user, entries }),
+
+  /* ============================================================
+     מכינה — חניכים, נוכחות ובקשות יציאה
+     ------------------------------------------------------------
+     ⚠ כל הקריאות האלה עוברות דרך הקובץ הזה כמו כל השאר. אין
+       fetch ישיר במסכים — זה מה שמנע את חזרת הבאג שבו קובץ
+       אחד החזיק כתובות ישנות והקטלוג חזר ריק בייצור.
+     ============================================================ */
+
+  /** כניסת חניך בתעודת זהות. השרת מחזיר עוגייה, כמו בכניסת הצוות. */
+  loginStudent: (tz) => post("/api/students?action=login", { tz }),
+
+  /** רשימת החניכים וסיכומיהם. מנהל בלבד — השרת אוכף. */
+  getStudents: () => get("/api/students?action=list"),
+
+  /** הלוח השנתי. בלי מזהה — של המחובר. עם מזהה — מנהל בלבד. */
+  getStudentYear: (studentId, today) =>
+    get("/api/students?action=year"
+      + (studentId ? `&student=${encodeURIComponent(studentId)}` : "")
+      + (today ? `&today=${encodeURIComponent(today)}` : "")),
+
+  /** מינוי או ביטול מוביל שבוע. מנהל בלבד — השרת אוכף. */
+  setLeader: ({ studentId, leader }) =>
+    post("/api/students?action=leader", { studentId, leader }),
+
+  /** מצב יום אחד לסימון. מנהל או מוביל שבוע. */
+  getAttendanceDay: (date, today) =>
+    get("/api/attendance?action=day"
+      + (date ? `&date=${encodeURIComponent(date)}` : "")
+      + (today ? `&today=${encodeURIComponent(today)}` : "")),
+
+  /** שומר את סימון היום. נושא את המצב המלא הרצוי, לא פעולות. */
+  markAttendance: ({ date, absences }, today) =>
+    post("/api/attendance?action=mark" + (today ? `&today=${encodeURIComponent(today)}` : ""),
+      { date, absences }),
+
+  /** בקשות יציאה. חניך מקבל את שלו בלבד — הסינון בשרת. */
+  getRequests: (status) =>
+    get("/api/attendance?action=requests" + (status ? `&status=${encodeURIComponent(status)}` : "")),
+
+  /** הגשת בקשה חדשה */
+  createRequest: ({ type, date, detail }) =>
+    post("/api/attendance?action=requests", { type, date, detail }),
+
+  /** אישור או דחייה. מנהל בלבד. אישור יוצר את שורת ההיעדרות. */
+  decideRequest: ({ requestId, decision }) =>
+    post("/api/attendance?action=decide", { requestId, decision }),
 };

@@ -10,10 +10,19 @@
      מצטברות היו גורמות לשנייה לבטל את הראשונה. זה אותו שיקול
      שמאחורי _task-toggle.js במטבח.
 
-   ⚠ שורת היעדרות שנוצרה מבקשה מאושרת אינה נמחקת כאן לעולם.
-     המסמן רואה אותה ולא יכול להסיר אותה, כי מחיקה שקטה הייתה
-     מבטלת החלטה של מנהל בלי שאיש יראה. ביטול נעשה על הבקשה
-     עצמה. עדיף חיכוך גלוי מאשר החלטה שנעלמת.
+   ⚠ שורת היעדרות שמקורה בבקשה מאושרת — מנהל בלבד רשאי לשנות.
+
+     חניך שאושר לו יום חופש ובסוף הגיע, או שיצא למחלה במקום,
+     הוא מצב שכיח: המציאות משתנה אחרי ההחלטה. מנהל צריך לתקן
+     את הרישום כדי שיישאר נכון.
+
+     מוביל שבוע אינו רשאי. הוא רואה את השורה נעולה, כי מחיקה
+     שלו הייתה מבטלת החלטה של מנהל בלי שאיש יראה. ההפרדה הזו
+     היא כל ההבדל בין תיקון לבין דריסה.
+
+     הבקשה עצמה נשארת "מאושר" — היא תיעוד של ההחלטה שהתקבלה,
+     ולא של מה שקרה בפועל. שורת ההיעדרות המתוקנת מסומנת
+     "סימון ידני", כך שרואים בלוח שאדם נגע בה אחרי האישור.
 
    ⚠ מוביל שבוע — היום הנוכחי בלבד, נאכף כאן ולא בתצוגה.
    ============================================================ */
@@ -91,6 +100,8 @@ async function handler(req, res, session) {
     const onDate = absences.filter((a) => a.date === date);
     const byStudent = new Map(onDate.map((a) => [a.studentId, a]));
 
+    /* ⚠ ההרשאה לתקן שורה שמקורה בבקשה מאושרת. מנהל בלבד. */
+    const canOverride = session.isManager;
     const locked = [], created = [], removed = [], changed = [];
 
     for (const w of clean) {
@@ -103,7 +114,7 @@ async function handler(req, res, session) {
         created.push(w.name);
         continue;
       }
-      if (cur.source === ABSENCE_SOURCE.request) { locked.push(w.name); continue; }
+      if (cur.source === ABSENCE_SOURCE.request && !canOverride) { locked.push(w.name); continue; }
       if (cur.type !== w.type || (cur.detail || "") !== w.detail) {
         await deleteAbsence(cur.id);
         await createAbsence({
@@ -116,8 +127,9 @@ async function handler(req, res, session) {
 
     for (const cur of onDate) {
       if (seen.has(cur.studentId)) continue;
-      /* ⚠ בקשה מאושרת לא נמחקת בסימון. ראו ההערה בראש הקובץ. */
-      if (cur.source === ABSENCE_SOURCE.request) {
+      /* ⚠ בקשה מאושרת — מנהל רשאי לבטל, מוביל שבוע לא.
+         ראו ההערה בראש הקובץ. */
+      if (cur.source === ABSENCE_SOURCE.request && !canOverride) {
         locked.push((known.get(cur.studentId) || {}).name || cur.studentId);
         continue;
       }
