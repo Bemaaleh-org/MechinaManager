@@ -1,46 +1,63 @@
 /* ============================================================
    מסך כניסה
    ------------------------------------------------------------
-   במרכז: הלוגו, שדה הקוד וכפתור הכניסה. שום דבר מעבר.
-   אצל חניך מתווסף שלב שני — בחירת שם מרשימת החניכים.
+   שני מסלולים נפרדים:
+     חניך — תעודת זהות
+     צוות — קוד אישי (מנהל) או הקוד המשותף (תורן)
 
-   ⚠ הקוד נשלח לשרת ולא נשמר בשום מקום בדפדפן. השרת מחזיר
-     עוגייה חתומה (HttpOnly) שגם JavaScript לא יכול לקרוא.
+   ⚠ שלב בחירת השם מרשימת החניכים הוסר. הוא הציג "חניך 1"…
+     "חניך 33" — שמות מציינים שאינם אומרים דבר, ושהמשתמש נאלץ
+     לבחור מהם בכל כניסה.
 
-   הלוגו הוא logo-mark.png — העיגול ברקע שקוף, בלי הכיתוב
-   "במעלה הדרך". אייקוני ה-PWA למסך הבית נשארים עם רקע לבן,
-   כי שם המערכת חותכת אותם ממילא.
+     המשמעות: דיווח של תורן נרשם על השם "תורן" ולא על שם שנבחר.
+     השרת לא השתנה — traineeRoster ו-POST /api/auth?action=me
+     עדיין קיימים, והשלב ניתן להחזרה בהסרת ההערה הזו ובשחזור
+     ענף ה-name. שם החניך במסלול הת"ז מאומת ולא נפגע מכך.
+
+   ⚠ הקוד והת"ז נשלחים לשרת ואינם נשמרים בשום מקום בדפדפן.
+     השרת מחזיר עוגייה חתומה (HttpOnly) שגם JavaScript לא קורא.
+
+   ⚠ תעודת זהות אינה סוד. היא נבחרה כמפתח הכניסה של החניכים
+     בשלב הזה בהחלטת המכינה, ולא מתוך הנחה שהיא בטוחה. אם
+     המסלול הזה יוחלף אי פעם, כאן ובקובץ api/_student-login.js
+     בלבד.
    ============================================================ */
 
 import React, { useState } from "react";
 import { api } from "./api.js";
 
 export default function Login({ notice, onDone }) {
-  const [step, setStep] = useState("code"); // code | name
+  const [mode, setMode] = useState("student"); // student | staff
   const [code, setCode] = useState("");
-  const [roster, setRoster] = useState([]);
+  const [tz, setTz] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+
+  const switchMode = (m) => {
+    if (busy || m === mode) return;
+    setMode(m); setErr(null); setCode(""); setTz("");
+  };
 
   const submitCode = (e) => {
     e.preventDefault();
     if (busy || !code.trim()) return;
     setBusy(true); setErr(null);
     api.login(code.trim())
-      .then((r) => {
+      .then(() => {
         setCode(""); // לא משאירים את הקוד בזיכרון המסך
-        if (r.needsName) { setRoster(r.roster || []); setStep("name"); }
-        else onDone();
+        onDone();
       })
       .catch((e2) => setErr(e2.message))
       .finally(() => setBusy(false));
   };
 
-  const pickName = (name) => {
-    if (busy) return;
+  const submitTz = (e) => {
+    e.preventDefault();
+    const v = tz.trim();
+    if (busy || !v) return;
     setBusy(true); setErr(null);
-    api.setMyName(name)
-      .then(() => onDone())
+    api.loginStudent(v)
+      .then(() => { setTz(""); onDone(); })
       .catch((e2) => setErr(e2.message))
       .finally(() => setBusy(false));
   };
@@ -64,7 +81,29 @@ export default function Login({ notice, onDone }) {
           </div>
         )}
 
-        {step === "code" ? (
+        <div className="seg">
+          <button className={mode === "student" ? "on" : ""} disabled={busy}
+            onClick={() => switchMode("student")}>חניך</button>
+          <button className={mode === "staff" ? "on" : ""} disabled={busy}
+            onClick={() => switchMode("staff")}>צוות</button>
+        </div>
+
+        {mode === "student" && (
+          <form className="card" onSubmit={submitTz}>
+            <div className="fld">
+              <label htmlFor="tz">תעודת זהות</label>
+              <input id="tz" type="text" inputMode="numeric" autoComplete="off"
+                value={tz} disabled={busy} autoFocus maxLength={9}
+                onChange={(e) => setTz(e.target.value.replace(/\D/g, ""))}
+                placeholder="9 ספרות" />
+            </div>
+            <button className="btn btn-primary" type="submit" disabled={busy || !tz.trim()}>
+              {busy ? "בודק…" : "כניסה"}
+            </button>
+          </form>
+        )}
+
+        {mode === "staff" && (
           <form className="card" onSubmit={submitCode}>
             <div className="fld">
               <label htmlFor="code">קוד כניסה</label>
@@ -76,26 +115,6 @@ export default function Login({ notice, onDone }) {
               {busy ? "בודק…" : "כניסה"}
             </button>
           </form>
-        ) : (
-          <>
-            <div className="card" style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 15.5, fontWeight: 800, letterSpacing: "-.2px" }}>מי אתם?</div>
-              <div style={{ fontSize: 12.5, color: "var(--muted)", fontWeight: 600,
-                            lineHeight: 1.6, marginTop: 6 }}>
-                השם משמש לתיעוד הדיווחים. אפשר להחליף אותו בכל עת מתוך האפליקציה.
-              </div>
-            </div>
-
-            <div className="rows">
-              {roster.map((r) => (
-                <button className="row" key={r.id} disabled={busy}
-                  style={{ width: "100%", textAlign: "right" }}
-                  onClick={() => pickName(r.name)}>
-                  <div className="r-main"><div className="r-name">{r.name}</div></div>
-                </button>
-              ))}
-            </div>
-          </>
         )}
       </main>
     </div>

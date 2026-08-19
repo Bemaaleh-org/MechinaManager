@@ -11,17 +11,25 @@
 let onUnauthorized = null;
 export const setUnauthorizedHandler = (fn) => { onUnauthorized = fn; };
 
+/* מסלולי כניסה — 401 מהם הוא "הקוד שגוי", לא "פג התוקף", ולכן
+   אסור שיפעילו את מסך הכניסה מחדש עם הודעת ניתוק. */
+const LOGIN_PATHS = [
+  "/api/auth?action=login",
+  "/api/auth?action=logout",
+  "/api/students?action=login",
+];
+
 function handle401(path, data) {
-  if (onUnauthorized && !path.startsWith("/api/auth?action=login") && !path.startsWith("/api/auth?action=logout")) {
+  if (onUnauthorized && !LOGIN_PATHS.some((p) => path.startsWith(p))) {
     onUnauthorized(data.error || "נדרשת כניסה מחדש");
   }
 }
 
-async function post(path, body) {
+async function send(method, path, body) {
   let r;
   try {
     r = await fetch(path, {
-      method: "POST",
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
@@ -34,6 +42,10 @@ async function post(path, body) {
   if (!r.ok) throw new Error(data.error || `השרת החזיר שגיאה ${r.status}`);
   return data;
 }
+
+const post = (path, body) => send("POST", path, body);
+const put = (path, body) => send("PUT", path, body);
+const del = (path, body) => send("DELETE", path, body);
 
 async function get(path) {
   let r;
@@ -128,4 +140,98 @@ export const api = {
 
   /** ספירה שבועית: קובעת מלאי וסימון תוקף */
   finishCount: ({ user, entries }) => post("/api/moves?action=count", { user, entries }),
+
+  /* ============================================================
+     מכינה — חניכים, נוכחות ובקשות יציאה
+     ------------------------------------------------------------
+     ⚠ כל הקריאות האלה עוברות דרך הקובץ הזה כמו כל השאר. אין
+       fetch ישיר במסכים — זה מה שמנע את חזרת הבאג שבו קובץ
+       אחד החזיק כתובות ישנות והקטלוג חזר ריק בייצור.
+     ============================================================ */
+
+  /** כניסת חניך בתעודת זהות. השרת מחזיר עוגייה, כמו בכניסת הצוות. */
+  loginStudent: (tz) => post("/api/students?action=login", { tz }),
+
+  /** רשימת החניכים וסיכומיהם. מנהל בלבד — השרת אוכף. */
+  getStudents: () => get("/api/students?action=list"),
+
+  /** הלוח השנתי. בלי מזהה — של המחובר. עם מזהה — מנהל בלבד. */
+  getStudentYear: (studentId, today) =>
+    get("/api/students?action=year"
+      + (studentId ? `&student=${encodeURIComponent(studentId)}` : "")
+      + (today ? `&today=${encodeURIComponent(today)}` : "")),
+
+  /** מינוי או ביטול מוביל שבוע. מנהל בלבד — השרת אוכף. */
+  setLeader: ({ studentId, leader }) =>
+    post("/api/students?action=leader", { studentId, leader }),
+
+  /** מצב יום אחד לסימון. מנהל או מוביל שבוע. */
+  getAttendanceDay: (date, today) =>
+    get("/api/attendance?action=day"
+      + (date ? `&date=${encodeURIComponent(date)}` : "")
+      + (today ? `&today=${encodeURIComponent(today)}` : "")),
+
+  /** שומר את סימון היום. נושא את המצב המלא הרצוי, לא פעולות. */
+  markAttendance: ({ date, absences }, today) =>
+    post("/api/attendance?action=mark" + (today ? `&today=${encodeURIComponent(today)}` : ""),
+      { date, absences }),
+
+  /** בקשות יציאה. חניך מקבל את שלו בלבד — הסינון בשרת. */
+  getRequests: (status) =>
+    get("/api/attendance?action=requests" + (status ? `&status=${encodeURIComponent(status)}` : "")),
+
+  /** הגשת בקשה חדשה */
+  createRequest: ({ type, date, detail }) =>
+    post("/api/attendance?action=requests", { type, date, detail }),
+
+  /** אישור או דחייה. מנהל בלבד. אישור יוצר את שורת ההיעדרות. */
+  decideRequest: ({ requestId, decision }) =>
+    post("/api/attendance?action=decide", { requestId, decision }),
+
+  /** קביעת תפקידי חניך. מנהל בלבד. נושא את הרשימה המלאה. */
+  setRoles: ({ studentId, roles }) =>
+    post("/api/students?action=role", { studentId, roles }),
+
+  /* ============================================================
+     שיעורים במכינה
+     ⚠ כל נקודות הקצה כאן פתוחות לצוות ולאחראי הלו״ז בלבד.
+     ============================================================ */
+
+  /** כל גיליונות השיעור עם הספירה של כל אחד */
+  getLessonSheets: () => get("/api/lessons?action=list"),
+
+  /** גיליון אחד עם כל מפגשיו */
+  getLessonSheet: (id) => get(`/api/lessons?action=sheet&id=${encodeURIComponent(id)}`),
+
+  /** פתיחת גיליון חדש. נוצר ריק — המפגשים נוספים בנפרד. */
+  createLessonSheet: ({ subject, lecturer, dayTime }) =>
+    post("/api/lessons?action=sheet", { subject, lecturer, dayTime }),
+
+  /** דיווח אם מפגש התקיים. null מחזיר ל"טרם דווח".
+   *  lecturer ו-opinion רלוונטיים בשיעורי מרצה אורח בלבד. */
+  markLesson: ({ meetingId, happened, note, lecturer, opinion }) =>
+    post("/api/lessons?action=mark", { meetingId, happened, note, lecturer, opinion }),
+
+  /** הוספת מפגש ידנית לגיליון קיים. נשמר ב-monday מיד. */
+  addLessonMeeting: ({ sheetId, date, planned, reason, note }) =>
+    post("/api/lessons?action=meeting", { sheetId, date, planned, reason, note }),
+
+  /** עריכת מפגש: תאריך, האם יתקיים, סיבה והערות */
+  editLessonMeeting: ({ meetingId, date, planned, reason, note }) =>
+    put("/api/lessons?action=meeting", { meetingId, date, planned, reason, note }),
+
+  /** ⚠ מחיקת מפגש — בלתי הפיך, השורה נמחקת מהלוח */
+  deleteLessonMeeting: (meetingId) =>
+    del("/api/lessons?action=meeting", { meetingId }),
+
+  /** הגאנט השנתי — כל אירועי השנה. עריכה בלוח ב-monday. */
+  getGantt: () => get("/api/lessons?action=gantt"),
+
+  /** חוות דעת על מרצים */
+  getLessonEvals: (cycle) =>
+    get("/api/lessons?action=evals" + (cycle ? `&cycle=${encodeURIComponent(cycle)}` : "")),
+
+  /** הוספת חוות דעת חדשה */
+  addLessonEval: ({ name, topic, field, phone, opinion, cycle }) =>
+    post("/api/lessons?action=evals", { name, topic, field, phone, opinion, cycle }),
 };

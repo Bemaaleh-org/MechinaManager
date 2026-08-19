@@ -326,5 +326,113 @@ html,body{margin:0;padding:0;background:#012E58}
   border-radius:13px;padding:14px 16px;font-size:14.5px;font-weight:700;text-align:center;
   animation:up .22s cubic-bezier(.2,.8,.3,1);max-width:400px;margin:0 auto;box-shadow:0 8px 24px rgba(0,0,0,.22)}
 
+/* ============================================================
+   מכינה — נוכחות, בקשות וחניכים
+   ------------------------------------------------------------
+   משתמש באותם משתני צבע, אותם רדיוסים ואותה טיפוגרפיה של
+   המטבח. אין כאן פלטה שנייה ואין גופן נוסף — רק רכיבים שלא
+   היו קיימים.
+   ============================================================ */
+
+/* לוח נוכחות שנתי */
+.yr{display:flex;flex-direction:column;gap:8px}
+.yr-row{display:flex;align-items:flex-start;gap:9px}
+.yr-lab{font-size:11px;font-weight:800;color:var(--muted);flex:0 0 40px;padding-top:2px;letter-spacing:.2px}
+.yr-cells{display:flex;flex-wrap:wrap;gap:3px}
+.yr-c{width:13px;height:13px;border-radius:3.5px;background:var(--surface);border:1px solid var(--line);
+  padding:0;flex:0 0 auto}
+.yr-c.off{background:#E7EBF1;border-color:#E7EBF1}
+.yr-c.future{background:var(--bg);border-color:var(--line)}
+.yr-c.sick{background:var(--clay);border-color:var(--clay)}
+.yr-c.just{background:var(--amber);border-color:var(--amber)}
+.yr-c.vac{background:var(--accent);border-color:var(--accent)}
+.yr-c.unmarked{background:repeating-linear-gradient(45deg,#fff,#fff 2px,#DCE2EA 2px,#DCE2EA 4px);
+  border-color:var(--line2)}
+.yr-c.sel{outline:2px solid var(--ink);outline-offset:1px}
+.yr-key{display:flex;flex-wrap:wrap;gap:11px;margin-top:13px;padding-top:12px;border-top:1px solid var(--line)}
+.yr-key i{display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:var(--muted);font-style:normal}
+.yr-key i b{width:11px;height:11px;border-radius:3px;display:block;border:1px solid var(--line)}
+
+/* מכסת ימי חופש — שתי מחציות זו לצד זו */
+.quota{display:flex;gap:9px}
+.quota-h{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:12px 13px}
+.quota-h .qk{font-size:11.5px;font-weight:800;color:var(--muted);letter-spacing:.3px}
+.quota-h .qv{display:flex;align-items:baseline;gap:3px;margin-top:5px}
+.quota-h .qv b{font-size:25px;font-weight:900;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.quota-h .qv span{font-size:12.5px;font-weight:700;color:var(--faint)}
+.quota-dots{display:flex;gap:4px;margin-top:8px}
+.quota-dots i{width:100%;height:5px;border-radius:99px;background:var(--accent);display:block}
+.quota-dots i.used{background:var(--line)}
+
+/* שורת חניך */
+.st-row{display:flex;align-items:center;gap:11px;padding:11px 13px;border-bottom:1px solid var(--line);
+  min-height:60px;width:100%;text-align:right;background:none}
+.st-row:last-child{border-bottom:none}
+.st-row:active{background:#F5F7FA}
+.st-av{width:34px;height:34px;border-radius:50%;background:var(--accent-soft);color:var(--accent);
+  display:grid;place-items:center;font-size:13px;font-weight:800;flex:0 0 34px}
+.st-av.absent{background:var(--clay-soft);color:var(--clay)}
+.st-main{flex:1;min-width:0}
+.st-n{font-size:14.5px;font-weight:700;letter-spacing:-.2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-m{font-size:11.5px;color:var(--muted);margin-top:2px;font-weight:600;display:flex;gap:6px;align-items:center}
+.st-fig{display:flex;gap:4px;flex:0 0 auto}
+.st-fig b{font-size:11px;font-weight:800;padding:3px 6px;border-radius:6px;font-variant-numeric:tabular-nums;
+  min-width:22px;text-align:center}
+
+/* בורר סוג היעדרות בשורת סימון */
+.abs-pick{display:flex;gap:5px;padding:0 13px 12px;flex-wrap:wrap}
+.abs-pick button{flex:1;min-width:74px;min-height:40px;border-radius:9px;border:1.5px solid var(--line2);
+  background:var(--surface);font-size:13px;font-weight:700;color:var(--muted)}
+.abs-pick button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.abs-pick button.on.sick{background:var(--clay);border-color:var(--clay)}
+.abs-pick button.on.just{background:var(--amber);border-color:var(--amber)}
+.abs-pick button:disabled{opacity:.45}
+.abs-note{padding:0 13px 12px}
+.abs-note input{width:100%;min-height:44px;background:var(--bg);border:1px solid var(--line2);
+  border-radius:10px;padding:0 12px;outline:none;font-size:14px}
+.abs-note input:focus{border-color:var(--accent)}
+.abs-lock{font-size:11.5px;font-weight:700;color:var(--amber);padding:0 13px 11px;display:flex;gap:6px}
+
+/* כרטיס בקשה */
+.rq{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 15px;margin-bottom:10px}
+.rq-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.rq-name{font-size:15px;font-weight:800;letter-spacing:-.2px}
+.rq-meta{font-size:12px;color:var(--muted);margin-top:5px;font-weight:600;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.rq-detail{font-size:13.5px;line-height:1.55;color:var(--muted);font-weight:500;
+  margin-top:9px;white-space:pre-wrap}
+.rq-act{display:flex;gap:6px;margin-top:12px}
+.rq-act button{flex:1;min-height:46px;border-radius:10px;border:1.5px solid var(--line2);font-size:13.5px;
+  font-weight:800;color:var(--muted);background:var(--surface)}
+.rq-act button.ok{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+.rq-act button.no{background:var(--clay-soft);border-color:var(--clay);color:var(--clay)}
+.rq-act button:disabled{opacity:.45}
+
+/* ---- גאנט שנתי ----
+   סדר-יום אנכי לפי חודשים, לא רשת אופקית: בטלפון רשת של 365
+   עמודות אינה קריאה. פס הצבע בצד מקודד את סוג האירוע. */
+.gnt-month{background:var(--surface);border:1px solid var(--line);border-radius:16px;
+  overflow:hidden;margin-bottom:12px}
+.gnt-mh{padding:12px 15px 10px;border-bottom:1px solid var(--line);display:flex;
+  justify-content:space-between;align-items:baseline}
+.gnt-mh .m{font-size:15.5px;font-weight:800;letter-spacing:-.2px}
+.gnt-mh .c{font-size:12px;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums}
+.gnt-ev{display:flex;align-items:flex-start;gap:11px;padding:10px 15px;
+  border-bottom:1px solid var(--line);position:relative}
+.gnt-ev:last-child{border-bottom:none}
+.gnt-ev::before{content:"";position:absolute;right:0;top:8px;bottom:8px;width:3.5px;
+  border-radius:0 3px 3px 0;background:var(--accent)}
+.gnt-ev.shabbat::before{background:var(--amber)}
+.gnt-ev.holiday::before{background:var(--clay)}
+.gnt-ev.today{background:#F2F6FB}
+.gnt-when{flex:0 0 78px;text-align:center;padding-top:1px}
+.gnt-when .d{font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+.gnt-when .r{font-size:10.5px;color:var(--faint);font-weight:700;margin-top:1px}
+.gnt-what{flex:1;min-width:0;padding-top:1px}
+.gnt-what .t{font-size:14px;font-weight:700;letter-spacing:-.2px;line-height:1.35}
+.gnt-what .s{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px}
+.gnt-now{display:flex;align-items:center;gap:8px;padding:4px 15px;color:var(--accent);
+  font-size:11px;font-weight:800;letter-spacing:.4px}
+.gnt-now::before,.gnt-now::after{content:"";flex:1;height:2px;border-radius:99px;background:var(--accent)}
+
 @media (prefers-reduced-motion:reduce){.kx *{animation:none!important;transition:none!important}}
 `;
