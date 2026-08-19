@@ -33,7 +33,10 @@ export const normalizeTz = (v) =>
  */
 export async function studentRows({ force = false } = {}) {
   return cached("student-rows", async () => {
-    const ids = JSON.stringify([C.tz, C.active, C.leader, C.gender, ROLES_COL]);
+    const ids = JSON.stringify([
+      C.tz, C.active, C.leader, C.gender, ROLES_COL,
+      C.army, C.tryouts, C.talk1, C.talk2, C.talk3,
+    ]);
     const d = await gql(
       `{ boards(ids:[${MECHINA_BOARDS.roster}]){ items_page(limit:500){ items {
            id name column_values(ids:${ids}){ id text } } } } }`
@@ -54,6 +57,14 @@ export async function studentRows({ force = false } = {}) {
         roles,
         /* ⚠ התפקיד היחיד שקשורה אליו הרשאה. ראו shared/lessons-boards.js */
         isScheduler: roles.includes(ROLE_SCHEDULE),
+        /* ---- פרופיל ----
+           ⚠ לא נכנס ל-toPublic. יוצא רק דרך נקודת הקצה של
+           הפרופיל, שאוכפת מי רואה מה. */
+        profile: {
+          army: val(i, C.army) || "",
+          tryouts: val(i, C.tryouts) || "",
+          talks: [val(i, C.talk1) || null, val(i, C.talk2) || null, val(i, C.talk3) || null],
+        },
       };
     });
   }, { force });

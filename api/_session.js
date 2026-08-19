@@ -21,6 +21,7 @@ import { gql } from "./_monday.js";
 import { AUTH_BOARD, AUTH_COLS, KIND } from "../shared/auth-board.js";
 import { cached } from "./_cache.js";
 import { studentRows } from "./_student-rows.js";
+import { ROLE_CONTAINER } from "../shared/lessons-boards.js";
 
 const COOKIE = "mk_session";
 const TTL_DAYS = 7;
@@ -156,6 +157,7 @@ export async function requireAuth(req, res) {
       /* ⚠ אחראי לו״ז — התפקיד היחיד שפותח מסך. נקרא טרי מהלוח
          בכל בקשה, ולכן הסרת התפקיד סוגרת את הגישה מיד. */
       isScheduler: Boolean(row.isScheduler),
+      isContainer: (row.roles || []).includes(ROLE_CONTAINER),
     };
   }
 
@@ -180,6 +182,7 @@ export async function requireAuth(req, res) {
     isLeader: false,
     roles: [],
     isScheduler: false,
+    isContainer: false,
   };
 }
 
@@ -204,7 +207,8 @@ export async function requireManager(req, res) {
  *   withAuth(h, {manager:true})    מנהל בלבד.
  *   withAuth(h, {student:true})    כל מי שמחובר, כולל חניך.
  *   withAuth(h, {marker:true})     מנהל או מוביל שבוע.
- *   withAuth(h, {scheduler:true})  מנהל או אחראי לו״ז.
+ *   withAuth(h, {scheduler:true})  מנהל, אחראי לו״ז או מוביל שבוע.
+ *   withAuth(h, {container:true})  מנהל או אחראי מכולה.
  *
  * ⚠ ברירת המחדל דוחה חניכים, ולא במקרה. 19 נקודות הקצה של המטבח
  *   נכתבו כשהמחוברים היחידים היו תורנים ומנהלים. אילו ברירת
@@ -214,7 +218,7 @@ export async function requireManager(req, res) {
  */
 export function withAuth(
   handler,
-  { manager = false, marker = false, student = false, scheduler = false } = {}
+  { manager = false, marker = false, student = false, scheduler = false, container = false } = {}
 ) {
   return async (req, res) => {
     let session;
@@ -227,10 +231,15 @@ export function withAuth(
       if (marker && !session.isManager && !session.isLeader) {
         throw new AuthError("הפעולה מותרת למנהל או למוביל שבוע בלבד", 403);
       }
-      if (scheduler && !session.isManager && !session.isScheduler) {
-        throw new AuthError("הפעולה מותרת לצוות או לאחראי הלו״ז בלבד", 403);
+      /* ⚠ מובילי השבוע נוספו להרשאת השיעורים בהחלטת המכינה:
+         דיווח קיום מפגשים והעלאת חוות דעת מוטלים עליהם. */
+      if (scheduler && !session.isManager && !session.isScheduler && !session.isLeader) {
+        throw new AuthError("הפעולה מותרת לצוות, לאחראי הלו״ז או למוביל שבוע", 403);
       }
-      if (!manager && !marker && !student && !scheduler && session.isStudent) {
+      if (container && !session.isManager && !session.isContainer) {
+        throw new AuthError("הפעולה מותרת למנהל או לאחראי המכולה בלבד", 403);
+      }
+      if (!manager && !marker && !student && !scheduler && !container && session.isStudent) {
         throw new AuthError("הפעולה אינה זמינה לחניכים", 403);
       }
     } catch (e) {

@@ -16,6 +16,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { api } from "./api.js";
 import { testDate } from "./testDate.js";
 import { LessonsPage } from "./Lessons.jsx";
+import { ContainerPage } from "./Container.jsx";
 
 /* אותו אוצר צורות של האייקונים במטבח: 21px, stroke 2.1, קצוות עגולים */
 const MI = {
@@ -29,6 +30,8 @@ const MI = {
   lock: (p) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="4" y="10" width="16" height="11" rx="2.2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>,
   chev: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
   book: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22V4.5z"/><path d="M4 17.5h16"/></svg>,
+  bell: (p) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M10.3 21a2 2 0 0 0 3.4 0"/></svg>,
+  box: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 8l9-5 9 5v8l-9 5-9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>,
   plus: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" {...p}><path d="M12 5v14M5 12h14"/></svg>,
 };
 
@@ -110,7 +113,7 @@ function YearBoard({ days, half }) {
     if (d.state === "off") return "off";
     if (d.state === "future") return "future";
     if (d.state === "unmarked") return "unmarked";
-    return "";
+    return "present"; // סומן נוכח במפורש
   };
   const title = (d) => {
     const base = dmy(d.date) + " · " + d.kind;
@@ -136,10 +139,10 @@ function YearBoard({ days, half }) {
         ))}
       </div>
       <div className="yr-key">
-        <i><b style={{ background: "var(--surface)" }} />נוכחות</i>
-        <i><b style={{ background: "var(--clay)", borderColor: "var(--clay)" }} />מחלה</i>
-        <i><b style={{ background: "var(--amber)", borderColor: "var(--amber)" }} />מוצדקת</i>
-        <i><b style={{ background: "var(--accent)", borderColor: "var(--accent)" }} />חופש</i>
+        <i><b style={{ background: "#16A34A", borderColor: "#16A34A" }} />נוכחות</i>
+        <i><b style={{ background: "#DC2626", borderColor: "#DC2626" }} />מחלה</i>
+        <i><b style={{ background: "#D97706", borderColor: "#D97706" }} />מוצדקת</i>
+        <i><b style={{ background: "#2563EB", borderColor: "#2563EB" }} />חופש</i>
         <i><b style={{ background: "#E7EBF1", borderColor: "#E7EBF1" }} />ללא פעילות</i>
         <i><b className="yr-c unmarked" style={{ width: 11, height: 11 }} />טרם סומן</i>
       </div>
@@ -199,27 +202,59 @@ const TYPES = ["חופש", "מחלה", "מוצדקת"];
 function RequestForm({ days, quota, onDone, say }) {
   const [type, setType] = useState("מחלה");
   const [date, setDate] = useState("");
+  const [endDate, setEndDate] = useState(""); // ריק = יום אחד
   const [detail, setDetail] = useState("");
+  const [file, setFile] = useState(null); // {name, mime, data}
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
   const byDate = useMemo(() => new Map(days.map((d) => [d.date, d])), [days]);
   const day = date ? byDate.get(date) : null;
 
+  /* מספר ימי הלימוד בטווח — מוצג לפני השליחה */
+  const spanDays = useMemo(() => {
+    if (!date) return 0;
+    const to = endDate || date;
+    return days.filter((d) => d.date >= date && d.date <= to).length;
+  }, [days, date, endDate]);
+
   const q = day ? quota.find((x) => x.half === day.half) : null;
   const vacationBlocked = type === "חופש" && day && day.kind !== "רגיל";
-  const quotaOut = type === "חופש" && q && q.left <= 0;
+  const quotaOut = type === "חופש" && q && q.left < Math.max(1, spanDays);
   const needDetail = type === "מוצדקת" && !detail.trim();
   const unknownDate = Boolean(date) && !day;
+  const badRange = Boolean(endDate) && endDate < date;
 
-  const blocked = !date || unknownDate || vacationBlocked || quotaOut || needDetail;
+  const blocked = !date || unknownDate || vacationBlocked || quotaOut || needDetail || badRange;
+
+  /* הקובץ נקרא כ-base64 ועובר בגוף הבקשה. עד 3.5MB. */
+  const pickFile = (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) { setFile(null); return; }
+    if (f.size > 3.5 * 1024 * 1024) { say("הקובץ גדול מדי — עד 3.5MB"); e.target.value = ""; return; }
+    const reader = new FileReader();
+    reader.onload = () => setFile({
+      name: f.name, mime: f.type || "application/octet-stream",
+      data: String(reader.result).split(",")[1] || "",
+    });
+    reader.readAsDataURL(f);
+  };
 
   const submit = (e) => {
     e.preventDefault();
     if (busy || blocked) return;
     setBusy(true); setErr(null);
-    api.createRequest({ type, date, detail: detail.trim() })
-      .then(() => { say("הבקשה נשלחה"); setDate(""); setDetail(""); onDone(); })
+    api.createRequest({
+      type, date, endDate: endDate || undefined, detail: detail.trim(),
+      ...(type === "מחלה" && file
+        ? { fileName: file.name, fileMime: file.mime, fileData: file.data } : {}),
+    })
+      .then((r) => {
+        if (r.fileUploaded === false) say("הבקשה נשלחה, אבל העלאת האישור נכשלה — נסו שוב מהמסך");
+        else say(r.days > 1 ? `הבקשה נשלחה — ${r.days} ימים` : "הבקשה נשלחה");
+        setDate(""); setEndDate(""); setDetail(""); setFile(null);
+        onDone();
+      })
       .catch((e2) => setErr(e2.message))
       .finally(() => setBusy(false));
   };
@@ -248,18 +283,41 @@ function RequestForm({ days, quota, onDone, say }) {
         </div>
       </div>
 
-      <div className="fld">
-        <label htmlFor="rq-date">תאריך</label>
-        <select id="rq-date" value={date} disabled={busy}
-          onChange={(e) => { setDate(e.target.value); setErr(null); }}>
-          <option value="">בחרו תאריך…</option>
-          {options.map((d) => (
-            <option value={d.date} key={d.date}>
-              {dmy(d.date)}{d.kind !== "רגיל" ? " · " + d.kind : ""}
-            </option>
-          ))}
-        </select>
+      <div className="two">
+        <div className="fld">
+          <label htmlFor="rq-date">מתאריך</label>
+          <select id="rq-date" value={date} disabled={busy}
+            onChange={(e) => { setDate(e.target.value); setErr(null); if (endDate && e.target.value > endDate) setEndDate(""); }}>
+            <option value="">בחרו תאריך…</option>
+            {options.map((d) => (
+              <option value={d.date} key={d.date}>
+                {dmy(d.date)}{d.kind !== "רגיל" ? " · " + d.kind : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="fld">
+          <label htmlFor="rq-end">עד תאריך (לא חובה)</label>
+          <select id="rq-end" value={endDate} disabled={busy || !date}
+            onChange={(e) => { setEndDate(e.target.value); setErr(null); }}>
+            <option value="">יום אחד</option>
+            {options.filter((d) => date && d.date > date).map((d) => (
+              <option value={d.date} key={d.date}>{dmy(d.date)}</option>
+            ))}
+          </select>
+        </div>
       </div>
+
+      {spanDays > 1 && (
+        <div className="alert a-amber" style={{ marginBottom: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div className="bd" style={{ marginTop: 0 }}>
+              הבקשה חלה על <b className="num">{spanDays}</b> ימי לימוד
+              {type === "חופש" ? " וכל אחד מהם נספר מהמכסה" : ""}.
+            </div>
+          </div>
+        </div>
+      )}
 
       {vacationBlocked && (
         <div className="alert a-clay">
@@ -292,12 +350,28 @@ function RequestForm({ days, quota, onDone, say }) {
 
       <div className="fld">
         <label htmlFor="rq-detail">
-          פירוט{type === "מוצדקת" ? "" : " (לא חובה)"}
+          פירוט{type === "מוצדקת" ? " (חובה)" : " (לא חובה)"}
         </label>
         <input id="rq-detail" value={detail} disabled={busy}
           onChange={(e) => setDetail(e.target.value)}
           placeholder={type === "מוצדקת" ? "שמחה או אבל מדרגה ראשונה" : "אפשר להוסיף הסבר קצר"} />
       </div>
+
+      {type === "מחלה" && (
+        <div className="fld">
+          <label htmlFor="rq-file">אישור מחלה (לא חובה)</label>
+          <input id="rq-file" type="file" accept="image/*,.pdf" disabled={busy}
+            onChange={pickFile}
+            style={{ width: "100%", minHeight: 48, background: "var(--surface)",
+                     border: "1px solid var(--line2)", borderRadius: 11,
+                     padding: "11px 13px", fontSize: 14 }} />
+          {file && (
+            <div style={{ fontSize: 12, color: "var(--ok)", fontWeight: 700, marginTop: 5 }}>
+              ✓ {file.name} מוכן לשליחה
+            </div>
+          )}
+        </div>
+      )}
 
       <button className="btn btn-primary" type="submit" disabled={busy || blocked}>
         {busy ? "שולח…" : "שליחת הבקשה"}
@@ -315,11 +389,14 @@ function RequestCard({ r, onDecide, busyId }) {
     <div className="rq">
       <div className="rq-top">
         <div className="rq-name">{r.student ? r.student.name : r.type}</div>
-        <span className="when">{dm(r.date)}</span>
+        <span className="when num">
+          {r.endDate && r.endDate !== r.date ? `${dm(r.date)}–${dm(r.endDate)}` : dm(r.date)}
+        </span>
       </div>
       <div className="rq-meta">
         <span className={"pill " + (TYPE_PILL[r.type] || "p-new")}>{r.type}</span>
         <span className={"pill " + (STATUS_PILL[r.status] || "p-new")}>{r.status}</span>
+        {r.hasFile && <span className="pill p-ok">צורף אישור</span>}
         {r.decidedBy && <span>· {r.decidedBy}</span>}
       </div>
       {r.detail && <div className="rq-detail">{r.detail}</div>}
@@ -349,8 +426,10 @@ function MarkDay({ say, allowPick = false }) {
     () => api.getAttendanceDay(date, td), [date, td]);
 
   const [draft, setDraft] = useState(null); // studentId → {type, detail}
+  const [present, setPresent] = useState(new Set()); // ⚠ נוכחות מפורשת
   const [open, setOpen] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [trainPatch, setTrainPatch] = useState({});
   /* נשמר בין טעינות: כשתאריך נבחר נופל מחוץ ללוח, התשובה היא
      שגיאה ובלי זה גבולות הלוח היו הולכים לאיבוד. */
   const [range, setRange] = useState(null);
@@ -361,6 +440,8 @@ function MarkDay({ say, allowPick = false }) {
     const d = {};
     for (const s of data.students) if (s.absent) d[s.id] = { type: s.type, detail: s.detail || "" };
     setDraft(d);
+    setPresent(new Set(data.students.filter((s) => s.present).map((s) => s.id)));
+    setTrainPatch({});
     setOpen(null);
   }, [data]);
 
@@ -421,35 +502,72 @@ function MarkDay({ say, allowPick = false }) {
     students.filter((s) => s.source === "בקשה מאושרת").map((s) => s.id));
   const locked = canOverride ? new Set() : fromRequest;
 
-  const setType = (id, t) => {
+  /* מצב החניך: "present" | סוג היעדרות | null = לא סומן */
+  const stateOf = (id) => (present.has(id) ? "present" : (draft[id] ? draft[id].type : null));
+
+  const setState = (id, t) => {
     if (locked.has(id)) return;
+    const cur = stateOf(id);
+    const next = cur === t ? null : t; // לחיצה חוזרת מנקה ל"לא סומן"
+    setPresent((prev) => {
+      const p = new Set(prev);
+      if (next === "present") p.add(id); else p.delete(id);
+      return p;
+    });
     setDraft((prev) => {
-      const next = { ...prev };
-      if (!t) delete next[id];
-      else next[id] = { type: t, detail: (prev[id] && prev[id].detail) || "" };
-      return next;
+      const d = { ...prev };
+      if (next && next !== "present") d[id] = { type: next, detail: (prev[id] && prev[id].detail) || "" };
+      else delete d[id];
+      return d;
     });
   };
   const setDetail = (id, v) =>
     setDraft((prev) => ({ ...prev, [id]: { ...(prev[id] || { type: "מוצדקת" }), detail: v } }));
 
+  /* כל מי שלא סומן — נוכח. חוסך 30 לחיצות ביום רגיל. */
+  const markRestPresent = () => {
+    setPresent((prev) => {
+      const p = new Set(prev);
+      for (const s of students) if (!draft[s.id] && !locked.has(s.id)) p.add(s.id);
+      return p;
+    });
+  };
+
   const absentCount = Object.keys(draft).length;
+  const presentCount = present.size;
+  const unmarkedCount = students.length - absentCount - presentCount;
 
   const save = () => {
     if (saving) return;
+    /* ⚠ מוצדקת מחייבת פירוט — נבדק גם בשרת; כאן חוסכים שליחה */
+    const missing = Object.entries(draft).find(([, v]) => v.type === "מוצדקת" && !v.detail.trim());
+    if (missing) {
+      setOpen(missing[0]);
+      say("היעדרות מוצדקת מחייבת פירוט");
+      return;
+    }
     setSaving(true);
     const absences = Object.entries(draft).map(([studentId, v]) => ({
       studentId, type: v.type, detail: v.detail,
     }));
-    api.markAttendance({ date: day.date, absences }, td)
+    api.markAttendance({ date: day.date, absences, present: [...present] }, td)
       .then((r) => {
         say(r.locked.length
           ? `נשמר. ${r.locked.length} מבקשה מאושרת לא שונו`
-          : `נשמר · ${r.present} נוכחים, ${r.absent} חסרים`);
+          : `נשמר · ${r.present} נוכחים, ${r.absent} חסרים, ${r.unmarked} לא סומנו`);
         reload();
       })
       .catch((e) => say(e.message))
       .finally(() => setSaving(false));
+  };
+
+  /* דיווח אימון — נקודת הקצה של השיעורים, פתוחה גם למובילים */
+  const trainState = (t) => (t.id in trainPatch ? trainPatch[t.id] : t.happened);
+  const markTraining = (t, value) => {
+    const next = trainState(t) === value ? null : value;
+    setTrainPatch((p) => ({ ...p, [t.id]: next }));
+    api.markLesson({ meetingId: t.id, happened: next })
+      .catch((e) => { setTrainPatch((p) => ({ ...p, [t.id]: t.happened })); say(e.message); });
   };
 
   return (
@@ -476,7 +594,7 @@ function MarkDay({ say, allowPick = false }) {
           <MI.warn />
           <div style={{ flex: 1 }}>
             <div className="ttl">היום טרם סומן</div>
-            <div className="bd">כל עוד לא נשמר, היום אינו נחשב כ״כולם נכחו״.</div>
+            <div className="bd">כל חניך שלא יסומן יישאר "לא סומן" — נוכחות אינה ברירת מחדל.</div>
           </div>
         </div>
       )}
@@ -500,29 +618,49 @@ function MarkDay({ say, allowPick = false }) {
         </div>
       )}
 
+      {/* מפגשי היום שסומנו להצגה כאן — אימונים, עם נוכחות פרטנית */}
+      {data.trainings && data.trainings.length > 0 && canMark && data.trainings.map((t) => (
+        <TrainingCard key={t.id} training={t} students={students} say={say}
+          today={td} happenedState={trainState(t)} onHappened={(v) => markTraining(t, v)} />
+      ))}
+
       <div className="grp-h">
-        <span>{students.length} חניכים · {absentCount} חסרים</span>
-        <span>נוכח = ברירת מחדל</span>
+        <span className="num">{presentCount} נוכחים · {absentCount} חסרים · {unmarkedCount} לא סומנו</span>
+        <span>לא סומן = ברירת מחדל</span>
       </div>
+
+      {canMark && unmarkedCount > 0 && (
+        <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 10 }}
+          onClick={markRestPresent}>
+          סימון כל מי שלא סומן כנוכח ({unmarkedCount})
+        </button>
+      )}
 
       <div className="rows">
         {students.map((s) => {
+          const st = stateOf(s.id);
           const cur = draft[s.id];
           const isLocked = locked.has(s.id);
           const isOpen = open === s.id;
           return (
             <div key={s.id}>
               <button className="st-row" onClick={() => setOpen(isOpen ? null : s.id)}>
-                <div className={"st-av" + (cur ? " absent" : "")}>{initials(s.name)}</div>
+                <div className={"st-av" + (cur ? " absent" : st === "present" ? " here" : " none")}>
+                  {initials(s.name)}
+                </div>
                 <div className="st-main">
                   <div className="st-n">{s.name}</div>
                   <div className="st-m">
-                    {cur ? (
+                    {st === "present" ? (
+                      <span className="pill pp-ok">נוכח/ת</span>
+                    ) : cur ? (
                       <>
                         <span className={"pill " + (TYPE_PILL[cur.type] || "p-low")}>{cur.type}</span>
                         {cur.detail ? <span>{cur.detail}</span> : null}
                       </>
-                    ) : "נוכח/ת"}
+                    ) : (
+                      <span className="pill pp-none">לא סומן</span>
+                    )}
                     {fromRequest.has(s.id) && <MI.lock />}
                   </div>
                 </div>
@@ -539,18 +677,19 @@ function MarkDay({ say, allowPick = false }) {
                         : "מבקשה שאושרה — שינוי כאן מתקן את הרישום בפועל"}
                     </div>
                   )}
+                  {/* לחיצה חוזרת על מצב פעיל מנקה ל"לא סומן" */}
                   <div className="abs-pick">
-                    <button className={!cur ? "on" : ""} disabled={isLocked}
-                      onClick={() => setType(s.id, null)}>נוכח</button>
+                    <button className={st === "present" ? "on here" : ""} disabled={isLocked}
+                      onClick={() => setState(s.id, "present")}>נוכח</button>
                     {TYPES.map((t) => (
                       <button key={t} disabled={isLocked || (t === "חופש" && !day.vacationAllowed)}
-                        className={(cur && cur.type === t ? "on " : "") + (TYPE_CLASS[t] || "")}
-                        onClick={() => setType(s.id, t)}>{t}</button>
+                        className={(st === t ? "on " : "") + (TYPE_CLASS[t] || "")}
+                        onClick={() => setState(s.id, t)}>{t}</button>
                     ))}
                   </div>
                   {cur && cur.type === "מוצדקת" && !isLocked && (
                     <div className="abs-note">
-                      <input value={cur.detail} placeholder="פירוט"
+                      <input value={cur.detail} placeholder="פירוט (חובה)"
                         onChange={(e) => setDetail(s.id, e.target.value)} />
                     </div>
                   )}
@@ -570,6 +709,106 @@ function MarkDay({ say, allowPick = false }) {
       )}
       <div style={{ height: 60 }} />
     </>
+  );
+}
+
+/* ============================================================
+   כרטיס אימון — קיום + נוכחות פרטנית
+   ------------------------------------------------------------
+   ⚠ הנוכחות באימון עצמאית מהנוכחות היומית: תורן אוכל נעדר
+     מהאימון ועדיין נוכח באותו יום. שני רישומים, שתי אמיתות.
+   ============================================================ */
+function TrainingCard({ training: t, students, say, today, happenedState, onHappened }) {
+  const [open, setOpen] = useState(false);
+  const [state, setState] = useState(() => {
+    const m = {};
+    for (const id of t.present) m[id] = "here";
+    for (const id of t.absent) m[id] = "absent";
+    for (const id of t.kitchen) m[id] = "kitchen";
+    return m;
+  });
+  const [saving, setSaving] = useState(false);
+
+  const setOne = (id, v) =>
+    setState((p) => {
+      const n = { ...p };
+      if (p[id] === v) delete n[id]; // לחיצה חוזרת מנקה
+      else n[id] = v;
+      return n;
+    });
+
+  const markRest = () =>
+    setState((p) => {
+      const n = { ...p };
+      for (const s of students) if (!n[s.id]) n[s.id] = "here";
+      return n;
+    });
+
+  const counts = Object.values(state).reduce(
+    (a, v) => ({ ...a, [v]: (a[v] || 0) + 1 }), {});
+
+  const save = () => {
+    if (saving) return;
+    setSaving(true);
+    const of = (v) => Object.entries(state).filter(([, x]) => x === v).map(([id]) => id);
+    api.markTraining({
+      meetingId: t.id, present: of("here"), absent: of("absent"), kitchen: of("kitchen"),
+    }, today)
+      .then((r) => say(`אימון נשמר · ${r.present} נכחו, ${r.absent} לא, ${r.kitchen} תורני אוכל`))
+      .catch((e) => say(e.message))
+      .finally(() => setSaving(false));
+  };
+
+  return (
+    <div className="card" style={{ marginBottom: 12, padding: "13px 15px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
+        <b style={{ fontSize: 14.5, fontWeight: 800 }}>{t.subject} היום</b>
+        {!happenedState && <span className="pill p-new">טרם דווח</span>}
+      </div>
+      <div className="exp" style={{ marginTop: 9 }}>
+        <button className={happenedState === "כן" ? "on-ok" : ""} onClick={() => onHappened("כן")}>התקיים</button>
+        <button className={happenedState === "לא" ? "on-soon" : ""} onClick={() => onHappened("לא")}>לא התקיים</button>
+      </div>
+
+      <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginTop: 9 }}
+        onClick={() => setOpen(!open)}>
+        {open ? "סגירת נוכחות האימון" : `נוכחות באימון (${counts.here || 0} נכחו · ${counts.absent || 0} לא · ${counts.kitchen || 0} תורני אוכל)`}
+      </button>
+
+      {open && (
+        <>
+          <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginTop: 8 }}
+            onClick={markRest}>
+            סימון כל מי שלא סומן כנכח
+          </button>
+          <div style={{ marginTop: 8 }}>
+            {students.map((s) => {
+              const v = state[s.id];
+              return (
+                <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8,
+                                          padding: "7px 0", borderBottom: "1px solid var(--line)" }}>
+                  <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 700,
+                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {s.name}
+                  </div>
+                  <div className="tr-pick">
+                    <button className={v === "here" ? "on here" : ""}
+                      onClick={() => setOne(s.id, "here")}>נכח</button>
+                    <button className={v === "absent" ? "on absent" : ""}
+                      onClick={() => setOne(s.id, "absent")}>לא נכח</button>
+                    <button className={v === "kitchen" ? "on kitchen" : ""}
+                      onClick={() => setOne(s.id, "kitchen")}>תורן אוכל</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <button className="btn btn-ok" style={{ marginTop: 10 }} disabled={saving} onClick={save}>
+            {saving ? "שומר…" : "שמירת נוכחות האימון"}
+          </button>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -637,7 +876,7 @@ function StudentsList({ onOpen }) {
 }
 
 /* לוח שנתי של חניך אחד, כפי שהמנהל רואה אותו */
-function StudentDetail({ student, onBack }) {
+function StudentDetail({ student, onBack, say }) {
   const td = testDate();
   const { data, err, busy, reload } = useLoad(
     () => api.getStudentYear(student.id, td), [student.id, td]);
@@ -661,6 +900,12 @@ function StudentDetail({ student, onBack }) {
           <div className="sec-label">לוח שנתי</div>
           <HalfPicker half={half} setHalf={setHalf} />
           <div className="card"><YearBoard days={data.days} half={half} /></div>
+
+          <div className="sec-label">פרופיל · שיבוץ ומיונים מהחניך</div>
+          <ProfileCard studentId={student.id} say={say} />
+
+          {/* ⚠ צוות בלבד — הרכיב אינו קיים אצל החניך */}
+          <Incidents studentId={student.id} say={say} />
         </>
       )}
     </>
@@ -807,6 +1052,234 @@ function Leaders({ say }) {
 }
 
 /* ============================================================
+   הפרופיל האישי
+   ------------------------------------------------------------
+   שיבוץ ומיונים — החניך ממלא והצוות רואה (אצל הצוות: קריאה
+   בלבד). שיחה אישית — הצוות קובע והחניך רואה.
+
+   ⚠ אירועים חריגים אינם כאן. הם ברכיב נפרד שמרונדר אך ורק
+     אצל הצוות, מול נקודת קצה שהיא כולה מנהל בלבד.
+   ============================================================ */
+const TALK_LABELS = ["תחילת שנה", "אמצע שנה", "סוף שנה"];
+
+function ProfileCard({ studentId, say }) {
+  const { data, err, busy, reload } = useLoad(() => api.getProfile(studentId), [studentId]);
+  const [f, setF] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (data) setF({ army: data.army, tryouts: data.tryouts, talks: [...data.talks] });
+  }, [data]);
+
+  if (busy && !data) return <Loading what="טוען פרופיל" />;
+  if (err) return <LoadFail msg={err} onRetry={reload} />;
+  if (!data || !f) return null;
+
+  const saveArmy = () => {
+    setSaving(true);
+    api.setProfile({ studentId, army: f.army, tryouts: f.tryouts })
+      .then(() => say("הפרופיל נשמר"))
+      .catch((e) => say(e.message))
+      .finally(() => setSaving(false));
+  };
+  const saveTalks = () => {
+    setSaving(true);
+    api.setProfile({ studentId, talks: f.talks })
+      .then(() => say("תאריכי השיחה נשמרו"))
+      .catch((e) => say(e.message))
+      .finally(() => setSaving(false));
+  };
+
+  return (
+    <>
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div className="fld">
+          <label htmlFor="pf-army">שיבוץ צבאי</label>
+          <input id="pf-army" value={f.army} disabled={saving || !data.canEditArmy}
+            onChange={(e) => setF({ ...f, army: e.target.value })}
+            placeholder={data.canEditArmy ? "לאן שובצת" : "החניך טרם מילא"} />
+        </div>
+        <div className="fld">
+          <label htmlFor="pf-try">מיונים לצבא</label>
+          <input id="pf-try" value={f.tryouts} disabled={saving || !data.canEditArmy}
+            onChange={(e) => setF({ ...f, tryouts: e.target.value })}
+            placeholder={data.canEditArmy ? "אילו מיונים עברת או צפויים" : "החניך טרם מילא"} />
+        </div>
+        {data.canEditArmy && (
+          <button className="btn btn-primary" disabled={saving} onClick={saveArmy}>
+            {saving ? "שומר…" : "שמירה"}
+          </button>
+        )}
+      </div>
+
+      <div className="sec-label">שיחה אישית</div>
+      <div className="card">
+        {TALK_LABELS.map((label, i) => (
+          <div className="fld" key={label}>
+            <label>{label}</label>
+            {data.canEditTalks ? (
+              <input type="date" value={f.talks[i] || ""} disabled={saving}
+                onChange={(e) => {
+                  const talks = [...f.talks]; talks[i] = e.target.value || null;
+                  setF({ ...f, talks });
+                }} />
+            ) : (
+              <div style={{ minHeight: 44, display: "flex", alignItems: "center",
+                            background: "var(--bg)", borderRadius: 11, padding: "0 13px",
+                            fontSize: 15, fontWeight: 700 }}>
+                {f.talks[i] ? dmy(f.talks[i]) : "טרם נקבע"}
+              </div>
+            )}
+          </div>
+        ))}
+        {data.canEditTalks && (
+          <button className="btn btn-primary" disabled={saving} onClick={saveTalks}>
+            {saving ? "שומר…" : "שמירת התאריכים"}
+          </button>
+        )}
+      </div>
+    </>
+  );
+}
+
+/* אירועים חריגים — צוות בלבד. מרונדר רק במסך המנהל. */
+function Incidents({ studentId, say }) {
+  const { data, err, busy, reload } = useLoad(() => api.getIncidents(studentId), [studentId]);
+  const [adding, setAdding] = useState(false);
+  const [f, setF] = useState({ kind: "שיחת משמעת", detail: "", date: "" });
+  const [saving, setSaving] = useState(false);
+
+  if (busy && !data) return <Loading what="טוען אירועים" />;
+  if (err) return <LoadFail msg={err} onRetry={reload} />;
+  if (!data) return null;
+
+  const submit = () => {
+    if (saving || !f.detail.trim()) return;
+    setSaving(true);
+    api.addIncident({ studentId, kind: f.kind, detail: f.detail.trim(), date: f.date || undefined })
+      .then(() => { say("האירוע נרשם"); setAdding(false); setF({ kind: "שיחת משמעת", detail: "", date: "" }); reload(); })
+      .catch((e) => say(e.message))
+      .finally(() => setSaving(false));
+  };
+
+  return (
+    <>
+      <div className="sec-label">אירועים חריגים · לעיני הצוות בלבד</div>
+
+      {data.incidents.length === 0 && !adding && (
+        <div className="card" style={{ textAlign: "center", color: "var(--muted)",
+                                       fontSize: 13.5, fontWeight: 600, marginBottom: 10 }}>
+          אין אירועים רשומים
+        </div>
+      )}
+
+      {data.incidents.map((x) => (
+        <div className="rq" key={x.id}>
+          <div className="rq-top">
+            <span className="pill p-low">{x.kind}</span>
+            <span className="when num">{dmy(x.date)}</span>
+          </div>
+          <div className="rq-detail">{x.detail}</div>
+          {x.by && <div className="rq-meta" style={{ marginTop: 8 }}><span>נרשם על ידי {x.by}</span></div>}
+        </div>
+      ))}
+
+      {adding ? (
+        <div className="card">
+          <div className="fld">
+            <label>סוג</label>
+            <div className="pick">
+              {data.kinds.map((k) => (
+                <button type="button" key={k} className={f.kind === k ? "on" : ""}
+                  onClick={() => setF({ ...f, kind: k })}>{k}</button>
+              ))}
+            </div>
+          </div>
+          <div className="fld">
+            <label htmlFor="in-date">תאריך (ריק = היום)</label>
+            <input id="in-date" type="date" value={f.date}
+              onChange={(e) => setF({ ...f, date: e.target.value })} />
+          </div>
+          <div className="fld">
+            <label htmlFor="in-detail">פירוט (חובה)</label>
+            <input id="in-detail" value={f.detail}
+              onChange={(e) => setF({ ...f, detail: e.target.value })} />
+          </div>
+          <button className="btn btn-primary" disabled={saving || !f.detail.trim()} onClick={submit}>
+            {saving ? "רושם…" : "רישום האירוע"}
+          </button>
+          <button className="btn btn-ghost" style={{ marginTop: 8 }} onClick={() => setAdding(false)}>
+            ביטול
+          </button>
+        </div>
+      ) : (
+        <button className="btn btn-ghost btn-sm" style={{ width: "100%" }}
+          onClick={() => setAdding(true)}>
+          <MI.plus />רישום אירוע חריג
+        </button>
+      )}
+    </>
+  );
+}
+
+/* ============================================================
+   דירוג שיעורי המרצה המתחלף — בדף הבית של כל חניך
+   ------------------------------------------------------------
+   מוצגים מפגשי מדעי המדינה וכישורי חיים מהשבועיים האחרונים.
+   הדירוג 1–10, אישי, פעם אחת למפגש (דירוג חוזר מעדכן). הממוצע
+   בין כל החניכים מוצג בחוות הדעת של מחזור ב׳.
+   ============================================================ */
+function RateLessons({ say }) {
+  const { data, err, busy, reload } = useLoad(() => api.getRatable(), []);
+  const [patch, setPatch] = useState({});
+  const [busyId, setBusyId] = useState(null);
+
+  if (busy && !data) return null; // לא חוסמים את דף הבית
+  if (err || !data || !data.meetings.length) return null;
+
+  const scoreOf = (m) => (m.id in patch ? patch[m.id] : m.myScore);
+
+  const rate = (m, score) => {
+    setBusyId(m.id);
+    setPatch((p) => ({ ...p, [m.id]: score })); // מיד על המסך
+    api.rateLesson({ meetingId: m.id, score })
+      .then((r) => say(`דורג ${score}/10 · ממוצע הכיתה ${r.avg}`))
+      .catch((e) => { setPatch((p) => ({ ...p, [m.id]: m.myScore })); say(e.message); })
+      .finally(() => setBusyId(null));
+  };
+
+  return (
+    <>
+      <div className="sec-label">דירוג שיעורים</div>
+      {data.meetings.map((m) => {
+        const my = scoreOf(m);
+        return (
+          <div className="rq" key={m.id}>
+            <div className="rq-top">
+              <div className="rq-name">{m.subject}</div>
+              <span className="when num">{dm(m.date)}</span>
+            </div>
+            {m.lecturer && <div className="rq-meta"><span>{m.lecturer}</span></div>}
+            <div className="rate-row">
+              {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                <button key={n} disabled={busyId === m.id}
+                  className={my === n ? "on" : my && n <= my ? "lt" : ""}
+                  onClick={() => rate(m, n)}>{n}</button>
+              ))}
+            </div>
+            {my && (
+              <div style={{ fontSize: 12, color: "var(--muted)", fontWeight: 700, marginTop: 6 }}>
+                הדירוג שלך: {my}/10 · אפשר לשנות בלחיצה
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+/* ============================================================
    בעלי תפקידים במכינה
    ------------------------------------------------------------
    ⚠ נפרד ממובילי השבוע בכוונה. מוביל שבוע מתחלף כל שבוע, ואילו
@@ -900,8 +1373,8 @@ function RoleHolders({ say }) {
    ⚠ מנהל בלבד. תורן רואה את המטבח בלבד, והשרת אוכף את זה
      בכל נקודת קצה כאן.
    ============================================================ */
-export function MechinaStaff({ say }) {
-  const [sub, setSub] = useState("mark");
+export function MechinaStaff({ say, sub0 }) {
+  const [sub, setSub] = useState(sub0 || "mark");
   const [student, setStudent] = useState(null);
 
   const tabs = [
@@ -929,7 +1402,7 @@ export function MechinaStaff({ say }) {
       {sub === "mark" && <MarkDay say={say} allowPick />}
       {sub === "students" && (
         student
-          ? <StudentDetail student={student} onBack={() => setStudent(null)} />
+          ? <StudentDetail student={student} say={say} onBack={() => setStudent(null)} />
           : <StudentsList onOpen={setStudent} />
       )}
       {sub === "requests" && <ManagerRequests say={say} />}
@@ -959,6 +1432,35 @@ export function MechinaApp({ auth, onSignedOut }) {
 
   const refreshAll = () => { year.reload(); reqs.reload(); };
 
+  /* ---------- פעמון: בקשות שהוכרעו וטרם נראו ----------
+     "נראה" נשמר מקומית בדפדפן — זה חיווי נוחות, לא רישום. */
+  const seenKey = "mk_seen_dec_" + (auth.name || "");
+  const decided = (reqs.data ? reqs.data.requests : []).filter((r) => r.status !== "ממתין");
+  let seenIds;
+  try { seenIds = new Set(JSON.parse(localStorage.getItem(seenKey) || "[]")); }
+  catch { seenIds = new Set(); }
+  const unseen = decided.filter((r) => !seenIds.has(r.id)).length;
+
+  const [notifOpen, setNotifOpen] = useState(false);
+
+  /* הסימון "נראה" קורה בסגירת הפאנל, לא בפתיחתו — אחרת תג
+     "חדש" היה נעלם באותו רגע שהפאנל נפתח. */
+  const markSeen = () => {
+    try { localStorage.setItem(seenKey, JSON.stringify(decided.map((r) => r.id))); } catch { /* לא קריטי */ }
+  };
+  const openBell = () => {
+    if (notifOpen) markSeen();
+    setNotifOpen((v) => !v);
+  };
+  const closeBell = () => { markSeen(); setNotifOpen(false); };
+  const goRequests = () => { markSeen(); setNotifOpen(false); setTab("requests"); };
+
+  /* רענון תקופתי — כדי שהחלטה שהתקבלה תופיע בלי לצאת ולהיכנס */
+  useEffect(() => {
+    const t = setInterval(() => reqs.reload(), 90_000);
+    return () => clearInterval(t);
+  }, [reqs.reload]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="kx">
       <header className="top">
@@ -967,11 +1469,44 @@ export function MechinaApp({ auth, onSignedOut }) {
             <h1>{auth.name}</h1>
             <div className="sub">מכינת ניר עוז · מחזור ב׳</div>
           </div>
-          <button className="who" onClick={signOut}>
-            <span className="dot" />יציאה
-          </button>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button className="bell-btn" onClick={openBell} aria-label="התראות">
+              <MI.bell />
+              {unseen > 0 && <span className="bell-badge num">{unseen}</span>}
+            </button>
+            <button className="who" onClick={signOut}>
+              <span className="dot" />יציאה
+            </button>
+          </div>
         </div>
       </header>
+
+      {/* תצוגה מקדימה של ההתראות — הבקשות שהוכרעו */}
+      {notifOpen && (
+        <div className="notif-panel">
+          <div className="notif-h">
+            <b>עדכונים על הבקשות שלך</b>
+            <button onClick={closeBell}>סגירה</button>
+          </div>
+          {decided.length === 0 ? (
+            <div className="notif-empty">אין עדכונים — בקשה שתוכרע תופיע כאן</div>
+          ) : decided.slice(0, 8).map((r) => (
+            <button className="notif-item" key={r.id} onClick={goRequests}>
+              <div className="ni-t">
+                {r.type} · {r.status === "מאושר" ? "אושרה ✓" : "נדחתה"}
+                {!seenIds.has(r.id) && <span className="pill p-new" style={{ marginRight: 6 }}>חדש</span>}
+              </div>
+              <div className="ni-s">
+                {r.endDate && r.endDate !== r.date ? `${dm(r.date)} – ${dm(r.endDate)}` : dm(r.date)}
+                {r.decidedBy ? " · " + r.decidedBy : ""}
+              </div>
+            </button>
+          ))}
+          {decided.length > 0 && (
+            <button className="notif-all" onClick={goRequests}>לכל הבקשות</button>
+          )}
+        </div>
+      )}
 
       <main className="wrap">
         {td && (
@@ -994,6 +1529,8 @@ export function MechinaApp({ auth, onSignedOut }) {
 
                 <div className="sec-label">ימי חופש</div>
                 <Quota quota={year.data.summary.quota} />
+
+                <RateLessons say={say} />
 
                 <div className="sec-label">הבקשות שלי</div>
                 {reqs.err && <LoadFail msg={reqs.err} onRetry={reqs.reload} />}
@@ -1054,11 +1591,20 @@ export function MechinaApp({ auth, onSignedOut }) {
         {/* ⚠ מוביל שבוע בלבד. auth.isLeader מגיע מהסשן ונקרא טרי
             מהלוח בכל בקשה — מנהל שמבטל את המינוי מנתק את הגישה
             בלי שהחניך צריך להתנתק. השרת אוכף, זו רק התצוגה. */}
+        {tab === "profile" && (
+          <>
+            <div className="screen-title">הפרופיל שלי</div>
+            <ProfileCard studentId={null} say={say} />
+          </>
+        )}
+
+        {tab === "container" && auth.isContainer && <ContainerPage say={say} />}
+
         {tab === "mark" && auth.isLeader && <MarkDay say={say} />}
 
         {/* ⚠ אחראי לו״ז בלבד. השרת אוכף בכל נקודת קצה של השיעורים,
             והתפקיד נקרא טרי מהלוח — הסרתו סוגרת את הטאב מיד. */}
-        {tab === "lessons" && auth.isScheduler && <LessonsPage say={say} />}
+        {tab === "lessons" && (auth.isScheduler || auth.isLeader) && <LessonsPage say={say} />}
 
         {tab === "new" && (
           <>
@@ -1080,8 +1626,10 @@ export function MechinaApp({ auth, onSignedOut }) {
           ["home", "בית", MI.home],
           ["year", "נוכחות", MI.cal],
           ["requests", "בקשות", MI.note],
+          ["profile", "פרופיל", MI.users],
           ...(auth.isLeader ? [["mark", "סימון", MI.tick]] : []),
-          ...(auth.isScheduler ? [["lessons", "שיעורים", MI.book]] : []),
+          ...(auth.isScheduler || auth.isLeader ? [["lessons", "שיעורים", MI.book]] : []),
+          ...(auth.isContainer ? [["container", "מכולה", MI.box]] : []),
         ].map(([k, label, Icon]) => (
             <button key={k} className={tab === k || (k === "requests" && tab === "new") ? "on" : ""}
               onClick={() => setTab(k)}>

@@ -56,7 +56,8 @@ async function handler(req, res) {
         marked: todayMarked,
         markedBy: todayMarked ? marked.get(today).by : null,
         absent: absentToday.size,
-        present: todayMarked ? list.length - absentToday.size : null,
+        /* נוכחים מפורשים בלבד — לא "כל מי שלא נעדר" */
+        present: todayMarked ? (marked.get(today).present || new Set()).size : null,
       },
     });
   } catch (e) {

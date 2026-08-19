@@ -21,6 +21,8 @@ export const MECHINA_BOARDS = {
   absence: "5102508121", // מכינה ב׳ – היעדרויות
   marked: "5102508166", // מכינה ב׳ – ימי סימון
   requests: "5102508180", // מכינה ב׳ – בקשות יציאה
+  /* ⚠ צוות בלבד. השעיות ושיחות משמעת — לעולם לא מגיע לחניך. */
+  incidents: "5102548997", // מכינה ב׳ – אירועים חריגים
 };
 
 export const MECHINA_COLS = {
@@ -31,6 +33,23 @@ export const MECHINA_COLS = {
     gender: "single_selectzh76wty",
     active: "boolean_mm6cnc93",
     leader: "boolean_mm6ch96v", // מוביל שבוע — המנהל מסמן בלוח
+
+    /* ---- פרופיל ----
+       army ו-tryouts ממולאים על ידי החניך ונקראים על ידי הצוות.
+       talks — שלושת תאריכי השיחה האישית, המדריך קובע והחניך רואה. */
+    army: "text_mm6ca21p",
+    tryouts: "text_mm6c93an",
+    talk1: "date_mm6cegbw",
+    talk2: "date_mm6cwdyv",
+    talk3: "date_mm6c33sj",
+  },
+  /* ⚠ צוות בלבד — אין נקודת קצה שמחזירה מזה משהו לחניך */
+  incidents: {
+    student: "board_relation_mm6cwqvj",
+    date: "date_mm6c4d5h",
+    kind: "color_mm6cmv6q", // שיחת משמעת · השעיה · אחר
+    detail: "long_text_mm6cz5tz",
+    by: "text_mm6cf8fa",
   },
   calendar: {
     date: "date_mm6c63ws",
@@ -48,11 +67,21 @@ export const MECHINA_COLS = {
     date: "date_mm6cysxr",
     by: "text_mm6cxk6m",
     at: "date_mm6cb7y2",
+    /* ⚠ מזהי החניכים שסומנו נוכחים במפורש, מופרדים בפסיק.
+       "נוכח" אינו עוד ברירת מחדל: חניך בלי שורת היעדרות ובלי
+       אזכור כאן הוא "לא סומן" — מצב שלישי אמיתי. שורה אחת ליום
+       במקום 33, כדי לא לנפח את הלוח. */
+    present: "long_text_mm6cbm32",
+    presentCount: "numeric_mm6cggq",
   },
   requests: {
     student: "board_relation_mm6czcwn",
     type: "color_mm6cydgn",
     date: "date_mm6c7wyn",
+    /* ⚠ ריק = בקשה ליום אחד. טווח יוצר היעדרות לכל יום לימודים בו. */
+    endDate: "date_mm6cm9n4",
+    /* אישור מחלה. הקובץ עולה לעמודת הקבצים של הלוח. */
+    file: "file_mm6c3rdf",
     detail: "long_text_mm6c5z09",
     status: "color_mm6cggsc",
     by: "text_mm6cvzz2",
@@ -123,10 +152,15 @@ export const REQ_STATUS = {
 export const VACATION_PER_HALF = 3;
 
 /* ------------------------------------------------------------
-   ⚠ היעדרות נשמרת רק כשהיא קיימת. "נוכח" אינו נרשם — הוא
-     נגזר: חניך נוכח בכל יום שאין לו בו שורת היעדרות.
+   ⚠ שלושה מצבים לחניך ביום: נוכח, נעדר, לא סומן.
 
-     33 חניכים × 298 ימים היו 9,834 שורות. כך נשמרות עשרות.
+     נוכח   — מזהה החניך ברשימת הנוכחים של שורת היום
+     נעדר   — שורת היעדרות
+     לא סומן — אף אחד מהשניים. ⚠ זו ברירת המחדל, בהחלטת
+              המכינה: נוכחות היא סימון פעיל, לא הנחה.
+
+     היעדרויות נשמרות כשורות; הנוכחים נשמרים כרשימת מזהים על
+     שורת היום — 33 שורות ליום היו מנפחות את הלוח לאלפים.
 
    ⚠ ולכן לוח "ימי סימון" הכרחי ולא נוח: בלעדיו אי אפשר להבדיל
      בין "כולם נכחו" לבין "אף אחד לא סימן היום". שני המצבים

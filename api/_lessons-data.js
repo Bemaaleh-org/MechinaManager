@@ -23,6 +23,7 @@ const linked = (i, c) => {
   const x = i.column_values.find((y) => y.id === c);
   return x && x.linked_item_ids && x.linked_item_ids[0] ? String(x.linked_item_ids[0]) : null;
 };
+const csv = (s) => String(s || "").split(",").map((x) => x.trim()).filter(Boolean);
 
 /* ---------- גיליונות ---------- */
 export async function loadSheets({ force = false } = {}) {
@@ -37,6 +38,8 @@ export async function loadSheets({ force = false } = {}) {
         active: val(i, S.active) === "v",
         /* ⚠ מסומן בלוח, לא ברשימת שמות בקוד */
         guestLecturer: val(i, S.guestLecturer) === "v",
+        /* מפגשיו מוצגים גם במסך סימון הנוכחות (אימונים) */
+        inDaily: val(i, S.inDaily) === "v",
       }))
       .sort((a, b) => a.subject.localeCompare(b.subject, "he"));
   }, { force, ttl: 5 * 60_000 });
@@ -58,6 +61,10 @@ export async function loadMeetings({ force = false } = {}) {
         note: val(i, M.note) || null,
         lecturer: val(i, M.lecturer) || null,
         opinion: val(i, M.opinion) || null,
+        /* נוכחות אימון — רשימות מזהים. מי שלא באף אחת: לא סומן. */
+        tPresent: csv(val(i, M.tPresent)),
+        tAbsent: csv(val(i, M.tAbsent)),
+        tKitchen: csv(val(i, M.tKitchen)),
       }))
       .filter((m) => m.sheetId && m.date)
       .sort((a, b) => a.date.localeCompare(b.date));
@@ -115,12 +122,42 @@ export async function loadEvals({ force = false } = {}) {
         cycle: val(i, E.cycle) || null,
         by: val(i, E.by) || null,
         at: val(i, E.at) || null,
+        meetingId: val(i, E.meetingId) || null,
+        avg: Number(val(i, E.avg)) || null,
+        votes: Number(val(i, E.votes)) || null,
       }))
       .sort((a, b) => a.name.localeCompare(b.name, "he"));
   }, { force });
 }
 
 export const invalidateEvals = () => invalidate("lesson-evals");
+
+/* ---------- דירוגי חניכים ---------- */
+const RT = LESSON_COLS.ratings;
+
+export async function loadRatings({ force = false } = {}) {
+  return cached("lesson-ratings", async () => {
+    const items = await allItems(LESSON_BOARDS.ratings);
+    return items
+      .map((i) => ({
+        id: String(i.id),
+        meetingId: val(i, RT.meeting),
+        studentId: val(i, RT.student),
+        score: Number(val(i, RT.score)) || 0,
+      }))
+      .filter((r) => r.meetingId && r.studentId && r.score >= 1 && r.score <= 10);
+  }, { force });
+}
+
+export const invalidateRatings = () => invalidate("lesson-ratings");
+
+/** ממוצע הדירוגים למפגש. null כשאין דירוגים. */
+export function ratingFor(meetingId, ratings) {
+  const mine = ratings.filter((r) => r.meetingId === String(meetingId));
+  if (!mine.length) return null;
+  const avg = mine.reduce((a, r) => a + r.score, 0) / mine.length;
+  return { avg: Math.round(avg * 10) / 10, votes: mine.length };
+}
 
 /* ---------- כתיבה ---------- */
 
@@ -148,6 +185,29 @@ export async function setMeeting(meetingId, fields) {
   );
 
   await patchMeeting(meetingId, fields);
+}
+
+/**
+ * שומר את נוכחות האימון: שלוש רשימות מזהים, מצב מלא ולא פעולות —
+ * אותו שיקול כמו בסימון הנוכחות היומי.
+ */
+export async function setTrainingAttendance(meetingId, { present, absent, kitchen }) {
+  const uniq = (a) => [...new Set((a || []).map(String))];
+  const p = uniq(present), x = uniq(absent), k = uniq(kitchen);
+  const cols = {
+    [M.tPresent]: p.join(","),
+    [M.tAbsent]: x.join(","),
+    [M.tKitchen]: k.join(","),
+  };
+  await gql(
+    `mutation($b:ID!,$i:ID!,$v:JSON!){ change_multiple_column_values(board_id:$b,item_id:$i,column_values:$v,create_labels_if_missing:false){ id } }`,
+    { b: LESSON_BOARDS.meetings, i: String(meetingId), v: JSON.stringify(cols) }
+  );
+  /* תיקון המטמון במקום ביטולו */
+  const meetings = await loadMeetings();
+  const hit = meetings.find((m) => m.id === String(meetingId));
+  if (hit) { hit.tPresent = p; hit.tAbsent = x; hit.tKitchen = k; }
+  return { present: p.length, absent: x.length, kitchen: k.length };
 }
 
 /** מתקן רשומה במטמון בלי לפנות ל-monday */

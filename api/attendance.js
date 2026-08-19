@@ -17,5 +17,6 @@ import day from "./_attendance-day.js";
 import mark from "./_attendance-mark.js";
 import requests from "./_requests.js";
 import decide from "./_request-decide.js";
+import train from "./_training-mark.js";
 
-export default router({ day, mark, requests, decide });
+export default router({ day, mark, requests, decide, train });

@@ -12,7 +12,7 @@
 import { withAuth, actorName } from "./_session.js";
 import { gql } from "./_monday.js";
 import { LESSON_BOARDS, LESSON_COLS, CYCLE } from "../shared/lessons-boards.js";
-import { loadEvals, invalidateEvals } from "./_lessons-data.js";
+import { loadEvals, invalidateEvals, loadRatings, ratingFor } from "./_lessons-data.js";
 
 const E = LESSON_COLS.evals;
 
@@ -24,7 +24,7 @@ async function handler(req, res, session) {
 
 async function list(req, res) {
   try {
-    const evals = await loadEvals();
+    const [evals, ratings] = await Promise.all([loadEvals(), loadRatings()]);
     const wanted = req.query?.cycle ? String(req.query.cycle) : null;
     const shown = wanted ? evals.filter((e) => e.cycle === wanted) : evals;
 
@@ -32,8 +32,16 @@ async function list(req, res) {
        בלוח יופיע במסנן מעצמו. */
     const fields = [...new Set(evals.map((e) => e.field).filter(Boolean))].sort();
 
+    /* ⚠ הדירוג הממוצע מחושב חי מלוח הדירוגים, לא מהשדה השמור —
+       חניך שמדרג אחרי שחוות הדעת נכתבה עדיין נספר. */
+    const withRating = shown.map((e) => {
+      if (!e.meetingId) return e;
+      const r = ratingFor(e.meetingId, ratings);
+      return r ? { ...e, avg: r.avg, votes: r.votes } : e;
+    });
+
     res.status(200).json({
-      evals: shown,
+      evals: withRating,
       count: shown.length,
       fields,
       cycles: [...new Set(evals.map((e) => e.cycle).filter(Boolean))],
@@ -66,6 +74,14 @@ async function add(req, res, session) {
     /* ⚠ תחום חדש מותר להיווצר כאן: המכינה מוסיפה תחומים לאורך
        השנה, ורשימה סגורה הייתה מחייבת דיפלוי לכל תחום. */
     if (body?.field) cols[E.field] = { label: String(body.field) };
+
+    /* חוות דעת שנכתבה מתוך מפגש — נושאת את מזההו ואת ממוצע
+       הדירוג הנוכחי כתמונת מצב. התצוגה מחשבת חי בכל מקרה. */
+    if (body?.meetingId) {
+      cols[E.meetingId] = String(body.meetingId);
+      const r = ratingFor(String(body.meetingId), await loadRatings());
+      if (r) { cols[E.avg] = String(r.avg); cols[E.votes] = String(r.votes); }
+    }
 
     const d = await gql(
       `mutation($b:ID!,$n:String!,$v:JSON!){ create_item(board_id:$b,item_name:$n,column_values:$v,create_labels_if_missing:true){ id } }`,

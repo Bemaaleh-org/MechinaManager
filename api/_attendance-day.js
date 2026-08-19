@@ -16,6 +16,7 @@ import { activeStudents, toPublic } from "./_student-rows.js";
 import {
   loadCalendar, loadAbsences, loadMarked, todayFor, isSchoolDay, vacationRule,
 } from "./_attendance-data.js";
+import { loadSheets, loadMeetings } from "./_lessons-data.js";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -35,8 +36,9 @@ async function handler(req, res, session) {
       return res.status(403).json({ error: "מוביל שבוע מסמן את היום הנוכחי בלבד" });
     }
 
-    const [students, cal, absences, marked] = await Promise.all([
+    const [students, cal, absences, marked, sheets, meetings] = await Promise.all([
       activeStudents(), loadCalendar(), loadAbsences(), loadMarked(),
+      loadSheets(), loadMeetings(),
     ]);
 
     const range = cal.days.length
@@ -83,6 +85,8 @@ async function handler(req, res, session) {
         return {
           ...toPublic(s),
           absent: Boolean(hit),
+          /* ⚠ נוכח רק אם סומן במפורש. לא נוכח ולא נעדר = לא סומן. */
+          present: Boolean(stamp && stamp.present && stamp.present.has(s.id)),
           type: hit ? hit.type : null,
           detail: hit ? hit.detail || null : null,
           source: hit ? hit.source : null,
@@ -91,13 +95,32 @@ async function handler(req, res, session) {
       counts: {
         total: students.length,
         absent: onDate.size,
-        present: stamp ? students.length - onDate.size : null,
+        present: stamp && stamp.present ? stamp.present.size : null,
+        unmarked: stamp && stamp.present
+          ? Math.max(0, students.length - stamp.present.size - onDate.size) : null,
       },
       canMark: session.isManager || (session.isLeader && asked === today),
 
       /* ⚠ תיקון שורה שמקורה בבקשה מאושרת — מנהל בלבד.
          מוביל שבוע רואה אותה נעולה. ראו api/_attendance-mark.js. */
       canOverride: session.isManager,
+
+      /* מפגשי היום משיעורים שסומנו "מוצג בסימון נוכחות" (אימונים).
+         הדיווח עליהם נעשה מכאן, באותה נקודת קצה של השיעורים. */
+      trainings: (() => {
+        const daily = new Set(sheets.filter((s) => s.inDaily).map((s) => s.id));
+        return meetings
+          .filter((m) => m.date === asked && daily.has(m.sheetId) && m.planned === "כן")
+          .map((m) => ({
+            id: m.id,
+            subject: (sheets.find((s) => s.id === m.sheetId) || {}).subject || "",
+            happened: m.happened, // ⚠ null = טרם דווח
+            /* נוכחות פרטנית באימון — עצמאית מהנוכחות היומית */
+            present: m.tPresent || [],
+            absent: m.tAbsent || [],
+            kitchen: m.tKitchen || [],
+          }));
+      })(),
 
       /* גבולות שנת הלימודים — מתחמים את לוח השנה שבמסך, כדי
          שלא ייבחר תאריך שממילא אינו בלוח. */

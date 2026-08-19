@@ -38,6 +38,32 @@ export async function gql(query, variables = {}) {
   throw new Error("הקריאה ל-monday נכשלה אחרי 3 ניסיונות: " + lastError?.message);
 }
 
+/**
+ * מעלה קובץ לעמודת קבצים של פריט.
+ *
+ * ⚠ נקודת קצה נפרדת של monday (v2/file) עם multipart — לא
+ *   ה-GraphQL הרגיל. הקובץ מגיע כ-Buffer אחרי פענוח base64.
+ */
+export async function uploadFile(itemId, columnId, fileName, buffer, mime = "application/octet-stream") {
+  const token = process.env.MONDAY_TOKEN;
+  if (!token) throw new Error("MONDAY_TOKEN לא מוגדר בסביבה");
+
+  const form = new FormData();
+  form.append("query",
+    `mutation($file: File!) { add_file_to_column(item_id: ${Number(itemId)}, column_id: "${columnId}", file: $file) { id } }`);
+  form.append("variables[file]", new Blob([buffer], { type: mime }), fileName);
+
+  const r = await fetch("https://api.monday.com/v2/file", {
+    method: "POST",
+    headers: { Authorization: token },
+    body: form,
+    signal: AbortSignal.timeout(60000),
+  });
+  const json = await r.json();
+  if (json.errors) throw new Error("monday: " + JSON.stringify(json.errors));
+  return json.data;
+}
+
 /** שולף את כל הפריטים בלוח, כולל דפדוף מעבר ל-500 */
 export async function allItems(boardId, extraFields = "") {
   const out = [];

@@ -343,9 +343,10 @@ html,body{margin:0;padding:0;background:#012E58}
   padding:0;flex:0 0 auto}
 .yr-c.off{background:#E7EBF1;border-color:#E7EBF1}
 .yr-c.future{background:var(--bg);border-color:var(--line)}
-.yr-c.sick{background:var(--clay);border-color:var(--clay)}
-.yr-c.just{background:var(--amber);border-color:var(--amber)}
-.yr-c.vac{background:var(--accent);border-color:var(--accent)}
+.yr-c.present{background:#16A34A;border-color:#16A34A}
+.yr-c.sick{background:#DC2626;border-color:#DC2626}
+.yr-c.just{background:#D97706;border-color:#D97706}
+.yr-c.vac{background:#2563EB;border-color:#2563EB}
 .yr-c.unmarked{background:repeating-linear-gradient(45deg,#fff,#fff 2px,#DCE2EA 2px,#DCE2EA 4px);
   border-color:var(--line2)}
 .yr-c.sel{outline:2px solid var(--ink);outline-offset:1px}
@@ -379,14 +380,24 @@ html,body{margin:0;padding:0;background:#012E58}
 .st-fig b{font-size:11px;font-weight:800;padding:3px 6px;border-radius:6px;font-variant-numeric:tabular-nums;
   min-width:22px;text-align:center}
 
-/* בורר סוג היעדרות בשורת סימון */
+/* בורר מצב בשורת סימון.
+   ⚠ הצבעים במלוא העוצמה בכוונה — המסמן סורק 33 שורות במהירות,
+   וגוני פסטל לא נקראים ממרחק. */
 .abs-pick{display:flex;gap:5px;padding:0 13px 12px;flex-wrap:wrap}
-.abs-pick button{flex:1;min-width:74px;min-height:40px;border-radius:9px;border:1.5px solid var(--line2);
-  background:var(--surface);font-size:13px;font-weight:700;color:var(--muted)}
+.abs-pick button{flex:1;min-width:64px;min-height:42px;border-radius:9px;border:2px solid var(--line2);
+  background:var(--surface);font-size:13.5px;font-weight:800;color:var(--muted)}
 .abs-pick button.on{background:var(--accent);border-color:var(--accent);color:#fff}
-.abs-pick button.on.sick{background:var(--clay);border-color:var(--clay)}
-.abs-pick button.on.just{background:var(--amber);border-color:var(--amber)}
+.abs-pick button.on.here{background:#15803D;border-color:#15803D;color:#fff}
+.abs-pick button.on.vac{background:#1D4ED8;border-color:#1D4ED8;color:#fff}
+.abs-pick button.on.sick{background:#B91C1C;border-color:#B91C1C;color:#fff}
+.abs-pick button.on.just{background:#B45309;border-color:#B45309;color:#fff}
 .abs-pick button:disabled{opacity:.45}
+
+/* מצב החניך בשורה — תגים בצבע מלא, לא פסטל */
+.pill.pp-ok{background:#15803D;color:#fff}
+.pill.pp-none{background:#E2E8F0;color:#475569}
+.st-av.here{background:#DCFCE7;color:#15803D}
+.st-av.none{background:#F1F5F9;color:#94A3B8}
 .abs-note{padding:0 13px 12px}
 .abs-note input{width:100%;min-height:44px;background:var(--bg);border:1px solid var(--line2);
   border-radius:10px;padding:0 12px;outline:none;font-size:14px}
@@ -406,6 +417,45 @@ html,body{margin:0;padding:0;background:#012E58}
 .rq-act button.ok{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
 .rq-act button.no{background:var(--clay-soft);border-color:var(--clay);color:var(--clay)}
 .rq-act button:disabled{opacity:.45}
+
+/* פאנל תצוגה מקדימה של התראות — נפתח מתחת לסרגל */
+.notif-panel{position:sticky;top:0;z-index:39;background:var(--surface);
+  border-bottom:1px solid var(--line);box-shadow:0 10px 24px rgba(10,20,40,.14);
+  max-width:640px;margin:0 auto;border-radius:0 0 16px 16px;overflow:hidden}
+.notif-h{display:flex;justify-content:space-between;align-items:center;
+  padding:12px 15px;border-bottom:1px solid var(--line)}
+.notif-h b{font-size:14px;font-weight:800}
+.notif-h button{font-size:12.5px;font-weight:700;color:var(--muted);min-height:32px;padding:0 8px}
+.notif-item{display:block;width:100%;text-align:right;padding:11px 15px;
+  border-bottom:1px solid var(--line)}
+.notif-item:active{background:#F5F7FA}
+.notif-item .ni-t{font-size:14px;font-weight:800;letter-spacing:-.2px}
+.notif-item .ni-s{font-size:12px;color:var(--muted);font-weight:600;margin-top:2px}
+.notif-empty{padding:20px 15px;text-align:center;font-size:13px;color:var(--muted);font-weight:600}
+.notif-all{display:block;width:100%;min-height:46px;font-size:13.5px;font-weight:800;color:var(--accent)}
+
+/* פעמון התראות בסרגל העליון */
+.bell-btn{position:relative;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);color:#fff;flex:0 0 auto}
+.bell-badge{position:absolute;top:-4px;left:-4px;background:#DC2626;color:#fff;font-size:10.5px;
+  font-weight:800;min-width:18px;height:18px;border-radius:99px;display:grid;place-items:center;
+  padding:0 4px;border:2px solid #012E58}
+
+/* נוכחות אימון — שלושה מצבים בשורה צפופה */
+.tr-pick{display:flex;gap:4px;flex:0 0 auto}
+.tr-pick button{min-height:34px;padding:0 9px;border-radius:8px;border:1.5px solid var(--line2);
+  background:var(--surface);font-size:12px;font-weight:800;color:var(--muted);white-space:nowrap}
+.tr-pick button.on.here{background:#15803D;border-color:#15803D;color:#fff}
+.tr-pick button.on.absent{background:#B91C1C;border-color:#B91C1C;color:#fff}
+.tr-pick button.on.kitchen{background:#B45309;border-color:#B45309;color:#fff}
+
+/* דירוג 1–10 */
+.rate-row{display:flex;gap:4px;margin-top:10px}
+.rate-row button{flex:1;min-width:0;min-height:40px;border-radius:8px;border:1.5px solid var(--line2);
+  background:var(--surface);font-size:13px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums}
+.rate-row button.lt{background:#DBEAFE;border-color:#93C5FD;color:#1D4ED8}
+.rate-row button.on{background:#1D4ED8;border-color:#1D4ED8;color:#fff}
+.rate-row button:disabled{opacity:.5}
 
 /* ---- גאנט שנתי ----
    סדר-יום אנכי לפי חודשים, לא רשת אופקית: בטלפון רשת של 365
