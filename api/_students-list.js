@@ -14,6 +14,7 @@
 import { withAuth } from "./_session.js";
 import { activeStudents, toPublic } from "./_student-rows.js";
 import { loadCalendar, loadAbsences, loadMarked, summarize, israelToday } from "./_attendance-data.js";
+import { availableRoles } from "./_student-role.js";
 
 async function handler(req, res) {
   if (req.method !== "GET") {
@@ -21,8 +22,8 @@ async function handler(req, res) {
   }
 
   try {
-    const [students, cal, absences, marked] = await Promise.all([
-      activeStudents(), loadCalendar(), loadAbsences(), loadMarked(),
+    const [students, cal, absences, marked, roles] = await Promise.all([
+      activeStudents(), loadCalendar(), loadAbsences(), loadMarked(), availableRoles(),
     ]);
 
     const today = israelToday();
@@ -44,6 +45,9 @@ async function handler(req, res) {
     res.status(200).json({
       students: list,
       count: list.length,
+      /* ⚠ נקראת מהגדרות העמודה בלוח ולא מרשימה בקוד — תפקיד חדש
+         שיתווסף ב-monday יופיע במסך בלי דיפלוי. */
+      roles,
       today: {
         date: today,
         kind: todayDay ? todayDay.kind : null,

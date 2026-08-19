@@ -19,6 +19,7 @@
 import { gql } from "./_monday.js";
 import { cached } from "./_cache.js";
 import { MECHINA_BOARDS, MECHINA_COLS } from "../shared/mechina-boards.js";
+import { ROLES_COL, ROLE_SCHEDULE } from "../shared/lessons-boards.js";
 
 const C = MECHINA_COLS.roster;
 
@@ -32,20 +33,29 @@ export const normalizeTz = (v) =>
  */
 export async function studentRows({ force = false } = {}) {
   return cached("student-rows", async () => {
-    const ids = JSON.stringify([C.tz, C.active, C.leader, C.gender]);
+    const ids = JSON.stringify([C.tz, C.active, C.leader, C.gender, ROLES_COL]);
     const d = await gql(
       `{ boards(ids:[${MECHINA_BOARDS.roster}]){ items_page(limit:500){ items {
            id name column_values(ids:${ids}){ id text } } } } }`
     );
     const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
-    return d.boards[0].items_page.items.map((i) => ({
-      id: String(i.id),
-      name: String(i.name || "").trim(),
-      tz: normalizeTz(val(i, C.tz)),
-      gender: val(i, C.gender) || null,
-      active: val(i, C.active) === "v",
-      leader: val(i, C.leader) === "v",
-    }));
+    return d.boards[0].items_page.items.map((i) => {
+      /* עמודת dropdown מחזירה תוויות מופרדות בפסיק. הרשימה אינה
+         סגורה — תפקיד שיתווסף בלוח יגיע לכאן בלי שינוי בקוד. */
+      const roles = val(i, ROLES_COL)
+        .split(",").map((s) => s.trim()).filter(Boolean);
+      return {
+        id: String(i.id),
+        name: String(i.name || "").trim(),
+        tz: normalizeTz(val(i, C.tz)),
+        gender: val(i, C.gender) || null,
+        active: val(i, C.active) === "v",
+        leader: val(i, C.leader) === "v",
+        roles,
+        /* ⚠ התפקיד היחיד שקשורה אליו הרשאה. ראו shared/lessons-boards.js */
+        isScheduler: roles.includes(ROLE_SCHEDULE),
+      };
+    });
   }, { force });
 }
 
@@ -59,6 +69,8 @@ export const toPublic = (r) => ({
   gender: r.gender,
   active: r.active,
   leader: r.leader,
+  roles: r.roles || [],
+  isScheduler: Boolean(r.isScheduler),
 });
 
 /** החניכים הפעילים בלבד, ממוינים לפי א״ב */

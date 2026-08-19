@@ -407,5 +407,32 @@ html,body{margin:0;padding:0;background:#012E58}
 .rq-act button.no{background:var(--clay-soft);border-color:var(--clay);color:var(--clay)}
 .rq-act button:disabled{opacity:.45}
 
+/* ---- גאנט שנתי ----
+   סדר-יום אנכי לפי חודשים, לא רשת אופקית: בטלפון רשת של 365
+   עמודות אינה קריאה. פס הצבע בצד מקודד את סוג האירוע. */
+.gnt-month{background:var(--surface);border:1px solid var(--line);border-radius:16px;
+  overflow:hidden;margin-bottom:12px}
+.gnt-mh{padding:12px 15px 10px;border-bottom:1px solid var(--line);display:flex;
+  justify-content:space-between;align-items:baseline}
+.gnt-mh .m{font-size:15.5px;font-weight:800;letter-spacing:-.2px}
+.gnt-mh .c{font-size:12px;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums}
+.gnt-ev{display:flex;align-items:flex-start;gap:11px;padding:10px 15px;
+  border-bottom:1px solid var(--line);position:relative}
+.gnt-ev:last-child{border-bottom:none}
+.gnt-ev::before{content:"";position:absolute;right:0;top:8px;bottom:8px;width:3.5px;
+  border-radius:0 3px 3px 0;background:var(--accent)}
+.gnt-ev.shabbat::before{background:var(--amber)}
+.gnt-ev.holiday::before{background:var(--clay)}
+.gnt-ev.today{background:#F2F6FB}
+.gnt-when{flex:0 0 78px;text-align:center;padding-top:1px}
+.gnt-when .d{font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+.gnt-when .r{font-size:10.5px;color:var(--faint);font-weight:700;margin-top:1px}
+.gnt-what{flex:1;min-width:0;padding-top:1px}
+.gnt-what .t{font-size:14px;font-weight:700;letter-spacing:-.2px;line-height:1.35}
+.gnt-what .s{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px}
+.gnt-now{display:flex;align-items:center;gap:8px;padding:4px 15px;color:var(--accent);
+  font-size:11px;font-weight:800;letter-spacing:.4px}
+.gnt-now::before,.gnt-now::after{content:"";flex:1;height:2px;border-radius:99px;background:var(--accent)}
+
 @media (prefers-reduced-motion:reduce){.kx *{animation:none!important;transition:none!important}}
 `;

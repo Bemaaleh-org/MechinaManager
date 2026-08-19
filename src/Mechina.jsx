@@ -15,6 +15,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { api } from "./api.js";
 import { testDate } from "./testDate.js";
+import { LessonsPage } from "./Lessons.jsx";
 
 /* אותו אוצר צורות של האייקונים במטבח: 21px, stroke 2.1, קצוות עגולים */
 const MI = {
@@ -27,6 +28,7 @@ const MI = {
   warn: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3 2 20h20L12 3z"/><path d="M12 9v5M12 17.5h.01"/></svg>,
   lock: (p) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="4" y="10" width="16" height="11" rx="2.2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>,
   chev: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
+  book: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22V4.5z"/><path d="M4 17.5h16"/></svg>,
   plus: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" {...p}><path d="M12 5v14M5 12h14"/></svg>,
 };
 
@@ -805,6 +807,95 @@ function Leaders({ say }) {
 }
 
 /* ============================================================
+   בעלי תפקידים במכינה
+   ------------------------------------------------------------
+   ⚠ נפרד ממובילי השבוע בכוונה. מוביל שבוע מתחלף כל שבוע, ואילו
+     תפקיד נשמר לאורך השנה — ערבוב שלהם באותו מסך היה גורר
+     איפוס של תפקידים בכל החלפת מובילים.
+
+   ⚠ רשימת התפקידים מגיעה מהגדרות העמודה בלוח ולא מהקוד. תפקיד
+     חדש שרועי יוסיף ב-monday יופיע כאן מעצמו.
+   ============================================================ */
+function RoleHolders({ say }) {
+  const { data, err, busy, reload } = useLoad(() => api.getStudents(), []);
+  const [busyId, setBusyId] = useState(null);
+  const [patch, setPatch] = useState({});
+  const [q, setQ] = useState("");
+
+  if (busy && !data) return <Loading what="טוען חניכים" />;
+  if (err) return <LoadFail msg={err} onRetry={reload} />;
+  if (!data) return null;
+
+  const roles = data.roles || [];
+  const rolesOf = (s) => (s.id in patch ? patch[s.id] : (s.roles || []));
+
+  const toggle = (s, role) => {
+    const cur = rolesOf(s);
+    const next = cur.includes(role) ? cur.filter((r) => r !== role) : [...cur, role];
+    setBusyId(s.id);
+    setPatch((p) => ({ ...p, [s.id]: next })); // מיד על המסך
+    api.setRoles({ studentId: s.id, roles: next })
+      .then(() => say(next.length ? `${s.name} — ${next.join(" · ")}` : `${s.name} — ללא תפקיד`))
+      .catch((e) => { setPatch((p) => ({ ...p, [s.id]: cur })); say(e.message); })
+      .finally(() => setBusyId(null));
+  };
+
+  const holders = (role) => data.students.filter((s) => rolesOf(s).includes(role));
+  const list = data.students.filter((s) => !q.trim() || s.name.includes(q.trim()));
+
+  return (
+    <>
+      <div className="card" style={{ marginBottom: 12 }}>
+        {roles.map((role) => {
+          const h = holders(role);
+          return (
+            <div key={role} style={{ display: "flex", justifyContent: "space-between",
+                                     gap: 10, padding: "6px 0", fontSize: 13.5 }}>
+              <b style={{ fontWeight: 800 }}>{role}</b>
+              <span style={{ color: h.length ? "var(--ink)" : "var(--faint)", fontWeight: 600,
+                             textAlign: "left", minWidth: 0 }}>
+                {h.length ? h.map((s) => s.name).join(" · ") : "לא הוגדר"}
+              </span>
+            </div>
+          );
+        })}
+        <div style={{ fontSize: 12, color: "var(--muted)", fontWeight: 600,
+                      lineHeight: 1.6, marginTop: 8, paddingTop: 8,
+                      borderTop: "1px solid var(--line)" }}>
+          אחראי הלו״ז מקבל גישה למסך השיעורים באופן אוטומטי. שאר התפקידים נשמרים לתיעוד בלבד.
+        </div>
+      </div>
+
+      <input className="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="חיפוש חניך" />
+
+      <div className="rows">
+        {list.map((s) => {
+          const mine = rolesOf(s);
+          return (
+            <div key={s.id}>
+              <div className="st-row" style={{ borderBottom: "none", paddingBottom: 4 }}>
+                <div className={"st-av" + (mine.length ? "" : " ")}>{initials(s.name)}</div>
+                <div className="st-main">
+                  <div className="st-n">{s.name}</div>
+                  <div className="st-m">{mine.length ? mine.join(" · ") : "ללא תפקיד"}</div>
+                </div>
+              </div>
+              <div className="abs-pick">
+                {roles.map((role) => (
+                  <button key={role} disabled={busyId === s.id}
+                    className={mine.includes(role) ? "on" : ""}
+                    onClick={() => toggle(s, role)}>{role}</button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+/* ============================================================
    טאב המכינה אצל הצוות — הכול במקום אחד
    ⚠ מנהל בלבד. תורן רואה את המטבח בלבד, והשרת אוכף את זה
      בכל נקודת קצה כאן.
@@ -818,6 +909,7 @@ export function MechinaStaff({ say }) {
     ["students", "חניכים"],
     ["requests", "בקשות יציאה"],
     ["leaders", "מובילי שבוע"],
+    ["roles", "בעלי תפקידים"],
   ];
 
   return (
@@ -842,6 +934,7 @@ export function MechinaStaff({ say }) {
       )}
       {sub === "requests" && <ManagerRequests say={say} />}
       {sub === "leaders" && <Leaders say={say} />}
+      {sub === "roles" && <RoleHolders say={say} />}
     </>
   );
 }
@@ -963,6 +1056,10 @@ export function MechinaApp({ auth, onSignedOut }) {
             בלי שהחניך צריך להתנתק. השרת אוכף, זו רק התצוגה. */}
         {tab === "mark" && auth.isLeader && <MarkDay say={say} />}
 
+        {/* ⚠ אחראי לו״ז בלבד. השרת אוכף בכל נקודת קצה של השיעורים,
+            והתפקיד נקרא טרי מהלוח — הסרתו סוגרת את הטאב מיד. */}
+        {tab === "lessons" && auth.isScheduler && <LessonsPage say={say} />}
+
         {tab === "new" && (
           <>
             <button className="btn btn-ghost btn-sm" style={{ marginBottom: 14 }}
@@ -984,6 +1081,7 @@ export function MechinaApp({ auth, onSignedOut }) {
           ["year", "נוכחות", MI.cal],
           ["requests", "בקשות", MI.note],
           ...(auth.isLeader ? [["mark", "סימון", MI.tick]] : []),
+          ...(auth.isScheduler ? [["lessons", "שיעורים", MI.book]] : []),
         ].map(([k, label, Icon]) => (
             <button key={k} className={tab === k || (k === "requests" && tab === "new") ? "on" : ""}
               onClick={() => setTab(k)}>

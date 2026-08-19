@@ -25,11 +25,11 @@ function handle401(path, data) {
   }
 }
 
-async function post(path, body) {
+async function send(method, path, body) {
   let r;
   try {
     r = await fetch(path, {
-      method: "POST",
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
@@ -42,6 +42,10 @@ async function post(path, body) {
   if (!r.ok) throw new Error(data.error || `השרת החזיר שגיאה ${r.status}`);
   return data;
 }
+
+const post = (path, body) => send("POST", path, body);
+const put = (path, body) => send("PUT", path, body);
+const del = (path, body) => send("DELETE", path, body);
 
 async function get(path) {
   let r;
@@ -183,4 +187,51 @@ export const api = {
   /** אישור או דחייה. מנהל בלבד. אישור יוצר את שורת ההיעדרות. */
   decideRequest: ({ requestId, decision }) =>
     post("/api/attendance?action=decide", { requestId, decision }),
+
+  /** קביעת תפקידי חניך. מנהל בלבד. נושא את הרשימה המלאה. */
+  setRoles: ({ studentId, roles }) =>
+    post("/api/students?action=role", { studentId, roles }),
+
+  /* ============================================================
+     שיעורים במכינה
+     ⚠ כל נקודות הקצה כאן פתוחות לצוות ולאחראי הלו״ז בלבד.
+     ============================================================ */
+
+  /** כל גיליונות השיעור עם הספירה של כל אחד */
+  getLessonSheets: () => get("/api/lessons?action=list"),
+
+  /** גיליון אחד עם כל מפגשיו */
+  getLessonSheet: (id) => get(`/api/lessons?action=sheet&id=${encodeURIComponent(id)}`),
+
+  /** פתיחת גיליון חדש. נוצר ריק — המפגשים נוספים בנפרד. */
+  createLessonSheet: ({ subject, lecturer, dayTime }) =>
+    post("/api/lessons?action=sheet", { subject, lecturer, dayTime }),
+
+  /** דיווח אם מפגש התקיים. null מחזיר ל"טרם דווח".
+   *  lecturer ו-opinion רלוונטיים בשיעורי מרצה אורח בלבד. */
+  markLesson: ({ meetingId, happened, note, lecturer, opinion }) =>
+    post("/api/lessons?action=mark", { meetingId, happened, note, lecturer, opinion }),
+
+  /** הוספת מפגש ידנית לגיליון קיים. נשמר ב-monday מיד. */
+  addLessonMeeting: ({ sheetId, date, planned, reason, note }) =>
+    post("/api/lessons?action=meeting", { sheetId, date, planned, reason, note }),
+
+  /** עריכת מפגש: תאריך, האם יתקיים, סיבה והערות */
+  editLessonMeeting: ({ meetingId, date, planned, reason, note }) =>
+    put("/api/lessons?action=meeting", { meetingId, date, planned, reason, note }),
+
+  /** ⚠ מחיקת מפגש — בלתי הפיך, השורה נמחקת מהלוח */
+  deleteLessonMeeting: (meetingId) =>
+    del("/api/lessons?action=meeting", { meetingId }),
+
+  /** הגאנט השנתי — כל אירועי השנה. עריכה בלוח ב-monday. */
+  getGantt: () => get("/api/lessons?action=gantt"),
+
+  /** חוות דעת על מרצים */
+  getLessonEvals: (cycle) =>
+    get("/api/lessons?action=evals" + (cycle ? `&cycle=${encodeURIComponent(cycle)}` : "")),
+
+  /** הוספת חוות דעת חדשה */
+  addLessonEval: ({ name, topic, field, phone, opinion, cycle }) =>
+    post("/api/lessons?action=evals", { name, topic, field, phone, opinion, cycle }),
 };

@@ -152,6 +152,10 @@ export async function requireAuth(req, res) {
       isManager: false,
       isStudent: true,
       isLeader: row.leader, // מוביל שבוע — נקרא טרי בכל בקשה
+      roles: row.roles || [],
+      /* ⚠ אחראי לו״ז — התפקיד היחיד שפותח מסך. נקרא טרי מהלוח
+         בכל בקשה, ולכן הסרת התפקיד סוגרת את הגישה מיד. */
+      isScheduler: Boolean(row.isScheduler),
     };
   }
 
@@ -174,6 +178,8 @@ export async function requireAuth(req, res) {
     isManager: payload.kind === "manager",
     isStudent: false,
     isLeader: false,
+    roles: [],
+    isScheduler: false,
   };
 }
 
@@ -198,6 +204,7 @@ export async function requireManager(req, res) {
  *   withAuth(h, {manager:true})    מנהל בלבד.
  *   withAuth(h, {student:true})    כל מי שמחובר, כולל חניך.
  *   withAuth(h, {marker:true})     מנהל או מוביל שבוע.
+ *   withAuth(h, {scheduler:true})  מנהל או אחראי לו״ז.
  *
  * ⚠ ברירת המחדל דוחה חניכים, ולא במקרה. 19 נקודות הקצה של המטבח
  *   נכתבו כשהמחוברים היחידים היו תורנים ומנהלים. אילו ברירת
@@ -205,7 +212,10 @@ export async function requireManager(req, res) {
  *   הרשימות והדיווחים בבת אחת — בלי ששורה אחת בקבצים ההם השתנתה.
  *   פתיחה לחניך היא החלטה מפורשת לכל נקודת קצה בנפרד.
  */
-export function withAuth(handler, { manager = false, marker = false, student = false } = {}) {
+export function withAuth(
+  handler,
+  { manager = false, marker = false, student = false, scheduler = false } = {}
+) {
   return async (req, res) => {
     let session;
     try {
@@ -217,7 +227,10 @@ export function withAuth(handler, { manager = false, marker = false, student = f
       if (marker && !session.isManager && !session.isLeader) {
         throw new AuthError("הפעולה מותרת למנהל או למוביל שבוע בלבד", 403);
       }
-      if (!manager && !marker && !student && session.isStudent) {
+      if (scheduler && !session.isManager && !session.isScheduler) {
+        throw new AuthError("הפעולה מותרת לצוות או לאחראי הלו״ז בלבד", 403);
+      }
+      if (!manager && !marker && !student && !scheduler && session.isStudent) {
         throw new AuthError("הפעולה אינה זמינה לחניכים", 403);
       }
     } catch (e) {

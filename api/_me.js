@@ -22,7 +22,14 @@ export default async function handler(req, res) {
         roster: session.kind === "trainee" ? await traineeRoster() : [],
         /* ⚠ נוסף רק לחניך. אצל תורן ומנהל התשובה נשארת זהה
            בתו למה שהייתה, וכך גם התיעוד ב-api-snapshot. */
-        ...(session.isStudent ? { isStudent: true, isLeader: session.isLeader } : {}),
+        ...(session.isStudent ? {
+          isStudent: true,
+          isLeader: session.isLeader,
+          /* התפקידים קובעים אילו מסכים מוצגים לו. נקראים טרי
+             מהלוח בכל בקשה, ולכן הסרת תפקיד סוגרת מיד. */
+          roles: session.roles || [],
+          isScheduler: session.isScheduler,
+        } : {}),
       });
     }
 
