@@ -1,18 +1,36 @@
 /* ============================================================
-   ציוד המכולה
+   ציוד המכינה — מכולה וניקיון
    ------------------------------------------------------------
    קובץ נפרד: תחום משלו, לא מטבח ולא נוכחות. הדף מוצג לאחראי
    המכולה (התפקיד נקבע במסך "בעלי תפקידים") — וההרשאה נאכפת
    בשרת בכל נקודת קצה.
 
-   שני חלקים: הציוד עצמו (מתכלה / תמידי, עריכת שם וכמות,
-   הוספה ומחיקה) ורשימת קניות שנבנית מהציוד הקיים או מפריטים
-   חדשים.
+   ⚠ מסך אחד לשני התחומים, לפי prop אחד (area). מכולה וניקיון
+     הם אותה טבלה בדיוק עם אותן פעולות; שני עותקים של המסך היו
+     נפרדים זה מזה בתיקון הראשון שנעשה רק באחד מהם.
+
+   שלושה חלקים: הציוד עצמו (מתכלה / תמידי, עריכה, הוספה
+   ומחיקה), המפתח — כמה צריך להיות מכל פריט — ורשימת קניות
+   שנבנית ידנית או אוטומטית מהחוסרים ביחס למפתח.
    ============================================================ */
 
 import React, { useState, useEffect, useCallback } from "react";
 import { api } from "./api.js";
 import { useExcel, downloadTable, shareText } from "./excel.js";
+import { AREA, missingFor } from "../shared/container-boards.js";
+
+/* מה שמשתנה בין שני התחומים: כותרת, תמונה וניסוחים.
+   ⚠ המסך עצמו זהה — אותה טבלה, אותו מפתח, אותה רשימת קניות. */
+const AREA_LOOK = {
+  [AREA.container]: {
+    title: "ציוד מכולה", photo: "/photos/container.jpg",
+    loading: "טוען את המכולה", file: "ציוד-מכולה", shopFile: "רשימת-קניות-מכולה",
+  },
+  [AREA.cleaning]: {
+    title: "ציוד ניקיון", photo: null,
+    loading: "טוען את ציוד הניקיון", file: "ציוד-ניקיון", shopFile: "רשימת-קניות-ניקיון",
+  },
+};
 
 const CI = {
   box: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 8l9-5 9 5v8l-9 5-9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>,
@@ -60,14 +78,18 @@ function LoadFail({ msg, onRetry }) {
 /* ---------- שורת ציוד — עריכה במקום ---------- */
 function EquipRow({ item, say, onChanged }) {
   const [open, setOpen] = useState(false);
-  const [f, setF] = useState({ name: item.name, qty: item.qty, kind: item.kind });
+  const [f, setF] = useState({
+    name: item.name, qty: item.qty, kind: item.kind,
+    par: item.par == null ? "" : String(item.par),
+  });
   const [busy, setBusy] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
+  const missing = missingFor(item);
 
   const save = () => {
     if (busy || !f.name.trim()) return;
     setBusy(true);
-    api.editEquip({ itemId: item.id, name: f.name.trim(), qty: f.qty, kind: f.kind })
+    api.editEquip({ itemId: item.id, name: f.name.trim(), qty: f.qty, kind: f.kind, par: f.par })
       .then(() => { say("נשמר"); setOpen(false); onChanged(); })
       .catch((e) => say(e.message))
       .finally(() => setBusy(false));
@@ -88,6 +110,8 @@ function EquipRow({ item, say, onChanged }) {
           <div className="st-n">{item.name}</div>
           <div className="st-m">
             <span className={"pill " + (item.kind === "מתכלה" ? "p-new" : "p-ok")}>{item.kind}</span>
+            {item.par != null && <span>מפתח {item.par}</span>}
+            {missing > 0 && <span className="pill p-low">חסר {missing}</span>}
           </div>
         </div>
         <b className="num" style={{ fontSize: 15, fontWeight: 800, flex: "0 0 auto" }}>
@@ -110,13 +134,20 @@ function EquipRow({ item, say, onChanged }) {
                 onChange={(e) => setF({ ...f, qty: e.target.value })} />
             </div>
           </div>
-          <div className="fld">
-            <label>סוג</label>
-            <div className="pick">
-              {["מתכלה", "תמידי"].map((k) => (
-                <button type="button" key={k} className={f.kind === k ? "on" : ""} disabled={busy}
-                  onClick={() => setF({ ...f, kind: k })}>{k}</button>
-              ))}
+          <div className="two">
+            <div className="fld">
+              <label>סוג</label>
+              <div className="pick">
+                {["מתכלה", "תמידי"].map((k) => (
+                  <button type="button" key={k} className={f.kind === k ? "on" : ""} disabled={busy}
+                    onClick={() => setF({ ...f, kind: k })}>{k}</button>
+                ))}
+              </div>
+            </div>
+            <div className="fld">
+              <label>מפתח — כמה צריך להיות</label>
+              <input value={f.par} disabled={busy} inputMode="numeric" placeholder="ריק = ללא מפתח"
+                onChange={(e) => setF({ ...f, par: e.target.value })} />
             </div>
           </div>
           <div style={{ display: "flex", gap: 6 }}>
@@ -138,9 +169,11 @@ function EquipRow({ item, say, onChanged }) {
   );
 }
 
-/* ---------- בניית רשימת קניות ---------- */
-function ShoppingBuilder({ equipment, say, onDone, onCancel }) {
-  const [picked, setPicked] = useState({}); // id → qty
+/* ---------- בניית רשימת קניות ----------
+   preset — כמויות שכבר מולאו מראש (id → כמות). כך "רשימה
+   מהחוסרים" נכנסת לאותו מסך במקום להיות מסלול שני משלה. */
+function ShoppingBuilder({ equipment, area, say, onDone, onCancel, preset = null, title }) {
+  const [picked, setPicked] = useState(preset || {}); // id → qty
   const [extra, setExtra] = useState([]); // {name, qty}
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
@@ -157,7 +190,7 @@ function ShoppingBuilder({ equipment, say, onDone, onCancel }) {
       })),
       ...extra.filter((x) => x.name.trim()).map((x) => ({ name: x.name.trim(), qty: x.qty })),
     ];
-    api.addShopping(items)
+    api.addShopping(items, area)
       .then((r) => { say(`נוצרה רשימה — ${r.created} פריטים`); onDone(); })
       .catch((e) => say(e.message))
       .finally(() => setBusy(false));
@@ -168,7 +201,7 @@ function ShoppingBuilder({ equipment, say, onDone, onCancel }) {
       <button className="btn btn-ghost btn-sm" style={{ marginBottom: 14 }} onClick={onCancel}>
         <CI.chev style={{ transform: "rotate(180deg)" }} />ביטול
       </button>
-      <div className="screen-title">רשימת קניות חדשה</div>
+      <div className="screen-title">{title || "רשימת קניות חדשה"}</div>
 
       <div className="sec-label">מהציוד הקיים · הקלידו כמות לבחירה</div>
       <input className="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="חיפוש ציוד" />
@@ -177,7 +210,10 @@ function ShoppingBuilder({ equipment, say, onDone, onCancel }) {
           <div className="st-row" key={x.id}>
             <div className="st-main">
               <div className="st-n">{x.name}</div>
-              <div className="st-m"><span>במלאי: {x.qty || "—"}</span></div>
+              <div className="st-m">
+                <span>במלאי: {x.qty || "—"}</span>
+                {x.par != null && <span>· מפתח {x.par}</span>}
+              </div>
             </div>
             <input value={picked[x.id] || ""} placeholder="כמות" inputMode="numeric"
               style={{ width: 76, minHeight: 40, background: "var(--bg)",
@@ -214,39 +250,150 @@ function ShoppingBuilder({ equipment, say, onDone, onCancel }) {
       </button>
 
       <button className="btn btn-primary" disabled={busy || !count} onClick={submit}>
-        {busy ? "יוצר…" : `יצירת הרשימה (${count} פריטים)`}
+        {busy ? "יוצר…" : `יצירת הרשימה (${count === 1 ? "פריט אחד" : count + " פריטים"})`}
       </button>
     </>
   );
 }
 
+/* ---------- מפתח: כמה צריך להיות מכל פריט ----------
+   ⚠ המפתח נשמר בלוח ולא בקוד — המכינה משנה אותו מדי חודש בלי
+     דיפלוי. שמירה קורית ביציאה מהשדה, כדי שאפשר יהיה למלא
+     עשרות שורות ברצף בלי ללחוץ "שמירה" בכל אחת. */
+function ParTab({ equipment, short, say, onChanged }) {
+  const [draft, setDraft] = useState({}); // id → מה שהוקלד וטרם נשמר
+  const [busyId, setBusyId] = useState(null);
+  const [q, setQ] = useState("");
+
+  const valueOf = (x) => (x.id in draft ? draft[x.id] : (x.par == null ? "" : String(x.par)));
+
+  const commit = (x) => {
+    const v = draft[x.id];
+    if (v === undefined) return;
+    const same = v.trim() === (x.par == null ? "" : String(x.par));
+    if (same) { setDraft((d) => { const n = { ...d }; delete n[x.id]; return n; }); return; }
+    setBusyId(x.id);
+    api.editEquip({ itemId: x.id, par: v.trim() })
+      .then(() => { setDraft((d) => { const n = { ...d }; delete n[x.id]; return n; }); onChanged(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusyId(null));
+  };
+
+  const list = equipment.filter((x) => !q.trim() || x.name.includes(q.trim()));
+  const totalMissing = short.reduce((s, x) => s + x.missing, 0);
+
+  return (
+    <>
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 13, color: "var(--muted)", fontWeight: 600, lineHeight: 1.6 }}>
+          המפתח הוא הכמות שצריכה להיות במלאי. מה שחסר ביחס אליו הופך
+          לרשימת קניות בלחיצה אחת — בסוף כל חודש.
+        </div>
+      </div>
+
+      {short.length > 0 ? (
+        <div className="alert a-amber" style={{ marginBottom: 12 }}>
+          <CI.warn />
+          <div style={{ flex: 1 }}>
+            <div className="ttl">
+              {short.length === 1 ? "פריט אחד מתחת למפתח" : `${short.length} פריטים מתחת למפתח`}
+            </div>
+            <div className="bd">
+              {short.slice(0, 3).map((s) => `${s.item.name} (${s.missing})`).join(" · ")}
+              {short.length > 3 ? ` ועוד ${short.length - 3}` : ""}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="card" style={{ marginBottom: 12, textAlign: "center",
+                                       fontSize: 13.5, fontWeight: 700, color: "var(--muted)" }}>
+          {equipment.some((x) => x.par != null)
+            ? "אין חוסרים — כל הפריטים במפתח או מעליו"
+            : "עדיין לא הוגדר מפתח לאף פריט"}
+        </div>
+      )}
+
+      <input className="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="חיפוש פריט" />
+
+      <div className="grp-h">
+        <span>כמות במלאי · מפתח</span>
+        <span>{totalMissing ? `סה״כ חסר: ${totalMissing}` : "הקלידו מפתח"}</span>
+      </div>
+
+      <div className="rows">
+        {list.map((x) => {
+          const miss = missingFor(x);
+          return (
+            <div className="st-row" key={x.id}>
+              <div className="st-main">
+                <div className="st-n">{x.name}</div>
+                <div className="st-m">
+                  <span>במלאי: {x.qty || "—"}</span>
+                  {miss > 0 && <span className="pill p-low">חסר {miss}</span>}
+                  {miss === 0 && x.par != null && <span className="pill p-ok">מלא</span>}
+                </div>
+              </div>
+              <input value={valueOf(x)} inputMode="numeric" placeholder="מפתח"
+                disabled={busyId === x.id}
+                style={{ width: 78, minHeight: 40, background: "var(--bg)",
+                         border: "1px solid var(--line2)", borderRadius: 9,
+                         padding: "0 10px", fontSize: 14, textAlign: "center" }}
+                onChange={(e) => setDraft((d) => ({ ...d, [x.id]: e.target.value }))}
+                onBlur={() => commit(x)}
+                onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} />
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 /* ---------- הדף המלא ---------- */
-export function ContainerPage({ say }) {
+export function ContainerPage({ say, area = AREA.container }) {
   useExcel();
-  const { data, err, busy, reload } = useLoad(() => api.getContainer(), []);
+  const { data, err, busy, reload } = useLoad(() => api.getContainer(area), [area]);
   const [sub, setSub] = useState("equip");
   const [kindFilter, setKindFilter] = useState(null);
   const [q, setQ] = useState("");
   const [adding, setAdding] = useState(false);
-  const [building, setBuilding] = useState(false);
-  const [nf, setNf] = useState({ name: "", qty: "", kind: "תמידי" });
+  const [building, setBuilding] = useState(null); // null | "manual" | "missing"
+  const [nf, setNf] = useState({ name: "", qty: "", kind: "תמידי", par: "" });
   const [savingNew, setSavingNew] = useState(false);
 
-  if (busy && !data) return <Loading what="טוען את המכולה" />;
+  const look = AREA_LOOK[area] || AREA_LOOK[AREA.container];
+
+  /* ⚠ המסך מוחלף כשעוברים בין מכולה לניקיון — הסינון והחיפוש
+     של התחום הקודם היו נשארים ומסתירים חצי מהרשימה. */
+  useEffect(() => {
+    setSub("equip"); setKindFilter(null); setQ("");
+    setAdding(false); setBuilding(null);
+  }, [area]);
+
+  if (busy && !data) return <Loading what={look.loading} />;
   if (err) return <LoadFail msg={err} onRetry={reload} />;
   if (!data) return null;
 
+  /* פריטים שחסרים ביחס למפתח, ובכמה */
+  const short = data.equipment
+    .map((x) => ({ item: x, missing: missingFor(x) }))
+    .filter((x) => x.missing > 0);
+
   if (building) {
-    return <ShoppingBuilder equipment={data.equipment} say={say}
-      onCancel={() => setBuilding(false)}
-      onDone={() => { setBuilding(false); setSub("shop"); reload(); }} />;
+    const preset = building === "missing"
+      ? Object.fromEntries(short.map((s) => [s.item.id, String(s.missing)]))
+      : null;
+    return <ShoppingBuilder equipment={data.equipment} area={area} say={say} preset={preset}
+      title={building === "missing" ? "רשימת חוסרים לפי מפתח" : "רשימת קניות חדשה"}
+      onCancel={() => setBuilding(null)}
+      onDone={() => { setBuilding(null); setSub("shop"); reload(); }} />;
   }
 
   const addNew = () => {
     if (savingNew || !nf.name.trim()) return;
     setSavingNew(true);
-    api.addEquip({ name: nf.name.trim(), qty: nf.qty, kind: nf.kind })
-      .then(() => { say("הציוד נוסף"); setAdding(false); setNf({ name: "", qty: "", kind: "תמידי" }); reload(); })
+    api.addEquip({ name: nf.name.trim(), qty: nf.qty, kind: nf.kind, par: nf.par, area })
+      .then(() => { say("הציוד נוסף"); setAdding(false); setNf({ name: "", qty: "", kind: "תמידי", par: "" }); reload(); })
       .catch((e) => say(e.message))
       .finally(() => setSavingNew(false));
   };
@@ -265,14 +412,21 @@ export function ContainerPage({ say }) {
 
   return (
     <>
-      {/* המכולה האמיתית — הציור שעל הדופן שלה, כרקע הכותרת */}
-      <div className="photo-head" style={{ backgroundImage: "url(/photos/container.jpg)" }}>
-        <div className="pht">ציוד מכולה</div>
-      </div>
+      {look.photo ? (
+        /* המכולה האמיתית — הציור שעל הדופן שלה, כרקע הכותרת */
+        <div className="photo-head" style={{ backgroundImage: `url(${look.photo})` }}>
+          <div className="pht">{look.title}</div>
+        </div>
+      ) : (
+        <div className="screen-title">{look.title}</div>
+      )}
 
       <div className="seg">
         <button className={sub === "equip" ? "on" : ""} onClick={() => setSub("equip")}>
           ציוד ({data.counts.total})
+        </button>
+        <button className={sub === "par" ? "on" : ""} onClick={() => setSub("par")}>
+          מפתח{short.length ? ` (${short.length})` : ""}
         </button>
         <button className={sub === "shop" ? "on" : ""} onClick={() => setSub("shop")}>
           קניות{data.counts.openShopping ? ` (${data.counts.openShopping})` : ""}
@@ -296,12 +450,15 @@ export function ContainerPage({ say }) {
           <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 10 }}
             onClick={() => {
               downloadTable({
-                file: "ציוד-מכולה",
+                file: look.file,
                 sheet: "ציוד",
-                title: "ציוד המכולה — מכינת ניר עוז",
-                header: ["פריט", "כמות", "סוג"],
-                rows: data.equipment.map((x) => [x.name, x.qty || "", x.kind || ""]),
-                widths: [28, 12, 10],
+                title: `${look.title} — מכינת ניר עוז`,
+                header: ["פריט", "כמות", "סוג", "מפתח", "חסר"],
+                rows: data.equipment.map((x) => {
+                  const m = missingFor(x);
+                  return [x.name, x.qty || "", x.kind || "", x.par ?? "", m > 0 ? m : ""];
+                }),
+                widths: [28, 12, 10, 9, 8],
               });
               say("הקובץ ירד");
             }}><CI.dl />הורדת כל הציוד לאקסל</button>
@@ -320,13 +477,20 @@ export function ContainerPage({ say }) {
                     onChange={(e) => setNf({ ...nf, qty: e.target.value })} />
                 </div>
               </div>
-              <div className="fld">
-                <label>סוג</label>
-                <div className="pick">
-                  {["מתכלה", "תמידי"].map((k) => (
-                    <button type="button" key={k} className={nf.kind === k ? "on" : ""}
-                      onClick={() => setNf({ ...nf, kind: k })}>{k}</button>
-                  ))}
+              <div className="two">
+                <div className="fld">
+                  <label>סוג</label>
+                  <div className="pick">
+                    {["מתכלה", "תמידי"].map((k) => (
+                      <button type="button" key={k} className={nf.kind === k ? "on" : ""}
+                        onClick={() => setNf({ ...nf, kind: k })}>{k}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="fld">
+                  <label>מפתח (לא חובה)</label>
+                  <input value={nf.par} disabled={savingNew} inputMode="numeric"
+                    onChange={(e) => setNf({ ...nf, par: e.target.value })} />
                 </div>
               </div>
               <button className="btn btn-primary" disabled={savingNew || !nf.name.trim()} onClick={addNew}>
@@ -352,6 +516,22 @@ export function ContainerPage({ say }) {
         </>
       )}
 
+      {sub === "par" && (
+        <>
+          <ParTab equipment={data.equipment} short={short} say={say} onChanged={reload} />
+
+          <div className="sticky">
+            <button className="btn btn-primary" disabled={!short.length}
+              onClick={() => setBuilding("missing")}>
+              <CI.cart />{short.length
+                ? `רשימת קניות מהחוסרים (${short.length})`
+                : "אין חוסרים לרשימה"}
+            </button>
+          </div>
+          <div style={{ height: 60 }} />
+        </>
+      )}
+
       {sub === "shop" && (
         <>
           {open.length === 0 ? (
@@ -367,19 +547,20 @@ export function ContainerPage({ say }) {
                 <button className="btn btn-ghost btn-sm" style={{ flex: 1 }}
                   onClick={async () => {
                     const today = new Date().toLocaleDateString("he-IL");
-                    const text = `רשימת קניות — מכולה (${today})\n` +
+                    const heading = `רשימת קניות — ${area} (${today})`;
+                    const text = heading + "\n" +
                       open.map((x) => `· ${x.name}${x.qty ? " — " + x.qty : ""}`).join("\n");
                     try {
-                      const how = await shareText({ title: "רשימת קניות — מכולה", text });
+                      const how = await shareText({ title: heading, text });
                       if (how === "copied") say("הרשימה הועתקה — הדביקו בוואטסאפ");
                     } catch { say("השיתוף נכשל"); }
                   }}><CI.share />שיתוף הרשימה</button>
                 <button className="btn btn-ghost btn-sm" style={{ flex: 1 }}
                   onClick={() => {
                     downloadTable({
-                      file: "רשימת-קניות-מכולה",
+                      file: look.shopFile,
                       sheet: "רשימת קניות",
-                      title: "רשימת קניות — מכולה",
+                      title: `רשימת קניות — ${area}`,
                       header: ["פריט", "כמות", "ביקש"],
                       rows: open.map((x) => [x.name, x.qty || "", x.by || ""]),
                       widths: [26, 12, 16],
@@ -422,7 +603,7 @@ export function ContainerPage({ say }) {
           )}
 
           <div className="sticky">
-            <button className="btn btn-primary" onClick={() => setBuilding(true)}>
+            <button className="btn btn-primary" onClick={() => setBuilding("manual")}>
               <CI.cart />רשימת קניות חדשה
             </button>
           </div>
