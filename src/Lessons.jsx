@@ -60,9 +60,95 @@ function LoadFail({ msg, onRetry }) {
 }
 
 /* ============================================================
+   דוח חודשי לאקסל
+   ------------------------------------------------------------
+   הנתונים מהשרת; הקובץ נבנה בדפדפן עם SheetJS (נטען מ-CDN,
+   כמו בדוח התקופתי של המטבח). אם הספרייה לא נטענה — CSV.
+   ============================================================ */
+function useSheetJS() {
+  React.useEffect(() => {
+    if (window.XLSX || document.getElementById("sheetjs-cdn")) return;
+    const s = document.createElement("script");
+    s.id = "sheetjs-cdn";
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+    document.body.appendChild(s);
+  }, []);
+}
+
+function MonthlyReport({ onClose, say }) {
+  useSheetJS();
+  const { data, err, busy, reload } = useLoad(() => api.getLessonReport(), []);
+  const [month, setMonth] = useState("");
+
+  if (busy && !data) return <Loading what="טוען נתוני דוח" />;
+  if (err) return <LoadFail msg={err} onRetry={reload} />;
+  if (!data) return null;
+
+  const monthName = (m) => {
+    const [y, mo] = m.split("-");
+    return ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"][Number(mo) - 1] + " " + y;
+  };
+
+  const download = async () => {
+    try {
+      const rep = await api.getLessonReport(month || undefined);
+      const header = ["שיעור", "מרצה", "יום ושעה", "מתוכננים", "התקיימו", "לא התקיימו", "טרם דווחו", "תאריכי קיום"];
+      const rows = rep.rows.map((r) => [
+        r.subject, r.lecturer, r.dayTime, r.planned, r.happened, r.missed, r.pending,
+        r.dates.map(dmy).join(", "),
+      ]);
+      const label = month ? monthName(month) : "כל השנה";
+
+      if (window.XLSX) {
+        const ws = window.XLSX.utils.aoa_to_sheet([[`דוח שיעורים — ${label}`], [], header, ...rows]);
+        ws["!cols"] = [{ wch: 26 }, { wch: 16 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 11 }, { wch: 10 }, { wch: 60 }];
+        const wb = window.XLSX.utils.book_new();
+        wb.Workbook = { Views: [{ RTL: true }] };
+        window.XLSX.utils.book_append_sheet(wb, ws, "דוח שיעורים");
+        window.XLSX.writeFile(wb, `דוח-שיעורים-${month || "שנתי"}.xlsx`);
+      } else {
+        /* SheetJS לא נטען — CSV עם BOM כדי שאקסל יקרא עברית */
+        const csv = "﻿" + [header, ...rows]
+          .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+        a.download = `דוח-שיעורים-${month || "שנתי"}.csv`;
+        a.click();
+      }
+      say("הדוח ירד");
+    } catch (e) { say(e.message); }
+  };
+
+  return (
+    <>
+      <button className="btn btn-ghost btn-sm" style={{ marginBottom: 14 }} onClick={onClose}>
+        <LI.chev style={{ transform: "rotate(180deg)" }} />חזרה
+      </button>
+      <div className="screen-title">דוח חודשי</div>
+
+      <div className="card">
+        <div className="fld">
+          <label htmlFor="rp-month">חודש</label>
+          <select id="rp-month" value={month} onChange={(e) => setMonth(e.target.value)}>
+            <option value="">כל השנה</option>
+            {data.months.map((m) => <option value={m} key={m}>{monthName(m)}</option>)}
+          </select>
+        </div>
+        <div style={{ fontSize: 13, color: "var(--muted)", fontWeight: 600, lineHeight: 1.6,
+                      marginBottom: 12 }}>
+          הדוח כולל לכל שיעור את מספר המפגשים שהתקיימו, לא התקיימו וטרם דווחו —
+          ואת תאריכי הקיום המלאים.
+        </div>
+        <button className="btn btn-primary" onClick={download}>הורדת הדוח (Excel)</button>
+      </div>
+    </>
+  );
+}
+
+/* ============================================================
    רשימת הגיליונות
    ============================================================ */
-function SheetList({ onOpen, onNew, canEdit }) {
+function SheetList({ onOpen, onNew, onReport, canEdit }) {
   const { data, err, busy, reload } = useLoad(() => api.getLessonSheets(), []);
   const [q, setQ] = useState("");
 
@@ -88,6 +174,9 @@ function SheetList({ onOpen, onNew, canEdit }) {
           <div className="n">{t.pending} טרם דווחו</div>
         </div>
       </div>
+
+      <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 10 }}
+        onClick={onReport}>דוח חודשי (Excel)</button>
 
       <input className="search" value={q} onChange={(e) => setQ(e.target.value)}
         placeholder="חיפוש שיעור או מרצה" />
@@ -187,7 +276,8 @@ function SheetDetail({ sheet, onBack, say }) {
   if (evalFor) {
     return (
       <NewEval fields={[data.sheet.subject]} say={say}
-        preset={{ name: fieldOf(evalFor, "lecturer"), field: data.sheet.subject }}
+        preset={{ name: fieldOf(evalFor, "lecturer"), field: data.sheet.subject,
+                  meetingId: evalFor.id }}
         onCancel={() => setEvalFor(null)}
         onDone={() => { setEvalFor(null); say("חוות הדעת נוספה למחזור ב׳"); }} />
     );
@@ -572,7 +662,12 @@ function Evals({ say }) {
         <div className="rq" key={e.id}>
           <div className="rq-top">
             <div className="rq-name">{e.name}</div>
-            {e.field && <span className="pill p-new">{e.field}</span>}
+            <span style={{ display: "flex", gap: 5 }}>
+              {e.avg != null && (
+                <span className="pill pp-ok num" title={`${e.votes} מדרגים`}>★ {e.avg}</span>
+              )}
+              {e.field && <span className="pill p-new">{e.field}</span>}
+            </span>
           </div>
           {e.topic && <div className="rq-meta"><span>{e.topic}</span></div>}
           {e.opinion && <div className="rq-detail">{e.opinion}</div>}
@@ -606,7 +701,7 @@ function NewEval({ fields, onDone, onCancel, say, preset }) {
     e.preventDefault();
     if (busy || !f.name.trim() || !f.opinion.trim()) return;
     setBusy(true); setErr(null);
-    api.addLessonEval({ ...f, cycle: "מחזור ב׳" })
+    api.addLessonEval({ ...f, cycle: "מחזור ב׳", meetingId: preset && preset.meetingId })
       .then(() => { say("חוות הדעת נוספה"); onDone(); })
       .catch((e2) => setErr(e2.message))
       .finally(() => setBusy(false));
@@ -769,9 +864,10 @@ export function LessonsPage({ say }) {
   const [sub, setSub] = useState("sheets");
   const [sheet, setSheet] = useState(null);
   const [creating, setCreating] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const [seq, setSeq] = useState(0); // מאלץ טעינה מחדש אחרי יצירה
 
-  const inner = sheet || creating;
+  const inner = sheet || creating || reporting;
 
   return (
     <>
@@ -786,13 +882,16 @@ export function LessonsPage({ say }) {
       )}
 
       {sub === "sheets" && (
-        creating ? (
+        reporting ? (
+          <MonthlyReport say={say} onClose={() => setReporting(false)} />
+        ) : creating ? (
           <NewSheet say={say} onCancel={() => setCreating(false)}
             onDone={() => { setCreating(false); setSeq((n) => n + 1); }} />
         ) : sheet ? (
           <SheetDetail sheet={sheet} say={say} onBack={() => setSheet(null)} />
         ) : (
-          <SheetList key={seq} onOpen={setSheet} onNew={() => setCreating(true)} canEdit />
+          <SheetList key={seq} onOpen={setSheet} onNew={() => setCreating(true)}
+            onReport={() => setReporting(true)} canEdit />
         )
       )}
 

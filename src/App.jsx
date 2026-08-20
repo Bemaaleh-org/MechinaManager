@@ -6,6 +6,7 @@ import { api, setUnauthorizedHandler } from "./api.js";
 import Login from "./Login.jsx";
 import { MechinaApp, MechinaStaff } from "./Mechina.jsx";
 import { LessonsPage } from "./Lessons.jsx";
+import { ContainerPage } from "./Container.jsx";
 import { testDate } from "./testDate.js";
 /* ============================================================
    ניהול מכינת ניר עוז — מטבח, נוכחות ושיעורים
@@ -27,6 +28,8 @@ const I = {
   clock: (p) => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="9"/><path d="M12 7v5.5l3.5 2"/></svg>,
   download: (p) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3v12M7 11l5 5 5-5M4 20h16"/></svg>,
   book: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22V4.5z"/><path d="M4 17.5h16"/></svg>,
+  box: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 8l9-5 9 5v8l-9 5-9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>,
+  bell: (p) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M10.3 21a2 2 0 0 0 3.4 0"/></svg>,
   users: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="9" cy="8" r="3.4"/><path d="M3 20c0-3.3 2.7-5.4 6-5.4s6 2.1 6 5.4"/><path d="M16 5.2a3.4 3.4 0 0 1 0 6.6M18 20c0-2.4-1-4.1-2.6-5"/></svg>,
   edit: (p) => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>,
 };
@@ -272,6 +275,22 @@ function Kitchen({ auth, onSignedOut }) {
      בקשות — והמסכים הפנימיים של המטבח ירדו לבורר שמעל התוכן.
      אצל תורן שום דבר מזה לא קיים והניווט נשאר כשהיה. */
   const [section, setSection] = useState("kitchen");
+  /* פעמון המנהל: מספר בקשות היציאה שממתינות. נבדק בטעינה
+     ומדי דקה וחצי — התראה, לא זמן-אמת. */
+  const [pendingList, setPendingList] = useState([]);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [staffJump, setStaffJump] = useState(0); // מזנק לטאב הבקשות
+  useEffect(() => {
+    if (!auth.isManager) return;
+    let live = true;
+    const check = () => api.getRequests("ממתין")
+      .then((r) => { if (live) setPendingList(r.requests || []); })
+      .catch(() => { /* התראה בלבד — כשל שקט */ });
+    check();
+    const t = setInterval(check, 90_000);
+    return () => { live = false; clearInterval(t); };
+  }, [auth.isManager]);
+  const openRequests = () => { setNotifOpen(false); setSection("mechina"); setStaffJump((n) => n + 1); };
   const [toast, setToast] = useState(null);
   const [modal, setModal] = useState(null);
   const saveT = useRef(null);
@@ -605,6 +624,15 @@ function Kitchen({ auth, onSignedOut }) {
               <h1>ניהול מכינת ניר עוז</h1>
               <div className="sub">{hebDate(today)}</div>
             </div>
+            {/* פעמון — בקשות יציאה שממתינות. לחיצה פותחת תצוגה
+                מקדימה, ומשם אפשר להגיע לבקשה עצמה. */}
+            {isMgr && (
+              <button className="bell-btn" aria-label="התראות"
+                onClick={() => setNotifOpen((v) => !v)}>
+                <I.bell />
+                {pendingList.length > 0 && <span className="bell-badge num">{pendingList.length}</span>}
+              </button>
+            )}
             <div className="brand-coin" aria-label="במעלה הדרך">
               <img src={LOGO} alt="לוגו במעלה הדרך" />
             </div>
@@ -613,6 +641,32 @@ function Kitchen({ auth, onSignedOut }) {
             </button>
           </div>
         </header>
+
+        {/* תצוגה מקדימה של ההתראות — לחיצה על בקשה מובילה אליה */}
+        {notifOpen && (
+          <div className="notif-panel">
+            <div className="notif-h">
+              <b>בקשות יציאה ממתינות</b>
+              <button onClick={() => setNotifOpen(false)}>סגירה</button>
+            </div>
+            {pendingList.length === 0 ? (
+              <div className="notif-empty">אין בקשות שממתינות להחלטה</div>
+            ) : pendingList.slice(0, 8).map((r) => (
+              <button className="notif-item" key={r.id} onClick={openRequests}>
+                <div className="ni-t">{r.student ? r.student.name : ""} · {r.type}</div>
+                <div className="ni-s">
+                  {r.endDate && r.endDate !== r.date
+                    ? `${r.date.split("-").reverse().join("/")} – ${r.endDate.split("-").reverse().join("/")}`
+                    : r.date.split("-").reverse().join("/")}
+                  {r.detail ? " · " + r.detail.slice(0, 40) : ""}
+                </div>
+              </button>
+            ))}
+            {pendingList.length > 0 && (
+              <button className="notif-all" onClick={openRequests}>לכל הבקשות</button>
+            )}
+          </div>
+        )}
 
         <main className="wrap">
           {/* ⚠ כשל טעינה נראה אחרת מ"אין נתונים". בלי הבאנר הזה
@@ -663,8 +717,11 @@ function Kitchen({ auth, onSignedOut }) {
 
           {/* ⚠ תחום המכינה יושב בקובץ נפרד ואינו נוגע במטבח.
               ההרשאה נאכפת בשרת; הבדיקה כאן היא תצוגה בלבד. */}
-          {section === "mechina" && isMgr && <MechinaStaff say={say} />}
+          {section === "mechina" && isMgr && (
+            <MechinaStaff say={say} key={staffJump} sub0={staffJump ? "requests" : undefined} />
+          )}
           {section === "lessons" && isMgr && <LessonsPage say={say} />}
+          {section === "container" && isMgr && <ContainerPage say={say} />}
         </main>
 
         {/* ⚠ שני ניווטים שונים לשני תפקידים.
@@ -673,7 +730,7 @@ function Kitchen({ auth, onSignedOut }) {
         <nav className="nav">
           {isMgr
             ? [["kitchen", "מטבח", I.home], ["mechina", "נוכחות", I.users],
-               ["lessons", "שיעורים", I.book]].map(([k, label, Icon]) => (
+               ["lessons", "שיעורים", I.book], ["container", "מכולה", I.box]].map(([k, label, Icon]) => (
                 <button key={k} className={section === k ? "on" : ""} onClick={() => setSection(k)}>
                   <Icon />
                   <span>{label}</span>

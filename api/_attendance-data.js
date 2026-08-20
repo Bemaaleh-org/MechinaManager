@@ -5,8 +5,9 @@
    שאילתה משלה. כל החישובים — מכסת חופש, סיכומים, מצב יום —
    יושבים כאן ולא במסכים.
 
-   ⚠ "נוכח" אינו נתון שמור אלא נגזרת: חניך נוכח בכל יום שאין
-     לו בו שורת היעדרות. ראו ההסבר המלא ב-shared/mechina-boards.js.
+   ⚠ שלושה מצבים לחניך ביום: נוכח (ברשימת הנוכחים של היום),
+     נעדר (שורת היעדרות), לא סומן (ברירת המחדל). נוכחות היא
+     סימון פעיל — ראו shared/mechina-boards.js.
    ============================================================ */
 
 import { allItems, gql } from "./_monday.js";
@@ -94,7 +95,10 @@ export async function loadMarked({ force = false } = {}) {
     const map = new Map();
     for (const i of items) {
       const date = val(i, MRK.date);
-      if (date) map.set(date, { id: String(i.id), by: val(i, MRK.by), at: val(i, MRK.at) });
+      if (!date) continue;
+      /* רשימת הנוכחים המפורשים — ראו shared/mechina-boards.js */
+      const present = new Set(val(i, MRK.present).split(",").map((x) => x.trim()).filter(Boolean));
+      map.set(date, { id: String(i.id), by: val(i, MRK.by), at: val(i, MRK.at), present });
     }
     return map;
   }, { force });
@@ -147,9 +151,17 @@ export function summarize(studentId, { absences, marked, byDate }) {
 
   const absent = mine.filter((a) => marked.has(a.date)).length;
 
+  /* ⚠ נוכחות נספרת רק כשסומנה במפורש. יום שסומן אבל החניך לא
+     סומן בו — לא נוכח ולא נעדר — נספר "לא סומן". */
+  let present = 0;
+  for (const stamp of marked.values()) {
+    if (stamp.present && stamp.present.has(studentId)) present++;
+  }
+
   return {
     schoolDays,
-    present: Math.max(0, schoolDays - absent),
+    present,
+    unmarked: Math.max(0, schoolDays - present - absent),
     absent,
     sick: count(ABSENCE.sick),
     justified: count(ABSENCE.justified),
@@ -161,7 +173,7 @@ export function summarize(studentId, { absences, marked, byDate }) {
 /* ---------- כתיבה ---------- */
 
 /** רושם שהיום סומן, או מעדכן מי סימן אותו לאחרונה */
-export async function stampMarked(date, by, at = new Date()) {
+export async function stampMarked(date, by, presentIds = null, at = new Date()) {
   const marked = await loadMarked();
   const hit = marked.get(date);
   const cols = {
@@ -169,6 +181,11 @@ export async function stampMarked(date, by, at = new Date()) {
     [MRK.by]: String(by || "").slice(0, 120),
     [MRK.at]: { date: israelToday(at), time: at.toISOString().slice(11, 19) },
   };
+  if (presentIds) {
+    const ids = [...new Set(presentIds.map(String))];
+    cols[MRK.present] = ids.join(",");
+    cols[MRK.presentCount] = String(ids.length);
+  }
 
   if (hit) {
     await gql(

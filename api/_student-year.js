@@ -54,7 +54,11 @@ async function handler(req, res, session) {
       if (hit) state = "absent";
       else if (!isSchoolDay(d)) state = "off";
       else if (d.date > today) state = "future";
-      else state = marked.has(d.date) ? "present" : "unmarked";
+      else {
+        /* ⚠ נוכח רק אם סומן במפורש ברשימת הנוכחים של היום */
+        const stamp = marked.get(d.date);
+        state = stamp && stamp.present && stamp.present.has(studentId) ? "present" : "unmarked";
+      }
 
       return {
         date: d.date,

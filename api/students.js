@@ -5,6 +5,8 @@
      ?action=year    GET    הלוח השנתי של חניך אחד
      ?action=leader  POST   מינוי או ביטול מוביל שבוע (מנהל בלבד)
      ?action=role    POST   קביעת תפקידים לחניך (מנהל בלבד)
+     ?action=profile GET/POST  הפרופיל האישי
+     ?action=incident GET/POST אירועים חריגים (מנהל בלבד)
 
    ⚠ login אינו דורש סשן, ולכן הקובץ הזה אינו נעטף ב-withAuth —
      כל מודול מביא את ההגנה שלו, בדיוק כמו ב-api/auth.js.
@@ -18,5 +20,7 @@ import list from "./_students-list.js";
 import year from "./_student-year.js";
 import leader from "./_student-leader.js";
 import role from "./_student-role.js";
+import profile from "./_student-profile.js";
+import incident from "./_student-incidents.js";
 
-export default router({ login, list, year, leader, role });
+export default router({ login, list, year, leader, role, profile, incident });

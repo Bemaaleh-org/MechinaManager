@@ -13,7 +13,7 @@
 
 import { withAuth } from "./_session.js";
 import { studentRows, toPublic } from "./_student-rows.js";
-import { gql, allItems } from "./_monday.js";
+import { gql, allItems, uploadFile } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
 import {
   loadCalendar, loadAbsences, loadMarked, summarize, vacationRule,
@@ -41,6 +41,8 @@ export async function loadRequests({ force = false } = {}) {
         studentId: linked(i, R.student),
         type: val(i, R.type),
         date: val(i, R.date),
+        endDate: val(i, R.endDate) || val(i, R.date),
+        hasFile: Boolean(val(i, R.file)),
         detail: val(i, R.detail),
         status: val(i, R.status) || REQ_STATUS.pending,
         decidedBy: val(i, R.by) || null,
@@ -76,6 +78,8 @@ async function list(req, res, session) {
         id: r.id,
         type: r.type,
         date: r.date,
+        endDate: r.endDate,
+        hasFile: r.hasFile,
         detail: r.detail || null,
         status: r.status,
         decidedBy: r.decidedBy,
@@ -104,17 +108,24 @@ async function create(req, res, session) {
     const body = req.body ?? (await readJson(req));
     const type = String(body?.type || "");
     const date = String(body?.date || "").trim();
+    /* ⚠ בקשה יכולה להשתרע על כמה ימים. ריק = יום אחד. */
+    const endDate = String(body?.endDate || date).trim();
     const detail = String(body?.detail || "").trim().slice(0, 2000);
 
     if (!TYPES.includes(type)) return res.status(400).json({ error: "לא נבחר סוג בקשה" });
-    if (!DATE_RE.test(date)) return res.status(400).json({ error: "תאריך לא תקין" });
+    if (!DATE_RE.test(date) || !DATE_RE.test(endDate)) {
+      return res.status(400).json({ error: "תאריך לא תקין" });
+    }
+    if (endDate < date) return res.status(400).json({ error: "תאריך הסיום לפני תאריך ההתחלה" });
 
     const [cal, all, rows, absences, marked] = await Promise.all([
       loadCalendar(), loadRequests({ force: true }), studentRows(), loadAbsences(), loadMarked(),
     ]);
 
-    const day = cal.byDate.get(date);
-    if (!day) return res.status(400).json({ error: "התאריך אינו בלוח השנה של המכינה" });
+    /* ימי הלימוד שבטווח — עליהם הבקשה חלה בפועל */
+    const span = cal.days.filter((d) => d.date >= date && d.date <= endDate);
+    if (!span.length) return res.status(400).json({ error: "הטווח אינו בלוח השנה של המכינה" });
+    if (span.length > 21) return res.status(400).json({ error: "בקשה מוגבלת לשלושה שבועות" });
 
     const student = rows.find((r) => r.id === session.itemId);
     if (!student) return res.status(404).json({ error: "החניך אינו נמצא" });
@@ -125,46 +136,89 @@ async function create(req, res, session) {
     }
 
     if (type === ABSENCE.vacation) {
-      const rule = vacationRule(day);
-      if (!rule.allowed) return res.status(400).json({ error: rule.reason });
-
+      /* ⚠ כל יום בטווח חייב לעמוד בכלל, והמכסה נבדקת על סך הימים */
+      for (const d of span) {
+        const rule = vacationRule(d);
+        if (!rule.allowed) {
+          return res.status(400).json({ error: `${d.date.split("-").reverse().join("/")}: ${rule.reason}` });
+        }
+      }
       const sum = summarize(session.itemId, { absences, marked, byDate: cal.byDate });
-      const q = sum.quota.find((x) => x.half === day.half);
-      if (!q) return res.status(400).json({ error: "התאריך אינו בתוך מחצית" });
+      const perHalf = {};
+      for (const d of span) perHalf[d.half] = (perHalf[d.half] || 0) + 1;
 
-      // בקשות חופש שממתינות באותה מחצית תופסות מהמכסה מראש
-      const pendingSameHalf = all.filter((r) =>
-        r.studentId === session.itemId && r.type === ABSENCE.vacation &&
-        r.status === REQ_STATUS.pending && (cal.byDate.get(r.date) || {}).half === day.half
-      ).length;
-
-      if (q.used + pendingSameHalf >= q.total) {
-        return res.status(400).json({
-          error: `נוצלו כל ${q.total} ימי החופש ב${day.half}` +
-                 (pendingSameHalf ? ` (כולל ${pendingSameHalf} בקשות שממתינות)` : ""),
-        });
+      for (const [half, needed] of Object.entries(perHalf)) {
+        const q = sum.quota.find((x) => x.half === half);
+        if (!q) return res.status(400).json({ error: "התאריך אינו בתוך מחצית" });
+        const pendingSameHalf = all
+          .filter((r) => r.studentId === session.itemId && r.type === ABSENCE.vacation &&
+                         r.status === REQ_STATUS.pending)
+          .reduce((n, r) => n + cal.days.filter((d) =>
+            d.date >= r.date && d.date <= r.endDate && d.half === half).length, 0);
+        if (q.used + pendingSameHalf + needed > q.total) {
+          return res.status(400).json({
+            error: `הבקשה דורשת ${needed} ימי חופש ב${half}, ונשארו ${Math.max(0, q.total - q.used - pendingSameHalf)}`,
+          });
+        }
       }
     }
 
-    const dup = all.find((r) =>
-      r.studentId === session.itemId && r.date === date && r.status === REQ_STATUS.pending);
-    if (dup) return res.status(409).json({ error: "כבר קיימת בקשה שממתינה להחלטה לתאריך הזה" });
+    /* חפיפה עם בקשה ממתינה קיימת */
+    const overlap = all.find((r) =>
+      r.studentId === session.itemId && r.status === REQ_STATUS.pending &&
+      r.date <= endDate && r.endDate >= date);
+    if (overlap) return res.status(409).json({ error: "כבר קיימת בקשה שממתינה להחלטה בתאריכים האלה" });
 
+    /* ---------- אישור מחלה ---------- */
+    let fileBuf = null, fileName = null, fileMime = null;
+    if (body?.fileData) {
+      if (type !== ABSENCE.sick) {
+        return res.status(400).json({ error: "אישור מחלה מצורף לבקשת מחלה בלבד" });
+      }
+      fileName = String(body.fileName || "אישור-מחלה").replace(/[^\w.֐-׿-]/g, "_").slice(0, 80);
+      fileMime = String(body.fileMime || "application/octet-stream").slice(0, 60);
+      try { fileBuf = Buffer.from(String(body.fileData), "base64"); } catch { fileBuf = null; }
+      if (!fileBuf || !fileBuf.length) return res.status(400).json({ error: "הקובץ לא נקרא" });
+      /* ⚠ מעל ~4MB גוף הבקשה נחסם על ידי Vercel עוד קודם */
+      if (fileBuf.length > 3.5 * 1024 * 1024) {
+        return res.status(400).json({ error: "הקובץ גדול מדי — עד 3.5MB" });
+      }
+    }
+
+    const label = date === endDate ? date : `${date} – ${endDate}`;
     const cols = {
       [R.student]: { item_ids: [Number(session.itemId)] },
       [R.type]: { label: type },
       [R.date]: { date },
       [R.status]: { label: REQ_STATUS.pending },
     };
+    if (endDate !== date) cols[R.endDate] = { date: endDate };
     if (detail) cols[R.detail] = detail;
 
     const d = await gql(
       `mutation($b:ID!,$n:String!,$v:JSON!){ create_item(board_id:$b,item_name:$n,column_values:$v,create_labels_if_missing:false){ id } }`,
-      { b: MECHINA_BOARDS.requests, n: `${student.name} · ${type} · ${date}`, v: JSON.stringify(cols) }
+      { b: MECHINA_BOARDS.requests, n: `${student.name} · ${type} · ${label}`, v: JSON.stringify(cols) }
     );
-    invalidateRequests();
+    const id = String(d.create_item.id);
 
-    res.status(200).json({ ok: true, id: String(d.create_item.id), status: REQ_STATUS.pending });
+    /* הקובץ עולה אחרי יצירת השורה. כשל בהעלאה לא מוחק את הבקשה —
+       המסך מודיע והחניך יכול לנסות שוב או למסור ידנית. */
+    let fileUploaded = false;
+    if (fileBuf) {
+      try {
+        await uploadFile(id, R.file, fileName, fileBuf, fileMime);
+        fileUploaded = true;
+      } catch (e2) {
+        console.error("[requests:file]", e2.message);
+      }
+    }
+
+    invalidateRequests();
+    res.status(200).json({
+      ok: true, id, status: REQ_STATUS.pending,
+      days: span.length,
+      fileUploaded: fileBuf ? fileUploaded : null,
+    });
   } catch (e) {
     console.error("[requests:create]", e);
     res.status(502).json({ error: "שליחת הבקשה נכשלה" });

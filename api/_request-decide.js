@@ -64,36 +64,45 @@ async function handler(req, res, session) {
     const student = rows.find((r) => r.id === request.studentId);
     if (!student) return res.status(404).json({ error: "החניך אינו נמצא" });
 
-    const day = cal.byDate.get(request.date) || null;
-    let absenceId = null;
+    /* ⚠ בקשה יכולה להשתרע על כמה ימים. האישור יוצר שורת היעדרות
+       לכל יום לימודים בטווח — לא רק לראשון. */
+    const endDate = request.endDate || request.date;
+    const span = cal.days.filter((d) => d.date >= request.date && d.date <= endDate);
+    let created = 0, skipped = 0;
 
     if (decision === "approve") {
-      if (!day) return res.status(400).json({ error: "התאריך אינו בלוח השנה של המכינה" });
+      if (!span.length) return res.status(400).json({ error: "הטווח אינו בלוח השנה של המכינה" });
 
       if (request.type === ABSENCE.vacation) {
-        const rule = vacationRule(day);
-        if (!rule.allowed) return res.status(400).json({ error: rule.reason });
-
+        for (const d of span) {
+          const rule = vacationRule(d);
+          if (!rule.allowed) return res.status(400).json({ error: rule.reason });
+        }
         const sum = summarize(request.studentId, { absences, marked, byDate: cal.byDate });
-        const q = sum.quota.find((x) => x.half === day.half);
-        if (!q) return res.status(400).json({ error: "התאריך אינו בתוך מחצית" });
-        if (q.left <= 0) {
-          return res.status(400).json({ error: `נוצלו כל ${q.total} ימי החופש ב${day.half}` });
+        const perHalf = {};
+        for (const d of span) perHalf[d.half] = (perHalf[d.half] || 0) + 1;
+        for (const [half, needed] of Object.entries(perHalf)) {
+          const q = sum.quota.find((x) => x.half === half);
+          if (!q) return res.status(400).json({ error: "התאריך אינו בתוך מחצית" });
+          if (q.left < needed) {
+            return res.status(400).json({ error: `הבקשה דורשת ${needed} ימי חופש ב${half}, ונשארו ${q.left}` });
+          }
         }
       }
 
-      const already = absences.find(
-        (a) => a.studentId === request.studentId && a.date === request.date);
-
-      if (!already) {
-        absenceId = await createAbsence({
+      for (const d of span) {
+        const already = absences.find(
+          (a) => a.studentId === request.studentId && a.date === d.date);
+        if (already) { skipped++; continue; }
+        await createAbsence({
           studentId: request.studentId,
           studentName: student.name,
-          date: request.date,
+          date: d.date,
           type: request.type,
           detail: request.detail,
           source: ABSENCE_SOURCE.request,
         });
+        created++;
       }
     }
 
@@ -115,9 +124,10 @@ async function handler(req, res, session) {
 
     res.status(200).json({
       ok: true, id: requestId, status,
-      absenceCreated: Boolean(absenceId),
-      /* היה כבר סימון לאותו יום — המסך מודיע ולא שותק */
-      alreadyAbsent: decision === "approve" && !absenceId,
+      absenceCreated: created > 0,
+      daysCreated: created,
+      /* ימים שכבר הייתה בהם היעדרות — המסך מודיע ולא שותק */
+      alreadyAbsent: decision === "approve" && skipped > 0,
     });
   } catch (e) {
     console.error("[request-decide]", e);

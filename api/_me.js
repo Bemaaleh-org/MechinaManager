@@ -29,6 +29,7 @@ export default async function handler(req, res) {
              מהלוח בכל בקשה, ולכן הסרת תפקיד סוגרת מיד. */
           roles: session.roles || [],
           isScheduler: session.isScheduler,
+          isContainer: session.isContainer,
         } : {}),
       });
     }

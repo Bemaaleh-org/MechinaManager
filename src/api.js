@@ -171,22 +171,55 @@ export const api = {
       + (date ? `&date=${encodeURIComponent(date)}` : "")
       + (today ? `&today=${encodeURIComponent(today)}` : "")),
 
-  /** שומר את סימון היום. נושא את המצב המלא הרצוי, לא פעולות. */
-  markAttendance: ({ date, absences }, today) =>
+  /** שומר את סימון היום. נושא את המצב המלא הרצוי — נוכחים
+   *  והיעדרויות — לא פעולות. מי שלא באף רשימה נשאר "לא סומן". */
+  markAttendance: ({ date, absences, present }, today) =>
     post("/api/attendance?action=mark" + (today ? `&today=${encodeURIComponent(today)}` : ""),
-      { date, absences }),
+      { date, absences, present }),
 
   /** בקשות יציאה. חניך מקבל את שלו בלבד — הסינון בשרת. */
   getRequests: (status) =>
     get("/api/attendance?action=requests" + (status ? `&status=${encodeURIComponent(status)}` : "")),
 
-  /** הגשת בקשה חדשה */
-  createRequest: ({ type, date, detail }) =>
-    post("/api/attendance?action=requests", { type, date, detail }),
+  /** הגשת בקשה חדשה. endDate לטווח ימים; אישור מחלה עובר
+   *  כ-base64 ועולה לעמודת הקבצים בלוח. */
+  createRequest: ({ type, date, endDate, detail, fileName, fileMime, fileData }) =>
+    post("/api/attendance?action=requests",
+      { type, date, endDate, detail, fileName, fileMime, fileData }),
 
   /** אישור או דחייה. מנהל בלבד. אישור יוצר את שורת ההיעדרות. */
   decideRequest: ({ requestId, decision }) =>
     post("/api/attendance?action=decide", { requestId, decision }),
+
+  /** נוכחות פרטנית באימון — שלוש רשימות, מצב מלא */
+  markTraining: ({ meetingId, present, absent, kitchen }, today) =>
+    post("/api/attendance?action=train" + (today ? "&today=" + encodeURIComponent(today) : ""),
+      { meetingId, present, absent, kitchen }),
+
+  /** הפרופיל האישי. חניך — שלו; מנהל — של כל חניך. */
+  getProfile: (studentId) =>
+    get("/api/students?action=profile" + (studentId ? "&student=" + encodeURIComponent(studentId) : "")),
+
+  /** עדכון פרופיל: חניך שולח army/tryouts, מנהל שולח talks */
+  setProfile: ({ studentId, army, tryouts, talks }) =>
+    post("/api/students?action=profile" + (studentId ? "&student=" + encodeURIComponent(studentId) : ""),
+      { army, tryouts, talks }),
+
+  /** אירועים חריגים. מנהל בלבד — השרת אוכף. */
+  getIncidents: (studentId) =>
+    get("/api/students?action=incident" + (studentId ? "&student=" + encodeURIComponent(studentId) : "")),
+  addIncident: ({ studentId, kind, detail, date }) =>
+    post("/api/students?action=incident", { studentId, kind, detail, date }),
+
+  /* --- ציוד המכולה — מנהל או אחראי מכולה --- */
+  getContainer: () => get("/api/container?action=equip"),
+  addEquip: ({ name, qty, kind }) => post("/api/container?action=equip", { name, qty, kind }),
+  editEquip: ({ itemId, name, qty, kind }) => put("/api/container?action=equip", { itemId, name, qty, kind }),
+  deleteEquip: (itemId) => del("/api/container?action=equip", { itemId }),
+  /** יצירת רשימת קניות — כמה שורות בבת אחת */
+  addShopping: (items) => post("/api/container?action=shop", { items }),
+  setShoppingStatus: ({ itemId, status }) => put("/api/container?action=shop", { itemId, status }),
+  deleteShopping: (itemId) => del("/api/container?action=shop", { itemId }),
 
   /** קביעת תפקידי חניך. מנהל בלבד. נושא את הרשימה המלאה. */
   setRoles: ({ studentId, roles }) =>
@@ -227,11 +260,22 @@ export const api = {
   /** הגאנט השנתי — כל אירועי השנה. עריכה בלוח ב-monday. */
   getGantt: () => get("/api/lessons?action=gantt"),
 
+  /** נתוני הדוח החודשי. בלי חודש — כל השנה. */
+  getLessonReport: (month) =>
+    get("/api/lessons?action=report" + (month ? `&month=${encodeURIComponent(month)}` : "")),
+
+  /** שיעורי מרצה אורח שהחניך המחובר יכול לדרג */
+  getRatable: () => get("/api/lessons?action=rate"),
+
+  /** דירוג 1–10. דירוג חוזר מעדכן את הקודם. */
+  rateLesson: ({ meetingId, score }) =>
+    post("/api/lessons?action=rate", { meetingId, score }),
+
   /** חוות דעת על מרצים */
   getLessonEvals: (cycle) =>
     get("/api/lessons?action=evals" + (cycle ? `&cycle=${encodeURIComponent(cycle)}` : "")),
 
-  /** הוספת חוות דעת חדשה */
-  addLessonEval: ({ name, topic, field, phone, opinion, cycle }) =>
-    post("/api/lessons?action=evals", { name, topic, field, phone, opinion, cycle }),
+  /** הוספת חוות דעת חדשה. meetingId מצמיד אליה את דירוג החניכים. */
+  addLessonEval: ({ name, topic, field, phone, opinion, cycle, meetingId }) =>
+    post("/api/lessons?action=evals", { name, topic, field, phone, opinion, cycle, meetingId }),
 };

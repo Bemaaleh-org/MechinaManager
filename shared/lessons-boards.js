@@ -16,6 +16,7 @@ export const LESSON_BOARDS = {
   meetings: "5102519522", // מכינה ב׳ – מפגשי שיעור
   evals: "5102519542", // מכינה ב׳ – חוות דעת מרצים
   gantt: "5102525652", // מכינה ב׳ – גאנט שנתי
+  ratings: "5102547962", // מכינה ב׳ – דירוגי שיעורים
 };
 
 export const LESSON_COLS = {
@@ -28,6 +29,9 @@ export const LESSON_COLS = {
        חיים. הדגל בלוח ולא בקוד: המכינה תסמן שיעור נוסף בעצמה
        בלי דיפלוי, ורשימת שמות מקובעת הייתה מחייבת אותו. */
     guestLecturer: "boolean_mm6c8ak9",
+    /* שיעור שמפגשיו מופיעים גם במסך סימון הנוכחות (אימונים).
+       מסומן בלוח — המכינה מוסיפה שיעור בלי דיפלוי. */
+    inDaily: "boolean_mm6csjzj",
   },
   meetings: {
     sheet: "board_relation_mm6c8413",
@@ -40,6 +44,13 @@ export const LESSON_COLS = {
     /* ממולאים רק בשיעורי מרצה אורח */
     lecturer: "text_mm6chezw",
     opinion: "long_text_mm6cfev",
+    /* ---- נוכחות אימון ----
+       מזהי חניכים מופרדים בפסיק, לפי מצב. מי שלא באף רשימה —
+       לא סומן. עצמאי לחלוטין מהנוכחות היומית: תורן אוכל נעדר
+       מהאימון בלי שזה נוגע לנוכחותו באותו יום. */
+    tPresent: "long_text_mm6c9z19",
+    tAbsent: "long_text_mm6cx3we",
+    tKitchen: "long_text_mm6c7sq5",
   },
   /* ⚠ שם הפריט: "שם האירוע · תאריך" — כך ייבוא חוזר מזהה כפילות.
      264 אירועים יובאו מ"גאנט מכינת ניר עוז מחזור ב", כולל טווחים
@@ -48,6 +59,14 @@ export const LESSON_COLS = {
     start: "date_mm6c6ywz",
     end: "date_mm6c94wt",
     type: "color_mm6cckd4", // פעילות · שבת · חג ומועד
+  },
+  /* דירוג 1–10 של חניך למפגש. שם הפריט: "מפגש · חניך" — מפתח
+     הכפילות: חניך מדרג מפגש פעם אחת. */
+  ratings: {
+    meeting: "text_mm6c3c61",
+    student: "text_mm6cwt08",
+    score: "numeric_mm6cn8ff",
+    date: "date_mm6c8gc0",
   },
   /* שם הפריט הוא שם המרצה */
   evals: {
@@ -58,6 +77,11 @@ export const LESSON_COLS = {
     cycle: "color_mm6cgcad",
     by: "text_mm6cbjmt",
     at: "date_mm6ck9fk",
+    /* חוות דעת שנכתבה מתוך מפגש נושאת את מזההו — כך הדירוג
+       הממוצע של החניכים מוצמד אליה ומתעדכן חי. */
+    meetingId: "text_mm6c9y75",
+    avg: "numeric_mm6cf3hk",
+    votes: "numeric_mm6cy3r6",
   },
 };
 
@@ -90,5 +114,8 @@ export const ROLES_COL = "dropdown_mm6cp4yk";
 /** ⚠ גרש עברי (״) ולא גרשיים רגילים — חייב להיות זהה לתווית שבלוח */
 export const ROLE_SCHEDULE = "אחראי לו״ז";
 
+/** אחראי המכולה — פותח את דף ציוד המכולה */
+export const ROLE_CONTAINER = "אחראי מכולה";
+
 /** התפקידים שהוגדרו בהקמה. אינם רשימה סגורה. */
-export const KNOWN_ROLES = [ROLE_SCHEDULE, "אחראי מטבח", "אחראי מכולה"];
+export const KNOWN_ROLES = [ROLE_SCHEDULE, "אחראי מטבח", ROLE_CONTAINER];

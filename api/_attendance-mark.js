@@ -1,9 +1,12 @@
 /* ============================================================
    POST /api/attendance?action=mark
-   { date, absences: [{ studentId, type, detail }] }
+   { date, absences: [{ studentId, type, detail }], present: [id] }
 
-   שומר את סימון היום. הגוף נושא את המצב המלא הרצוי — מי חסר
-   ומאיזו סיבה — ולא "הוסף" או "הסר".
+   שומר את סימון היום. הגוף נושא את המצב המלא הרצוי — מי נוכח,
+   מי חסר ומאיזו סיבה — ולא "הוסף" או "הסר".
+
+   ⚠ נוכחות היא סימון מפורש. חניך שאינו ברשימת present ואין לו
+     היעדרות נשאר "לא סומן" — בהחלטת המכינה, נוכחות אינה הנחה.
 
    ⚠ מצב מלא ולא פעולות, בכוונה. שני מסמנים שפותחים את המסך
      כמעט יחד שולחים את אותה כוונה ומקבלים אותה תוצאה. בקשות
@@ -47,6 +50,7 @@ async function handler(req, res, session) {
     const body = req.body ?? (await readJson(req));
     const date = String(body?.date || "").trim();
     const wanted = Array.isArray(body?.absences) ? body.absences : null;
+    const presentIds = Array.isArray(body?.present) ? body.present.map(String) : [];
 
     if (!DATE_RE.test(date)) {
       return res.status(400).json({ error: "תאריך לא תקין. הפורמט: YYYY-MM-DD" });
@@ -86,11 +90,13 @@ async function handler(req, res, session) {
         const rule = vacationRule(day);
         if (!rule.allowed) return res.status(400).json({ error: rule.reason });
       }
+      const detail = String(raw?.detail || "").trim().slice(0, 2000);
+      /* ⚠ מוצדקת בלי פירוט אינה ניתנת לביקורת אחר כך — חובה */
+      if (type === ABSENCE.justified && !detail) {
+        return res.status(400).json({ error: `${student.name}: היעדרות מוצדקת מחייבת פירוט` });
+      }
       seen.add(studentId);
-      clean.push({
-        studentId, type, name: student.name,
-        detail: String(raw?.detail || "").trim().slice(0, 2000),
-      });
+      clean.push({ studentId, type, name: student.name, detail });
     }
 
     /* ---------- השוואה מול המצב בפועל ----------
@@ -139,13 +145,16 @@ async function handler(req, res, session) {
 
     /* ⚠ החותמת אחרונה. עד שהיא נרשמת היום נחשב "טרם סומן",
        וכך כשל באמצע לא מציג יום חלקי כיום מלא. */
-    await stampMarked(date, actorName(session));
+    /* חניך לא יכול להיות גם נוכח וגם נעדר */
+    const presentClean = presentIds.filter((id) => known.has(id) && !seen.has(id));
+    await stampMarked(date, actorName(session), presentClean);
     invalidateAttendance();
 
     res.status(200).json({
       ok: true, date,
       absent: clean.length,
-      present: students.length - clean.length,
+      present: presentClean.length,
+      unmarked: students.length - clean.length - presentClean.length,
       created: created.length,
       removed: removed.length,
       changed: changed.length,

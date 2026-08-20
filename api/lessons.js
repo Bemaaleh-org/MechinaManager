@@ -6,6 +6,8 @@
      ?action=mark    POST   דיווח אם מפגש התקיים
      ?action=meeting POST   הוספת מפגש ידנית לגיליון
      ?action=gantt   GET    הגאנט השנתי
+     ?action=report  GET    נתוני הדוח החודשי
+     ?action=rate    GET/POST  דירוג שיעורים על ידי חניכים
      ?action=evals   GET    חוות דעת על מרצים
      ?action=evals   POST   הוספת חוות דעת
 
@@ -20,5 +22,7 @@ import mark from "./_lesson-mark.js";
 import meeting from "./_lesson-meeting.js";
 import evals from "./_lesson-evals.js";
 import gantt from "./_lessons-gantt.js";
+import report from "./_lesson-report.js";
+import rate from "./_lesson-rate.js";
 
-export default router({ list, sheet, mark, meeting, evals, gantt });
+export default router({ list, sheet, mark, meeting, evals, gantt, report, rate });
