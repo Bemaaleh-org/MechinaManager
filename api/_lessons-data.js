@@ -12,7 +12,7 @@
 
 import { allItems, gql } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
-import { LESSON_BOARDS, LESSON_COLS, PLANNED, HAPPENED } from "../shared/lessons-boards.js";
+import { LESSON_BOARDS, LESSON_COLS, PLANNED, HAPPENED, CYCLE } from "../shared/lessons-boards.js";
 
 const S = LESSON_COLS.sheets;
 const M = LESSON_COLS.meetings;
@@ -131,6 +131,57 @@ export async function loadEvals({ force = false } = {}) {
 }
 
 export const invalidateEvals = () => invalidate("lesson-evals");
+
+/** חוות הדעת שנוצרה למפגש הזה, אם יש. */
+export function evalForMeeting(meetingId, evals) {
+  return evals.find((e) => e.meetingId === String(meetingId)) || null;
+}
+
+/**
+ * פותח חוות דעת למפגש של מרצה אורח, אם עוד אין לו אחת.
+ *
+ * ⚠ נקראת כשמסמנים "התקיים". החניכים מדרגים אחרי השיעור, ולכן
+ *   השורה נפתחת ריקה מדירוגים וממלאת את עצמה: הממוצע מחושב חי
+ *   מלוח הדירוגים בכל שליפה, ולא מהמספר ששמור בשורה. בלי השורה
+ *   הזו הדירוג של החניך יושב בלוח ואינו מופיע באף מסך.
+ *
+ * ⚠ אידמפוטנטית לפי מזהה המפגש — סימון חוזר לא פותח שורה שנייה.
+ *
+ * ⚠ אינה מוחקת: מפגש שסימונו בוטל משאיר את חוות הדעת. מחיקה
+ *   אוטומטית של טקסט שמישהו כתב מסוכנת יותר משורה מיותרת.
+ */
+export async function ensureEvalForMeeting({ meeting, sheet, by }) {
+  const evals = await loadEvals();
+  const existing = evalForMeeting(meeting.id, evals);
+  if (existing) return { created: false, id: existing.id, name: existing.name };
+
+  /* שם המרצה הוא שם השורה. טרם נרשם — שם זמני שאפשר לזהות לפיו,
+     כדי שהדירוגים לא יישארו בלי בית עד שירשם. */
+  const name = String(meeting.lecturer || "").trim()
+    || `מרצה אורח · ${sheet.subject} · ${meeting.date}`;
+
+  const cols = {
+    [E.topic]: `${sheet.subject} · ${meeting.date}`.slice(0, 200),
+    [E.field]: { label: sheet.subject },
+    [E.cycle]: { label: CYCLE.second },
+    [E.meetingId]: String(meeting.id),
+    [E.by]: String(by || "").slice(0, 120),
+    [E.at]: { date: israelDate() },
+  };
+  const r = ratingFor(meeting.id, await loadRatings());
+  if (r) { cols[E.avg] = String(r.avg); cols[E.votes] = String(r.votes); }
+
+  const d = await gql(
+    `mutation($b:ID!,$n:String!,$v:JSON!){ create_item(board_id:$b,item_name:$n,column_values:$v,create_labels_if_missing:true){ id } }`,
+    { b: LESSON_BOARDS.evals, n: name, v: JSON.stringify(cols) }
+  );
+  invalidateEvals();
+  return { created: true, id: String(d.create_item.id), name };
+}
+
+const israelDate = () => new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Jerusalem", year: "numeric", month: "2-digit", day: "2-digit",
+}).format(new Date());
 
 /* ---------- דירוגי חניכים ---------- */
 const RT = LESSON_COLS.ratings;

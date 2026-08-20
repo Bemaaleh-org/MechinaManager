@@ -19,7 +19,8 @@ const E = LESSON_COLS.evals;
 async function handler(req, res, session) {
   if (req.method === "GET") return list(req, res);
   if (req.method === "POST") return add(req, res, session);
-  return res.status(405).json({ error: "רק GET ו-POST נתמכים כאן" });
+  if (req.method === "PUT") return edit(req, res, session);
+  return res.status(405).json({ error: "רק GET, POST ו-PUT נתמכים כאן" });
 }
 
 async function list(req, res) {
@@ -93,6 +94,53 @@ async function add(req, res, session) {
   } catch (e) {
     console.error("[lesson-evals:add]", e);
     res.status(502).json({ error: "הוספת חוות הדעת נכשלה" });
+  }
+}
+
+/* ---------- עריכה ----------
+   ⚠ בעיקר בשביל ההערה על חוות דעת שנפתחה אוטומטית כשהשיעור
+     סומן "התקיים": השורה נוצרת עם הדירוגים, והמדריך מוסיף לה
+     מילים אחר כך. גם שם המרצה ניתן לתיקון — שורה שנפתחה לפני
+     שנרשם מי הגיע נושאת שם זמני. */
+async function edit(req, res, session) {
+  try {
+    const body = req.body ?? (await readJson(req));
+    const evalId = String(body?.evalId || "").trim();
+    if (!evalId) return res.status(400).json({ error: "לא צוינה חוות דעת" });
+
+    const evals = await loadEvals();
+    const row = evals.find((e) => e.id === evalId);
+    if (!row) return res.status(404).json({ error: "חוות הדעת אינה נמצאת" });
+
+    const cols = {};
+    if (body.opinion !== undefined) cols[E.opinion] = String(body.opinion).slice(0, 2000);
+    if (body.topic !== undefined) cols[E.topic] = String(body.topic).slice(0, 200);
+    if (body.phone !== undefined) cols[E.phone] = String(body.phone).slice(0, 40);
+    if (body.field !== undefined && body.field) cols[E.field] = { label: String(body.field) };
+
+    /* ⚠ נרשם מי נגע אחרון — חוות דעת היא טקסט שאדם כתב, ולא
+       נתון אנונימי כמו סימון משימה. */
+    if (Object.keys(cols).length) {
+      cols[E.by] = actorName(session).slice(0, 120);
+      await gql(
+        `mutation($b:ID!,$i:ID!,$v:JSON!){ change_multiple_column_values(board_id:$b,item_id:$i,column_values:$v,create_labels_if_missing:true){ id } }`,
+        { b: LESSON_BOARDS.evals, i: evalId, v: JSON.stringify(cols) }
+      );
+    }
+
+    const name = body.name === undefined ? null : String(body.name).trim();
+    if (name) {
+      await gql(
+        `mutation($i:ID!,$b:ID!,$n:String!){ change_simple_column_value(item_id:$i,board_id:$b,column_id:"name",value:$n){ id } }`,
+        { i: evalId, b: LESSON_BOARDS.evals, n: name }
+      );
+    }
+
+    invalidateEvals();
+    res.status(200).json({ ok: true, id: evalId });
+  } catch (e) {
+    console.error("[lesson-evals:edit]", e);
+    res.status(502).json({ error: "עדכון חוות הדעת נכשל" });
   }
 }
 

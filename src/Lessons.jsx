@@ -227,6 +227,56 @@ function SheetList({ onOpen, onNew, onReport, canEdit }) {
   );
 }
 
+/* ---------- ההערה על חוות הדעת שנפתחה למפגש ----------
+   ⚠ הדירוג של החניכים הוא מספר; ההערה היא מה שהמדריך מוסיף
+     עליו. שניהם יושבים על אותה שורה בלוח חוות הדעת. */
+function EvalNote({ meeting, say, onSaved }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState(meeting.evalNote || "");
+  const [busy, setBusy] = useState(false);
+
+  const save = () => {
+    if (busy) return;
+    setBusy(true);
+    api.editLessonEval({ evalId: meeting.evalId, opinion: text.trim() })
+      .then(() => { say("ההערה נשמרה"); setOpen(false); onSaved(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  if (!open) {
+    return (
+      <>
+        {meeting.evalNote && (
+          <div className="rq-detail" style={{ marginTop: 7 }}>{meeting.evalNote}</div>
+        )}
+        <button className="btn btn-ghost btn-sm" style={{ marginTop: 7, width: "100%" }}
+          onClick={() => setOpen(true)}>
+          <LI.star />{meeting.evalNote ? "עריכת ההערה" : "הוספת הערה לחוות הדעת"}
+        </button>
+      </>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 7 }}>
+      <textarea value={text} autoFocus disabled={busy} rows={3}
+        placeholder="מה היה בשיעור, איך העביר, האם להזמין שוב"
+        style={{ width: "100%", background: "var(--surface)", border: "1px solid var(--line2)",
+                 borderRadius: 11, padding: "9px 12px", fontSize: 14.5, outline: "none",
+                 fontFamily: "inherit", resize: "vertical" }}
+        onChange={(e) => setText(e.target.value)} />
+      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+        <button className="btn btn-primary btn-sm" style={{ flex: 1 }} disabled={busy} onClick={save}>
+          {busy ? "שומר…" : "שמירת ההערה"}
+        </button>
+        <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} disabled={busy}
+          onClick={() => { setText(meeting.evalNote || ""); setOpen(false); }}>ביטול</button>
+      </div>
+    </div>
+  );
+}
+
 /* ============================================================
    גיליון אחד — המפגשים והדיווח
    ============================================================ */
@@ -295,11 +345,21 @@ function SheetDetail({ sheet, onBack, say }) {
   };
 
   /* ⚠ הכפתור אינו מחכה לשרת. הסימון מופיע מיד, ואם הקריאה
-     נכשלה הוא חוזר אחורה. */
+     נכשלה הוא חוזר אחורה.
+
+     ⚠ בשיעור מרצה אורח, סימון "התקיים" פותח בשרת חוות דעת
+       במחזור ב׳ — שם נאספים דירוגי החניכים. מרעננים כדי שהיא
+       תופיע על המפגש מיד. */
   const mark = (m, value) => {
     const next = stateOf(m) === value ? null : value;
     setPatch((p) => ({ ...p, [m.id]: next }));
     api.markLesson({ meetingId: m.id, happened: next })
+      .then((r) => {
+        if (r && r.evalCreated) {
+          say("נפתחה חוות דעת במחזור ב׳ — דירוגי החניכים ייאספו אליה");
+          setSeq((n) => n + 1);
+        }
+      })
       .catch((e) => { setPatch((p) => ({ ...p, [m.id]: m.happened })); say(e.message); });
   };
 
@@ -375,6 +435,12 @@ function SheetDetail({ sheet, onBack, say }) {
                       ) : s === "כן" ? <span className="pill p-ok">התקיים</span>
                         : s === "לא" ? <span className="pill p-low">לא התקיים</span>
                         : <span className="pill p-new">טרם דווח</span>}
+                      {m.votes > 0 && (
+                        <span className="pill pp-ok num" title={`${m.votes} מדרגים`}>
+                          ★ {m.avg}
+                        </span>
+                      )}
+                      {m.evalId && m.votes === 0 && <span>ממתין לדירוגי החניכים</span>}
                       {m.note && <span>{m.note}</span>}
                     </div>
                   </div>
@@ -398,14 +464,23 @@ function SheetDetail({ sheet, onBack, say }) {
                     <input value={fieldOf(m, "lecturer")} placeholder="שם המרצה שהגיע"
                       onChange={(e) => setField(m, "lecturer", e.target.value)}
                       onBlur={() => saveField(m, "lecturer")} />
+
                     {/* ⚠ חוות הדעת אינה נשמרת על המפגש אלא בלוח חוות
                         הדעת של מחזור ב׳, כדי שכל חוות הדעת יישבו
-                        במקום אחד וניתן יהיה לחפש בהן לאורך השנים. */}
-                    <button className="btn btn-ghost btn-sm"
-                      style={{ marginTop: 7, width: "100%" }}
-                      onClick={() => setEvalFor(m)}>
-                      <LI.star />הוספת חוות דעת
-                    </button>
+                        במקום אחד וניתן יהיה לחפש בהן לאורך השנים.
+
+                        משסומן "התקיים" היא נפתחת מעצמה, ומכאן מוסיפים
+                        לה הערה. כפתור "הוספת חוות דעת" נשאר למפגש
+                        שטרם סומן. */}
+                    {m.evalId ? (
+                      <EvalNote meeting={m} say={say} onSaved={() => setSeq((n) => n + 1)} />
+                    ) : (
+                      <button className="btn btn-ghost btn-sm"
+                        style={{ marginTop: 7, width: "100%" }}
+                        onClick={() => setEvalFor(m)}>
+                        <LI.star />הוספת חוות דעת
+                      </button>
+                    )}
                     {busyId === m.id && (
                       <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 700, marginTop: 4 }}>
                         שומר…
@@ -680,24 +755,7 @@ function Evals({ say }) {
           <div className="e2">{cycle === "מחזור ב׳" ? "עדיין לא נכתבו חוות דעת השנה." : "נסו חלק מהשם."}</div>
         </div>
       ) : list.map((e) => (
-        <div className="rq" key={e.id}>
-          <div className="rq-top">
-            <div className="rq-name">{e.name}</div>
-            <span style={{ display: "flex", gap: 5 }}>
-              {e.avg != null && (
-                <span className="pill pp-ok num" title={`${e.votes} מדרגים`}>★ {e.avg}</span>
-              )}
-              {e.field && <span className="pill p-new">{e.field}</span>}
-            </span>
-          </div>
-          {e.topic && <div className="rq-meta"><span>{e.topic}</span></div>}
-          {e.opinion && <div className="rq-detail">{e.opinion}</div>}
-          <div className="rq-meta" style={{ marginTop: 9 }}>
-            {e.cycle && <span>{e.cycle}</span>}
-            {e.phone && <span>· {e.phone}</span>}
-            {e.by && <span>· {e.by}</span>}
-          </div>
-        </div>
+        <EvalCard key={e.id} e={e} say={say} onSaved={reload} />
       ))}
 
       <div className="sticky">
@@ -707,6 +765,87 @@ function Evals({ say }) {
       </div>
       <div style={{ height: 60 }} />
     </>
+  );
+}
+
+/* ---------- כרטיס חוות דעת ----------
+   ⚠ שורה שנפתחה אוטומטית מגיעה בלי טקסט ועם דירוג בלבד. העריכה
+     כאן היא הדרך להשלים אותה — וגם לתקן שם מרצה שנרשם מאוחר. */
+function EvalCard({ e, say, onSaved }) {
+  const [edit, setEdit] = useState(false);
+  const [f, setF] = useState({ name: e.name, opinion: e.opinion || "" });
+  const [busy, setBusy] = useState(false);
+  const auto = Boolean(e.meetingId);
+
+  const save = () => {
+    if (busy || !f.name.trim()) return;
+    setBusy(true);
+    api.editLessonEval({ evalId: e.id, name: f.name.trim(), opinion: f.opinion.trim() })
+      .then(() => { say("נשמר"); setEdit(false); onSaved(); })
+      .catch((err) => say(err.message))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <div className="rq">
+      <div className="rq-top">
+        <div className="rq-name">{e.name}</div>
+        <span style={{ display: "flex", gap: 5 }}>
+          {e.avg != null && (
+            <span className="pill pp-ok num" title={`${e.votes} מדרגים`}>★ {e.avg}</span>
+          )}
+          {e.field && <span className="pill p-new">{e.field}</span>}
+        </span>
+      </div>
+      {e.topic && <div className="rq-meta"><span>{e.topic}</span></div>}
+
+      {edit ? (
+        <div style={{ marginTop: 9 }}>
+          <div className="fld">
+            <label>שם המרצה</label>
+            <input value={f.name} disabled={busy}
+              onChange={(ev) => setF({ ...f, name: ev.target.value })} />
+          </div>
+          <textarea value={f.opinion} disabled={busy} rows={4}
+            placeholder="חוות הדעת על המרצה"
+            style={{ width: "100%", background: "var(--surface)", border: "1px solid var(--line2)",
+                     borderRadius: 11, padding: "9px 12px", fontSize: 14.5, outline: "none",
+                     fontFamily: "inherit", resize: "vertical" }}
+            onChange={(ev) => setF({ ...f, opinion: ev.target.value })} />
+          <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+            <button className="btn btn-primary btn-sm" style={{ flex: 1 }} disabled={busy} onClick={save}>
+              {busy ? "שומר…" : "שמירה"}
+            </button>
+            <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} disabled={busy}
+              onClick={() => { setF({ name: e.name, opinion: e.opinion || "" }); setEdit(false); }}>
+              ביטול
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {e.opinion
+            ? <div className="rq-detail">{e.opinion}</div>
+            : auto && (
+                <div className="rq-detail" style={{ color: "var(--faint)" }}>
+                  {e.votes ? "דירוג החניכים בלבד — טרם נכתבה הערה"
+                           : "נפתחה מהשיעור — ממתינה לדירוגי החניכים ולהערה"}
+                </div>
+              )}
+          <button className="btn btn-ghost btn-sm" style={{ marginTop: 8, width: "100%" }}
+            onClick={() => setEdit(true)}>
+            {e.opinion ? "עריכה" : "הוספת הערה"}
+          </button>
+        </>
+      )}
+
+      <div className="rq-meta" style={{ marginTop: 9 }}>
+        {e.cycle && <span>{e.cycle}</span>}
+        {e.phone && <span>· {e.phone}</span>}
+        {e.by && <span>· {e.by}</span>}
+        {e.votes > 0 && <span>· {e.votes} מדרגים</span>}
+      </div>
+    </div>
   );
 }
 

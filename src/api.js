@@ -293,4 +293,8 @@ export const api = {
   /** הוספת חוות דעת חדשה. meetingId מצמיד אליה את דירוג החניכים. */
   addLessonEval: ({ name, topic, field, phone, opinion, cycle, meetingId }) =>
     post("/api/lessons?action=evals", { name, topic, field, phone, opinion, cycle, meetingId }),
+
+  /** עריכת חוות דעת — בעיקר ההערה על שורה שנפתחה אוטומטית */
+  editLessonEval: ({ evalId, name, topic, field, phone, opinion }) =>
+    put("/api/lessons?action=evals", { evalId, name, topic, field, phone, opinion }),
 };
