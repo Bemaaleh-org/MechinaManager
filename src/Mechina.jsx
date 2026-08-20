@@ -1793,8 +1793,12 @@ export function MechinaApp({ auth, onSignedOut }) {
                 active: tab === "mark", onClick: () => setTab("mark") }] : []),
               ...(auth.isScheduler || auth.isLeader ? [{ key: "lessons", label: "שיעורים במכינה", icon: <MI.book />,
                 active: tab === "lessons", onClick: () => setTab("lessons") }] : []),
-              ...(auth.isContainer ? [{ key: "container", label: "ציוד מכולה", icon: <MI.box />,
-                active: tab === "container", onClick: () => setTab("container") }] : []),
+              ...(auth.isContainer ? [
+                { key: "container", label: "ציוד מכולה", icon: <MI.box />,
+                  active: tab === "container", onClick: () => setTab("container") },
+                { key: "cleaning", label: "ציוד ניקיון", icon: <MI.box />,
+                  active: tab === "cleaning", onClick: () => setTab("cleaning") },
+              ] : []),
             ],
           }] : []),
         ]} />
@@ -1921,7 +1925,8 @@ export function MechinaApp({ auth, onSignedOut }) {
           </>
         )}
 
-        {tab === "container" && auth.isContainer && <ContainerPage say={say} />}
+        {tab === "container" && auth.isContainer && <ContainerPage say={say} area="מכולה" />}
+        {tab === "cleaning" && auth.isContainer && <ContainerPage say={say} area="ניקיון" />}
 
         {tab === "mark" && auth.isLeader && <MarkDay say={say} />}
 

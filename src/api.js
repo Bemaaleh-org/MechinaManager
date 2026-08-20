@@ -211,13 +211,16 @@ export const api = {
   addIncident: ({ studentId, kind, detail, date }) =>
     post("/api/students?action=incident", { studentId, kind, detail, date }),
 
-  /* --- ציוד המכולה — מנהל או אחראי מכולה --- */
-  getContainer: () => get("/api/container?action=equip"),
-  addEquip: ({ name, qty, kind }) => post("/api/container?action=equip", { name, qty, kind }),
-  editEquip: ({ itemId, name, qty, kind }) => put("/api/container?action=equip", { itemId, name, qty, kind }),
+  /* --- ציוד המכינה (מכולה / ניקיון) — מנהל או אחראי מכולה --- */
+  getContainer: (area) =>
+    get("/api/container?action=equip" + (area ? "&area=" + encodeURIComponent(area) : "")),
+  addEquip: ({ name, qty, kind, par, area }) =>
+    post("/api/container?action=equip", { name, qty, kind, par, area }),
+  editEquip: ({ itemId, name, qty, kind, par }) =>
+    put("/api/container?action=equip", { itemId, name, qty, kind, par }),
   deleteEquip: (itemId) => del("/api/container?action=equip", { itemId }),
-  /** יצירת רשימת קניות — כמה שורות בבת אחת */
-  addShopping: (items) => post("/api/container?action=shop", { items }),
+  /** יצירת רשימת קניות — כמה שורות בבת אחת, בתחום אחד */
+  addShopping: (items, area) => post("/api/container?action=shop", { items, area }),
   setShoppingStatus: ({ itemId, status }) => put("/api/container?action=shop", { itemId, status }),
   deleteShopping: (itemId) => del("/api/container?action=shop", { itemId }),
 
@@ -290,4 +293,8 @@ export const api = {
   /** הוספת חוות דעת חדשה. meetingId מצמיד אליה את דירוג החניכים. */
   addLessonEval: ({ name, topic, field, phone, opinion, cycle, meetingId }) =>
     post("/api/lessons?action=evals", { name, topic, field, phone, opinion, cycle, meetingId }),
+
+  /** עריכת חוות דעת — בעיקר ההערה על שורה שנפתחה אוטומטית */
+  editLessonEval: ({ evalId, name, topic, field, phone, opinion }) =>
+    put("/api/lessons?action=evals", { evalId, name, topic, field, phone, opinion }),
 };

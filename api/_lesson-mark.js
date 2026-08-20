@@ -12,13 +12,15 @@
      שיסיר ממנו את התפקיד בלוח סוגר לו את הגישה בבקשה הבאה.
    ============================================================ */
 
-import { withAuth } from "./_session.js";
+import { withAuth, actorName } from "./_session.js";
 import { HAPPENED } from "../shared/lessons-boards.js";
-import { loadMeetings, setMeeting } from "./_lessons-data.js";
+import {
+  loadMeetings, loadSheets, setMeeting, ensureEvalForMeeting,
+} from "./_lessons-data.js";
 
 const VALUES = [HAPPENED.yes, HAPPENED.no];
 
-async function handler(req, res) {
+async function handler(req, res, session) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "רק POST נתמך כאן" });
   }
@@ -53,9 +55,35 @@ async function handler(req, res) {
 
     await setMeeting(meetingId, fields);
 
+    /* ⚠ שיעור מרצה אורח שסומן "התקיים" פותח חוות דעת במחזור ב׳.
+       זה הצינור שהעביר את דירוגי החניכים למסך: בלעדיו הדירוג
+       נשמר בלוח ולא הופיע בשום מקום. אידמפוטנטי — סימון חוזר
+       לא פותח שורה שנייה.
+
+       ⚠ כשל כאן לא מפיל את הסימון עצמו. הדיווח שהשיעור התקיים
+         הוא הפעולה שהמשתמש ביקש; חוות הדעת היא תוצר לוואי,
+         ותיפתח בסימון הבא. */
+    let evalRow = null;
+    if (happened === HAPPENED.yes) {
+      try {
+        const sheets = await loadSheets();
+        const sheet = sheets.find((s) => s.id === meeting.sheetId);
+        if (sheet && sheet.guestLecturer) {
+          const lecturer = fields.lecturer !== undefined ? fields.lecturer : meeting.lecturer;
+          evalRow = await ensureEvalForMeeting({
+            meeting: { ...meeting, lecturer }, sheet, by: actorName(session),
+          });
+        }
+      } catch (e) {
+        console.error("[lesson-mark:eval]", e);
+      }
+    }
+
     res.status(200).json({
       ok: true, id: meetingId, happened, date: meeting.date,
       lecturer: meeting.lecturer, opinion: meeting.opinion,
+      evalId: evalRow ? evalRow.id : null,
+      evalCreated: Boolean(evalRow && evalRow.created),
     });
   } catch (e) {
     console.error("[lesson-mark]", e);

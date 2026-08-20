@@ -8,6 +8,7 @@
 import { withAuth } from "./_session.js";
 import {
   loadSheets, loadMeetings, countFor, createSheet, invalidateLessons,
+  loadEvals, loadRatings, evalForMeeting, ratingFor,
 } from "./_lessons-data.js";
 
 async function handler(req, res, session) {
@@ -25,12 +26,31 @@ async function read(req, res, session) {
     const sheet = sheets.find((s) => s.id === id);
     if (!sheet) return res.status(404).json({ error: "הגיליון אינו נמצא" });
 
+    /* ⚠ בשיעורי מרצה אורח כל מפגש נושא את הדירוג שהחניכים נתנו
+       ואת חוות הדעת שנפתחה לו. הממוצע מחושב חי מלוח הדירוגים,
+       כדי שחניך שדירג אחרי הסימון ייספר גם הוא. */
+    let evals = [], ratings = [];
+    if (sheet.guestLecturer) {
+      [evals, ratings] = await Promise.all([loadEvals(), loadRatings()]);
+    }
+
     res.status(200).json({
       sheet,
       counts: countFor(id, meetings),
       meetings: meetings
         .filter((m) => m.sheetId === id)
-        .map(({ sheetId, ...rest }) => rest),
+        .map(({ sheetId, ...rest }) => {
+          if (!sheet.guestLecturer) return rest;
+          const ev = evalForMeeting(rest.id, evals);
+          const r = ratingFor(rest.id, ratings);
+          return {
+            ...rest,
+            evalId: ev ? ev.id : null,
+            evalNote: ev ? ev.opinion : null,
+            avg: r ? r.avg : null,
+            votes: r ? r.votes : 0,
+          };
+        }),
       canEdit: session.isManager || session.isScheduler,
     });
   } catch (e) {

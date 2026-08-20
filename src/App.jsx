@@ -279,6 +279,8 @@ function Kitchen({ auth, onSignedOut }) {
      בקשות — והמסכים הפנימיים של המטבח ירדו לבורר שמעל התוכן.
      אצל תורן שום דבר מזה לא קיים והניווט נשאר כשהיה. */
   const [section, setSection] = useState(auth.isManager ? "dash" : "kitchen");
+  /* התחום שמסך הציוד מציג — מכולה או ניקיון */
+  const [area, setArea] = useState("מכולה");
   /* פעמון המנהל: מספר בקשות היציאה שממתינות. נבדק בטעינה
      ומדי דקה וחצי — התראה, לא זמן-אמת. */
   const [pendingList, setPendingList] = useState([]);
@@ -688,9 +690,13 @@ function Kitchen({ auth, onSignedOut }) {
               { key: "l-gantt", label: "גאנט שנתי", icon: <I.cal />, active: false, onClick: () => goLessons("gantt") },
               { key: "l-evals", label: "חוות דעת", icon: <I.star />, active: false, onClick: () => goLessons("evals") },
             ] },
-            { label: "מכולה", items: [
-              { key: "c-equip", label: "ציוד ורשימת קניות", icon: <I.box />, active: section === "container",
-                onClick: () => setSection("container") },
+            { label: "ציוד מכינה", items: [
+              { key: "c-container", label: "מכולה", icon: <I.box />,
+                active: section === "container" && area === "מכולה",
+                onClick: () => { setArea("מכולה"); setSection("container"); } },
+              { key: "c-clean", label: "ציוד ניקיון", icon: <I.box />,
+                active: section === "container" && area === "ניקיון",
+                onClick: () => { setArea("ניקיון"); setSection("container"); } },
             ] },
           ] : [
             { label: "המטבח", items: [
@@ -752,7 +758,7 @@ function Kitchen({ auth, onSignedOut }) {
             <ManagerDash lowCount={lowStock.length} pendingList={pendingList}
               goStaff={goStaff} goLessons={goLessons}
               goKitchen={(t) => { setSection("kitchen"); setTab(t); }}
-              goContainer={() => setSection("container")} />
+              goContainer={(a) => { setArea(a || "מכולה"); setSection("container"); }} />
           )}
 
           {section === "kitchen" && kitchenLoading && (
@@ -793,7 +799,7 @@ function Kitchen({ auth, onSignedOut }) {
           {section === "roles" && isMgr && (
             <MechinaRolesPage say={say} key={rolesNav.n} sub0={rolesNav.sub || undefined} />
           )}
-          {section === "container" && isMgr && <ContainerPage say={say} />}
+          {section === "container" && isMgr && <ContainerPage say={say} area={area} />}
         </main>
 
         {/* ⚠ הסרגל התחתון הוסר בהחלטת המכינה — הניווט כולו
@@ -913,11 +919,19 @@ function ManagerDash({ lowCount, pendingList, goStaff, goLessons, goKitchen, goC
           {lowCount > 0 && <b className="dash-v warn num">{lowCount}</b>}
         </button>
 
-        <button className="dash-card" onClick={goContainer}>
+        <button className="dash-card" onClick={() => goContainer("מכולה")}>
           <div className="dash-ico"><I.box /></div>
           <div className="dash-main">
             <div className="dash-t">ציוד מכולה</div>
-            <div className="dash-s">ציוד ורשימות קניות</div>
+            <div className="dash-s">ציוד, מפתח ורשימות קניות</div>
+          </div>
+        </button>
+
+        <button className="dash-card" onClick={() => goContainer("ניקיון")}>
+          <div className="dash-ico"><I.box /></div>
+          <div className="dash-main">
+            <div className="dash-t">ציוד ניקיון</div>
+            <div className="dash-s">ציוד, מפתח ורשימות קניות</div>
           </div>
         </button>
       </div>

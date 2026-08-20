@@ -12,7 +12,9 @@
 
 import { withAuth, actorName } from "./_session.js";
 import { israelToday } from "./_attendance-data.js";
-import { CONTAINER_BOARDS, CONTAINER_COLS, SHOP_STATUS } from "../shared/container-boards.js";
+import {
+  CONTAINER_BOARDS, CONTAINER_COLS, SHOP_STATUS, AREA, AREAS,
+} from "../shared/container-boards.js";
 import {
   loadShopping, invalidateContainer, setColumns, createItem, deleteItem,
 } from "./_container-data.js";
@@ -27,6 +29,8 @@ async function handler(req, res, session) {
       const items = Array.isArray(body?.items) ? body.items : null;
       if (!items || !items.length) return res.status(400).json({ error: "לא נשלחו פריטים" });
       if (items.length > 60) return res.status(400).json({ error: "עד 60 פריטים ברשימה" });
+      const area = String(body?.area || "").trim() || AREA.container;
+      if (!AREAS.includes(area)) return res.status(400).json({ error: "תחום לא מוכר" });
 
       const today = israelToday();
       const by = actorName(session).slice(0, 120);
@@ -40,6 +44,7 @@ async function handler(req, res, session) {
           [S.date]: { date: today },
           [S.status]: { label: SHOP_STATUS.open },
           [S.by]: by,
+          [S.area]: { label: area },
         });
         created++;
       }
