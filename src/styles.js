@@ -484,5 +484,63 @@ html,body{margin:0;padding:0;background:#012E58}
   font-size:11px;font-weight:800;letter-spacing:.4px}
 .gnt-now::before,.gnt-now::after{content:"";flex:1;height:2px;border-radius:99px;background:var(--accent)}
 
+/* ---- תפריט המבורגר — מגירת ניווט צדית ----
+   ⚠ כמו .btn-primary למעלה: כל כלל שצובע כפתור חייב קידומת .kx,
+   אחרת ‎.kx button‎ (0,1,1) דורס אותו. */
+.kx .menu-btn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex:0 0 auto;
+  background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);color:#fff}
+.kx .menu-btn:active{background:rgba(255,255,255,.24)}
+.drawer-scrim{position:fixed;inset:0;background:rgba(8,16,30,.48);z-index:120;animation:fade .18s ease}
+/* נפתחת מימין — צד הפתיחה בעברית */
+.drawer{position:fixed;top:0;bottom:0;right:0;width:min(84vw,330px);z-index:121;
+  background:var(--surface);display:flex;flex-direction:column;
+  box-shadow:-14px 0 36px rgba(10,20,40,.22);
+  animation:drawer-in .26s cubic-bezier(.2,.8,.3,1);
+  padding-top:env(safe-area-inset-top);
+  padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+@keyframes drawer-in{from{transform:translateX(100%)}}
+.drawer-h{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.drawer-logo{width:42px;height:42px;border-radius:50%;background:#fff;border:1px solid var(--line);
+  display:grid;place-items:center;flex:0 0 auto;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.drawer-logo img{width:34px;height:34px;object-fit:contain;display:block}
+.drawer-t{flex:1;min-width:0}
+.drawer-t b{display:block;font-size:16.5px;font-weight:900;letter-spacing:-.3px}
+.drawer-t span{display:block;font-size:11.5px;color:var(--muted);font-weight:600;margin-top:1px}
+.kx .drawer-x{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
+  color:var(--muted);flex:0 0 auto}
+.kx .drawer-x:active{background:var(--bg)}
+.drawer-list{flex:1;overflow-y:auto;padding:10px 12px 14px}
+.drawer-sec{font-size:11px;font-weight:800;letter-spacing:.8px;color:var(--faint);padding:16px 10px 7px}
+.drawer-sec:first-child{padding-top:6px}
+.kx .drawer-item{display:flex;align-items:center;gap:13px;width:100%;min-height:52px;padding:0 12px;
+  border-radius:13px;font-size:15px;font-weight:700;color:var(--ink);text-align:right;margin-bottom:2px;
+  transition:background .13s}
+.kx .drawer-item svg{color:var(--muted);flex:0 0 auto}
+.kx .drawer-item:active{background:var(--bg)}
+.kx .drawer-item.on{background:var(--accent-soft);color:var(--accent)}
+.kx .drawer-item.on svg{color:var(--accent)}
+.drawer-lab{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kx .drawer-item .bdg{background:var(--clay);color:#fff;font-size:10.5px;font-weight:800;
+  min-width:19px;height:19px;border-radius:99px;display:grid;place-items:center;padding:0 5px;flex:0 0 auto}
+.drawer-foot{border-top:1px solid var(--line);padding:12px 14px 0}
+.kx .drawer-id{display:flex;align-items:center;gap:11px;width:100%;text-align:right;
+  padding:8px 6px;border-radius:12px}
+.kx .drawer-id:active:not(:disabled){background:var(--bg)}
+.kx .drawer-id:disabled{cursor:default;opacity:1}
+.drawer-av{width:38px;height:38px;border-radius:50%;background:var(--accent-soft);color:var(--accent);
+  display:grid;place-items:center;font-size:13.5px;font-weight:800;flex:0 0 38px}
+.drawer-who{flex:1;min-width:0}
+.drawer-who b{display:block;font-size:14.5px;font-weight:800;letter-spacing:-.2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drawer-who span{display:block;font-size:11.5px;color:var(--muted);font-weight:600;margin-top:1px}
+.kx .drawer-out{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:46px;
+  margin-top:6px;border-radius:12px;border:1.5px solid var(--line2);font-size:14px;font-weight:800;
+  color:var(--clay)}
+.kx .drawer-out:active{background:var(--clay-soft)}
+/* הסרגל העליון קיבל כפתור נוסף — הכותרת נחתכת בשלוש נקודות
+   במקום לדחוף את הכפתורים החוצה במסך צר */
+.top-title{flex:1;min-width:0}
+.top-title h1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
 @media (prefers-reduced-motion:reduce){.kx *{animation:none!important;transition:none!important}}
 `;

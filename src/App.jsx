@@ -7,6 +7,7 @@ import Login from "./Login.jsx";
 import { MechinaApp, MechinaStaff } from "./Mechina.jsx";
 import { LessonsPage } from "./Lessons.jsx";
 import { ContainerPage } from "./Container.jsx";
+import { Drawer, MenuIcon } from "./Drawer.jsx";
 import { testDate } from "./testDate.js";
 /* ============================================================
    ניהול מכינת ניר עוז — מטבח, נוכחות ושיעורים
@@ -293,6 +294,7 @@ function Kitchen({ auth, onSignedOut }) {
   const openRequests = () => { setNotifOpen(false); setSection("mechina"); setStaffJump((n) => n + 1); };
   const [toast, setToast] = useState(null);
   const [modal, setModal] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const saveT = useRef(null);
 
   useEffect(() => {
@@ -620,7 +622,12 @@ function Kitchen({ auth, onSignedOut }) {
       <div className="kx">
         <header className="top">
           <div className="top-row">
-            <div>
+            {/* שלושת הקווים — פותח את מגירת הניווט. הזהות והיציאה
+                עברו לתחתית המגירה, ולכן צ'יפ השם ירד מהסרגל. */}
+            <button className="menu-btn" aria-label="תפריט ניווט" onClick={() => setMenuOpen(true)}>
+              <MenuIcon />
+            </button>
+            <div className="top-title">
               <h1>ניהול מכינת ניר עוז</h1>
               <div className="sub">{hebDate(today)}</div>
             </div>
@@ -636,11 +643,49 @@ function Kitchen({ auth, onSignedOut }) {
             <div className="brand-coin" aria-label="במעלה הדרך">
               <img src={LOGO} alt="לוגו במעלה הדרך" />
             </div>
-            <button className="who" onClick={() => setModal({ t: "user" })}>
-              <span className="dot" />{user.name.split(" ")[0]}
-            </button>
           </div>
         </header>
+
+        {/* מגירת הניווט — כל המסכים, כולל אלה שמסתתרים אצל המנהל
+            בבורר הפנימי של המטבח. הרשימה לפי תפקיד; זו תצוגה
+            בלבד, ההרשאות נאכפות בשרת. */}
+        <Drawer open={menuOpen} onClose={() => setMenuOpen(false)}
+          logo={LOGO} title="מכינת ניר עוז"
+          subtitle={isMgr ? "ניהול המכינה" : "תורנות מטבח"}
+          items={isMgr ? [
+            { sec: "מטבח" },
+            { key: "k-home", label: "בית", icon: I.home,
+              on: section === "kitchen" && tab === "home", badge: navBadge || null,
+              go: () => { setSection("kitchen"); setTab("home"); } },
+            { key: "k-shop", label: "רשימות קניות", icon: I.cart,
+              on: section === "kitchen" && tab === "shop",
+              go: () => { setSection("kitchen"); setTab("shop"); } },
+            { key: "k-manage", label: "ניהול מטבח", icon: I.gear,
+              on: section === "kitchen" && tab === "manage",
+              go: () => { setSection("kitchen"); setTab("manage"); } },
+            { sec: "מכינה" },
+            { key: "mechina", label: "נוכחות ובקשות", icon: I.users,
+              on: section === "mechina", badge: pendingList.length || null,
+              go: () => setSection("mechina") },
+            { key: "lessons", label: "שיעורים", icon: I.book,
+              on: section === "lessons", go: () => setSection("lessons") },
+            { key: "container", label: "מכולה", icon: I.box,
+              on: section === "container", go: () => setSection("container") },
+          ] : [
+            { key: "home", label: "בית", icon: I.home,
+              on: tab === "home", badge: navBadge || null, go: () => setTab("home") },
+            { key: "daily", label: "שימוש במצרכים", icon: I.day,
+              on: tab === "daily", go: () => setTab("daily") },
+            { key: "receive", label: "קבלת סחורה", icon: I.download,
+              on: tab === "receive", go: () => setTab("receive") },
+            { key: "count", label: "ספירת מלאי", icon: I.count,
+              on: tab === "count", go: () => setTab("count") },
+            { key: "shop", label: "רשימת קניות", icon: I.cart,
+              on: tab === "shop", go: () => setTab("shop") },
+          ]}
+          user={{ name: user.name, role: isMgr ? "מנהל" : "תורן",
+                  onIdentity: () => setModal({ t: "user" }),
+                  onLogout: () => api.logout().finally(() => onSignedOut()) }} />
 
         {/* תצוגה מקדימה של ההתראות — לחיצה על בקשה מובילה אליה */}
         {notifOpen && (
