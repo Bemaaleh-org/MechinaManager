@@ -17,6 +17,7 @@ import { api } from "./api.js";
 import { testDate } from "./testDate.js";
 import { LessonsPage } from "./Lessons.jsx";
 import { ContainerPage } from "./Container.jsx";
+import { Drawer, Hamburger } from "./Drawer.jsx";
 
 /* אותו אוצר צורות של האייקונים במטבח: 21px, stroke 2.1, קצוות עגולים */
 const MI = {
@@ -1442,6 +1443,7 @@ export function MechinaApp({ auth, onSignedOut }) {
   const unseen = decided.filter((r) => !seenIds.has(r.id)).length;
 
   const [notifOpen, setNotifOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   /* הסימון "נראה" קורה בסגירת הפאנל, לא בפתיחתו — אחרת תג
      "חדש" היה נעלם באותו רגע שהפאנל נפתח. */
@@ -1465,8 +1467,13 @@ export function MechinaApp({ auth, onSignedOut }) {
     <div className="kx">
       <header className="top">
         <div className="top-row">
-          <div>
-            <h1>{auth.name}</h1>
+          <Hamburger onClick={() => setDrawerOpen(true)} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1>{(() => {
+              const h = new Date().getHours();
+              const g = h < 5 ? "לילה טוב" : h < 12 ? "בוקר טוב" : h < 17 ? "צהריים טובים" : h < 21 ? "ערב טוב" : "לילה טוב";
+              return g + ", " + String(auth.name || "").split(" ")[0];
+            })()}</h1>
             <div className="sub">מכינת ניר עוז · מחזור ב׳</div>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -1480,6 +1487,35 @@ export function MechinaApp({ auth, onSignedOut }) {
           </div>
         </div>
       </header>
+
+      {/* המגירה — כל הדפים של החניך, כולל מה שתפקידיו פותחים */}
+      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)}
+        logo="/logo-mark.png" title="מכינת ניר עוז" subtitle="מחזור ב׳"
+        user={{
+          name: auth.name,
+          role: [auth.isLeader && "מוביל/ת שבוע", ...(auth.roles || [])]
+            .filter(Boolean).join(" · ") || "חניך/ה",
+        }}
+        onLogout={signOut}
+        groups={[
+          { label: "אישי", items: [
+            { key: "home", label: "בית", icon: <MI.home />, active: tab === "home", onClick: () => setTab("home") },
+            { key: "year", label: "הנוכחות שלי", icon: <MI.cal />, active: tab === "year", onClick: () => setTab("year") },
+            { key: "requests", label: "בקשות יציאה", icon: <MI.note />, badge: unseen,
+              active: tab === "requests", onClick: () => setTab("requests") },
+            { key: "profile", label: "הפרופיל שלי", icon: <MI.users />, active: tab === "profile", onClick: () => setTab("profile") },
+          ] },
+          ...(auth.isLeader || auth.isScheduler || auth.isContainer ? [{
+            label: "תפקידים", items: [
+              ...(auth.isLeader ? [{ key: "mark", label: "סימון נוכחות", icon: <MI.tick />,
+                active: tab === "mark", onClick: () => setTab("mark") }] : []),
+              ...(auth.isScheduler || auth.isLeader ? [{ key: "lessons", label: "שיעורים במכינה", icon: <MI.book />,
+                active: tab === "lessons", onClick: () => setTab("lessons") }] : []),
+              ...(auth.isContainer ? [{ key: "container", label: "ציוד מכולה", icon: <MI.box />,
+                active: tab === "container", onClick: () => setTab("container") }] : []),
+            ],
+          }] : []),
+        ]} />
 
       {/* תצוגה מקדימה של ההתראות — הבקשות שהוכרעו */}
       {notifOpen && (
@@ -1621,23 +1657,7 @@ export function MechinaApp({ auth, onSignedOut }) {
         )}
       </main>
 
-      <nav className="nav">
-        {[
-          ["home", "בית", MI.home],
-          ["year", "נוכחות", MI.cal],
-          ["requests", "בקשות", MI.note],
-          ["profile", "פרופיל", MI.users],
-          ...(auth.isLeader ? [["mark", "סימון", MI.tick]] : []),
-          ...(auth.isScheduler || auth.isLeader ? [["lessons", "שיעורים", MI.book]] : []),
-          ...(auth.isContainer ? [["container", "מכולה", MI.box]] : []),
-        ].map(([k, label, Icon]) => (
-            <button key={k} className={tab === k || (k === "requests" && tab === "new") ? "on" : ""}
-              onClick={() => setTab(k)}>
-              <Icon />
-              <span>{label}</span>
-            </button>
-          ))}
-      </nav>
+      {/* הסרגל התחתון הוסר — הניווט במגירת שלושת הקווים */}
 
       {toast && <div className="toast">{toast}</div>}
     </div>

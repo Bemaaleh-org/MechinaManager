@@ -7,6 +7,7 @@ import Login from "./Login.jsx";
 import { MechinaApp, MechinaStaff } from "./Mechina.jsx";
 import { LessonsPage } from "./Lessons.jsx";
 import { ContainerPage } from "./Container.jsx";
+import { Drawer, Hamburger } from "./Drawer.jsx";
 import { testDate } from "./testDate.js";
 /* ============================================================
    ניהול מכינת ניר עוז — מטבח, נוכחות ושיעורים
@@ -28,6 +29,9 @@ const I = {
   clock: (p) => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="9"/><path d="M12 7v5.5l3.5 2"/></svg>,
   download: (p) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3v12M7 11l5 5 5-5M4 20h16"/></svg>,
   book: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22V4.5z"/><path d="M4 17.5h16"/></svg>,
+  note: (p) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M5 3h14v18l-7-4-7 4V3z"/></svg>,
+  star: (p) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z"/></svg>,
+  cal: (p) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="3" y="5" width="18" height="16" rx="2.4"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>,
   box: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 8l9-5 9 5v8l-9 5-9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>,
   bell: (p) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M10.3 21a2 2 0 0 0 3.4 0"/></svg>,
   users: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="9" cy="8" r="3.4"/><path d="M3 20c0-3.3 2.7-5.4 6-5.4s6 2.1 6 5.4"/><path d="M16 5.2a3.4 3.4 0 0 1 0 6.6M18 20c0-2.4-1-4.1-2.6-5"/></svg>,
@@ -274,12 +278,15 @@ function Kitchen({ auth, onSignedOut }) {
   /* ⚠ אצל המנהל הניווט התחתון עבר לרמת התחום — מטבח, נוכחות,
      בקשות — והמסכים הפנימיים של המטבח ירדו לבורר שמעל התוכן.
      אצל תורן שום דבר מזה לא קיים והניווט נשאר כשהיה. */
-  const [section, setSection] = useState("kitchen");
+  const [section, setSection] = useState(auth.isManager ? "dash" : "kitchen");
   /* פעמון המנהל: מספר בקשות היציאה שממתינות. נבדק בטעינה
      ומדי דקה וחצי — התראה, לא זמן-אמת. */
   const [pendingList, setPendingList] = useState([]);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [staffJump, setStaffJump] = useState(0); // מזנק לטאב הבקשות
+  /* ניווט פנימי מהמגירה ומהפעמון: לאיזה תת-מסך לפתוח את הטאב */
+  const [staffNav, setStaffNav] = useState({ sub: null, n: 0 });
+  const [lessonsNav, setLessonsNav] = useState({ sub: null, n: 0 });
+  const [drawerOpen, setDrawerOpen] = useState(false);
   useEffect(() => {
     if (!auth.isManager) return;
     let live = true;
@@ -290,7 +297,9 @@ function Kitchen({ auth, onSignedOut }) {
     const t = setInterval(check, 90_000);
     return () => { live = false; clearInterval(t); };
   }, [auth.isManager]);
-  const openRequests = () => { setNotifOpen(false); setSection("mechina"); setStaffJump((n) => n + 1); };
+  const goStaff = (sub) => { setSection("mechina"); setStaffNav((p) => ({ sub, n: p.n + 1 })); };
+  const goLessons = (sub) => { setSection("lessons"); setLessonsNav((p) => ({ sub, n: p.n + 1 })); };
+  const openRequests = () => { setNotifOpen(false); goStaff("requests"); };
   const [toast, setToast] = useState(null);
   const [modal, setModal] = useState(null);
   const saveT = useRef(null);
@@ -620,7 +629,8 @@ function Kitchen({ auth, onSignedOut }) {
       <div className="kx">
         <header className="top">
           <div className="top-row">
-            <div>
+            <Hamburger onClick={() => setDrawerOpen(true)} />
+            <div style={{ flex: 1, minWidth: 0 }}>
               <h1>ניהול מכינת ניר עוז</h1>
               <div className="sub">{hebDate(today)}</div>
             </div>
@@ -641,6 +651,54 @@ function Kitchen({ auth, onSignedOut }) {
             </button>
           </div>
         </header>
+
+        {/* המגירה — המפה המלאה של המערכת. הניווט התחתון נשאר
+            כגישה מהירה; כאן מגיעים לכל מסך בלחיצה אחת. */}
+        <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)}
+          logo={LOGO} title="ניהול מכינת ניר עוז" subtitle="מכינת ניר עוז · מחזור ב׳"
+          user={{ name: user.name, role: isMgr ? "צוות" : "תורנות מטבח" }}
+          onLogout={() => api.logout().catch(() => {}).finally(onSignedOut)}
+          groups={isMgr ? [
+            { items: [
+              { key: "dash", label: "מסך הבית", icon: <I.home />, active: section === "dash",
+                onClick: () => setSection("dash") },
+            ] },
+            { label: "מטבח", items: [
+              { key: "k-home", label: "בית המטבח", icon: <I.cart />, active: section === "kitchen" && tab === "home",
+                onClick: () => { setSection("kitchen"); setTab("home"); } },
+              { key: "k-shop", label: "קניות", icon: <I.cart />, active: section === "kitchen" && tab === "shop",
+                onClick: () => { setSection("kitchen"); setTab("shop"); } },
+              { key: "k-manage", label: "ניהול המטבח", icon: <I.gear />, active: section === "kitchen" && tab === "manage",
+                onClick: () => { setSection("kitchen"); setTab("manage"); } },
+            ] },
+            { label: "נוכחות", items: [
+              { key: "a-mark", label: "סימון יומי", icon: <I.check />, active: false, onClick: () => goStaff("mark") },
+              { key: "a-students", label: "חניכים", icon: <I.users />, active: false, onClick: () => goStaff("students") },
+              { key: "a-requests", label: "בקשות יציאה", icon: <I.note />, badge: pendingList.length,
+                active: false, onClick: () => goStaff("requests") },
+            ] },
+            { label: "תפקידים במכינה", items: [
+              { key: "a-leaders", label: "מובילי שבוע", icon: <I.day />, active: false, onClick: () => goStaff("leaders") },
+              { key: "a-roles", label: "בעלי תפקידים", icon: <I.gear />, active: false, onClick: () => goStaff("roles") },
+            ] },
+            { label: "שיעורים", items: [
+              { key: "l-sheets", label: "גיליונות מרצים", icon: <I.book />, active: false, onClick: () => goLessons("sheets") },
+              { key: "l-gantt", label: "גאנט שנתי", icon: <I.cal />, active: false, onClick: () => goLessons("gantt") },
+              { key: "l-evals", label: "חוות דעת", icon: <I.star />, active: false, onClick: () => goLessons("evals") },
+            ] },
+            { label: "מכולה", items: [
+              { key: "c-equip", label: "ציוד ורשימת קניות", icon: <I.box />, active: section === "container",
+                onClick: () => setSection("container") },
+            ] },
+          ] : [
+            { label: "המטבח", items: [
+              { key: "home", label: "בית", icon: <I.home />, active: tab === "home", onClick: () => setTab("home") },
+              { key: "daily", label: "שימוש במצרכים", icon: <I.day />, active: tab === "daily", onClick: () => setTab("daily") },
+              { key: "receive", label: "קבלת סחורה", icon: <I.download />, active: tab === "receive", onClick: () => setTab("receive") },
+              { key: "count", label: "ספירה שבועית", icon: <I.count />, active: tab === "count", onClick: () => setTab("count") },
+              { key: "shop", label: "קניות", icon: <I.cart />, active: tab === "shop", onClick: () => setTab("shop") },
+            ] },
+          ]} />
 
         {/* תצוגה מקדימה של ההתראות — לחיצה על בקשה מובילה אליה */}
         {notifOpen && (
@@ -688,6 +746,13 @@ function Kitchen({ auth, onSignedOut }) {
             </div>
           )}
 
+          {section === "dash" && isMgr && (
+            <ManagerDash lowCount={lowStock.length} pendingList={pendingList}
+              goStaff={goStaff} goLessons={goLessons}
+              goKitchen={(t) => { setSection("kitchen"); setTab(t); }}
+              goContainer={() => setSection("container")} />
+          )}
+
           {section === "kitchen" && kitchenLoading && (
             <div className="empty" style={{ paddingTop: 60 }}>
               <div className="e1">טוען את נתוני המטבח…</div>
@@ -718,37 +783,133 @@ function Kitchen({ auth, onSignedOut }) {
           {/* ⚠ תחום המכינה יושב בקובץ נפרד ואינו נוגע במטבח.
               ההרשאה נאכפת בשרת; הבדיקה כאן היא תצוגה בלבד. */}
           {section === "mechina" && isMgr && (
-            <MechinaStaff say={say} key={staffJump} sub0={staffJump ? "requests" : undefined} />
+            <MechinaStaff say={say} key={staffNav.n} sub0={staffNav.sub || undefined} />
           )}
-          {section === "lessons" && isMgr && <LessonsPage say={say} />}
+          {section === "lessons" && isMgr && (
+            <LessonsPage say={say} key={lessonsNav.n} sub0={lessonsNav.sub || undefined} />
+          )}
           {section === "container" && isMgr && <ContainerPage say={say} />}
         </main>
 
-        {/* ⚠ שני ניווטים שונים לשני תפקידים.
-            מנהל — ניווט ברמת התחום: מטבח, נוכחות, בקשות.
-            תורן — בדיוק הניווט שהיה, בלי שינוי. */}
-        <nav className="nav">
-          {isMgr
-            ? [["kitchen", "מטבח", I.home], ["mechina", "נוכחות", I.users],
-               ["lessons", "שיעורים", I.book], ["container", "מכולה", I.box]].map(([k, label, Icon]) => (
-                <button key={k} className={section === k ? "on" : ""} onClick={() => setSection(k)}>
-                  <Icon />
-                  <span>{label}</span>
-                  {k === "kitchen" && navBadge > 0 && <span className="bdg">{navBadge}</span>}
-                </button>
-              ))
-            : [["home", "בית", I.home], ["daily", "שימוש", I.day], ["receive", "קבלה", I.download],
-               ["count", "ספירה", I.count], ["shop", "קניות", I.cart]].map(([k, label, Icon]) => (
-                <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>
-                  <Icon />
-                  <span>{label}</span>
-                  {k === "home" && navBadge > 0 && <span className="bdg">{navBadge}</span>}
-                </button>
-              ))}
-        </nav>
+        {/* ⚠ הסרגל התחתון הוסר בהחלטת המכינה — הניווט כולו
+            במגירת שלושת הקווים. */}
 
         {toast && <div className="toast">{toast}</div>}
         {modal && <Modal ctx={ctx} modal={modal} close={() => setModal(null)} />}
+      </div>
+    </>
+  );
+}
+
+/* ====================== מסך הבית — מנהל ======================
+   "היום במבט": נוכחות, בקשות, הלו"ז הקרוב והמטבח — כל כרטיס
+   הוא קיצור דרך למסך המלא. המנהל נוחת כאן ולא במטבח.        */
+function ManagerDash({ lowCount, pendingList, goStaff, goLessons, goKitchen, goContainer }) {
+  const [today, setToday] = useState(null);
+  const [gantt, setGantt] = useState(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    api.getStudents()
+      .then((r) => { if (live) setToday(r.today); })
+      .catch(() => { if (live) setFailed(true); });
+    api.getGantt()
+      .then((r) => { if (live) setGantt(r.events); })
+      .catch(() => { /* הכרטיס פשוט לא יוצג */ });
+    return () => { live = false; };
+  }, []);
+
+  const greet = () => {
+    const h = new Date().getHours();
+    if (h < 5) return "לילה טוב";
+    if (h < 12) return "בוקר טוב";
+    if (h < 17) return "צהריים טובים";
+    if (h < 21) return "ערב טוב";
+    return "לילה טוב";
+  };
+
+  const iso = testDate() || new Date().toISOString().slice(0, 10);
+  /* אירועי הגאנט: מה רץ עכשיו ומה הבא */
+  const upcoming = (gantt || [])
+    .filter((e) => e.end >= iso && e.type !== "שבת")
+    .slice(0, 3);
+
+  return (
+    <>
+      <div className="dash-greet">{greet()} 👋</div>
+      <div className="dash-date">{hebDate(new Date())}</div>
+
+      {failed && (
+        <div className="alert a-clay">
+          <div style={{ flex: 1 }}>
+            <div className="ttl">חלק מהנתונים לא נטענו</div>
+            <div className="bd">מה שמוצג עלול להיות חלקי. בדקו חיבור ורעננו.</div>
+          </div>
+        </div>
+      )}
+
+      <div className="dash-col">
+        <button className="dash-card" onClick={() => goStaff("mark")}>
+          <div className={"dash-ico" + (today && !today.marked ? " warn" : " ok")}><I.check /></div>
+          <div className="dash-main">
+            <div className="dash-t">נוכחות היום</div>
+            <div className="dash-s">
+              {!today ? "טוען…"
+                : !today.kind ? "היום מחוץ לשנת הלימודים"
+                : today.marked ? `${today.present ?? 0} נוכחים · ${today.absent} חסרים`
+                : "היום טרם סומן"}
+            </div>
+          </div>
+          {today && today.marked && <b className="dash-v num">{today.present ?? 0}</b>}
+        </button>
+
+        <button className="dash-card" onClick={() => goStaff("requests")}>
+          <div className={"dash-ico" + (pendingList.length ? " warn" : "")}><I.note /></div>
+          <div className="dash-main">
+            <div className="dash-t">בקשות יציאה</div>
+            <div className="dash-s">
+              {pendingList.length
+                ? pendingList.slice(0, 2).map((r) => r.student ? r.student.name : "").filter(Boolean).join(", ")
+                  + (pendingList.length > 2 ? ` ועוד ${pendingList.length - 2}` : "")
+                : "אין בקשות שממתינות"}
+            </div>
+          </div>
+          {pendingList.length > 0 && <b className="dash-v warn num">{pendingList.length}</b>}
+        </button>
+
+        {upcoming.length > 0 && (
+          <button className="dash-card" onClick={() => goLessons("gantt")}>
+            <div className="dash-ico"><I.cal /></div>
+            <div className="dash-main">
+              <div className="dash-t">בלו״ז השנתי</div>
+              <div className="dash-s">
+                {upcoming.map((e) =>
+                  e.start <= iso ? `${e.name} (עכשיו)` : e.name
+                ).join(" · ")}
+              </div>
+            </div>
+          </button>
+        )}
+
+        <button className="dash-card" onClick={() => goKitchen("home")}>
+          <div className={"dash-ico" + (lowCount ? " warn" : " ok")}><I.cart /></div>
+          <div className="dash-main">
+            <div className="dash-t">המטבח</div>
+            <div className="dash-s">
+              {lowCount ? `${lowCount} מוצרים מתחת למינימום` : "המלאי תקין"}
+            </div>
+          </div>
+          {lowCount > 0 && <b className="dash-v warn num">{lowCount}</b>}
+        </button>
+
+        <button className="dash-card" onClick={goContainer}>
+          <div className="dash-ico"><I.box /></div>
+          <div className="dash-main">
+            <div className="dash-t">ציוד מכולה</div>
+            <div className="dash-s">ציוד ורשימות קניות</div>
+          </div>
+        </button>
       </div>
     </>
   );
