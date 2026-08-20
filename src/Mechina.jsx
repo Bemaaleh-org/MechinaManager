@@ -17,8 +17,7 @@ import { api } from "./api.js";
 import { testDate } from "./testDate.js";
 import { LessonsPage } from "./Lessons.jsx";
 import { ContainerPage } from "./Container.jsx";
-import { Drawer, MenuIcon } from "./Drawer.jsx";
-import { LOGO } from "./logo.js";
+import { Drawer, Hamburger } from "./Drawer.jsx";
 
 /* אותו אוצר צורות של האייקונים במטבח: 21px, stroke 2.1, קצוות עגולים */
 const MI = {
@@ -1422,7 +1421,6 @@ export function MechinaStaff({ say, sub0 }) {
 export function MechinaApp({ auth, onSignedOut }) {
   const td = testDate();
   const [tab, setTab] = useState("home");
-  const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState(null);
   const say = useCallback((m) => { setToast(m); setTimeout(() => setToast(null), 2600); }, []);
 
@@ -1445,6 +1443,7 @@ export function MechinaApp({ auth, onSignedOut }) {
   const unseen = decided.filter((r) => !seenIds.has(r.id)).length;
 
   const [notifOpen, setNotifOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   /* הסימון "נראה" קורה בסגירת הפאנל, לא בפתיחתו — אחרת תג
      "חדש" היה נעלם באותו רגע שהפאנל נפתח. */
@@ -1468,46 +1467,55 @@ export function MechinaApp({ auth, onSignedOut }) {
     <div className="kx">
       <header className="top">
         <div className="top-row">
-          {/* שלושת הקווים — פותח את מגירת הניווט. היציאה עברה
-              לתחתית המגירה, ולכן הצ'יפ ירד מהסרגל. */}
-          <button className="menu-btn" aria-label="תפריט ניווט" onClick={() => setMenuOpen(true)}>
-            <MenuIcon />
-          </button>
-          <div className="top-title">
-            <h1>{auth.name}</h1>
+          <Hamburger onClick={() => setDrawerOpen(true)} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1>{(() => {
+              const h = new Date().getHours();
+              const g = h < 5 ? "לילה טוב" : h < 12 ? "בוקר טוב" : h < 17 ? "צהריים טובים" : h < 21 ? "ערב טוב" : "לילה טוב";
+              return g + ", " + String(auth.name || "").split(" ")[0];
+            })()}</h1>
             <div className="sub">מכינת ניר עוז · מחזור ב׳</div>
           </div>
-          <button className="bell-btn" onClick={openBell} aria-label="התראות">
-            <MI.bell />
-            {unseen > 0 && <span className="bell-badge num">{unseen}</span>}
-          </button>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button className="bell-btn" onClick={openBell} aria-label="התראות">
+              <MI.bell />
+              {unseen > 0 && <span className="bell-badge num">{unseen}</span>}
+            </button>
+            <button className="who" onClick={signOut}>
+              <span className="dot" />יציאה
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* מגירת הניווט — כל המסכים, וטאבי התפקידים רק למי שמחזיק
-          בתפקיד. זו תצוגה בלבד; השרת אוכף בכל נקודת קצה. */}
-      <Drawer open={menuOpen} onClose={() => setMenuOpen(false)}
-        logo={LOGO} title="מכינת ניר עוז" subtitle="מחזור ב׳"
-        items={[
-          { key: "home", label: "בית", icon: MI.home, on: tab === "home",
-            go: () => setTab("home") },
-          { key: "new", label: "בקשת יציאה חדשה", icon: MI.plus, on: tab === "new",
-            go: () => setTab("new") },
-          { key: "year", label: "הנוכחות שלי", icon: MI.cal, on: tab === "year",
-            go: () => setTab("year") },
-          { key: "requests", label: "הבקשות שלי", icon: MI.note, on: tab === "requests",
-            go: () => setTab("requests") },
-          { key: "profile", label: "הפרופיל שלי", icon: MI.users, on: tab === "profile",
-            go: () => setTab("profile") },
-          ...(auth.isLeader || auth.isScheduler || auth.isContainer ? [{ sec: "תפקידים" }] : []),
-          ...(auth.isLeader ? [{ key: "mark", label: "סימון נוכחות", icon: MI.tick,
-            on: tab === "mark", go: () => setTab("mark") }] : []),
-          ...(auth.isScheduler || auth.isLeader ? [{ key: "lessons", label: "שיעורים", icon: MI.book,
-            on: tab === "lessons", go: () => setTab("lessons") }] : []),
-          ...(auth.isContainer ? [{ key: "container", label: "מכולה", icon: MI.box,
-            on: tab === "container", go: () => setTab("container") }] : []),
-        ]}
-        user={{ name: auth.name, role: "חניך", onLogout: signOut }} />
+      {/* המגירה — כל הדפים של החניך, כולל מה שתפקידיו פותחים */}
+      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)}
+        logo="/logo-mark.png" title="מכינת ניר עוז" subtitle="מחזור ב׳"
+        user={{
+          name: auth.name,
+          role: [auth.isLeader && "מוביל/ת שבוע", ...(auth.roles || [])]
+            .filter(Boolean).join(" · ") || "חניך/ה",
+        }}
+        onLogout={signOut}
+        groups={[
+          { label: "אישי", items: [
+            { key: "home", label: "בית", icon: <MI.home />, active: tab === "home", onClick: () => setTab("home") },
+            { key: "year", label: "הנוכחות שלי", icon: <MI.cal />, active: tab === "year", onClick: () => setTab("year") },
+            { key: "requests", label: "בקשות יציאה", icon: <MI.note />, badge: unseen,
+              active: tab === "requests", onClick: () => setTab("requests") },
+            { key: "profile", label: "הפרופיל שלי", icon: <MI.users />, active: tab === "profile", onClick: () => setTab("profile") },
+          ] },
+          ...(auth.isLeader || auth.isScheduler || auth.isContainer ? [{
+            label: "תפקידים", items: [
+              ...(auth.isLeader ? [{ key: "mark", label: "סימון נוכחות", icon: <MI.tick />,
+                active: tab === "mark", onClick: () => setTab("mark") }] : []),
+              ...(auth.isScheduler || auth.isLeader ? [{ key: "lessons", label: "שיעורים במכינה", icon: <MI.book />,
+                active: tab === "lessons", onClick: () => setTab("lessons") }] : []),
+              ...(auth.isContainer ? [{ key: "container", label: "ציוד מכולה", icon: <MI.box />,
+                active: tab === "container", onClick: () => setTab("container") }] : []),
+            ],
+          }] : []),
+        ]} />
 
       {/* תצוגה מקדימה של ההתראות — הבקשות שהוכרעו */}
       {notifOpen && (
@@ -1649,23 +1657,7 @@ export function MechinaApp({ auth, onSignedOut }) {
         )}
       </main>
 
-      <nav className="nav">
-        {[
-          ["home", "בית", MI.home],
-          ["year", "נוכחות", MI.cal],
-          ["requests", "בקשות", MI.note],
-          ["profile", "פרופיל", MI.users],
-          ...(auth.isLeader ? [["mark", "סימון", MI.tick]] : []),
-          ...(auth.isScheduler || auth.isLeader ? [["lessons", "שיעורים", MI.book]] : []),
-          ...(auth.isContainer ? [["container", "מכולה", MI.box]] : []),
-        ].map(([k, label, Icon]) => (
-            <button key={k} className={tab === k || (k === "requests" && tab === "new") ? "on" : ""}
-              onClick={() => setTab(k)}>
-              <Icon />
-              <span>{label}</span>
-            </button>
-          ))}
-      </nav>
+      {/* הסרגל התחתון הוסר — הניווט במגירת שלושת הקווים */}
 
       {toast && <div className="toast">{toast}</div>}
     </div>

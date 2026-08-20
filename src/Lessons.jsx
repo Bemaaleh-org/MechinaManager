@@ -860,8 +860,8 @@ function Gantt() {
 /* ============================================================
    הדף המלא
    ============================================================ */
-export function LessonsPage({ say }) {
-  const [sub, setSub] = useState("sheets");
+export function LessonsPage({ say, sub0 }) {
+  const [sub, setSub] = useState(sub0 || "sheets");
   const [sheet, setSheet] = useState(null);
   const [creating, setCreating] = useState(false);
   const [reporting, setReporting] = useState(false);
