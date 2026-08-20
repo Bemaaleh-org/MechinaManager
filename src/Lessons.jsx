@@ -13,6 +13,7 @@
 
 import React, { useState, useMemo } from "react";
 import { api } from "./api.js";
+import { useExcel, downloadTable } from "./excel.js";
 
 const LI = {
   book: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22V4.5z"/><path d="M4 17.5h16"/></svg>,
@@ -20,6 +21,7 @@ const LI = {
   chev: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
   plus: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" {...p}><path d="M12 5v14M5 12h14"/></svg>,
   warn: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3 2 20h20L12 3z"/><path d="M12 9v5M12 17.5h.01"/></svg>,
+  dl: (p) => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3v12M7 11l5 5 5-5M4 20h16"/></svg>,
 };
 
 const dmy = (iso) => iso ? `${iso.slice(8,10)}/${iso.slice(5,7)}/${iso.slice(0,4)}` : "";
@@ -624,6 +626,7 @@ function NewSheet({ onDone, onCancel, say }) {
    חוות דעת על מרצים
    ============================================================ */
 function Evals({ say }) {
+  useExcel();
   const { data, err, busy, reload } = useLoad(() => api.getLessonEvals(), []);
   const [cycle, setCycle] = useState(null);
   const [q, setQ] = useState("");
@@ -652,6 +655,24 @@ function Evals({ say }) {
 
       <input className="search" value={q} onChange={(e) => setQ(e.target.value)}
         placeholder="חיפוש מרצה או נושא" />
+
+      {list.length > 0 && (
+        <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 10 }}
+          onClick={() => {
+            downloadTable({
+              file: "חוות-דעת" + (cycle ? "-" + cycle.replace(" ", "-") : ""),
+              sheet: "חוות דעת",
+              title: "חוות דעת על מרצים — " + (cycle || "כל המחזורים"),
+              header: ["מרצה", "תחום", "נושא", "מחזור", "טלפון", "דירוג", "מדרגים", "חוות דעת", "נכתב על ידי"],
+              rows: list.map((e) => [
+                e.name, e.field || "", e.topic || "", e.cycle || "", e.phone || "",
+                e.avg != null ? e.avg : "", e.votes || "", e.opinion || "", e.by || "",
+              ]),
+              widths: [18, 14, 22, 11, 13, 8, 8, 50, 14],
+            });
+            say("הקובץ ירד");
+          }}><LI.dl />הורדה לאקסל ({list.length})</button>
+      )}
 
       {list.length === 0 ? (
         <div className="empty">

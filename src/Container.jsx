@@ -12,6 +12,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { api } from "./api.js";
+import { useExcel, downloadTable, shareText } from "./excel.js";
 
 const CI = {
   box: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 8l9-5 9 5v8l-9 5-9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>,
@@ -19,6 +20,8 @@ const CI = {
   plus: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" {...p}><path d="M12 5v14M5 12h14"/></svg>,
   chev: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
   warn: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3 2 20h20L12 3z"/><path d="M12 9v5M12 17.5h.01"/></svg>,
+  dl: (p) => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3v12M7 11l5 5 5-5M4 20h16"/></svg>,
+  share: (p) => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="6" r="2.6"/><circle cx="18" cy="18" r="2.6"/><path d="m8.3 10.8 7.4-3.6M8.3 13.2l7.4 3.6"/></svg>,
 };
 
 function useLoad(fn, deps = []) {
@@ -219,6 +222,7 @@ function ShoppingBuilder({ equipment, say, onDone, onCancel }) {
 
 /* ---------- הדף המלא ---------- */
 export function ContainerPage({ say }) {
+  useExcel();
   const { data, err, busy, reload } = useLoad(() => api.getContainer(), []);
   const [sub, setSub] = useState("equip");
   const [kindFilter, setKindFilter] = useState(null);
@@ -261,7 +265,10 @@ export function ContainerPage({ say }) {
 
   return (
     <>
-      <div className="screen-title">ציוד מכולה</div>
+      {/* המכולה האמיתית — הציור שעל הדופן שלה, כרקע הכותרת */}
+      <div className="photo-head" style={{ backgroundImage: "url(/photos/container.jpg)" }}>
+        <div className="pht">ציוד מכולה</div>
+      </div>
 
       <div className="seg">
         <button className={sub === "equip" ? "on" : ""} onClick={() => setSub("equip")}>
@@ -285,6 +292,19 @@ export function ContainerPage({ say }) {
           </div>
 
           <input className="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="חיפוש ציוד" />
+
+          <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 10 }}
+            onClick={() => {
+              downloadTable({
+                file: "ציוד-מכולה",
+                sheet: "ציוד",
+                title: "ציוד המכולה — מכינת ניר עוז",
+                header: ["פריט", "כמות", "סוג"],
+                rows: data.equipment.map((x) => [x.name, x.qty || "", x.kind || ""]),
+                widths: [28, 12, 10],
+              });
+              say("הקובץ ירד");
+            }}><CI.dl />הורדת כל הציוד לאקסל</button>
 
           {adding && (
             <div className="card" style={{ marginBottom: 12 }}>
@@ -341,6 +361,32 @@ export function ContainerPage({ say }) {
             </div>
           ) : (
             <>
+              {/* שיתוף הוא הדרך הנוחה לרשימת קניות — נפתח ישר
+                  בוואטסאפ בטלפון; במחשב הטקסט מועתק. אקסל לצידו. */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                <button className="btn btn-ghost btn-sm" style={{ flex: 1 }}
+                  onClick={async () => {
+                    const today = new Date().toLocaleDateString("he-IL");
+                    const text = `רשימת קניות — מכולה (${today})\n` +
+                      open.map((x) => `· ${x.name}${x.qty ? " — " + x.qty : ""}`).join("\n");
+                    try {
+                      const how = await shareText({ title: "רשימת קניות — מכולה", text });
+                      if (how === "copied") say("הרשימה הועתקה — הדביקו בוואטסאפ");
+                    } catch { say("השיתוף נכשל"); }
+                  }}><CI.share />שיתוף הרשימה</button>
+                <button className="btn btn-ghost btn-sm" style={{ flex: 1 }}
+                  onClick={() => {
+                    downloadTable({
+                      file: "רשימת-קניות-מכולה",
+                      sheet: "רשימת קניות",
+                      title: "רשימת קניות — מכולה",
+                      header: ["פריט", "כמות", "ביקש"],
+                      rows: open.map((x) => [x.name, x.qty || "", x.by || ""]),
+                      widths: [26, 12, 16],
+                    });
+                    say("הקובץ ירד");
+                  }}><CI.dl />אקסל</button>
+              </div>
               <div className="grp-h"><span>{open.length} פריטים לקנייה</span><span>לחיצה = נקנה</span></div>
               <div className="rows">
                 {open.map((x) => (
