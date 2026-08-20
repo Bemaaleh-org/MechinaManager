@@ -22,7 +22,7 @@ import { withAuth, actorName } from "./_session.js";
 import { gql } from "./_monday.js";
 import { commitEntry } from "./_moves.js";
 import { loadLists } from "./_lists.js";
-import { loadCatalog } from "./catalog.js";
+import { loadCatalog } from "./_catalog.js";
 
 export async function planReceive(body) {
   const { listId, received } = body || {};

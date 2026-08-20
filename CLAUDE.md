@@ -25,8 +25,8 @@
 תוכנית Vercel הנוכחית מגבילה ל-**12 פונקציות**. כל קובץ `.js` ישירות בתוך
 `api/` ששמו **אינו** מתחיל בקו תחתון נספר.
 
-**תפוסות כרגע 7:** `auth.js`, `catalog.js`, `duty.js`, `lists.js`, `moves.js`,
-`tasks.js`, `users.js`. **נותרו 5.**
+**תפוסות כרגע 6:** `kitchen.js` (כל המטבח), `auth.js`, `students.js`,
+`attendance.js`, `lessons.js`, `container.js`. **נותרו 6.**
 
 חריגה מהמגבלה **שוברת את הדיפלוי של כל המערכת** — לא רק את התכונה החדשה.
 האפליקציה במטבח לא תעלה.
@@ -42,17 +42,20 @@ api/_lessons-list.js    ← לא נספר. לוגיקה.
 api/_lessons-create.js  ← לא נספר. לוגיקה.
 ```
 
-הדוגמה לחיקוי היא `api/tasks.js` — 20 שורות שמייבאות 5 מודולים וממפות אותם:
+הדוגמה לחיקוי היא `api/attendance.js` — נתב דק שמייבא מודולי `_`
+וממפה אותם לפי `?action=`:
 
 ```js
 import { router } from "./_router.js";
-import today from "./_tasks-today.js";
+import day from "./_attendance-day.js";
 // ...
-export default router({ today, summary, day, ensure, toggle });
+export default router({ day, mark, requests, decide, train });
 ```
 
-**מערך שיעורים ומעקב חניכים אמורים להסתדר בשני קבצים נספרים:**
-`api/lessons.js` ו-`api/students.js`.
+**המטבח כולו אוחד ל-`api/kitchen.js`** — נתב אחד עם פעולות שטוחות
+(`?action=tasks-today`, `?action=lists-read`). כתובת נקודת קצה
+משתקפת בשלושה מקומות בלבד: הנתב, `src/api.js` (הדלת היחידה),
+ו-`tools/api-snapshot.mjs`.
 
 ### הנתב לא נוגע באימות
 
@@ -194,13 +197,14 @@ rows.map((r) => ({ id: r.id, name: r.name, kind: r.kind, active: r.active }))
 
 ```
 api/            פונקציות השרת
+  kitchen.js      כל המטבח: קטלוג, רשימות,
+                  תנועות, משימות, תורנויות,
+                  משתמשים                   ← נספר
   auth.js         כניסה, יציאה, זהות        ← נספר
-  catalog.js      קטלוג המוצרים             ← נספר
-  duty.js         שיבוץ תורנויות            ← נספר
-  lists.js        רשימות קניות              ← נספר
-  moves.js        תנועות מלאי               ← נספר
-  tasks.js        משימות                    ← נספר
-  users.js        רשימת משתמשים             ← נספר
+  students.js     חניכים, פרופיל, תפקידים   ← נספר
+  attendance.js   נוכחות ובקשות יציאה       ← נספר
+  lessons.js      שיעורים, גאנט, דירוגים    ← נספר
+  container.js    ציוד מכולה                ← נספר
   _router.js      נתב פנימי לפי ?action=
   _session.js     withAuth, עוגייה חתומה, השהיה גוברת
   _monday.js      לקוח GraphQL. קורא את הטוקן — שרת בלבד.

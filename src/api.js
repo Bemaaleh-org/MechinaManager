@@ -68,64 +68,64 @@ export const api = {
   setMyName: (name) => post("/api/auth?action=me", { name }),
 
   /** רשימת משתמשים לתצוגה. בלי קודים, מנהל בלבד. */
-  getUsers: () => get("/api/users"),
+  getUsers: () => get("/api/kitchen?action=users"),
 
   /** רשימות הקניות, כל אחת עם השורות שלה */
-  getLists: () => get("/api/lists?action=read"),
+  getLists: () => get("/api/kitchen?action=lists-read"),
 
-  getCatalog: () => get("/api/catalog"),
-  getMoves: () => get("/api/moves?action=read"),
+  getCatalog: () => get("/api/kitchen?action=catalog"),
+  getMoves: () => get("/api/kitchen?action=moves-read"),
 
   /** תורני היום מלוח השיבוץ. רשימה ריקה = אין מה להציג. */
   getDutyToday: (date) =>
-    get("/api/duty?action=today" + (date ? `&date=${encodeURIComponent(date)}` : "")),
+    get("/api/kitchen?action=duty-today" + (date ? `&date=${encodeURIComponent(date)}` : "")),
 
   /** שיבוץ השבוע כולו — 7 תאים לפי אינדקס היום. קריאה בלבד. */
   getDutyWeek: (date) =>
-    get("/api/duty?action=week" + (date ? `&date=${encodeURIComponent(date)}` : "")),
+    get("/api/kitchen?action=duty-week" + (date ? `&date=${encodeURIComponent(date)}` : "")),
 
   /* --- משימות ניקיון שבועיות --- */
 
   /** מוודא שקיימות שורות ביצוע לשבוע הנוכחי. אידמפוטנטי. */
-  ensureWeek: () => post("/api/tasks?action=ensure", {}),
+  ensureWeek: () => post("/api/kitchen?action=tasks-ensure", {}),
 
   /** משימות היום לפי שעון ישראל. date אופציונלי — מצב בדיקה בלבד. */
   getTodayTasks: (date) =>
-    get("/api/tasks?action=today" + (date ? `&date=${encodeURIComponent(date)}` : "")),
+    get("/api/kitchen?action=tasks-today" + (date ? `&date=${encodeURIComponent(date)}` : "")),
 
   /** מסמן משימה. שולח את המצב הרצוי, לא "הפוך". */
-  setTaskDone: (rowId, done) => post("/api/tasks?action=toggle", { rowId, done }),
+  setTaskDone: (rowId, done) => post("/api/kitchen?action=tasks-toggle", { rowId, done }),
 
   /** סיכום שבועי למנהל. קריאה בלבד, ברמת יום — בלי שמות. */
   getTasksSummary: (date) =>
-    get("/api/tasks?action=summary" + (date ? `&date=${encodeURIComponent(date)}` : "")),
+    get("/api/kitchen?action=tasks-summary" + (date ? `&date=${encodeURIComponent(date)}` : "")),
 
   /** פירוט משימות של יום אחד. מנהל בלבד, קריאה בלבד. */
   getTasksDay: (day, date) =>
-    get(`/api/tasks?action=day&day=${encodeURIComponent(day)}`
+    get(`/api/kitchen?action=tasks-day&day=${encodeURIComponent(day)}`
         + (date ? `&date=${encodeURIComponent(date)}` : "")),
 
   /** קבלת סחורה: כמויות לפי rowId. סוגרת את הרשימה ומעדכנת מלאי. */
   receiveList: ({ listId, user, received }) =>
-    post("/api/lists?action=receive", { listId, user: { name: user.name }, received }),
+    post("/api/kitchen?action=lists-receive", { listId, user: { name: user.name }, received }),
 
   /** מוודא שהרשימות החיות משקפות את החוסרים הנוכחיים. אידמפוטנטי. */
-  syncLists: () => post("/api/lists?action=sync", {}),
+  syncLists: () => post("/api/kitchen?action=lists-sync", {}),
 
   /** מעבר סטטוס של רשימה. השרת אוכף מי רשאי ואילו מעברים חוקיים. */
   setListStatus: ({ listId, to, user }) =>
-    post("/api/lists?action=status", { listId, to, user: { name: user.name, role: user.role } }),
+    post("/api/kitchen?action=lists-status", { listId, to, user: { name: user.name, role: user.role } }),
 
   /** עריכה ידנית של שורה: add / setQty / remove */
-  editRow: (body) => post("/api/lists?action=row", body),
+  editRow: (body) => post("/api/kitchen?action=lists-row", body),
 
   /** פותח רשימת טיוטה לספק. מחזיר את הקיימת אם יש. */
   createList: ({ sup, user }) =>
-    post("/api/lists?action=create", { sup, user: { name: user.name } }),
+    post("/api/kitchen?action=lists-create", { sup, user: { name: user.name } }),
 
   /** דיווח יומי: קבלה / שימוש / פחת */
   commitMoves: ({ type, user, entries }) =>
-    post("/api/moves?action=commit", {
+    post("/api/kitchen?action=moves-commit", {
       type,
       user,
       entries: entries.map((e) => ({
@@ -136,10 +136,10 @@ export const api = {
     }),
 
   /** ביטול דיווח — מסמן אותו כמבוטל ומחזיר את המלאי */
-  cancelMove: (moveId) => post("/api/moves?action=cancel", { moveId }),
+  cancelMove: (moveId) => post("/api/kitchen?action=moves-cancel", { moveId }),
 
   /** ספירה שבועית: קובעת מלאי וסימון תוקף */
-  finishCount: ({ user, entries }) => post("/api/moves?action=count", { user, entries }),
+  finishCount: ({ user, entries }) => post("/api/kitchen?action=moves-count", { user, entries }),
 
   /* ============================================================
      מכינה — חניכים, נוכחות ובקשות יציאה

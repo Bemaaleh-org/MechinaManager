@@ -21,7 +21,7 @@ import { BOARDS, COLS, LABELS } from "../shared/boards.js";
 import { withAuth } from "./_session.js";
 import { rowColumns, listColumns } from "../shared/mapper.js";
 import { gql } from "./_monday.js";
-import { loadCatalog } from "./catalog.js";
+import { loadCatalog } from "./_catalog.js";
 import { loadLists, dedupeEmptyDrafts } from "./_lists.js";
 
 /** הכמות להשלמה עד היעד, מעוגלת כלפי מעלה לחצי יחידה */
