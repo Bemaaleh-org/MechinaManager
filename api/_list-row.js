@@ -18,7 +18,7 @@ import { BOARDS, COLS } from "../shared/boards.js";
 import { withAuth } from "./_session.js";
 import { rowColumns } from "../shared/mapper.js";
 import { gql } from "./_monday.js";
-import { loadCatalog } from "./catalog.js";
+import { loadCatalog } from "./_catalog.js";
 import { loadLists } from "./_lists.js";
 
 const ACTIONS = ["add", "setQty", "remove"];

@@ -28,31 +28,31 @@ const OUT = process.argv[2] || "tools/snapshot.txt";
 
 /* ---------- מיפוי תווית → כתובת בפועל ---------- */
 const URL_OF = {
-  "/api/catalog": "/api/catalog",
-  "/api/users": "/api/users",
-  "/api/lists": "/api/lists?action=read",
-  "/api/moves": "/api/moves?action=read",
-  "/api/duty-today": "/api/duty?action=today",
-  "/api/duty-week": "/api/duty?action=week",
-  "/api/tasks-today": "/api/tasks?action=today",
-  "/api/tasks-summary": "/api/tasks?action=summary",
+  "/api/catalog": "/api/kitchen?action=catalog",
+  "/api/users": "/api/kitchen?action=users",
+  "/api/lists": "/api/kitchen?action=lists-read",
+  "/api/moves": "/api/kitchen?action=moves-read",
+  "/api/duty-today": "/api/kitchen?action=duty-today",
+  "/api/duty-week": "/api/kitchen?action=duty-week",
+  "/api/tasks-today": "/api/kitchen?action=tasks-today",
+  "/api/tasks-summary": "/api/kitchen?action=tasks-summary",
   "/api/login": "/api/auth?action=login",
   "/api/logout": "/api/auth?action=logout",
   "/api/me": "/api/auth?action=me",
-  "/api/move-cancel": "/api/moves?action=cancel",
-  "/api/count": "/api/moves?action=count",
-  "/api/list-create": "/api/lists?action=create",
-  "/api/list-row": "/api/lists?action=row",
-  "/api/list-status": "/api/lists?action=status",
-  "/api/list-receive": "/api/lists?action=receive",
-  "/api/task-toggle": "/api/tasks?action=toggle",
-  "/api/lists-sync": "/api/lists?action=sync",
-  "/api/tasks-week": "/api/tasks?action=ensure",
+  "/api/move-cancel": "/api/kitchen?action=moves-cancel",
+  "/api/count": "/api/kitchen?action=moves-count",
+  "/api/list-create": "/api/kitchen?action=lists-create",
+  "/api/list-row": "/api/kitchen?action=lists-row",
+  "/api/list-status": "/api/kitchen?action=lists-status",
+  "/api/list-receive": "/api/kitchen?action=lists-receive",
+  "/api/task-toggle": "/api/kitchen?action=tasks-toggle",
+  "/api/lists-sync": "/api/kitchen?action=lists-sync",
+  "/api/tasks-week": "/api/kitchen?action=tasks-ensure",
 };
 
 /** /api/moves הוא קריאה ב-GET ודיווח ב-POST */
 function urlFor(label, method) {
-  if (label === "/api/moves" && method === "POST") return "/api/moves?action=commit";
+  if (label === "/api/moves" && method === "POST") return "/api/kitchen?action=moves-commit";
   return URL_OF[label];
 }
 
