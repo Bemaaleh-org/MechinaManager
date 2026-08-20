@@ -23,6 +23,11 @@ export const MECHINA_BOARDS = {
   requests: "5102508180", // מכינה ב׳ – בקשות יציאה
   /* ⚠ צוות בלבד. השעיות ושיחות משמעת — לעולם לא מגיע לחניך. */
   incidents: "5102548997", // מכינה ב׳ – אירועים חריגים
+  /* שיבוץ מובילי השבוע — 43 שבועות מקובץ הלו״ז של המכינה.
+     ⚠ ההרשאה "מוביל שבוע" נגזרת מכאן: חניך הוא מוביל אם הוא
+     משובץ בשורה שהיום נופל בטווח שלה (או שסומן ידנית בלוח
+     החניכים — עוקף חירום). */
+  leaderWeeks: "5102611945", // מכינה ב׳ – מובילי שבוע
 };
 
 export const MECHINA_COLS = {
@@ -42,6 +47,18 @@ export const MECHINA_COLS = {
     talk1: "date_mm6cegbw",
     talk2: "date_mm6cwdyv",
     talk3: "date_mm6c33sj",
+  },
+  /* שם הפריט: "שבוע N" */
+  leaderWeeks: {
+    start: "date_mm6d1mv0",
+    end: "date_mm6dqts5",
+    num: "numeric_mm6dhxnh",
+    what: "text_mm6dvzpk",
+    note: "text_mm6d5pns",
+    leaders: "board_relation_mm6dswab", // קישור ללוח החניכים
+    escort: "text_mm6dbda",
+    /* ⚠ שבוע סגור (חג/סדרה) אינו ניתן לשיבוץ — נאכף בשרת */
+    open: "boolean_mm6dy3mz",
   },
   /* ⚠ צוות בלבד — אין נקודת קצה שמחזירה מזה משהו לחניך */
   incidents: {

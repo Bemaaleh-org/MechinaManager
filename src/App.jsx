@@ -4,7 +4,7 @@ import { LOGO } from "./logo.js";
 import { storage } from "./storage.js";
 import { api, setUnauthorizedHandler } from "./api.js";
 import Login from "./Login.jsx";
-import { MechinaApp, MechinaStaff } from "./Mechina.jsx";
+import { MechinaApp, MechinaStaff, MechinaRolesPage } from "./Mechina.jsx";
 import { LessonsPage } from "./Lessons.jsx";
 import { ContainerPage } from "./Container.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
@@ -286,6 +286,7 @@ function Kitchen({ auth, onSignedOut }) {
   /* ניווט פנימי מהמגירה ומהפעמון: לאיזה תת-מסך לפתוח את הטאב */
   const [staffNav, setStaffNav] = useState({ sub: null, n: 0 });
   const [lessonsNav, setLessonsNav] = useState({ sub: null, n: 0 });
+  const [rolesNav, setRolesNav] = useState({ sub: null, n: 0 });
   const [drawerOpen, setDrawerOpen] = useState(false);
   useEffect(() => {
     if (!auth.isManager) return;
@@ -299,6 +300,7 @@ function Kitchen({ auth, onSignedOut }) {
   }, [auth.isManager]);
   const goStaff = (sub) => { setSection("mechina"); setStaffNav((p) => ({ sub, n: p.n + 1 })); };
   const goLessons = (sub) => { setSection("lessons"); setLessonsNav((p) => ({ sub, n: p.n + 1 })); };
+  const goRoles = (sub) => { setSection("roles"); setRolesNav((p) => ({ sub, n: p.n + 1 })); };
   const openRequests = () => { setNotifOpen(false); goStaff("requests"); };
   const [toast, setToast] = useState(null);
   const [modal, setModal] = useState(null);
@@ -678,8 +680,8 @@ function Kitchen({ auth, onSignedOut }) {
                 active: false, onClick: () => goStaff("requests") },
             ] },
             { label: "תפקידים במכינה", items: [
-              { key: "a-leaders", label: "מובילי שבוע", icon: <I.day />, active: false, onClick: () => goStaff("leaders") },
-              { key: "a-roles", label: "בעלי תפקידים", icon: <I.gear />, active: false, onClick: () => goStaff("roles") },
+              { key: "a-leaders", label: "מובילי שבוע", icon: <I.day />, active: section === "roles", onClick: () => goRoles("weeks") },
+              { key: "a-roles", label: "בעלי תפקידים", icon: <I.gear />, active: false, onClick: () => goRoles("roles") },
             ] },
             { label: "שיעורים", items: [
               { key: "l-sheets", label: "גיליונות מרצים", icon: <I.book />, active: false, onClick: () => goLessons("sheets") },
@@ -788,6 +790,9 @@ function Kitchen({ auth, onSignedOut }) {
           {section === "lessons" && isMgr && (
             <LessonsPage say={say} key={lessonsNav.n} sub0={lessonsNav.sub || undefined} />
           )}
+          {section === "roles" && isMgr && (
+            <MechinaRolesPage say={say} key={rolesNav.n} sub0={rolesNav.sub || undefined} />
+          )}
           {section === "container" && isMgr && <ContainerPage say={say} />}
         </main>
 
@@ -837,8 +842,13 @@ function ManagerDash({ lowCount, pendingList, goStaff, goLessons, goKitchen, goC
 
   return (
     <>
-      <div className="dash-greet">{greet()} 👋</div>
+      <div className="dash-greet">{greet()}</div>
       <div className="dash-date">{hebDate(new Date())}</div>
+
+      <div className="photo-hero" style={{ marginTop: 12 }}>
+        <img src="/photos/dash.jpg" alt="חניכי המכינה על הדשא" />
+        <div className="ph-cap">מחזור ב׳</div>
+      </div>
 
       {failed && (
         <div className="alert a-clay">

@@ -1,6 +1,6 @@
 /* עוצב בפרוטוטייפ. הועתק כלשונו. */
 export const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800;900&family=Suez+One&display=swap');
 
 /* ⚠ שוליי ברירת המחדל של הדפדפן על body יצרו רצועה בהירה מעל
    הסרגל הכחול באייפון. ה-reset למטה מכסה רק את .kx וצאצאיו.
@@ -10,8 +10,8 @@ html,body{margin:0;padding:0;background:#012E58}
 
 .kx, .kx *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
 .kx{
-  --bg:#EEF1F5; --surface:#fff; --ink:#152234; --muted:#5F6B7C; --faint:#94A0B0;
-  --line:#DBE1EA; --line2:#C6CFDC;
+  --bg:#F5F1E8; --surface:#fff; --ink:#1F2733; --muted:#6B6455; --faint:#A29A88;
+  --line:#E7E0D2; --line2:#D3C9B6;
   --accent:#002454; --accent-soft:#DDE5F0;
   --amber:#8A5A1E; --amber-soft:#F5EBDA;
   --clay:#9E3626; --clay-soft:#F8E6E2;
@@ -33,7 +33,8 @@ html,body{margin:0;padding:0;background:#012E58}
    הריפוד הוא בתוך האלמנט ולכן הרקע הכחול מכסה גם אותו — הכחול
    מגיע עד קצה המסך, והתוכן בלבד נדחף מטה. env() מחזיר 0 בדפדפן
    רגיל ובאנדרואיד, ולכן שם שום דבר לא משתנה. */
-.top{position:sticky;top:0;z-index:40;background:#012E58;color:#fff;
+.top{position:sticky;top:0;z-index:40;color:#fff;
+  background:linear-gradient(135deg,#012E58 0%,#0A4478 100%);
   padding:calc(12px + env(safe-area-inset-top)) 16px 12px}
 .top-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .top h1{font-size:18px;font-weight:800;letter-spacing:-.4px;line-height:1.15}
@@ -50,7 +51,7 @@ html,body{margin:0;padding:0;background:#012E58}
   padding-left:calc(14px + env(safe-area-inset-left))}
 .sec-label{font-size:11.5px;font-weight:800;letter-spacing:.9px;color:var(--faint);margin:22px 2px 9px}
 /* כותרת מסך מלאה, מעל בורר המצבים */
-.screen-title{font-size:22px;font-weight:900;letter-spacing:-.3px;margin:2px 2px 14px;line-height:1.25}
+.screen-title{font-family:'Suez One',Heebo,serif;font-size:23px;font-weight:400;letter-spacing:0;margin:2px 2px 14px;line-height:1.3}
 .screen-title + .sec-label{margin-top:4px}
 .sec-label:first-child{margin-top:4px}
 
@@ -62,7 +63,7 @@ html,body{margin:0;padding:0;background:#012E58}
 .led-item{display:flex;align-items:center;gap:13px;padding:14px 16px;border-bottom:1px solid var(--line);
   width:100%;text-align:right;min-height:62px;transition:background .13s}
 .led-item:last-child{border-bottom:none}
-.led-item:active{background:#F5F7FA}
+.led-item:active{background:#F7F3EA}
 .tick{width:26px;height:26px;border-radius:8px;border:2px solid var(--line2);flex:0 0 26px;
   display:grid;place-items:center;transition:all .15s}
 .tick.on{background:var(--ok);border-color:var(--ok)}
@@ -101,10 +102,13 @@ html,body{margin:0;padding:0;background:#012E58}
 /* מתקרב באופי לכיתוב שבלוגו בלי להטמיע פונט חיצוני: Heebo 800,
    הכחול של הסמל, ומרווח אותיות מעט צר כמו במקור.
    משקל 800 נטען ב-@import בראש הקובץ — לא נופל לברירת מחדל. */
-.login-title{font-family:'Heebo',system-ui,sans-serif;font-weight:800;
-  font-size:26px;color:#012E58;text-align:center;letter-spacing:-.5px;
+.login-title{font-family:'Suez One',Heebo,serif;font-weight:400;
+  font-size:30px;color:#012E58;text-align:center;letter-spacing:0;
   line-height:1.2;margin:0 0 26px}
-.kx-login{background:#012E58}
+/* תמונת הכרם בשקיעה מתחת לשכבת הכחול — הטקסט הלבן נשאר קריא */
+.kx-login{background:
+  linear-gradient(180deg,rgba(1,46,88,.92) 0%,rgba(10,68,120,.86) 60%,rgba(6,50,92,.94) 100%),
+  url(/photos/login.jpg) center/cover no-repeat #0A4478}
 .kx-login .login-title{color:#fff}
 .kx-login .login-mark{width:180px;height:180px;filter:drop-shadow(0 10px 30px rgba(0,0,0,.3))}
 .kx-login .seg{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.14)}
@@ -144,7 +148,7 @@ html,body{margin:0;padding:0;background:#012E58}
    כי button לא יורש אותם. */
 .tsum-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 2px;
   border-bottom:1px solid var(--line);width:100%;text-align:right;min-height:48px}
-.tsum-row:active{background:#F5F7FA}
+.tsum-row:active{background:#F7F3EA}
 .tsum-row:last-child{border-bottom:none}
 .tsum-day{display:flex;align-items:center;gap:7px;font-size:14.5px;font-weight:700}
 .tsum-row.full .tsum-day{color:var(--ok)}
@@ -198,7 +202,7 @@ html,body{margin:0;padding:0;background:#012E58}
 .btn-sm{min-height:42px;font-size:14px;border-radius:11px;padding:0 14px;width:auto}
 
 /* ---- segmented ---- */
-.seg{display:flex;background:#E3E7ED;border-radius:13px;padding:4px;gap:3px;margin-bottom:14px}
+.seg{display:flex;background:#E9E2D2;border-radius:13px;padding:4px;gap:3px;margin-bottom:14px}
 .seg button{flex:1;min-height:44px;border-radius:10px;font-weight:700;font-size:14.5px;color:var(--muted);transition:all .15s}
 .seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.09)}
 .seg button.on.clay{color:var(--clay)}
@@ -225,7 +229,7 @@ html,body{margin:0;padding:0;background:#012E58}
 .rows{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .row{display:flex;align-items:center;gap:10px;padding:11px 13px;border-bottom:1px solid var(--line);min-height:64px}
 .row:last-child{border-bottom:none}
-.row.hot{background:#FEFBF6}
+.row.hot{background:#FDF8EC}
 .r-main{flex:1;min-width:0}
 .r-name{font-size:15px;font-weight:700;letter-spacing:-.2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .r-meta{font-size:12px;color:var(--muted);margin-top:2px;font-weight:500;display:flex;gap:7px;align-items:center}
@@ -246,7 +250,7 @@ html,body{margin:0;padding:0;background:#012E58}
 /* count row */
 .crow{padding:12px 13px;border-bottom:1px solid var(--line)}
 .crow:last-child{border-bottom:none}
-.crow.done{background:#F6F8FB}
+.crow.done{background:#F8F5ED}
 .crow-top{display:flex;align-items:center;gap:10px}
 .exp{display:flex;gap:6px;margin-top:10px}
 .exp button{flex:1;min-height:46px;border-radius:10px;border:1.5px solid var(--line2);font-size:13.5px;font-weight:700;
@@ -261,7 +265,7 @@ html,body{margin:0;padding:0;background:#012E58}
 .reasons button.on{background:var(--clay);border-color:var(--clay);color:#fff}
 
 /* progress */
-.prog{height:6px;background:#DCE2EA;border-radius:99px;overflow:hidden;margin-top:9px}
+.prog{height:6px;background:#E1D9C7;border-radius:99px;overflow:hidden;margin-top:9px}
 .prog i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .3s}
 
 /* sticky bar */
@@ -325,7 +329,8 @@ html,body{margin:0;padding:0;background:#012E58}
 .bar .bt i{display:block;height:100%;background:var(--clay);border-radius:99px}
 .bar .bv{font-size:13.5px;font-weight:800;flex:0 0 auto;font-variant-numeric:tabular-nums}
 
-.empty{text-align:center;padding:44px 24px;color:var(--muted)}
+.empty{text-align:center;padding:40px 24px;color:var(--muted)}
+.empty .emo{font-size:38px;line-height:1;display:block;margin-bottom:10px}
 .empty .e1{font-size:16px;font-weight:800;color:var(--ink);margin-bottom:5px}
 .empty .e2{font-size:13.5px;line-height:1.5}
 
@@ -348,13 +353,13 @@ html,body{margin:0;padding:0;background:#012E58}
 .yr-cells{display:flex;flex-wrap:wrap;gap:3px}
 .yr-c{width:13px;height:13px;border-radius:3.5px;background:var(--surface);border:1px solid var(--line);
   padding:0;flex:0 0 auto}
-.yr-c.off{background:#E7EBF1;border-color:#E7EBF1}
+.yr-c.off{background:#E8E2D3;border-color:#E8E2D3}
 .yr-c.future{background:var(--bg);border-color:var(--line)}
 .yr-c.present{background:#16A34A;border-color:#16A34A}
 .yr-c.sick{background:#DC2626;border-color:#DC2626}
 .yr-c.just{background:#D97706;border-color:#D97706}
 .yr-c.vac{background:#2563EB;border-color:#2563EB}
-.yr-c.unmarked{background:repeating-linear-gradient(45deg,#fff,#fff 2px,#DCE2EA 2px,#DCE2EA 4px);
+.yr-c.unmarked{background:repeating-linear-gradient(45deg,#fff,#fff 2px,#E1D9C7 2px,#E1D9C7 4px);
   border-color:var(--line2)}
 .yr-c.sel{outline:2px solid var(--ink);outline-offset:1px}
 .yr-key{display:flex;flex-wrap:wrap;gap:11px;margin-top:13px;padding-top:12px;border-top:1px solid var(--line)}
@@ -376,7 +381,7 @@ html,body{margin:0;padding:0;background:#012E58}
 .st-row{display:flex;align-items:center;gap:11px;padding:11px 13px;border-bottom:1px solid var(--line);
   min-height:60px;width:100%;text-align:right;background:none}
 .st-row:last-child{border-bottom:none}
-.st-row:active{background:#F5F7FA}
+.st-row:active{background:#F7F3EA}
 .st-av{width:34px;height:34px;border-radius:50%;background:var(--accent-soft);color:var(--accent);
   display:grid;place-items:center;font-size:13px;font-weight:800;flex:0 0 34px}
 .st-av.absent{background:var(--clay-soft);color:var(--clay)}
@@ -402,9 +407,9 @@ html,body{margin:0;padding:0;background:#012E58}
 
 /* מצב החניך בשורה — תגים בצבע מלא, לא פסטל */
 .pill.pp-ok{background:#15803D;color:#fff}
-.pill.pp-none{background:#E2E8F0;color:#475569}
+.pill.pp-none{background:#E7E0D2;color:#6B6455}
 .st-av.here{background:#DCFCE7;color:#15803D}
-.st-av.none{background:#F1F5F9;color:#94A3B8}
+.st-av.none{background:#F0EBDE;color:#A29A88}
 .abs-note{padding:0 13px 12px}
 .abs-note input{width:100%;min-height:44px;background:var(--bg);border:1px solid var(--line2);
   border-radius:10px;padding:0 12px;outline:none;font-size:14px}
@@ -426,12 +431,28 @@ html,body{margin:0;padding:0;background:#012E58}
 .rq-act button:disabled{opacity:.45}
 
 /* ---- מסך הבית של המנהל ---- */
-.dash-greet{font-size:24px;font-weight:900;letter-spacing:-.5px;margin:4px 2px 2px}
+.dash-greet{font-family:'Suez One',Heebo,serif;font-size:26px;font-weight:400;letter-spacing:0;margin:4px 2px 2px}
+/* ---- תמונות המכינה — כרטיס תמונה עם כיתוב עדין ---- */
+/* באנר כותרת: התמונה כרקע בפרופורציות שלה (cover, בלי מתיחה),
+   גרדיאנט כהה בתחתית כדי שהכותרת הלבנה תישאר קריאה */
+.photo-head{position:relative;border-radius:18px;overflow:hidden;margin:0 0 14px;height:150px;
+  background-size:cover;background-position:center;
+  box-shadow:0 8px 24px rgba(60,48,30,.16);display:flex;align-items:flex-end}
+.photo-head::before{content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(8,30,52,.04) 35%,rgba(8,30,52,.6) 100%)}
+.photo-head .pht{position:relative;z-index:1;color:#fff;font-family:'Suez One',Heebo,serif;
+  font-size:24px;padding:11px 16px;text-shadow:0 1px 8px rgba(0,0,0,.5)}
+.photo-hero{position:relative;border-radius:18px;overflow:hidden;margin:2px 0 14px;
+  box-shadow:0 8px 24px rgba(60,48,30,.14)}
+.photo-hero img{display:block;width:100%;height:150px;object-fit:cover}
+.photo-hero .ph-cap{position:absolute;right:0;left:0;bottom:0;padding:30px 14px 10px;color:#fff;
+  font-family:'Suez One',Heebo,serif;font-size:19px;text-align:right;
+  background:linear-gradient(180deg,transparent,rgba(8,30,52,.72));text-shadow:0 1px 6px rgba(0,0,0,.45)}
 .dash-date{font-size:13px;color:var(--muted);font-weight:600;margin:0 2px 16px}
 .dash-card{width:100%;text-align:right;background:var(--surface);border:1px solid var(--line);
   border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:13px;min-height:74px}
-.dash-card:active{background:#F5F7FA}
-.dash-ico{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;flex:0 0 auto;
+.dash-card:active{background:#F7F3EA}
+.dash-ico{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;flex:0 0 auto;font-size:22px;line-height:1;
   background:var(--accent-soft);color:var(--accent)}
 .dash-ico.warn{background:#FEE2E2;color:#B91C1C}
 .dash-ico.ok{background:#DCFCE7;color:#15803D}
@@ -489,7 +510,7 @@ html,body{margin:0;padding:0;background:#012E58}
 .notif-h button{font-size:12.5px;font-weight:700;color:var(--muted);min-height:32px;padding:0 8px}
 .notif-item{display:block;width:100%;text-align:right;padding:11px 15px;
   border-bottom:1px solid var(--line)}
-.notif-item:active{background:#F5F7FA}
+.notif-item:active{background:#F7F3EA}
 .notif-item .ni-t{font-size:14px;font-weight:800;letter-spacing:-.2px}
 .notif-item .ni-s{font-size:12px;color:var(--muted);font-weight:600;margin-top:2px}
 .notif-empty{padding:20px 15px;text-align:center;font-size:13px;color:var(--muted);font-weight:600}
@@ -534,7 +555,7 @@ html,body{margin:0;padding:0;background:#012E58}
   border-radius:0 3px 3px 0;background:var(--accent)}
 .gnt-ev.shabbat::before{background:var(--amber)}
 .gnt-ev.holiday::before{background:var(--clay)}
-.gnt-ev.today{background:#F2F6FB}
+.gnt-ev.today{background:#FDF6E7}
 .gnt-when{flex:0 0 78px;text-align:center;padding-top:1px}
 .gnt-when .d{font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.2px}
 .gnt-when .r{font-size:10.5px;color:var(--faint);font-weight:700;margin-top:1px}

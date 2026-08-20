@@ -22,6 +22,8 @@ import { AUTH_BOARD, AUTH_COLS, KIND } from "../shared/auth-board.js";
 import { cached } from "./_cache.js";
 import { studentRows } from "./_student-rows.js";
 import { ROLE_CONTAINER } from "../shared/lessons-boards.js";
+import { leadersForDate } from "./_leader-weeks.js";
+import { parseTestDate } from "./_test-date.js";
 
 const COOKIE = "mk_session";
 const TTL_DAYS = 7;
@@ -146,13 +148,25 @@ export async function requireAuth(req, res) {
       setSession(res, { kind: "student", itemId: row.id, name: row.name, cfp: payload.cfp });
     }
 
+    /* ⚠ "מוביל שבוע" נגזר משיבוץ השבועות: חניך משובץ לשבוע
+       שהיום בטווחו הוא מוביל — השבוע הזה בלבד. הסימון הידני
+       בלוח החניכים נשאר כעוקף חירום (OR). ‎?today=‎ עובר דרך
+       parseTestDate ולכן חסום בכל דיפלוי, כמו בכל המערכת. */
+    const testAt = parseTestDate(req?.query?.today);
+    const todayIso = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Jerusalem", year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(testAt || new Date());
+    let scheduled = false;
+    try { scheduled = (await leadersForDate(todayIso)).includes(row.id); }
+    catch { /* כשל בשליפת השיבוץ לא מפיל את הכניסה — נשאר העוקף הידני */ }
+
     return {
       kind: "student",
       itemId: row.id,
       name: row.name, // ⚠ מאומת מול הלוח, לא מוצהר כמו אצל תורן
       isManager: false,
       isStudent: true,
-      isLeader: row.leader, // מוביל שבוע — נקרא טרי בכל בקשה
+      isLeader: scheduled || row.leader,
       roles: row.roles || [],
       /* ⚠ אחראי לו״ז — התפקיד היחיד שפותח מסך. נקרא טרי מהלוח
          בכל בקשה, ולכן הסרת התפקיד סוגרת את הגישה מיד. */

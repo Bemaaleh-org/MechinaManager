@@ -18,6 +18,7 @@ import { testDate } from "./testDate.js";
 import { LessonsPage } from "./Lessons.jsx";
 import { ContainerPage } from "./Container.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
+import { useExcel, downloadTable } from "./excel.js";
 
 /* אותו אוצר צורות של האייקונים במטבח: 21px, stroke 2.1, קצוות עגולים */
 const MI = {
@@ -34,6 +35,7 @@ const MI = {
   bell: (p) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M10.3 21a2 2 0 0 0 3.4 0"/></svg>,
   box: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 8l9-5 9 5v8l-9 5-9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>,
   plus: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" {...p}><path d="M12 5v14M5 12h14"/></svg>,
+  dl: (p) => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3v12M7 11l5 5 5-5M4 20h16"/></svg>,
 };
 
 const MON_HE = ["ינו׳","פבר׳","מרץ","אפר׳","מאי","יוני","יולי","אוג׳","ספט׳","אוק׳","נוב׳","דצמ׳"];
@@ -421,6 +423,7 @@ function RequestCard({ r, onDecide, busyId }) {
      מוסברת, כדי שלא ילחץ לחינם.
    ============================================================ */
 function MarkDay({ say, allowPick = false }) {
+  useExcel();
   const td = testDate();
   const [date, setDate] = useState(null);
   const { data, err, busy, reload } = useLoad(
@@ -627,7 +630,27 @@ function MarkDay({ say, allowPick = false }) {
 
       <div className="grp-h">
         <span className="num">{presentCount} נוכחים · {absentCount} חסרים · {unmarkedCount} לא סומנו</span>
-        <span>לא סומן = ברירת מחדל</span>
+        <button className="btn btn-ghost btn-sm" style={{ minHeight: 30, padding: "0 10px" }}
+          onClick={() => {
+            downloadTable({
+              file: `נוכחות-${day.date}`,
+              sheet: "נוכחות",
+              title: `נוכחות יומית — ${dmy(day.date)} · יום ${day.kind}`,
+              header: ["חניך", "סטטוס", "פירוט"],
+              rows: students.map((s) => {
+                const st = stateOf(s.id);
+                return [
+                  s.name,
+                  st === "present" ? "נוכח" : (st || "לא סומן"),
+                  (st && st !== "present" && draft[s.id] && draft[s.id].detail) || "",
+                ];
+              }),
+              widths: [22, 12, 34],
+            });
+            say("הקובץ ירד");
+          }}>
+          <MI.dl />אקסל
+        </button>
       </div>
 
       {canMark && unmarkedCount > 0 && (
@@ -816,7 +839,8 @@ function TrainingCard({ training: t, students, say, today, happenedState, onHapp
 /* ============================================================
    רשימת החניכים — מנהל
    ============================================================ */
-function StudentsList({ onOpen }) {
+function StudentsList({ onOpen, say }) {
+  useExcel();
   const { data, err, busy, reload } = useLoad(() => api.getStudents(), []);
   const [q, setQ] = useState("");
 
@@ -830,6 +854,22 @@ function StudentsList({ onOpen }) {
     <>
       <input className="search" value={q} onChange={(e) => setQ(e.target.value)}
         placeholder="חיפוש חניך" />
+
+      <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 10 }}
+        onClick={() => {
+          downloadTable({
+            file: "נוכחות-שנתית",
+            sheet: "נוכחות שנתית",
+            title: "סיכום נוכחות שנתי — מכינת ניר עוז",
+            header: ["חניך", "ימים שסומנו", "נוכח", "נעדר", "לא סומן", "מחלה", "מוצדקת", "חופש"],
+            rows: data.students.map((s) => [
+              s.name, s.summary.schoolDays, s.summary.present, s.summary.absent,
+              s.summary.unmarked, s.summary.sick, s.summary.justified, s.summary.vacation,
+            ]),
+            widths: [22, 12, 9, 9, 10, 9, 9, 9],
+          });
+          say("הקובץ ירד");
+        }}><MI.dl />הורדת סיכום שנתי לאקסל</button>
 
       <div className="stats" style={{ marginBottom: 14 }}>
         <div className="stat">
@@ -927,6 +967,7 @@ function HalfPicker({ half, setHalf }) {
    בקשות — מנהל
    ============================================================ */
 function ManagerRequests({ say }) {
+  useExcel();
   const [showDecided, setShowDecided] = useState(false);
   const { data, err, busy, reload } = useLoad(() => api.getRequests(), []);
   const [busyId, setBusyId] = useState(null);
@@ -960,6 +1001,25 @@ function ManagerRequests({ say }) {
         </button>
         <button className={showDecided ? "on" : ""} onClick={() => setShowDecided(true)}>הוכרעו</button>
       </div>
+
+      {data.requests.length > 0 && (
+        <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 10 }}
+          onClick={() => {
+            downloadTable({
+              file: "בקשות-יציאה",
+              sheet: "בקשות יציאה",
+              title: "בקשות יציאה — מכינת ניר עוז",
+              header: ["חניך", "סוג", "מתאריך", "עד תאריך", "פירוט", "אישור מחלה", "סטטוס", "הוכרע על ידי"],
+              rows: data.requests.map((r) => [
+                r.student ? r.student.name : "", r.type, dmy(r.date),
+                r.endDate && r.endDate !== r.date ? dmy(r.endDate) : "",
+                r.detail || "", r.hasFile ? "צורף" : "", r.status, r.decidedBy || "",
+              ]),
+              widths: [20, 10, 12, 12, 34, 11, 10, 16],
+            });
+            say("הקובץ ירד");
+          }}><MI.dl />הורדת כל הבקשות לאקסל</button>
+      )}
 
       {list.length === 0 ? (
         <div className="empty">
@@ -1291,6 +1351,7 @@ function RateLessons({ say }) {
      חדש שרועי יוסיף ב-monday יופיע כאן מעצמו.
    ============================================================ */
 function RoleHolders({ say }) {
+  useExcel();
   const { data, err, busy, reload } = useLoad(() => api.getStudents(), []);
   const [busyId, setBusyId] = useState(null);
   const [patch, setPatch] = useState({});
@@ -1340,6 +1401,22 @@ function RoleHolders({ say }) {
         </div>
       </div>
 
+      <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 10 }}
+        onClick={() => {
+          downloadTable({
+            file: "בעלי-תפקידים",
+            sheet: "בעלי תפקידים",
+            title: "בעלי תפקידים — מכינת ניר עוז",
+            header: ["חניך", "תפקידים"],
+            rows: data.students.map((s) => {
+              const r = rolesOf(s);
+              return [s.name, r.length ? r.join(" · ") : ""];
+            }),
+            widths: [22, 34],
+          });
+          say("הקובץ ירד");
+        }}><MI.dl />הורדה לאקסל</button>
+
       <input className="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="חיפוש חניך" />
 
       <div className="rows">
@@ -1378,12 +1455,12 @@ export function MechinaStaff({ say, sub0 }) {
   const [sub, setSub] = useState(sub0 || "mark");
   const [student, setStudent] = useState(null);
 
+  /* ⚠ מובילי שבוע ובעלי תפקידים עברו לדף נפרד — MechinaRolesPage.
+     הנוכחות נשארה נוכחות. */
   const tabs = [
     ["mark", "סימון יומי"],
     ["students", "חניכים"],
     ["requests", "בקשות יציאה"],
-    ["leaders", "מובילי שבוע"],
-    ["roles", "בעלי תפקידים"],
   ];
 
   return (
@@ -1391,7 +1468,7 @@ export function MechinaStaff({ say, sub0 }) {
       <div className="screen-title">נוכחות</div>
 
       {!student && (
-        <div className="seg seg-scroll">
+        <div className="seg">
           {tabs.map(([k, l]) => (
             <button key={k} className={sub === k ? "on" : ""} onClick={() => setSub(k)}>{l}</button>
           ))}
@@ -1404,10 +1481,215 @@ export function MechinaStaff({ say, sub0 }) {
       {sub === "students" && (
         student
           ? <StudentDetail student={student} say={say} onBack={() => setStudent(null)} />
-          : <StudentsList onOpen={setStudent} />
+          : <StudentsList onOpen={setStudent} say={say} />
       )}
       {sub === "requests" && <ManagerRequests say={say} />}
-      {sub === "leaders" && <Leaders say={say} />}
+    </>
+  );
+}
+
+/* ============================================================
+   שיבוץ מובילי השבוע — 43 שבועות מקובץ הלו״ז
+   ------------------------------------------------------------
+   ⚠ מי שמשובץ לשבוע הנוכחי מקבל אוטומטית את הרשאת המוביל
+     (סימון נוכחות, שיעורים) — לשבוע הזה בלבד. אין צורך לסמן
+     ולבטל ידנית בכל החלפה.
+   ============================================================ */
+/* קלט תאריך בתוך פאנל השבוע — אותו מראה כמו .fld input, בלי העטיפה */
+const weekDateInp = {
+  flex: 1, minWidth: 0, minHeight: 42, background: "var(--surface)",
+  border: "1px solid var(--line2)", borderRadius: 11, padding: "0 9px",
+  outline: "none", fontSize: 14,
+};
+
+function WeekLeaders({ say }) {
+  useExcel();
+  const td = testDate();
+  const { data, err, busy, reload } = useLoad(() => api.getLeaderWeeks(td), [td]);
+  const [open, setOpen] = useState(null); // weekId שנבחר לעריכה
+  const [pick, setPick] = useState([]);
+  const [q, setQ] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [past, setPast] = useState(false);
+  const [dates, setDates] = useState({ start: "", end: "" });
+  const [editDates, setEditDates] = useState(false);
+
+  if (busy && !data) return <Loading what="טוען שיבוץ" />;
+  if (err) return <LoadFail msg={err} onRetry={reload} />;
+  if (!data) return null;
+
+  const shown = past ? data.weeks : data.weeks.filter((w) => w.end >= data.today || w.isCurrent);
+  const hidden = data.weeks.length - shown.length;
+
+  const openWeek = (w) => {
+    setOpen(w.id);
+    setPick(w.leaders.map((l) => l.id));
+    setQ("");
+    setDates({ start: w.start, end: w.end });
+    setEditDates(false);
+  };
+  const toggle = (id) =>
+    setPick((p) => {
+      if (p.includes(id)) return p.filter((x) => x !== id);
+      if (p.length >= 3) { say("עד שלושה מובילים לשבוע"); return p; }
+      return [...p, id];
+    });
+
+  const save = (w) => {
+    if (saving) return;
+    setSaving(true);
+    api.assignWeek({ weekId: w.id, studentIds: pick })
+      .then(() => { say(`${w.name} — השיבוץ נשמר`); setOpen(null); reload(); })
+      .catch((e) => say(e.message))
+      .finally(() => setSaving(false));
+  };
+
+  const saveDates = (w) => {
+    if (saving) return;
+    if (!dates.start || !dates.end) { say("יש למלא את שני התאריכים"); return; }
+    if (dates.end < dates.start) { say("תאריך הסיום לפני תאריך ההתחלה"); return; }
+    setSaving(true);
+    api.editWeek({ weekId: w.id, start: dates.start, end: dates.end })
+      .then(() => { say(`${w.name} — התאריכים עודכנו`); setEditDates(false); reload(); })
+      .catch((e) => say(e.message))
+      .finally(() => setSaving(false));
+  };
+
+  const roster = data.roster.filter((s) => !q.trim() || s.name.includes(q.trim()));
+  /* כמה פעמים החניך הוביל בשבועות אחרים — בלי השבוע הפתוח עכשיו */
+  const ledElsewhere = (s, w) =>
+    (data.leadCounts?.[s.id] || 0) - (w.leaderIds?.includes(s.id) ? 1 : 0);
+
+  const exportWeeks = () => {
+    downloadTable({
+      file: "מובילי-שבוע",
+      sheet: "מובילי שבוע",
+      title: "שיבוץ מובילי שבוע — מכינת ניר עוז",
+      header: ["שבוע", "מתאריך", "עד תאריך", "מה בשבוע", "מובילים", "מלווה", "פתוח לשיבוץ", "הערה"],
+      rows: data.weeks.map((w) => [
+        w.name, dmy(w.start), dmy(w.end), w.what || "",
+        w.leaders.map((l) => l.name).join(" · "),
+        w.escort || "", w.assignable ? "כן" : "לא (חג/סדרה)", w.note || "",
+      ]),
+      widths: [10, 12, 12, 16, 30, 14, 14, 24],
+    });
+    say("הקובץ ירד");
+  };
+
+  return (
+    <>
+      <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 10 }}
+        onClick={exportWeeks}><MI.dl />הורדת השיבוץ לאקסל</button>
+
+      {hidden > 0 && !past && (
+        <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 10 }}
+          onClick={() => setPast(true)}>הצגת {hidden} שבועות שעברו</button>
+      )}
+
+      <div className="rows">
+        {shown.map((w) => (
+          <div key={w.id} style={w.isCurrent ? { background: "#FDF6E7" } : undefined}>
+            <button className="st-row" style={!w.assignable ? { opacity: 0.55 } : undefined}
+              onClick={() => open === w.id ? setOpen(null) : openWeek(w)}>
+              <div className="st-main">
+                <div className="st-n">
+                  {w.name}
+                  {w.isCurrent && <span className="pill p-new" style={{ marginRight: 7 }}>השבוע</span>}
+                </div>
+                <div className="st-m">
+                  <span className="num">{dm(w.start)}–{dm(w.end)}</span>
+                  {w.what && w.what !== "רגיל" && <span>· {w.what}</span>}
+                </div>
+              </div>
+              <div style={{ flex: "0 1 auto", minWidth: 0, textAlign: "left", fontSize: 12.5,
+                            fontWeight: 700, color: w.leaders.length ? "var(--ink)" : "var(--faint)",
+                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {!w.assignable ? "ללא שיבוץ"
+                  : w.leaders.length ? w.leaders.map((l) => l.name.split(" ")[0]).join(" · ") : "לא שובץ"}
+              </div>
+              <MI.chev style={{ transform: open === w.id ? "rotate(-90deg)" : "none", color: "var(--line2)" }} />
+            </button>
+
+            {open === w.id && (
+              <div style={{ padding: "0 13px 13px", borderBottom: "1px solid var(--line)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  {editDates ? (
+                    <>
+                      <input type="date" style={weekDateInp}
+                        value={dates.start}
+                        onChange={(e) => setDates((d) => ({ ...d, start: e.target.value }))} />
+                      <span style={{ color: "var(--faint)" }}>עד</span>
+                      <input type="date" style={weekDateInp}
+                        value={dates.end}
+                        onChange={(e) => setDates((d) => ({ ...d, end: e.target.value }))} />
+                      <button className="btn btn-primary btn-sm" disabled={saving}
+                        onClick={() => saveDates(w)}>{saving ? "…" : "עדכון"}</button>
+                    </>
+                  ) : (
+                    <button className="btn btn-ghost btn-sm" style={{ width: "100%" }}
+                      onClick={() => setEditDates(true)}>עריכת תאריכי השבוע</button>
+                  )}
+                </div>
+
+                {!w.assignable ? (
+                  <div style={{ fontSize: 13, color: "var(--faint)", textAlign: "center", padding: "6px 0" }}>
+                    {(w.what && w.what !== "רגיל") ? w.what : "חג / סדרה"} — השבוע אינו פתוח לשיבוץ
+                  </div>
+                ) : (
+                  <>
+                    <input className="search" style={{ marginBottom: 8 }} value={q} autoFocus
+                      onChange={(e) => setQ(e.target.value)} placeholder="חיפוש חניך לשיבוץ" />
+                    <div style={{ maxHeight: "34vh", overflowY: "auto",
+                                  border: "1px solid var(--line)", borderRadius: 12 }}>
+                      {roster.map((s) => {
+                        const led = ledElsewhere(s, w);
+                        return (
+                          <button key={s.id} className="st-row" style={{ minHeight: 48, padding: "6px 12px" }}
+                            onClick={() => toggle(s.id)}>
+                            <div className={"tick" + (pick.includes(s.id) ? " on" : "")}>
+                              {pick.includes(s.id) && <MI.check style={{ color: "#fff" }} />}
+                            </div>
+                            <div className="st-main"><div className="st-n" style={{ fontSize: 14 }}>{s.name}</div></div>
+                            {led > 0 && (
+                              <span style={{ fontSize: 11.5, fontWeight: 800, padding: "3px 8px",
+                                             borderRadius: 999, whiteSpace: "nowrap",
+                                             background: led >= 2 ? "#B3541E" : "#EAE3D5",
+                                             color: led >= 2 ? "#fff" : "#6B6254" }}>
+                                {led >= 2 ? `הוביל ×${led}` : "הוביל פעם"}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <button className="btn btn-primary btn-sm" style={{ width: "100%", marginTop: 9 }}
+                      disabled={saving} onClick={() => save(w)}>
+                      {saving ? "שומר…" : `שמירת השיבוץ (${pick.length})`}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/* ============================================================
+   תפקידים במכינה — דף עצמאי, נפרד לגמרי מהנוכחות
+   ============================================================ */
+export function MechinaRolesPage({ say, sub0 }) {
+  const [sub, setSub] = useState(sub0 || "weeks");
+  return (
+    <>
+      <div className="screen-title">תפקידים במכינה</div>
+      <div className="seg">
+        <button className={sub === "weeks" ? "on" : ""} onClick={() => setSub("weeks")}>מובילי שבוע</button>
+        <button className={sub === "roles" ? "on" : ""} onClick={() => setSub("roles")}>בעלי תפקידים</button>
+      </div>
+      {sub === "weeks" && <WeekLeaders say={say} />}
       {sub === "roles" && <RoleHolders say={say} />}
     </>
   );
@@ -1557,6 +1839,11 @@ export function MechinaApp({ auth, onSignedOut }) {
 
         {tab === "home" && (
           <>
+            <div className="photo-hero">
+              <img src="/photos/student.jpg" alt="חניכי המכינה" />
+              <div className="ph-cap">שלום, {(auth.name || "").split(" ")[0]}</div>
+            </div>
+
             {year.busy && !year.data && <Loading what="טוען את הנוכחות שלך" />}
             {year.data && (
               <>

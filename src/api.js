@@ -221,6 +221,18 @@ export const api = {
   setShoppingStatus: ({ itemId, status }) => put("/api/container?action=shop", { itemId, status }),
   deleteShopping: (itemId) => del("/api/container?action=shop", { itemId }),
 
+  /** שיבוץ מובילי השבוע — 43 השבועות והרשימה לשיבוץ. מנהל בלבד. */
+  getLeaderWeeks: (today) =>
+    get("/api/students?action=weeks" + (today ? "&today=" + encodeURIComponent(today) : "")),
+
+  /** שיבוץ מובילים לשבוע. נושא את הרשימה המלאה (עד 3). */
+  assignWeek: ({ weekId, studentIds }) =>
+    post("/api/students?action=weeks", { weekId, studentIds }),
+
+  /** עריכת תאריכי שבוע. מנהל בלבד. */
+  editWeek: ({ weekId, start, end }) =>
+    put("/api/students?action=weeks", { weekId, start, end }),
+
   /** קביעת תפקידי חניך. מנהל בלבד. נושא את הרשימה המלאה. */
   setRoles: ({ studentId, roles }) =>
     post("/api/students?action=role", { studentId, roles }),

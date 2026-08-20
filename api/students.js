@@ -3,7 +3,8 @@
      ?action=login   POST   תעודת זהות → סשן חניך
      ?action=list    GET    רשימת החניכים וסיכומיהם (מנהל בלבד)
      ?action=year    GET    הלוח השנתי של חניך אחד
-     ?action=leader  POST   מינוי או ביטול מוביל שבוע (מנהל בלבד)
+     ?action=leader  POST   סימון ידני של מוביל (עוקף חירום, מנהל)
+     ?action=weeks   GET/POST שיבוץ מובילי השבוע (מנהל בלבד)
      ?action=role    POST   קביעת תפקידים לחניך (מנהל בלבד)
      ?action=profile GET/POST  הפרופיל האישי
      ?action=incident GET/POST אירועים חריגים (מנהל בלבד)
@@ -20,7 +21,8 @@ import list from "./_students-list.js";
 import year from "./_student-year.js";
 import leader from "./_student-leader.js";
 import role from "./_student-role.js";
+import weeks from "./_leader-weeks.js";
 import profile from "./_student-profile.js";
 import incident from "./_student-incidents.js";
 
-export default router({ login, list, year, leader, role, profile, incident });
+export default router({ login, list, year, leader, weeks, role, profile, incident });
