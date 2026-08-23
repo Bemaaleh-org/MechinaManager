@@ -4,19 +4,15 @@
    ⚠ אין לערוך ידנית. הקובץ נכתב מחדש במלואו על ידי
      tools/seed-kitchen.mjs כשהוא יוצר את הלוחות ב-monday.
 
-   כל עוד המזהים ריקים, נקודות הקצה של המטבח מחזירות שגיאה
-   מפורשת ולא רשימה ריקה — כשל הקמה חייב להיראות אחרת
-   מ"אין ציוד".
-
-   להקמה:  node --env-file=.env tools/seed-kitchen.mjs
+   נוצר על ידי רועי הוניג.
    ============================================================ */
 
 export const KITCHEN_BOARDS = {
-  equipment: "",
-  shopping: "",
+  equipment: "5102761634",
+  shopping: "5102761635",
 };
 
 export const KITCHEN_COLS = {
-  equipment: { qty: "", kind: "", area: "", par: "" },
-  shopping: { qty: "", date: "", status: "", by: "", area: "" },
+  equipment: { qty: "text_mm6gpsc7", kind: "color_mm6g5xe4", area: "color_mm6gthnf", par: "numeric_mm6gfk9m" },
+  shopping: { qty: "text_mm6g3rtt", date: "date_mm6grr9a", status: "color_mm6gbf5k", by: "text_mm6gfn7v", area: "color_mm6ggr80" },
 };
