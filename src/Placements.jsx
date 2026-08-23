@@ -38,6 +38,45 @@ function useLoad(fn, deps = []) {
   return { data, err, busy, reload: run };
 }
 
+/* ---------- הקמה בלחיצה ----------
+   בפיתוח מקומי שרת ה-vite מחובר ל-monday דרך .env, ולכן הוא
+   יכול ליצור את הלוחות ולכתוב את המזהים בעצמו. בדיפלוי
+   הפעולה אינה קיימת (ראו _placements-setup.js) — שם יופיע
+   הכרטיס בלי הכפתור, עם השגיאה שהשרת מחזיר. */
+function SetupCard({ say, onDone }) {
+  const [busy, setBusy] = useState(false);
+  const [failMsg, setFailMsg] = useState(null);
+
+  const run = () => {
+    if (busy) return;
+    setBusy(true); setFailMsg(null);
+    api.setupPlacements()
+      .then((r) => {
+        say(`הלוחות נוצרו — נזרעו ${r.seeded} שיבוצים`);
+        onDone();
+      })
+      .catch((e) => setFailMsg(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <div className="card" style={{ padding: "24px 20px", textAlign: "center" }}>
+      <div style={{ marginBottom: 8 }}><PI.users /></div>
+      <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>
+        שיבוצי החניכים עדיין לא חוברו ל-monday
+      </div>
+      <div style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600, marginBottom: 16, lineHeight: 1.6 }}>
+        לחיצה אחת תיצור את הלוחות ותזרע את הענפים, הסדרות,
+        הוועדות והקבוצות. לוקח כחצי דקה.
+      </div>
+      {failMsg && <div className="login-err" style={{ marginBottom: 12 }}>{failMsg}</div>}
+      <button className="btn btn-primary" disabled={busy} onClick={run}>
+        {busy ? "יוצר לוחות וזורע… נא לא לסגור" : "יצירת הלוחות עכשיו"}
+      </button>
+    </div>
+  );
+}
+
 /* ---------- עריכת המשובצים בשיבוץ+סמסטר אחד ---------- */
 function AssignEditor({ def, semester, assigned, roster, say, onDone, onCancel }) {
   const [picked, setPicked] = useState(() => new Set(assigned.map((a) => a.student)));
@@ -154,13 +193,7 @@ export function PlacementsPage({ say }) {
   if (busy && !data) return (
     <div className="empty" style={{ paddingTop: 60 }}><div className="e1">טוען שיבוצים…</div></div>
   );
-  if (err?.setupRequired) return (
-    <div className="card" style={{ padding: "22px 20px", textAlign: "center" }}>
-      <div style={{ marginBottom: 8 }}><PI.users /></div>
-      <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>שיבוצי החניכים עדיין לא חוברו ל-monday</div>
-      <div style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600 }}>{err.message}</div>
-    </div>
-  );
+  if (err?.setupRequired) return <SetupCard say={say} onDone={reload} />;
   if (err) return (
     <div className="alert a-clay">
       <PI.warn />

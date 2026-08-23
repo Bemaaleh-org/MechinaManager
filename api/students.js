@@ -27,5 +27,7 @@ import weeks from "./_leader-weeks.js";
 import profile from "./_student-profile.js";
 import incident from "./_student-incidents.js";
 import placements from "./_placements.js";
+import placementsSetup from "./_placements-setup.js";
 
-export default router({ login, list, year, leader, weeks, role, profile, incident, placements });
+export default router({ login, list, year, leader, weeks, role, profile, incident, placements,
+  "placements-setup": placementsSetup });

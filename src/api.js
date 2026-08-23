@@ -197,6 +197,9 @@ export const api = {
   /** ההגדרות והשיבוצים. מנהל מקבל הכול; חניך — את שלו בלבד. */
   getPlacements: () => get("/api/students?action=placements"),
 
+  /** הקמת הלוחות בלחיצה — פיתוח מקומי בלבד, מנהל בלבד */
+  setupPlacements: () => post("/api/students?action=placements-setup", {}),
+
   /** שיבוץ לרשימה מלאה של חניכים בשיבוץ+סמסטר. מנהל בלבד. */
   assignPlacement: ({ placementId, semester, studentIds }) =>
     post("/api/students?action=placements", { placementId, semester, studentIds }),

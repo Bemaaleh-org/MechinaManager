@@ -17,5 +17,6 @@
 import { router } from "./_router.js";
 import equip from "./_kitchen-equip.js";
 import shop from "./_kitchen-shop.js";
+import doctor from "./_kitchen-doctor.js";
 
-export default router({ equip, shop });
+export default router({ equip, shop, doctor });
