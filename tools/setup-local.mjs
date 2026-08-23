@@ -20,13 +20,12 @@ import fs from "node:fs";
 import crypto from "node:crypto";
 import { execSync } from "node:child_process";
 
-import { BOARDS } from "../shared/boards.js";
-import { TASK_BOARDS } from "../shared/tasks-boards.js";
-import { DUTY_BOARD } from "../shared/duty-board.js";
 import { AUTH_BOARD } from "../shared/auth-board.js";
 import { LESSON_BOARDS } from "../shared/lessons-boards.js";
 import { MECHINA_BOARDS } from "../shared/mechina-boards.js";
 import { CONTAINER_BOARDS } from "../shared/container-boards.js";
+import { KITCHEN_BOARDS } from "../shared/kitchen-ids.js";
+import { PLACEMENT_BOARDS } from "../shared/placements-ids.js";
 
 const ok = (m) => console.log(`  ✓ ${m}`);
 const warn = (m) => console.log(`  ! ${m}`);
@@ -101,14 +100,20 @@ if (!env.MONDAY_TOKEN) {
   process.env.MONDAY_TOKEN = env.MONDAY_TOKEN;
   const { gql } = await import("../api/_monday.js");
 
+  /* ⚠ לוחות מחוללים (מטבח, שיבוצים) נבדקים רק אם הוקמו —
+     מזהה ריק פירושו שסקריפט ההקמה שלהם עוד לא רץ, וזו אינה
+     תקלה של העמדה. */
   const boards = {
-    ...BOARDS,
-    ...TASK_BOARDS,
-    duty: DUTY_BOARD,
     auth: AUTH_BOARD,
     ...LESSON_BOARDS,
     ...MECHINA_BOARDS,
     ...CONTAINER_BOARDS,
+    ...Object.fromEntries(Object.entries({
+      kitchenEquip: KITCHEN_BOARDS.equipment,
+      kitchenShop: KITCHEN_BOARDS.shopping,
+      placeDefs: PLACEMENT_BOARDS.definitions,
+      placeAsgn: PLACEMENT_BOARDS.assignments,
+    }).filter(([, id]) => id)),
   };
 
   try {

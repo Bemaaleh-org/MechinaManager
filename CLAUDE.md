@@ -205,6 +205,8 @@ api/            פונקציות השרת
 shared/         מזהי לוחות וקוד משותף ללקוח ולשרת
   kitchen-boards.js    ציוד המטבח: תחומים ותוויות
   kitchen-ids.js       ⚠ מחולל — נכתב על ידי tools/seed-kitchen.mjs
+  placements.js        שיבוצי חניכים: קטגוריות ותקופות
+  placements-ids.js    ⚠ מחולל — נכתב על ידי tools/seed-placements.mjs
   container-boards.js  ציוד המכינה
   par.js               חישוב המפתח, משותף לשני תחומי הציוד
   auth-board.js        הרשאות ⚠ שרת בלבד
@@ -218,6 +220,7 @@ src/
   Kitchen.jsx     הגדרת תחום המטבח (אוכל · חד״פ)
   Container.jsx   הגדרת תחום המכינה (מכולה · ניקיון)
   Mechina.jsx     נוכחות, חניכים, תפקידים
+  Placements.jsx  שיבוצי חניכים — מסך המנהל
   Lessons.jsx     שיעורים
   api.js          כל הקריאות לשרת — הדלת היחידה
   Login.jsx       מסך הכניסה
@@ -246,13 +249,16 @@ tools/          סקריפטים לתחזוקה ובדיקה
 | מצבת חניכים | החניכים, מגדר, מוביל | `shared/mechina-boards.js` |
 | לוח שנה, היעדרויות, בקשות | נוכחות ויציאות | `shared/mechina-boards.js` |
 | גיליונות, מפגשים, דירוגים | שיעורים | `shared/lessons-boards.js` |
+| שיבוצים – הגדרות | ענפים, סדרות, ועדות, קבוצות, מכסות | `shared/placements-ids.js` |
+| שיבוצים – שיבוץ | מי משובץ לאן ובאיזה סמסטר | `shared/placements-ids.js` |
 | משתמשים והרשאות | קודי כניסה ורשימת חניכים | `shared/auth-board.js` |
 
 לכל תחום קובץ `shared/` משלו, והוא היחיד שמכיר את מזהי העמודות שלו. עמודה
 שהוחלפה ב-monday → משנים שורה אחת שם. **לא לפזר מזהי עמודות בקוד.**
 
-⚠ `shared/kitchen-ids.js` הוא **קובץ מחולל** — הוא נכתב על ידי
-`tools/seed-kitchen.mjs` שיוצר את הלוחות. לא לערוך אותו ביד.
+⚠ `shared/kitchen-ids.js` ו-`shared/placements-ids.js` הם **קבצים
+מחוללים** — נכתבים על ידי סקריפטי ה-seed שיוצרים את הלוחות
+(`npm run seed:kitchen`, `npm run seed:placements`). לא לערוך ביד.
 
 התוויות בקוד חייבות להיות זהות **בתו** לתוויות שבלוחות — שימו לב לגרשיים
 עבריים (`״`, `׳`) מול רגילים. `"חד״פ"` ו-`"חד\"פ"` הן שתי תוויות שונות ב-monday,

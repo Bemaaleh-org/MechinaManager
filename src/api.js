@@ -192,6 +192,15 @@ export const api = {
   editWeek: ({ weekId, start, end }) =>
     put("/api/students?action=weeks", { weekId, start, end }),
 
+  /* ---------- שיבוצי חניכים ---------- */
+
+  /** ההגדרות והשיבוצים. מנהל מקבל הכול; חניך — את שלו בלבד. */
+  getPlacements: () => get("/api/students?action=placements"),
+
+  /** שיבוץ לרשימה מלאה של חניכים בשיבוץ+סמסטר. מנהל בלבד. */
+  assignPlacement: ({ placementId, semester, studentIds }) =>
+    post("/api/students?action=placements", { placementId, semester, studentIds }),
+
   /** קביעת תפקידי חניך. מנהל בלבד. נושא את הרשימה המלאה. */
   setRoles: ({ studentId, roles }) =>
     post("/api/students?action=role", { studentId, roles }),

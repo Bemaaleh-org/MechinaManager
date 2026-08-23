@@ -118,4 +118,4 @@ export const ROLE_SCHEDULE = "אחראי לו״ז";
 export const ROLE_CONTAINER = "אחראי מכולה";
 
 /** התפקידים שהוגדרו בהקמה. אינם רשימה סגורה. */
-export const KNOWN_ROLES = [ROLE_SCHEDULE, "אחראי מטבח", ROLE_CONTAINER];
+export const KNOWN_ROLES = [ROLE_SCHEDULE, "אחראי מטבח", ROLE_CONTAINER, "אב בית"];

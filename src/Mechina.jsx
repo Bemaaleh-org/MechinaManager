@@ -1350,7 +1350,7 @@ function RateLessons({ say }) {
    ⚠ רשימת התפקידים מגיעה מהגדרות העמודה בלוח ולא מהקוד. תפקיד
      חדש שרועי יוסיף ב-monday יופיע כאן מעצמו.
    ============================================================ */
-function RoleHolders({ say }) {
+export function RoleHolders({ say }) {
   useExcel();
   const { data, err, busy, reload } = useLoad(() => api.getStudents(), []);
   const [busyId, setBusyId] = useState(null);
@@ -1696,6 +1696,83 @@ export function MechinaRolesPage({ say, sub0 }) {
 }
 
 /* ============================================================
+   השיבוצים שלי — הדף של החניך
+   ------------------------------------------------------------
+   מציג את מה שהמנהל שיבץ: ענף לכל סמסטר, ועדות, סדרות
+   וקבוצות, והתפקידים האישיים מהמגירה של ההרשאות.
+
+   ⚠ השרת מחזיר לחניך את השיבוצים שלו בלבד — הסינון שם,
+     לא כאן.
+   ============================================================ */
+function MyPlacements({ say }) {
+  const { data, err, busy, reload } = useLoad(() => api.getPlacements(), []);
+
+  if (busy && !data) return <Loading what="טוען את השיבוצים" />;
+  if (err && err.setupRequired) return (
+    <div className="card" style={{ padding: "22px 20px", textAlign: "center" }}>
+      <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>השיבוצים עוד לא פתוחים</div>
+      <div style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600 }}>
+        כשהצוות יגדיר אותם — הם יופיעו כאן.
+      </div>
+    </div>
+  );
+  if (err) return <LoadFail msg={err.message || String(err)} onRetry={reload} />;
+  if (!data) return null;
+
+  const defs = Object.fromEntries((data.definitions || []).map((d) => [d.id, d]));
+  const mine = (data.mine || [])
+    .map((m) => ({ ...m, def: defs[m.placement] }))
+    .filter((m) => m.def);
+
+  /* סדר קבוע: ענף, ועדה, סדרה, קבוצה — ובתוך זה לפי סמסטר */
+  const CATS = [
+    ["ענף", "הענף שלי", "🌾"],
+    ["ועדה", "הוועדות שלי", "🤝"],
+    ["סדרה", "סדרות", "🎒"],
+    ["קבוצה", "קבוצות", "🎵"],
+  ];
+  const semOrder = { "סמסטר א׳": 0, "סמסטר ב׳": 1, "שנתי": 2 };
+
+  return (
+    <>
+      <div className="screen-title">השיבוצים שלי</div>
+
+      {mine.length === 0 && (
+        <div className="empty">
+          <div className="e1">עוד לא שובצת</div>
+          <div className="e2">כשהצוות ישבץ — הכול יופיע כאן.</div>
+        </div>
+      )}
+
+      {CATS.map(([cat, title, emoji]) => {
+        const list = mine
+          .filter((m) => m.def.category === cat)
+          .sort((a, b) => (semOrder[a.semester] ?? 9) - (semOrder[b.semester] ?? 9));
+        if (!list.length) return null;
+        return (
+          <div key={cat} style={{ marginBottom: 16 }}>
+            <div className="sec-label">{title}</div>
+            {list.map((m) => (
+              <div key={m.id} className="card" style={{
+                marginBottom: 8, display: "flex", alignItems: "center", gap: 12,
+              }}>
+                <span style={{ fontSize: 26 }} aria-hidden="true">{emoji}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15.5, fontWeight: 800 }}>{m.def.name}</div>
+                  <div style={{ fontSize: 12.5, color: "var(--muted)", fontWeight: 600 }}>
+                    {m.semester === "שנתי" ? "לאורך כל השנה" : m.semester}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+/* ============================================================
    האפליקציה של החניך — שלד מלא משלה
    ⚠ אין כאן טאב מטבח. השרת דוחה סשן חניך מכל נקודות הקצה של
      המטבח, ולכן טאב כזה היה מוביל למסך שגיאה בלבד.
@@ -1786,6 +1863,7 @@ export function MechinaApp({ auth, onSignedOut }) {
             { key: "requests", label: "בקשות יציאה", icon: <MI.note />, badge: unseen,
               active: tab === "requests", onClick: () => setTab("requests") },
             { key: "profile", label: "הפרופיל שלי", icon: <MI.users />, active: tab === "profile", onClick: () => setTab("profile") },
+            { key: "placements", label: "השיבוצים שלי", icon: <MI.users />, active: tab === "placements", onClick: () => setTab("placements") },
           ] },
           ...(auth.isLeader || auth.isScheduler || auth.isContainer ? [{
             label: "תפקידים", items: [
@@ -1918,6 +1996,8 @@ export function MechinaApp({ auth, onSignedOut }) {
         {/* ⚠ מוביל שבוע בלבד. auth.isLeader מגיע מהסשן ונקרא טרי
             מהלוח בכל בקשה — מנהל שמבטל את המינוי מנתק את הגישה
             בלי שהחניך צריך להתנתק. השרת אוכף, זו רק התצוגה. */}
+        {tab === "placements" && <MyPlacements say={say} />}
+
         {tab === "profile" && (
           <>
             <div className="screen-title">הפרופיל שלי</div>

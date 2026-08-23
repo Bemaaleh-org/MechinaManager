@@ -6,6 +6,7 @@ import Login from "./Login.jsx";
 import { MechinaApp, MechinaStaff, MechinaRolesPage } from "./Mechina.jsx";
 import { LessonsPage } from "./Lessons.jsx";
 import { ContainerPage } from "./Container.jsx";
+import { PlacementsPage } from "./Placements.jsx";
 import { KitchenPage } from "./Kitchen.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
 import { testDate } from "./testDate.js";
@@ -210,9 +211,10 @@ function Staff({ auth, onSignedOut }) {
               { key: "a-requests", label: "בקשות יציאה", icon: <I.note />, badge: pendingList.length,
                 active: false, onClick: () => goStaff("requests") },
             ] },
-            { label: "תפקידים במכינה", items: [
+            { label: "תפקידים ושיבוצים", items: [
               { key: "a-leaders", label: "מובילי שבוע", icon: <I.day />, active: section === "roles", onClick: () => goRoles("weeks") },
-              { key: "a-roles", label: "בעלי תפקידים", icon: <I.gear />, active: false, onClick: () => goRoles("roles") },
+              { key: "a-place", label: "שיבוצי חניכים", icon: <I.users />, active: section === "placements",
+                onClick: () => setSection("placements") },
             ] },
             { label: "שיעורים", items: [
               { key: "l-sheets", label: "גיליונות מרצים", icon: <I.book />, active: false, onClick: () => goLessons("sheets") },
@@ -272,6 +274,7 @@ function Staff({ auth, onSignedOut }) {
           {section === "roles" && isMgr && (
             <MechinaRolesPage say={say} key={rolesNav.n} sub0={rolesNav.sub || undefined} />
           )}
+          {section === "placements" && isMgr && <PlacementsPage say={say} />}
           {section === "container" && isMgr && <ContainerPage say={say} area={cArea} />}
         </main>
 

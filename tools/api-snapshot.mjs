@@ -111,6 +111,8 @@ const ENDPOINTS = [
   { p: "/api/students?action=incident" },
   { p: "/api/students?action=login", body: {}, note: "בלי תעודת זהות" },
   { p: "/api/students?action=role", body: {}, note: "בלי חניך" },
+  { p: "/api/students?action=placements" },
+  { p: "/api/students?action=placements", body: {}, note: "בלי שיבוץ" },
   { p: "/api/students?action=leader", body: {}, note: "בלי חניך" },
 
   /* --- נוכחות --- */
