@@ -31,7 +31,7 @@
 - **צד לקוח:** React + Vite
 - **צד שרת:** פונקציות serverless על Vercel, בתיקיית `api/`
 - **נתונים:** יושבים על monday.com — אין בסיס נתונים אחר
-- **קוד:** GitHub, מאגר פרטי `Bemaaleh/MechinaKitchen`
+- **קוד:** GitHub, מאגר פרטי `Bemaaleh-org/MechinaManager`
 
 ---
 
@@ -72,8 +72,8 @@ cat ~/.ssh/id_ed25519.pub
 
 ```bash
 cd ~/Desktop
-git clone git@github.com:Bemaaleh/MechinaKitchen.git
-cd MechinaKitchen
+git clone git@github.com:Bemaaleh-org/MechinaManager.git
+cd MechinaManager
 npm install
 ```
 
@@ -93,6 +93,7 @@ SESSION_SECRET=...
 ### 5. הרצה מקומית
 
 ```bash
+npm run setup     # מאמת טוקן, לוחות, וזהות גיט
 npm run dev
 ```
 
