@@ -33,28 +33,5 @@ export const KITCHEN_SHOP_STATUS = { open: "פתוח", bought: "נקנה" };
 export const KITCHEN_AREA = { food: "אוכל", disposable: "חד״פ" };
 export const KITCHEN_AREAS = [KITCHEN_AREA.food, KITCHEN_AREA.disposable];
 
-/**
- * הכמות כמספר, מתוך טקסט חופשי:
- *   "40 חבילות של 10"  → 40
- *   "2 קופסאות קילו"   → 2
- *   "שק 1"             → 1
- *   ""                 → null
- * ⚠ המספר הראשון בלבד — הוא הכמות, ומה שאחריו הוא תיאור
- *   האריזה. "40 חבילות של 10" הן ארבעים חבילות, לא עשר.
- */
-export function qtyNumber(text) {
-  const m = String(text ?? "").match(/-?\d+(\.\d+)?/);
-  return m ? Number(m[0]) : null;
-}
-
-/**
- * כמה חסר לפריט ביחס למפתח שלו.
- * null = אין מה לחשב (אין מפתח, או שהכמות אינה מספר).
- * 0    = יש מספיק.
- */
-export function missingFor(item) {
-  if (item?.par == null) return null;
-  const have = qtyNumber(item.qty);
-  if (have == null) return null;
-  return Math.max(0, item.par - have);
-}
+/* חישוב המפתח משותף לשני תחומי הציוד — ראו shared/par.js */
+export { qtyNumber, missingFor } from "./par.js";

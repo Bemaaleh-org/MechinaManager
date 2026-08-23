@@ -68,88 +68,32 @@ export const api = {
   setMyName: (name) => post("/api/auth?action=me", { name }),
 
   /** רשימת משתמשים לתצוגה. בלי קודים, מנהל בלבד. */
-  getUsers: () => get("/api/kitchen?action=users"),
-
-  /** רשימות הקניות, כל אחת עם השורות שלה */
-  getLists: () => get("/api/kitchen?action=lists-read"),
-
-  getCatalog: () => get("/api/kitchen?action=catalog"),
-  getMoves: () => get("/api/kitchen?action=moves-read"),
-
-  /** תורני היום מלוח השיבוץ. רשימה ריקה = אין מה להציג. */
-  getDutyToday: (date) =>
-    get("/api/kitchen?action=duty-today" + (date ? `&date=${encodeURIComponent(date)}` : "")),
-
-  /** שיבוץ השבוע כולו — 7 תאים לפי אינדקס היום. קריאה בלבד. */
-  getDutyWeek: (date) =>
-    get("/api/kitchen?action=duty-week" + (date ? `&date=${encodeURIComponent(date)}` : "")),
-
-  /* --- משימות ניקיון שבועיות --- */
-
-  /** מוודא שקיימות שורות ביצוע לשבוע הנוכחי. אידמפוטנטי. */
-  ensureWeek: () => post("/api/kitchen?action=tasks-ensure", {}),
-
-  /** משימות היום לפי שעון ישראל. date אופציונלי — מצב בדיקה בלבד. */
-  getTodayTasks: (date) =>
-    get("/api/kitchen?action=tasks-today" + (date ? `&date=${encodeURIComponent(date)}` : "")),
-
-  /** מסמן משימה. שולח את המצב הרצוי, לא "הפוך". */
-  setTaskDone: (rowId, done) => post("/api/kitchen?action=tasks-toggle", { rowId, done }),
-
-  /** סיכום שבועי למנהל. קריאה בלבד, ברמת יום — בלי שמות. */
-  getTasksSummary: (date) =>
-    get("/api/kitchen?action=tasks-summary" + (date ? `&date=${encodeURIComponent(date)}` : "")),
-
-  /** פירוט משימות של יום אחד. מנהל בלבד, קריאה בלבד. */
-  getTasksDay: (day, date) =>
-    get(`/api/kitchen?action=tasks-day&day=${encodeURIComponent(day)}`
-        + (date ? `&date=${encodeURIComponent(date)}` : "")),
-
-  /** קבלת סחורה: כמויות לפי rowId. סוגרת את הרשימה ומעדכנת מלאי. */
-  receiveList: ({ listId, user, received }) =>
-    post("/api/kitchen?action=lists-receive", { listId, user: { name: user.name }, received }),
-
-  /** מוודא שהרשימות החיות משקפות את החוסרים הנוכחיים. אידמפוטנטי. */
-  syncLists: () => post("/api/kitchen?action=lists-sync", {}),
-
-  /** מעבר סטטוס של רשימה. השרת אוכף מי רשאי ואילו מעברים חוקיים. */
-  setListStatus: ({ listId, to, user }) =>
-    post("/api/kitchen?action=lists-status", { listId, to, user: { name: user.name, role: user.role } }),
-
-  /** עריכה ידנית של שורה: add / setQty / remove */
-  editRow: (body) => post("/api/kitchen?action=lists-row", body),
-
-  /** פותח רשימת טיוטה לספק. מחזיר את הקיימת אם יש. */
-  createList: ({ sup, user }) =>
-    post("/api/kitchen?action=lists-create", { sup, user: { name: user.name } }),
-
-  /** דיווח יומי: קבלה / שימוש / פחת */
-  commitMoves: ({ type, user, entries }) =>
-    post("/api/kitchen?action=moves-commit", {
-      type,
-      user,
-      entries: entries.map((e) => ({
-        pid: e.pid,
-        qty: e.qty,
-        reason: e.reason || null,
-      })),
-    }),
-
-  /** ביטול דיווח — מסמן אותו כמבוטל ומחזיר את המלאי */
-  cancelMove: (moveId) => post("/api/kitchen?action=moves-cancel", { moveId }),
-
-  /** ספירה שבועית: קובעת מלאי וסימון תוקף */
-  finishCount: ({ user, entries }) => post("/api/kitchen?action=moves-count", { user, entries }),
-
   /* ============================================================
-     מכינה — חניכים, נוכחות ובקשות יציאה
-     ------------------------------------------------------------
-     ⚠ כל הקריאות האלה עוברות דרך הקובץ הזה כמו כל השאר. אין
-       fetch ישיר במסכים — זה מה שמנע את חזרת הבאג שבו קובץ
-       אחד החזיק כתובות ישנות והקטלוג חזר ריק בייצור.
+     ציוד המטבח — אוכל וחד״פ
+     ⚠ אותו דפוס בדיוק כמו ציוד המכינה למטה. שני התחומים
+       חולקים מסך אחד (Equipment.jsx) ונבדלים רק בלוח.
      ============================================================ */
 
-  /** כניסת חניך בתעודת זהות. השרת מחזיר עוגייה, כמו בכניסת הצוות. */
+  /** הציוד של התחום ורשימת הקניות שלו */
+  getKitchen: (area) =>
+    get("/api/kitchen?action=equip" + (area ? "&area=" + encodeURIComponent(area) : "")),
+
+  /** פריט חדש. par ריק = בלי מפתח. */
+  addKitchenItem: ({ name, qty, kind, par, area }) =>
+    post("/api/kitchen?action=equip", { name, qty, kind, par, area }),
+
+  /** עריכת פריט. שדה שלא נשלח אינו משתנה. */
+  editKitchenItem: ({ itemId, name, qty, kind, par }) =>
+    put("/api/kitchen?action=equip", { itemId, name, qty, kind, par }),
+
+  /** ⚠ מחיקה — בלתי הפיך, השורה נמחקת מהלוח */
+  deleteKitchenItem: (itemId) => del("/api/kitchen?action=equip", { itemId }),
+
+  addKitchenShopping: (items, area) => post("/api/kitchen?action=shop", { items, area }),
+  setKitchenShoppingStatus: ({ itemId, status }) =>
+    put("/api/kitchen?action=shop", { itemId, status }),
+  deleteKitchenShopping: (itemId) => del("/api/kitchen?action=shop", { itemId }),
+
   loginStudent: (tz) => post("/api/students?action=login", { tz }),
 
   /** רשימת החניכים וסיכומיהם. מנהל בלבד — השרת אוכף. */

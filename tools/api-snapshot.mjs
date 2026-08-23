@@ -10,9 +10,8 @@
    ⚠ בקשות POST נשלחות עם גוף ריק כדי לתעד את מסלול האימות
      ולא לשנות נתונים. שני חריגים אידמפוטנטיים מסומנים למטה.
 
-   ⚠ התווית בתיעוד היא שם נקודת הקצה ההיסטורי, גם אחרי שהפונקציות
-     אוחדו. הכתובת בפועל נגזרת ממנה ב-URL_OF. כך התיעוד שנשמר
-     לפני האיחוד ניתן להשוואה שורה מול שורה עם זה שאחריו.
+   ⚠ הכתובות כאן הן הכתובות בפועל. המיפוי ההיסטורי מתקופת איחוד
+     הפונקציות הוסר יחד עם תחום המלאי שהוא תיעד.
 
    הרצה:
      node --env-file=.env tools/api-snapshot.mjs <קובץ-פלט>
@@ -26,35 +25,16 @@ import { authRows } from "../api/_session.js";
 const BASE = "http://localhost:5173";
 const OUT = process.argv[2] || "tools/snapshot.txt";
 
-/* ---------- מיפוי תווית → כתובת בפועל ---------- */
+/* ---------- שלוש כתובות שמורות ----------
+   נקודות הכניסה נקראות בנפרד בתחילת הריצה, ולכן יש להן תווית
+   קצרה. כל השאר נכתבות ככתובתן המלאה. */
 const URL_OF = {
-  "/api/catalog": "/api/kitchen?action=catalog",
-  "/api/users": "/api/kitchen?action=users",
-  "/api/lists": "/api/kitchen?action=lists-read",
-  "/api/moves": "/api/kitchen?action=moves-read",
-  "/api/duty-today": "/api/kitchen?action=duty-today",
-  "/api/duty-week": "/api/kitchen?action=duty-week",
-  "/api/tasks-today": "/api/kitchen?action=tasks-today",
-  "/api/tasks-summary": "/api/kitchen?action=tasks-summary",
   "/api/login": "/api/auth?action=login",
   "/api/logout": "/api/auth?action=logout",
   "/api/me": "/api/auth?action=me",
-  "/api/move-cancel": "/api/kitchen?action=moves-cancel",
-  "/api/count": "/api/kitchen?action=moves-count",
-  "/api/list-create": "/api/kitchen?action=lists-create",
-  "/api/list-row": "/api/kitchen?action=lists-row",
-  "/api/list-status": "/api/kitchen?action=lists-status",
-  "/api/list-receive": "/api/kitchen?action=lists-receive",
-  "/api/task-toggle": "/api/kitchen?action=tasks-toggle",
-  "/api/lists-sync": "/api/kitchen?action=lists-sync",
-  "/api/tasks-week": "/api/kitchen?action=tasks-ensure",
 };
 
-/** /api/moves הוא קריאה ב-GET ודיווח ב-POST */
-function urlFor(label, method) {
-  if (label === "/api/moves" && method === "POST") return "/api/kitchen?action=moves-commit";
-  return URL_OF[label];
-}
+const urlFor = (label) => URL_OF[label] || label;
 
 /** מוסיף פרמטר לכתובת שכבר עשויה להכיל אחד */
 const addParam = (url, param) => url + (url.includes("?") ? "&" : "?") + param;
@@ -106,30 +86,50 @@ function signature({ status, data }) {
 /* body: undefined = GET. אובייקט = POST.
    note: הערה שנרשמת לתיעוד. */
 const ENDPOINTS = [
-  { p: "/api/catalog" },
-  { p: "/api/lists" },
-  { p: "/api/moves" },
-  { p: "/api/users" },
-  { p: "/api/duty-today" },
-  { p: "/api/duty-week" },
-  { p: "/api/tasks-today" },
-  { p: "/api/tasks-summary" },
+  /* --- מטבח: ציוד אוכל וחד״פ --- */
+  { p: "/api/kitchen?action=equip" },
+  { p: "/api/kitchen?action=equip&area=חד״פ" },
+  { p: "/api/kitchen?action=equip&area=לא-קיים", note: "תחום פסול" },
+  { p: "/api/kitchen?action=shop", body: {}, note: "בלי פריטים" },
+  { p: "/api/kitchen?action=לא-קיים", note: "פעולה לא מוכרת" },
 
+  /* --- ציוד מכינה --- */
+  { p: "/api/container?action=equip" },
+  { p: "/api/container?action=equip&area=ניקיון" },
+  { p: "/api/container?action=shop", body: {}, note: "בלי פריטים" },
+
+  /* --- זהות --- */
   { p: "/api/login", body: {}, note: "בלי קוד" },
   { p: "/api/logout", body: {} },
   { p: "/api/me", body: {}, note: "בלי שם" },
 
-  { p: "/api/moves", body: {}, note: "בלי סוג תנועה" },
-  { p: "/api/move-cancel", body: {}, note: "בלי מזהה" },
-  { p: "/api/count", body: {}, note: "בלי ספירות" },
-  { p: "/api/list-create", body: {}, note: "בלי ספק" },
-  { p: "/api/list-row", body: {}, note: "בלי פעולה" },
-  { p: "/api/list-status", body: {}, note: "בלי רשימה" },
-  { p: "/api/list-receive", body: {}, note: "בלי רשימה" },
-  { p: "/api/task-toggle", body: {}, note: "בלי משימה" },
-  { p: "/api/lists-sync", body: {}, note: "⚠ אידמפוטנטי — מסנכרן בפועל" },
-  { p: "/api/tasks-week", body: {}, note: "⚠ אידמפוטנטי — השבוע כבר קיים" },
+  /* --- חניכים --- */
+  { p: "/api/students?action=list" },
+  { p: "/api/students?action=year", note: "בלי חניך" },
+  { p: "/api/students?action=weeks" },
+  { p: "/api/students?action=profile" },
+  { p: "/api/students?action=incident" },
+  { p: "/api/students?action=login", body: {}, note: "בלי תעודת זהות" },
+  { p: "/api/students?action=role", body: {}, note: "בלי חניך" },
+  { p: "/api/students?action=leader", body: {}, note: "בלי חניך" },
+
+  /* --- נוכחות --- */
+  { p: "/api/attendance?action=day" },
+  { p: "/api/attendance?action=requests" },
+  { p: "/api/attendance?action=mark", body: {}, note: "בלי תאריך" },
+  { p: "/api/attendance?action=decide", body: {}, note: "בלי בקשה" },
+  { p: "/api/attendance?action=train", body: {}, note: "בלי מפגש" },
+
+  /* --- שיעורים --- */
+  { p: "/api/lessons?action=list" },
+  { p: "/api/lessons?action=gantt" },
+  { p: "/api/lessons?action=report" },
+  { p: "/api/lessons?action=rate" },
+  { p: "/api/lessons?action=evals" },
+  { p: "/api/lessons?action=sheet", note: "בלי מזהה" },
+  { p: "/api/lessons?action=mark", body: {}, note: "בלי מפגש" },
 ];
+
 
 /* ---------- הרצה ---------- */
 const lines = [];
@@ -172,7 +172,7 @@ for (const label of ["ללא סשן", "תורן", "מנהל"]) {
     // login ו-logout נבדקו למעלה; קריאה חוזרת הייתה מנתקת את הסשן
     if (e.p === "/api/login" || e.p === "/api/logout") continue;
     const method = e.body === undefined ? "GET" : "POST";
-    const r = await call(urlFor(e.p, method), { method, body: e.body, as });
+    const r = await call(urlFor(e.p), { method, body: e.body, as });
     const tag = `${method} ${e.p}${e.note ? ` (${e.note})` : ""}`;
     say(`  ${tag.padEnd(52)} ${signature(r)}`);
   }
