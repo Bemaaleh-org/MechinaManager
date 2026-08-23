@@ -39,7 +39,13 @@ async function send(method, path, body) {
 
   const data = await r.json().catch(() => ({}));
   if (r.status === 401) handle401(path, data);
-  if (!r.ok) throw new Error(data.error || `השרת החזיר שגיאה ${r.status}`);
+  if (!r.ok) {
+    const err = new Error(data.error || `השרת החזיר שגיאה ${r.status}`);
+    /* ⚠ 503 של "טרם הוקם" נושא דגל, כדי שהמסך יציג מצב הקמה
+       רגוע ולא באנר כשל — אלה שני מצבים שונים (עיקרון 6). */
+    if (data.setupRequired) err.setupRequired = true;
+    throw err;
+  }
   return data;
 }
 
@@ -56,7 +62,13 @@ async function get(path) {
   }
   const data = await r.json().catch(() => ({}));
   if (r.status === 401) handle401(path, data);
-  if (!r.ok) throw new Error(data.error || `השרת החזיר שגיאה ${r.status}`);
+  if (!r.ok) {
+    const err = new Error(data.error || `השרת החזיר שגיאה ${r.status}`);
+    /* ⚠ 503 של "טרם הוקם" נושא דגל, כדי שהמסך יציג מצב הקמה
+       רגוע ולא באנר כשל — אלה שני מצבים שונים (עיקרון 6). */
+    if (data.setupRequired) err.setupRequired = true;
+    throw err;
+  }
   return data;
 }
 

@@ -51,7 +51,7 @@ function useLoad(fn, deps = []) {
     let live = true;
     setBusy(true);
     fn().then((d) => { if (live) { setData(d); setErr(null); } })
-        .catch((e) => { if (live) setErr(e.message || "הטעינה נכשלה"); })
+        .catch((e) => { if (live) setErr(e); })
         .finally(() => { if (live) setBusy(false); });
     return () => { live = false; };
   }, deps); // eslint-disable-line react-hooks/exhaustive-deps
@@ -62,6 +62,23 @@ function useLoad(fn, deps = []) {
 const Loading = ({ what }) => (
   <div className="empty" style={{ paddingTop: 60 }}><div className="e1">{what}…</div></div>
 );
+
+/* ---------- הקמה חסרה — מצב מתוכנן, לא תקלה ----------
+   ⚠ מסך נפרד מ-LoadFail בכוונה: "עוד לא חובר" ו"נשבר"
+     דורשים תגובה שונה מהמשתמש, ואסור שייראו אותו דבר. */
+function SetupNeeded({ msg }) {
+  return (
+    <div className="card" style={{ padding: "22px 20px", textAlign: "center" }}>
+      <div style={{ marginBottom: 8 }}><CI.box /></div>
+      <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>
+        המסך הזה עדיין לא חובר ל-monday
+      </div>
+      <div style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600, lineHeight: 1.6 }}>
+        {msg}
+      </div>
+    </div>
+  );
+}
 
 function LoadFail({ msg, onRetry }) {
   return (
@@ -385,7 +402,8 @@ function EquipmentScreen({ say, domain: d, area }) {
   }, [area]);
 
   if (busy && !data) return <Loading what={look.loading} />;
-  if (err) return <LoadFail msg={err} onRetry={reload} />;
+  if (err?.setupRequired) return <SetupNeeded msg={err.message} />;
+  if (err) return <LoadFail msg={err.message || "הטעינה נכשלה"} onRetry={reload} />;
   if (!data) return null;
 
   /* פריטים שחסרים ביחס למפתח, ובכמה */
