@@ -267,7 +267,10 @@ function Staff({ auth, onSignedOut }) {
         <main className="wrap">
           {section === "dash" && isMgr && (
             <ManagerDash pendingList={pendingList} goStaff={goStaff} goLessons={goLessons}
-              goKitchen={goKitchen} goContainer={goContainer} />
+              goKitchen={goKitchen} goContainer={goContainer}
+              goPlacements={() => setSection("placements")}
+              goSafety={() => setSection("safety")}
+              goFaults={() => setSection("faults")} />
           )}
 
           {section === "kitchen" && <KitchenPage say={say} area={kArea} />}
@@ -298,11 +301,17 @@ function Staff({ auth, onSignedOut }) {
 }
 
 /* ====================== מסך הבית — מנהל ======================
-   "היום במבט": נוכחות, בקשות, הלו"ז הקרוב והציוד — כל כרטיס
-   הוא קיצור דרך למסך המלא.                                   */
-function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer }) {
+   שלוש רצועות: פתיח על תמונת המכינה, מספרי היום בגדול, ומה
+   שדורש טיפול עכשיו. כל מספר וכל שורה הם קיצור דרך למסך המלא.
+
+   ⚠ כל שליפה נכשלת בשקט ומורידה את הרכיב שלה בלבד — מסך
+     הבית לעולם לא נופל בגלל תחום אחד (או תחום שטרם הוקם). */
+function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
+  goPlacements, goSafety, goFaults }) {
   const [today, setToday] = useState(null);
   const [gantt, setGantt] = useState(null);
+  const [faults, setFaults] = useState(null);   // {open, urgent}
+  const [kitchen, setKitchen] = useState(null); // {missing, openShopping}
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -312,7 +321,26 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer }
       .catch(() => { if (live) setFailed(true); });
     api.getGantt()
       .then((r) => { if (live) setGantt(r.events); })
-      .catch(() => { /* הכרטיס פשוט לא יוצג */ });
+      .catch(() => {});
+    api.getFaults()
+      .then((r) => {
+        if (!live) return;
+        const openList = (r.faults || []).filter((x) => x.status !== "טופלה");
+        setFaults({
+          open: openList.length,
+          urgent: openList.filter((x) => x.urgency === "דחוף").length,
+        });
+      })
+      .catch(() => {});
+    Promise.all([api.getKitchen("אוכל"), api.getKitchen("חד״פ")])
+      .then(([a, b]) => {
+        if (!live) return;
+        setKitchen({
+          missing: (a.counts?.missing || 0) + (b.counts?.missing || 0),
+          openShopping: (a.counts?.openShopping || 0) + (b.counts?.openShopping || 0),
+        });
+      })
+      .catch(() => {});
     return () => { live = false; };
   }, []);
 
@@ -326,22 +354,90 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer }
   };
 
   const iso = testDate() || new Date().toISOString().slice(0, 10);
-  const upcoming = (gantt || [])
-    .filter((e) => e.end >= iso && e.type !== "שבת")
-    .slice(0, 3);
+  const upcoming = (gantt || []).filter((e) => e.end >= iso && e.type !== "שבת").slice(0, 4);
+
+  /* ---------- מה דורש טיפול עכשיו ----------
+     נבנה מהנתונים שכן הגיעו; תחום שלא נטען פשוט לא תורם שורה. */
+  const attn = [];
+  if (today && today.kind && !today.marked) {
+    attn.push({ key: "mark", cls: "clay", t: "הנוכחות של היום טרם סומנה",
+      s: "לחצו לסימון", go: () => goStaff("mark") });
+  }
+  if (pendingList.length > 0) {
+    attn.push({ key: "req", cls: "amber",
+      t: pendingList.length === 1 ? "בקשת יציאה ממתינה להחלטה"
+        : `${pendingList.length} בקשות יציאה ממתינות`,
+      s: pendingList.slice(0, 2).map((r) => r.student ? r.student.name : "").filter(Boolean).join(", ")
+        + (pendingList.length > 2 ? ` ועוד ${pendingList.length - 2}` : ""),
+      go: () => goStaff("requests") });
+  }
+  if (faults && faults.urgent > 0) {
+    attn.push({ key: "faults", cls: "clay",
+      t: faults.urgent === 1 ? "תקלה דחופה פתוחה" : `${faults.urgent} תקלות דחופות פתוחות`,
+      s: "לחצו לרשימת התקלות", go: goFaults });
+  }
+  if (kitchen && kitchen.missing > 0) {
+    attn.push({ key: "kitchen", cls: "amber",
+      t: `${kitchen.missing} פריטי מטבח מתחת למפתח`,
+      s: "אפשר להפוך לרשימת קניות בלחיצה", go: () => goKitchen("אוכל") });
+  }
+
+  const statTiles = [
+    {
+      key: "att", go: () => goStaff("mark"),
+      cls: today && today.kind && !today.marked ? "warn" : "good",
+      v: !today ? "…" : !today.kind ? "—" : today.marked ? (today.present ?? 0) : "!",
+      l: "נוכחות היום",
+      s: !today ? "טוען" : !today.kind ? "אין לימודים היום"
+        : today.marked ? `${today.absent || 0} חסרים` : "טרם סומנה",
+    },
+    {
+      key: "req", go: () => goStaff("requests"),
+      cls: pendingList.length ? "warn" : "good",
+      v: pendingList.length, l: "בקשות יציאה",
+      s: pendingList.length ? "ממתינות להחלטה" : "אין ממתינות",
+    },
+    {
+      key: "faults", go: goFaults,
+      cls: faults ? (faults.urgent ? "warn" : faults.open ? "" : "good") : "",
+      v: faults ? faults.open : "—", l: "תקלות פתוחות",
+      s: faults ? (faults.urgent ? `${faults.urgent} דחופות` : faults.open ? "בטיפול" : "אין תקלות")
+        : "טרם חובר",
+    },
+    {
+      key: "kitchen", go: () => goKitchen("אוכל"),
+      cls: kitchen ? (kitchen.missing ? "warn" : "good") : "",
+      v: kitchen ? kitchen.missing : "—", l: "חוסרים במטבח",
+      s: kitchen ? (kitchen.missing ? "מתחת למפתח" : "המלאי מלא") : "טרם חובר",
+    },
+  ];
+
+  const navTiles = [
+    { key: "n-food", l: "ציוד אוכל", icon: <I.cart />, go: () => goKitchen("אוכל") },
+    { key: "n-disp", l: "ציוד חד״פ", icon: <I.box />, go: () => goKitchen("חד״פ") },
+    { key: "n-place", l: "שיבוצי חניכים", icon: <I.users />, go: goPlacements },
+    { key: "n-students", l: "חניכים", icon: <I.note />, go: () => goStaff("students") },
+    { key: "n-lessons", l: "גיליונות מרצים", icon: <I.book />, go: () => goLessons("sheets") },
+    { key: "n-gantt", l: "גאנט שנתי", icon: <I.cal />, go: () => goLessons("gantt") },
+    { key: "n-safety", l: "בטיחות ותקלות", icon: <I.warn />, go: goSafety },
+    { key: "n-container", l: "ציוד מכולה", icon: <I.box />, go: () => goContainer("מכולה") },
+  ];
 
   return (
     <>
-      <div className="dash-greet">{greet()}</div>
-      <div className="dash-date">{hebDate(new Date())}</div>
-
-      <div className="photo-hero" style={{ marginTop: 12 }}>
+      {/* ---------- הפתיח ---------- */}
+      <div className="hero2">
         <img src="/photos/dash.jpg" alt="חניכי המכינה על הדשא" />
-        <div className="ph-cap">מחזור ב׳</div>
+        <div className="h2-veil" />
+        <div className="h2-cap">מכינת ניר עוז · מחזור ב׳</div>
+        <div className="h2-txt">
+          <div className="h2-greet">{greet()}</div>
+          <div className="h2-date">{hebDate(new Date())}</div>
+        </div>
       </div>
 
       {failed && (
-        <div className="alert a-clay">
+        <div className="alert a-clay" style={{ marginBottom: 14 }}>
           <div style={{ flex: 1 }}>
             <div className="ttl">חלק מהנתונים לא נטענו</div>
             <div className="bd">מה שמוצג עלול להיות חלקי. בדקו חיבור ורעננו.</div>
@@ -349,78 +445,67 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer }
         </div>
       )}
 
-      <div className="dash-col">
-        <button className="dash-card" onClick={() => goStaff("mark")}>
-          <div className={"dash-ico" + (today && !today.marked ? " warn" : " ok")}><I.check /></div>
-          <div className="dash-main">
-            <div className="dash-t">נוכחות היום</div>
-            <div className="dash-s">
-              {!today ? "טוען…"
-                : !today.kind ? "היום מחוץ לשנת הלימודים"
-                : today.marked ? `${today.present ?? 0} נוכחים · ${today.absent} חסרים`
-                : "היום טרם סומן"}
-            </div>
-          </div>
-          {today && today.marked && <b className="dash-v num">{today.present ?? 0}</b>}
-        </button>
-
-        <button className="dash-card" onClick={() => goStaff("requests")}>
-          <div className={"dash-ico" + (pendingList.length ? " warn" : "")}><I.note /></div>
-          <div className="dash-main">
-            <div className="dash-t">בקשות יציאה</div>
-            <div className="dash-s">
-              {pendingList.length
-                ? pendingList.slice(0, 2).map((r) => r.student ? r.student.name : "").filter(Boolean).join(", ")
-                  + (pendingList.length > 2 ? ` ועוד ${pendingList.length - 2}` : "")
-                : "אין בקשות שממתינות"}
-            </div>
-          </div>
-          {pendingList.length > 0 && <b className="dash-v warn num">{pendingList.length}</b>}
-        </button>
-
-        {upcoming.length > 0 && (
-          <button className="dash-card" onClick={() => goLessons("gantt")}>
-            <div className="dash-ico"><I.cal /></div>
-            <div className="dash-main">
-              <div className="dash-t">בלו״ז השנתי</div>
-              <div className="dash-s">
-                {upcoming.map((e) => e.start <= iso ? `${e.name} (עכשיו)` : e.name).join(" · ")}
-              </div>
-            </div>
+      {/* ---------- מספרי היום ---------- */}
+      <div className="stat-grid">
+        {statTiles.map((t) => (
+          <button key={t.key} className={"stat-tile " + t.cls} onClick={t.go}>
+            <span className="sv num">{t.v}</span>
+            <span className="sl">{t.l}</span>
+            <span className="ss">{t.s}</span>
           </button>
-        )}
+        ))}
+      </div>
 
-        <button className="dash-card" onClick={() => goKitchen("אוכל")}>
-          <div className="dash-ico"><I.cart /></div>
-          <div className="dash-main">
-            <div className="dash-t">ציוד אוכל</div>
-            <div className="dash-s">מלאי, מפתח ורשימות קניות</div>
+      {/* ---------- דורש טיפול ---------- */}
+      {attn.length > 0 ? (
+        <>
+          <div className="sec-label">דורש טיפול</div>
+          <div className="attn">
+            {attn.map((a) => (
+              <button key={a.key} className={"attn-row " + a.cls} onClick={a.go}>
+                <div style={{ flex: 1 }}>
+                  <div className="attn-t">{a.t}</div>
+                  {a.s && <div className="attn-s">{a.s}</div>}
+                </div>
+                <I.chev style={{ color: "var(--line2)", flex: "0 0 auto" }} />
+              </button>
+            ))}
           </div>
-        </button>
+        </>
+      ) : (
+        <div className="attn-calm">
+          <b>הכול מסודר</b>
+          <span>אין דבר שממתין להחלטה או לטיפול</span>
+        </div>
+      )}
 
-        <button className="dash-card" onClick={() => goKitchen("חד״פ")}>
-          <div className="dash-ico"><I.box /></div>
-          <div className="dash-main">
-            <div className="dash-t">ציוד חד״פ</div>
-            <div className="dash-s">מלאי, מפתח ורשימות קניות</div>
+      {/* ---------- הלו״ז הקרוב ---------- */}
+      {upcoming.length > 0 && (
+        <>
+          <div className="sec-label">בלו״ז השנתי</div>
+          <div className="gantt-strip">
+            {upcoming.map((e, i) => (
+              <button key={i} className={"gantt-chip" + (e.start <= iso ? " now" : "")}
+                onClick={() => goLessons("gantt")}>
+                {e.start <= iso ? `עכשיו · ${e.name}` : e.name}
+              </button>
+            ))}
           </div>
-        </button>
+        </>
+      )}
 
-        <button className="dash-card" onClick={() => goContainer("מכולה")}>
-          <div className="dash-ico"><I.box /></div>
-          <div className="dash-main">
-            <div className="dash-t">ציוד מכולה</div>
-            <div className="dash-s">ציוד, מפתח ורשימות קניות</div>
-          </div>
-        </button>
-
-        <button className="dash-card" onClick={() => goContainer("ניקיון")}>
-          <div className="dash-ico"><I.box /></div>
-          <div className="dash-main">
-            <div className="dash-t">ציוד ניקיון</div>
-            <div className="dash-s">ציוד, מפתח ורשימות קניות</div>
-          </div>
-        </button>
+      {/* ---------- ניווט מהיר ---------- */}
+      <div className="sec-label">כל המערכת</div>
+      <div className="navgrid">
+        {navTiles.map((t) => (
+          <button key={t.key} className="nav-tile" onClick={t.go}>
+            <span className="nav-ico">{t.icon}</span>
+            <b>{t.l}</b>
+            {t.key === "n-students" && pendingList.length > 0 && (
+              <span className="nav-badge num">{pendingList.length}</span>
+            )}
+          </button>
+        ))}
       </div>
     </>
   );
