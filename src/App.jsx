@@ -7,6 +7,7 @@ import { MechinaApp, MechinaStaff, MechinaRolesPage } from "./Mechina.jsx";
 import { LessonsPage } from "./Lessons.jsx";
 import { ContainerPage } from "./Container.jsx";
 import { PlacementsPage } from "./Placements.jsx";
+import { SafetyPage } from "./Safety.jsx";
 import { KitchenPage } from "./Kitchen.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
 import { testDate } from "./testDate.js";
@@ -221,6 +222,10 @@ function Staff({ auth, onSignedOut }) {
               { key: "l-gantt", label: "גאנט שנתי", icon: <I.cal />, active: false, onClick: () => goLessons("gantt") },
               { key: "l-evals", label: "חוות דעת", icon: <I.star />, active: false, onClick: () => goLessons("evals") },
             ] },
+            { label: "בטיחות", items: [
+              { key: "safety", label: "בטיחות ותקלות", icon: <I.warn />, active: section === "safety",
+                onClick: () => setSection("safety") },
+            ] },
             { label: "ציוד מכינה", items: [
               { key: "c-container", label: "מכולה", icon: <I.box />,
                 active: section === "container" && cArea === "מכולה", onClick: () => goContainer("מכולה") },
@@ -275,6 +280,7 @@ function Staff({ auth, onSignedOut }) {
             <MechinaRolesPage say={say} key={rolesNav.n} sub0={rolesNav.sub || undefined} />
           )}
           {section === "placements" && isMgr && <PlacementsPage say={say} />}
+          {section === "safety" && isMgr && <SafetyPage say={say} />}
           {section === "container" && isMgr && <ContainerPage say={say} area={cArea} />}
         </main>
 

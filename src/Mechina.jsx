@@ -16,6 +16,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { api } from "./api.js";
 import { testDate } from "./testDate.js";
 import { LessonsPage } from "./Lessons.jsx";
+import { SafetyPage } from "./Safety.jsx";
 import { ContainerPage } from "./Container.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
 import { useExcel, downloadTable } from "./excel.js";
@@ -1865,7 +1866,7 @@ export function MechinaApp({ auth, onSignedOut }) {
             { key: "profile", label: "הפרופיל שלי", icon: <MI.users />, active: tab === "profile", onClick: () => setTab("profile") },
             { key: "placements", label: "השיבוצים שלי", icon: <MI.users />, active: tab === "placements", onClick: () => setTab("placements") },
           ] },
-          ...(auth.isLeader || auth.isScheduler || auth.isContainer ? [{
+          ...(auth.isLeader || auth.isScheduler || auth.isContainer || auth.isSafety ? [{
             label: "תפקידים", items: [
               ...(auth.isLeader ? [{ key: "mark", label: "סימון נוכחות", icon: <MI.tick />,
                 active: tab === "mark", onClick: () => setTab("mark") }] : []),
@@ -1876,6 +1877,10 @@ export function MechinaApp({ auth, onSignedOut }) {
                   active: tab === "container", onClick: () => setTab("container") },
                 { key: "cleaning", label: "ציוד ניקיון", icon: <MI.box />,
                   active: tab === "cleaning", onClick: () => setTab("cleaning") },
+              ] : []),
+              ...(auth.isSafety ? [
+                { key: "safety", label: "בטיחות ותקלות", icon: <MI.note />,
+                  active: tab === "safety", onClick: () => setTab("safety") },
               ] : []),
             ],
           }] : []),
@@ -2007,6 +2012,7 @@ export function MechinaApp({ auth, onSignedOut }) {
 
         {tab === "container" && auth.isContainer && <ContainerPage say={say} area="מכולה" />}
         {tab === "cleaning" && auth.isContainer && <ContainerPage say={say} area="ניקיון" />}
+        {tab === "safety" && auth.isSafety && <SafetyPage say={say} />}
 
         {tab === "mark" && auth.isLeader && <MarkDay say={say} />}
 

@@ -207,6 +207,8 @@ shared/         מזהי לוחות וקוד משותף ללקוח ולשרת
   kitchen-ids.js       ⚠ מחולל — נכתב על ידי tools/seed-kitchen.mjs
   placements.js        שיבוצי חניכים: קטגוריות ותקופות
   placements-ids.js    ⚠ מחולל — נכתב על ידי tools/seed-placements.mjs
+  safety-board.js      בטיחות ותקלות
+  safety-ids.js        ⚠ מחולל — נכתב מכפתור ההקמה שבמסך
   container-boards.js  ציוד המכינה
   par.js               חישוב המפתח, משותף לשני תחומי הציוד
   auth-board.js        הרשאות ⚠ שרת בלבד
@@ -221,6 +223,7 @@ src/
   Container.jsx   הגדרת תחום המכינה (מכולה · ניקיון)
   Mechina.jsx     נוכחות, חניכים, תפקידים
   Placements.jsx  שיבוצי חניכים — מסך המנהל
+  Safety.jsx      בטיחות ותקלות — מנהל ואחראי בטיחות
   Lessons.jsx     שיעורים
   api.js          כל הקריאות לשרת — הדלת היחידה
   Login.jsx       מסך הכניסה
@@ -251,6 +254,7 @@ tools/          סקריפטים לתחזוקה ובדיקה
 | גיליונות, מפגשים, דירוגים | שיעורים | `shared/lessons-boards.js` |
 | שיבוצים – הגדרות | ענפים, סדרות, ועדות, קבוצות, מכסות | `shared/placements-ids.js` |
 | שיבוצים – שיבוץ | מי משובץ לאן ובאיזה סמסטר | `shared/placements-ids.js` |
+| בטיחות ותקלות | דיווחי אירועי בטיחות ⚠ מנהל ואחראי בטיחות | `shared/safety-ids.js` |
 | משתמשים והרשאות | קודי כניסה ורשימת חניכים | `shared/auth-board.js` |
 
 לכל תחום קובץ `shared/` משלו, והוא היחיד שמכיר את מזהי העמודות שלו. עמודה

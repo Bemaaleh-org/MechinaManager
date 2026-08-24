@@ -192,6 +192,13 @@ export const api = {
   editWeek: ({ weekId, start, end }) =>
     put("/api/students?action=weeks", { weekId, start, end }),
 
+  /* ---------- בטיחות ותקלות ----------
+     ⚠ מנהל או אחראי בטיחות בלבד — נאכף בשרת. */
+  getSafety: () => get("/api/students?action=safety"),
+  addSafety: (body) => post("/api/students?action=safety", body),
+  editSafety: (body) => put("/api/students?action=safety", body),
+  setupSafety: () => post("/api/students?action=safety-setup", {}),
+
   /* ---------- שיבוצי חניכים ---------- */
 
   /** ההגדרות והשיבוצים. מנהל מקבל הכול; חניך — את שלו בלבד. */
