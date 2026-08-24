@@ -8,6 +8,7 @@ import { LessonsPage } from "./Lessons.jsx";
 import { ContainerPage } from "./Container.jsx";
 import { PlacementsPage } from "./Placements.jsx";
 import { SafetyPage } from "./Safety.jsx";
+import { FaultsPage } from "./Faults.jsx";
 import { KitchenPage } from "./Kitchen.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
 import { testDate } from "./testDate.js";
@@ -222,9 +223,11 @@ function Staff({ auth, onSignedOut }) {
               { key: "l-gantt", label: "גאנט שנתי", icon: <I.cal />, active: false, onClick: () => goLessons("gantt") },
               { key: "l-evals", label: "חוות דעת", icon: <I.star />, active: false, onClick: () => goLessons("evals") },
             ] },
-            { label: "בטיחות", items: [
+            { label: "בטיחות ותחזוקה", items: [
               { key: "safety", label: "בטיחות ותקלות", icon: <I.warn />, active: section === "safety",
                 onClick: () => setSection("safety") },
+              { key: "faults", label: "תקלות ובעיות", icon: <I.gear />, active: section === "faults",
+                onClick: () => setSection("faults") },
             ] },
             { label: "ציוד מכינה", items: [
               { key: "c-container", label: "מכולה", icon: <I.box />,
@@ -281,6 +284,7 @@ function Staff({ auth, onSignedOut }) {
           )}
           {section === "placements" && isMgr && <PlacementsPage say={say} />}
           {section === "safety" && isMgr && <SafetyPage say={say} />}
+          {section === "faults" && isMgr && <FaultsPage say={say} />}
           {section === "container" && isMgr && <ContainerPage say={say} area={cArea} />}
         </main>
 

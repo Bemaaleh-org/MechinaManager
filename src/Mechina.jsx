@@ -17,6 +17,7 @@ import { api } from "./api.js";
 import { testDate } from "./testDate.js";
 import { LessonsPage } from "./Lessons.jsx";
 import { SafetyPage } from "./Safety.jsx";
+import { FaultsPage } from "./Faults.jsx";
 import { ContainerPage } from "./Container.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
 import { useExcel, downloadTable } from "./excel.js";
@@ -1866,7 +1867,7 @@ export function MechinaApp({ auth, onSignedOut }) {
             { key: "profile", label: "הפרופיל שלי", icon: <MI.users />, active: tab === "profile", onClick: () => setTab("profile") },
             { key: "placements", label: "השיבוצים שלי", icon: <MI.users />, active: tab === "placements", onClick: () => setTab("placements") },
           ] },
-          ...(auth.isLeader || auth.isScheduler || auth.isContainer || auth.isSafety ? [{
+          ...(auth.isLeader || auth.isScheduler || auth.isContainer || auth.isSafety || auth.isHouse ? [{
             label: "תפקידים", items: [
               ...(auth.isLeader ? [{ key: "mark", label: "סימון נוכחות", icon: <MI.tick />,
                 active: tab === "mark", onClick: () => setTab("mark") }] : []),
@@ -1881,6 +1882,10 @@ export function MechinaApp({ auth, onSignedOut }) {
               ...(auth.isSafety ? [
                 { key: "safety", label: "בטיחות ותקלות", icon: <MI.note />,
                   active: tab === "safety", onClick: () => setTab("safety") },
+              ] : []),
+              ...(auth.isHouse ? [
+                { key: "faults", label: "תקלות ובעיות", icon: <MI.box />,
+                  active: tab === "faults", onClick: () => setTab("faults") },
               ] : []),
             ],
           }] : []),
@@ -2013,6 +2018,7 @@ export function MechinaApp({ auth, onSignedOut }) {
         {tab === "container" && auth.isContainer && <ContainerPage say={say} area="מכולה" />}
         {tab === "cleaning" && auth.isContainer && <ContainerPage say={say} area="ניקיון" />}
         {tab === "safety" && auth.isSafety && <SafetyPage say={say} />}
+        {tab === "faults" && auth.isHouse && <FaultsPage say={say} />}
 
         {tab === "mark" && auth.isLeader && <MarkDay say={say} />}
 

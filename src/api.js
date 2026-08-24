@@ -199,6 +199,17 @@ export const api = {
   editSafety: (body) => put("/api/students?action=safety", body),
   setupSafety: () => post("/api/students?action=safety-setup", {}),
 
+  /** ⚠ מחיקת דיווח בטיחות — בלתי הפיך. המסך דורש אישור כפול. */
+  deleteSafety: (id) => del("/api/students?action=safety", { id }),
+
+  /* ---------- תקלות ובעיות ----------
+     ⚠ מנהל או אב בית בלבד — נאכף בשרת. */
+  getFaults: () => get("/api/students?action=faults"),
+  addFault: (body) => post("/api/students?action=faults", body),
+  editFault: (body) => put("/api/students?action=faults", body),
+  deleteFault: (id) => del("/api/students?action=faults", { id }),
+  setupFaults: () => post("/api/students?action=faults-setup", {}),
+
   /* ---------- שיבוצי חניכים ---------- */
 
   /** ההגדרות והשיבוצים. מנהל מקבל הכול; חניך — את שלו בלבד. */

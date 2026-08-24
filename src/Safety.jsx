@@ -77,6 +77,7 @@ function IncidentForm({ initial, say, onDone, onCancel }) {
     reportCouncil: initial?.reportCouncil || "",
   }));
   const [busy, setBusy] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
   const set = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
   const setT = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
@@ -89,6 +90,15 @@ function IncidentForm({ initial, say, onDone, onCancel }) {
     const body = { ...f, ...(editing ? { id: initial.id } : {}) };
     (editing ? api.editSafety(body) : api.addSafety(body))
       .then(() => { say(editing ? "הדיווח עודכן" : "הדיווח נשמר"); onDone(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  const remove = () => {
+    if (busy) return;
+    setBusy(true);
+    api.deleteSafety(initial.id)
+      .then(() => { say("הדיווח נמחק"); onDone(); })
       .catch((e) => say(e.message))
       .finally(() => setBusy(false));
   };
@@ -163,6 +173,15 @@ function IncidentForm({ initial, say, onDone, onCancel }) {
         <button className="btn btn-primary" disabled={busy || !canSave} onClick={save}>
           {busy ? "שומר…" : editing ? "שמירת השינויים" : "שמירת הדיווח"}
         </button>
+
+        {editing && (confirmDel ? (
+          <button className="btn btn-clay" style={{ marginTop: 8 }} disabled={busy} onClick={remove}>
+            למחוק את הדיווח לצמיתות?
+          </button>
+        ) : (
+          <button className="btn btn-ghost" style={{ marginTop: 8, color: "var(--clay)" }}
+            onClick={() => setConfirmDel(true)}>מחיקת הדיווח</button>
+        ))}
       </div>
     </>
   );

@@ -3,16 +3,16 @@
      GET   כל הדיווחים, מהחדש לישן
      POST  { title, date, place, severity, ... }   דיווח חדש
      PUT   { id, ...שדות לעדכון }                   עריכה
+     DELETE { id }                                   מחיקה
 
    ⚠ מנהל או אחראי בטיחות — {safety:true}, נאכף בשרת.
-   ⚠ אין DELETE. אירוע בטיחות הוא רשומה רשמית — מתקנים
-     בעריכה, לא מוחקים.
+   ⚠ המחיקה בלתי הפיכה. המסך דורש אישור כפול לפניה.
    ============================================================ */
 
 import { withAuth } from "./_session.js";
 import { gql, allItems } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
-import { setColumns, renameItem, createItem } from "./_items.js";
+import { setColumns, renameItem, createItem, deleteItem } from "./_items.js";
 import {
   SAFETY_BOARD, SAFETY_COLS as C, safetyReady,
   SAFETY_PLACE, SEVERITIES, SAFETY_SEVERITY, YES_NO,
@@ -136,6 +136,16 @@ async function handler(req, res, session) {
         if (!title) return res.status(400).json({ error: "כותרת ריקה" });
         await renameItem(SAFETY_BOARD, id, title);
       }
+      invalidate("safety-incidents");
+      return res.status(200).json({ ok: true, id });
+    }
+
+    if (req.method === "DELETE") {
+      const id = String(body?.id || "").trim();
+      if (!id) return res.status(400).json({ error: "לא צוין דיווח" });
+      const incidents = await loadIncidents();
+      if (!incidents.some((x) => x.id === id)) return res.status(404).json({ error: "הדיווח אינו נמצא" });
+      await deleteItem(id);
       invalidate("safety-incidents");
       return res.status(200).json({ ok: true, id });
     }
