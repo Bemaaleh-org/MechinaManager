@@ -19,6 +19,7 @@ import { LessonsPage } from "./Lessons.jsx";
 import { SafetyPage } from "./Safety.jsx";
 import { FaultsPage } from "./Faults.jsx";
 import { ContainerPage } from "./Container.jsx";
+import { FaultReportPage } from "./Faults.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
 import { useExcel, downloadTable } from "./excel.js";
 
@@ -37,6 +38,7 @@ const MI = {
   bell: (p) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M10.3 21a2 2 0 0 0 3.4 0"/></svg>,
   box: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 8l9-5 9 5v8l-9 5-9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>,
   plus: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" {...p}><path d="M12 5v14M5 12h14"/></svg>,
+  tool: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M14.7 6.3a4.5 4.5 0 0 0-6 5.6L3 17.6V21h3.4l5.7-5.7a4.5 4.5 0 0 0 5.6-6L14.6 12l-2.6-2.6 2.7-3.1z"/></svg>,
   dl: (p) => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3v12M7 11l5 5 5-5M4 20h16"/></svg>,
 };
 
@@ -1775,6 +1777,171 @@ function MyPlacements({ say }) {
 }
 
 /* ============================================================
+   מסך הבית של החניך
+   ------------------------------------------------------------
+   אותה שפה של מסך הבית של המנהל: פתיח עם תמונה, ארבעה
+   מספרים, "דורש טיפול", וניווט.
+
+   ⚠ "דורש טיפול" נבנה רק ממה שנטען בפועל. תחום שנפל פשוט לא
+     תורם שורה, ואינו מציג שגיאה על מסך הבית — הנתונים
+     המלאים ממילא נמצאים במסך הייעודי שלו.
+   ============================================================ */
+const DAYS_HE = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+const MONTHS_HE = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+const longDate = (d = new Date()) =>
+  DAYS_HE[d.getDay()] + ", " + d.getDate() + " ב" + MONTHS_HE[d.getMonth()];
+
+function StudentDash({ auth, year, reqs, unseen, go, say }) {
+  const [profile, setProfile] = useState(null);
+  const [faults, setFaults] = useState(null);
+  const [ratable, setRatable] = useState(null);
+
+  useEffect(() => {
+    let live = true;
+    api.getProfile().then((r) => { if (live) setProfile(r); }).catch(() => {});
+    api.getFaults()
+      .then((r) => { if (live) setFaults((r.faults || []).filter((x) => x.status !== "טופלה").length); })
+      .catch(() => {});
+    api.getRatable()
+      .then((r) => { if (live) setRatable((r.meetings || []).filter((m) => !m.rated).length); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
+
+  const greet = () => {
+    const h = new Date().getHours();
+    if (h < 5) return "לילה טוב";
+    if (h < 12) return "בוקר טוב";
+    if (h < 17) return "צהריים טובים";
+    if (h < 21) return "ערב טוב";
+    return "לילה טוב";
+  };
+
+  const first = String(auth.name || "").trim().split(/\s+/)[0];
+  const sum = year.data && year.data.summary;
+  const quotaLeft = sum ? sum.quota.reduce((a, q) => a + q.left, 0) : null;
+  const quotaTotal = sum ? sum.quota.reduce((a, q) => a + q.total, 0) : null;
+  const pending = reqs.data ? reqs.data.requests.filter((r) => r.status === "ממתין").length : null;
+
+  /* ---------- דורש טיפול ---------- */
+  const attn = [];
+  if (ratable > 0) {
+    attn.push({ key: "rate", cls: "amber",
+      t: ratable === 1 ? "שיעור אחד ממתין לדירוג שלך" : `${ratable} שיעורים ממתינים לדירוג שלך`,
+      s: "הדירוג נכנס לחוות הדעת על המרצה", go: null });
+  }
+  if (unseen > 0) {
+    attn.push({ key: "dec", cls: "amber",
+      t: unseen === 1 ? "בקשה שלך הוכרעה" : `${unseen} בקשות שלך הוכרעו`,
+      s: "לחצו לצפייה", go: () => go("requests") });
+  }
+  if (profile && !profile.army && !profile.tryouts) {
+    attn.push({ key: "prof", cls: "",
+      t: "הפרופיל שלך עדיין ריק",
+      s: "שיבוץ צבאי ומיונים — כדי שהצוות יידע איפה אתה עומד", go: () => go("profile") });
+  }
+  const nextTalk = profile && (profile.talks || []).filter(Boolean).sort()
+    .find((d) => d >= (testDate() || new Date().toISOString().slice(0, 10)));
+  if (nextTalk) {
+    attn.push({ key: "talk", cls: "",
+      t: "שיחה אישית קרובה", s: dmy(nextTalk), go: () => go("profile") });
+  }
+
+  const tiles = [
+    { key: "att", go: () => go("year"), cls: "good",
+      v: sum ? sum.present : "…", l: "ימים שנכחת",
+      s: sum ? `מתוך ${sum.schoolDays} שסומנו` : "טוען" },
+    { key: "vac", go: () => go("year"), cls: quotaLeft === 0 ? "warn" : "good",
+      v: quotaLeft == null ? "…" : quotaLeft, l: "ימי חופש שנותרו",
+      s: quotaTotal ? `מתוך ${quotaTotal} בשנה` : "טוען" },
+    { key: "req", go: () => go("requests"), cls: pending ? "warn" : "good",
+      v: pending == null ? "…" : pending, l: "בקשות ממתינות",
+      s: pending ? "ממתינות להחלטה" : "אין ממתינות" },
+    { key: "fault", go: () => go("report"), cls: faults ? "" : "good",
+      v: faults == null ? "…" : faults, l: "תקלות שדיווחת",
+      s: faults ? "עדיין פתוחות" : "אין פתוחות" },
+  ];
+
+  const nav = [
+    { key: "n-year", l: "הנוכחות שלי", icon: <MI.cal />, go: () => go("year") },
+    { key: "n-req", l: "בקשות יציאה", icon: <MI.note />, go: () => go("requests"), badge: unseen },
+    { key: "n-prof", l: "הפרופיל שלי", icon: <MI.users />, go: () => go("profile") },
+    { key: "n-place", l: "השיבוצים שלי", icon: <MI.users />, go: () => go("placements") },
+    { key: "n-report", l: "דיווח תקלה", icon: <MI.tool />, go: () => go("report") },
+    { key: "n-new", l: "בקשת יציאה חדשה", icon: <MI.plus />, go: () => go("new") },
+  ];
+
+  return (
+    <>
+      <div className="hero2">
+        <img src="/photos/student.jpg" alt="חניכי המכינה" />
+        <div className="h2-veil" />
+        <div className="h2-cap">מכינת ניר עוז · מחזור ב׳</div>
+        <div className="h2-txt">
+          <div className="h2-greet">{greet()}{first ? `, ${first}` : ""}</div>
+          <div className="h2-date">{longDate(new Date())}</div>
+        </div>
+      </div>
+
+      {year.err && <LoadFail msg={year.err} onRetry={year.reload} />}
+
+      <div className="stat-grid">
+        {tiles.map((t) => (
+          <button key={t.key} className={"stat-tile " + t.cls} onClick={t.go}>
+            <span className="sv num">{t.v}</span>
+            <span className="sl">{t.l}</span>
+            <span className="ss">{t.s}</span>
+          </button>
+        ))}
+      </div>
+
+      {attn.length > 0 ? (
+        <>
+          <div className="sec-label">דורש טיפול</div>
+          <div className="attn">
+            {attn.map((a) => (
+              <button key={a.key} className={"attn-row " + a.cls} onClick={a.go || undefined}>
+                <div style={{ flex: 1 }}>
+                  <div className="attn-t">{a.t}</div>
+                  {a.s && <div className="attn-s">{a.s}</div>}
+                </div>
+                {a.go && <MI.chev style={{ color: "var(--line2)", flex: "0 0 auto" }} />}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="attn-calm">
+          <b>הכול מסודר</b>
+          <span>אין דבר שממתין לך</span>
+        </div>
+      )}
+
+      <RateLessons say={say} />
+
+      {reqs.data && reqs.data.requests.length > 0 && (
+        <>
+          <div className="sec-label">הבקשות האחרונות שלי</div>
+          {reqs.data.requests.slice(0, 3).map((r) => <RequestCard key={r.id} r={r} />)}
+        </>
+      )}
+
+      <div className="sec-label">הכול</div>
+      <div className="navgrid">
+        {nav.map((t) => (
+          <button key={t.key} className="nav-tile" onClick={t.go}>
+            <span className="nav-ico">{t.icon}</span>
+            <b>{t.l}</b>
+            {t.badge > 0 && <span className="nav-badge num">{t.badge}</span>}
+          </button>
+        ))}
+      </div>
+      <div style={{ height: 30 }} />
+    </>
+  );
+}
+
+/* ============================================================
    האפליקציה של החניך — שלד מלא משלה
    ⚠ אין כאן טאב מטבח. השרת דוחה סשן חניך מכל נקודות הקצה של
      המטבח, ולכן טאב כזה היה מוביל למסך שגיאה בלבד.
@@ -1866,6 +2033,7 @@ export function MechinaApp({ auth, onSignedOut }) {
               active: tab === "requests", onClick: () => setTab("requests") },
             { key: "profile", label: "הפרופיל שלי", icon: <MI.users />, active: tab === "profile", onClick: () => setTab("profile") },
             { key: "placements", label: "השיבוצים שלי", icon: <MI.users />, active: tab === "placements", onClick: () => setTab("placements") },
+            { key: "report", label: "דיווח תקלה", icon: <MI.tool />, active: tab === "report", onClick: () => setTab("report") },
           ] },
           ...(auth.isLeader || auth.isScheduler || auth.isContainer || auth.isSafety || auth.isHouse ? [{
             label: "תפקידים", items: [
@@ -1930,44 +2098,8 @@ export function MechinaApp({ auth, onSignedOut }) {
         {year.err && <LoadFail msg={year.err} onRetry={year.reload} />}
 
         {tab === "home" && (
-          <>
-            <div className="photo-hero">
-              <img src="/photos/student.jpg" alt="חניכי המכינה" />
-              <div className="ph-cap">שלום, {(auth.name || "").split(" ")[0]}</div>
-            </div>
-
-            {year.busy && !year.data && <Loading what="טוען את הנוכחות שלך" />}
-            {year.data && (
-              <>
-                <div className="sec-label">הנוכחות שלי</div>
-                <Summary s={year.data.summary} />
-
-                <div className="sec-label">ימי חופש</div>
-                <Quota quota={year.data.summary.quota} />
-
-                <RateLessons say={say} />
-
-                <div className="sec-label">הבקשות שלי</div>
-                {reqs.err && <LoadFail msg={reqs.err} onRetry={reqs.reload} />}
-                {reqs.data && reqs.data.requests.length === 0 && (
-                  <div className="card" style={{ textAlign: "center", color: "var(--muted)",
-                                                 fontSize: 13.5, fontWeight: 600 }}>
-                    לא הגשת בקשות עדיין
-                  </div>
-                )}
-                {reqs.data && reqs.data.requests.slice(0, 3).map((r) => (
-                  <RequestCard key={r.id} r={r} />
-                ))}
-
-                <div className="sticky">
-                  <button className="btn btn-primary" onClick={() => setTab("new")}>
-                    <MI.plus />בקשת יציאה חדשה
-                  </button>
-                </div>
-                <div style={{ height: 60 }} />
-              </>
-            )}
-          </>
+          <StudentDash auth={auth} year={year} reqs={reqs} unseen={unseen}
+            go={setTab} say={say} />
         )}
 
         {tab === "year" && (
@@ -2014,6 +2146,8 @@ export function MechinaApp({ auth, onSignedOut }) {
             <ProfileCard studentId={null} say={say} />
           </>
         )}
+
+        {tab === "report" && <FaultReportPage say={say} />}
 
         {tab === "container" && auth.isContainer && <ContainerPage say={say} area="מכולה" />}
         {tab === "cleaning" && auth.isContainer && <ContainerPage say={say} area="ניקיון" />}

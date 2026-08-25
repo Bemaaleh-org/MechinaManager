@@ -31,3 +31,25 @@ export const URGENCIES = [FAULT_URGENCY.urgent, FAULT_URGENCY.normal];
 /** מחזור החיים של תקלה */
 export const FAULT_STATUS = { open: "פתוחה", working: "בטיפול", done: "טופלה" };
 export const STATUSES = [FAULT_STATUS.open, FAULT_STATUS.working, FAULT_STATUS.done];
+
+/* ============================================================
+   מה חניך רואה על תקלה שהוא דיווח
+   ------------------------------------------------------------
+   ⚠ החלטה של המכינה: החניך רואה סטטוס, ולא עלויות או פרטי
+     איש המקצוע. כמו כל נתון רגיש במערכת — הסינון בשרת ולא
+     בתצוגה, ובמיפוי מפורש ולא בהשמטה, כדי שעמודה חדשה שתיווסף
+     ללוח לא תדלוף מעצמה (עיקרון 4).
+   ============================================================ */
+export function toStudentFault(f) {
+  return {
+    id: f.id,
+    title: f.title,
+    date: f.date,
+    place: f.place,
+    urgency: f.urgency,
+    status: f.status,
+    desc: f.desc,
+    hasPhoto: Boolean(f.photoUrl),
+    photoUrl: f.photoUrl || null,
+  };
+}

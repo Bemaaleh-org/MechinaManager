@@ -293,7 +293,11 @@ html,body{margin:0;padding:0;background:#012E58}
 .fld label{display:block;font-size:12.5px;font-weight:800;color:var(--muted);margin-bottom:5px;letter-spacing:.2px}
 .fld input,.fld select{width:100%;min-height:48px;background:var(--surface);border:1px solid var(--line2);
   border-radius:11px;padding:0 13px;outline:none;font-size:15.5px}
-.fld input:focus,.fld select:focus{border-color:var(--accent)}
+/* ⚠ textarea לא היה ברשימה, ולכן קיבל רוחב ברירת מחדל לפי cols
+   ויצא צר מהשדה שלידו בכל טופס שיש בו תיאור. */
+.fld textarea{width:100%;display:block;background:var(--surface);border:1px solid var(--line2);
+  border-radius:11px;padding:10px 13px;outline:none;font-size:15.5px;line-height:1.5;resize:vertical}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--accent)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .pick{display:flex;gap:6px}
@@ -630,4 +634,21 @@ html,body{margin:0;padding:0;background:#012E58}
 .gnt-now::before,.gnt-now::after{content:"";flex:1;height:2px;border-radius:99px;background:var(--accent)}
 
 @media (prefers-reduced-motion:reduce){.kx *{animation:none!important;transition:none!important}}
+
+/* ---- צירוף תמונה לדיווח תקלה ---- */
+/* ⚠ הסלקטור נושא את .fld: הכפתור הוא <label> בתוך שדה, ו-
+   ".fld label" (0,1,1) גובר על ".file-drop" (0,1,0) וממעך אותו
+   חזרה ל-display:block עם גופן התווית. */
+.fld label.file-drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+  min-height:104px;border:1.5px dashed var(--line2);border-radius:12px;background:var(--bg);
+  color:var(--muted);font-size:14px;font-weight:700;letter-spacing:0;margin:0;cursor:pointer;
+  transition:border-color .15s,color .15s}
+.fld label.file-drop:active{border-color:var(--accent);color:var(--accent)}
+.fld label.file-drop input{display:none}
+.photo-pick{display:block;border-radius:12px;overflow:hidden;border:1px solid var(--line2)}
+.photo-pick img{display:block;width:100%;max-height:220px;object-fit:cover}
+.photo-pick .btn{width:100%;border-radius:0;border:none;border-top:1px solid var(--line)}
+.thumb{flex:0 0 auto;width:42px;height:42px;border-radius:9px;overflow:hidden;
+  border:1px solid var(--line2);background:var(--bg)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
 `;

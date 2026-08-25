@@ -1,7 +1,15 @@
 /* ============================================================
-   תקלות ובעיות — מעקב תחזוקה
+   תקלות ובעיות — דיווח ומעקב תחזוקה
    ------------------------------------------------------------
-   גלוי למנהלים ולאב הבית בלבד. ההרשאה נאכפת בשרת.
+   שני מסכים על אותם נתונים:
+
+   FaultReportPage — כל חניך. מדווח, ורואה את הדיווחים שלו
+     עם הסטטוס בלבד.
+   FaultsPage      — מנהל ואב בית. רואים הכול, ומנהלים את
+     הטיפול: איש מקצוע, עלות ותאריך סיום.
+
+   ⚠ ההפרדה נאכפת בשרת. עלויות ופרטי איש מקצוע אינם יוצאים
+     אל החניך כלל — לא מוסתרים בתצוגה.
 
    מחזור חיים: פתוחה → בטיפול → טופלה. הרשימה ממוינת כך
    שהפתוחות והדחופות תמיד למעלה, והמסך נפתח על "פתוחות".
@@ -18,6 +26,7 @@ const FI = {
   warn: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3 2 20h20L12 3z"/><path d="M12 9v5M12 17.5h.01"/></svg>,
   chev: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
   plus: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" {...p}><path d="M12 5v14M5 12h14"/></svg>,
+  camera: (p) => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 8.5A2 2 0 0 1 5 6.5h2.2l1.3-2h7l1.3 2H19a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8.5z"/><circle cx="12" cy="13" r="3.4"/></svg>,
 };
 
 function useLoad(fn, deps = []) {
@@ -63,7 +72,12 @@ function FaultForm({ initial, say, onDone, onCancel }) {
     status: initial?.status || FAULT_STATUS.open,
     desc: initial?.desc || "",
     notes: initial?.notes || "",
+    cost: initial?.cost == null ? "" : String(initial.cost),
+    pro: initial?.pro || "",
+    proPhone: initial?.proPhone || "",
+    doneDate: initial?.doneDate || "",
   }));
+  const [photo, setPhoto] = useState(null);
   const [busy, setBusy] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const set = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
@@ -71,12 +85,34 @@ function FaultForm({ initial, say, onDone, onCancel }) {
 
   const canSave = f.title.trim() && f.place;
 
+  /* התמונה נקראת כ-base64 ועוברת בגוף הבקשה, כמו אישור המחלה
+     בבקשות היציאה. עד 5MB — צילום טלפון רגיל נכנס בקלות. */
+  const pickPhoto = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) { setPhoto(null); return; }
+    if (file.size > 5 * 1024 * 1024) { say("התמונה גדולה מדי — עד 5MB"); e.target.value = ""; return; }
+    const reader = new FileReader();
+    reader.onload = () => setPhoto({
+      name: file.name, mime: file.type || "image/jpeg",
+      data: String(reader.result).split(",")[1] || "",
+      preview: String(reader.result),
+    });
+    reader.readAsDataURL(file);
+  };
+
   const save = () => {
     if (busy || !canSave) return;
     setBusy(true);
     const body = { ...f, ...(editing ? { id: initial.id } : {}) };
+    if (!editing && photo) {
+      body.photoName = photo.name; body.photoMime = photo.mime; body.photoData = photo.data;
+    }
     (editing ? api.editFault(body) : api.addFault(body))
-      .then(() => { say(editing ? "התקלה עודכנה" : "התקלה נרשמה"); onDone(); })
+      .then((r) => {
+        if (r && r.photoUploaded === false) say("התקלה נרשמה, אבל העלאת התמונה נכשלה");
+        else say(editing ? "התקלה עודכנה" : "התקלה נרשמה");
+        onDone();
+      })
       .catch((e) => say(e.message))
       .finally(() => setBusy(false));
   };
@@ -121,12 +157,72 @@ function FaultForm({ initial, say, onDone, onCancel }) {
             placeholder="מה בדיוק קרה, ממתי, מה כבר נוסה" />
         </div>
 
-        {editing && (
+        {/* ---- תמונה ---- */}
+        {!editing ? (
           <div className="fld">
-            <label>הערות טיפול</label>
-            <textarea rows={3} value={f.notes} onChange={setT("notes")} disabled={busy}
-              placeholder="מה נעשה, מי הוזמן, מה סוכם" />
+            <label>תמונה (לא חובה)</label>
+            {photo ? (
+              <div className="photo-pick">
+                <img src={photo.preview} alt="התמונה שנבחרה" />
+                <button type="button" className="btn btn-ghost btn-sm" disabled={busy}
+                  onClick={() => setPhoto(null)}>הסרת התמונה</button>
+              </div>
+            ) : (
+              <label className="file-drop">
+                <FI.camera />
+                <span>צילום או בחירת תמונה</span>
+                <input type="file" accept="image/*" disabled={busy} onChange={pickPhoto} />
+              </label>
+            )}
           </div>
+        ) : initial.photoUrl ? (
+          <div className="fld">
+            <label>התמונה שצורפה</label>
+            <a href={initial.photoUrl} target="_blank" rel="noreferrer" className="photo-pick">
+              <img src={initial.photoUrl} alt="תמונת התקלה" />
+            </a>
+          </div>
+        ) : null}
+
+        {/* ---- מעקב הטיפול — צוות בלבד ---- */}
+        {editing && (
+          <>
+            <div className="fld">
+              <label>הערות טיפול</label>
+              <textarea rows={3} value={f.notes} onChange={setT("notes")} disabled={busy}
+                placeholder="מה נעשה, מי הוזמן, מה סוכם" />
+            </div>
+
+            <div className="two">
+              <div className="fld">
+                <label>איש מקצוע</label>
+                <input value={f.pro} onChange={setT("pro")} disabled={busy} placeholder="שם" />
+              </div>
+              <div className="fld">
+                <label>טלפון</label>
+                <input value={f.proPhone} onChange={setT("proPhone")} disabled={busy}
+                  inputMode="tel" placeholder="050-0000000" />
+              </div>
+            </div>
+
+            <div className="two">
+              <div className="fld">
+                <label>עלות הטיפול (₪)</label>
+                <input value={f.cost} onChange={setT("cost")} disabled={busy}
+                  inputMode="numeric" placeholder="ריק = טרם ידוע" />
+              </div>
+              <div className="fld">
+                <label>תאריך סיום הטיפול</label>
+                <input type="date" value={f.doneDate} onChange={setT("doneDate")} disabled={busy} />
+              </div>
+            </div>
+
+            {initial.reporter && (
+              <div style={{ fontSize: 12.5, color: "var(--muted)", fontWeight: 700, marginBottom: 12 }}>
+                דווח על ידי {initial.reporter}
+              </div>
+            )}
+          </>
         )}
 
         <button className="btn btn-primary" disabled={busy || !canSave} onClick={save}>
@@ -164,8 +260,11 @@ function FaultCard({ x, onOpen }) {
           {x.place && <span>{x.place}</span>}
           {x.fix && <span>· {x.fix}</span>}
           <span className="num">{heDate(x.date)}</span>
+          {x.reporter && <span>· {x.reporter}</span>}
+          {x.cost > 0 && <span className="num">· {x.cost} ₪</span>}
         </div>
       </div>
+      {x.photoUrl && <span className="thumb"><img src={x.photoUrl} alt="" /></span>}
       <FI.chev style={{ color: "var(--line2)" }} />
     </button>
   );
@@ -198,7 +297,103 @@ function SetupCard({ say, onDone }) {
   );
 }
 
-/* ---------- הדף המלא ---------- */
+/* ============================================================
+   דיווח תקלה — המסך של החניך
+   ------------------------------------------------------------
+   כל חניך יכול לדווח, ורואה את מה שהוא עצמו דיווח עם הסטטוס.
+   ⚠ עלויות ופרטי איש המקצוע אינם מגיעים לכאן — השרת לא מחזיר
+     אותם לחניך כלל (toStudentFault).
+   ============================================================ */
+export function FaultReportPage({ say }) {
+  const { data, err, busy, reload } = useLoad(() => api.getFaults(), []);
+  const [form, setForm] = useState(false);
+
+  if (busy && !data) return (
+    <div className="empty" style={{ paddingTop: 60 }}><div className="e1">טוען…</div></div>
+  );
+  if (err?.setupRequired) return (
+    <div className="empty" style={{ paddingTop: 50 }}>
+      <div className="e1">הדיווח עדיין לא זמין</div>
+      <div className="e2">לוח התקלות טרם חובר. פנו למנהל.</div>
+    </div>
+  );
+  if (err) return (
+    <div className="alert a-clay">
+      <FI.warn />
+      <div style={{ flex: 1 }}>
+        <div className="ttl">לא הצלחנו לטעון</div>
+        <div className="bd">{err.message}</div>
+        <button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} onClick={reload}>נסו שוב</button>
+      </div>
+    </div>
+  );
+
+  if (form) return (
+    <FaultForm say={say}
+      onDone={() => { setForm(false); reload(); }}
+      onCancel={() => setForm(false)} />
+  );
+
+  const mine = (data && data.faults) || [];
+  const open = mine.filter((x) => x.status !== FAULT_STATUS.done);
+
+  return (
+    <>
+      <div className="screen-title">דיווח תקלה</div>
+
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600, lineHeight: 1.6 }}>
+          משהו שבור, דולף או לא עובד? דווחו כאן ואב הבית יראה את זה.
+          אפשר לצרף תמונה — היא חוסכת חצי מהשאלות.
+        </div>
+      </div>
+
+      <button className="btn btn-primary" style={{ marginBottom: 16 }} onClick={() => setForm(true)}>
+        <FI.plus />דיווח על תקלה חדשה
+      </button>
+
+      <div className="sec-label">הדיווחים שלי</div>
+      {mine.length === 0 ? (
+        <div className="empty">
+          <div className="e1">עוד לא דיווחת על תקלה</div>
+          <div className="e2">דיווח שתגיש יופיע כאן עם הסטטוס שלו.</div>
+        </div>
+      ) : (
+        <>
+          {open.length > 0 && (
+            <div className="grp-h">
+              <span>{open.length === 1 ? "דיווח אחד פתוח" : `${open.length} דיווחים פתוחים`}</span>
+              <span>מתעדכן על ידי אב הבית</span>
+            </div>
+          )}
+          <div className="rows">
+            {mine.map((x) => (
+              <div className="st-row" key={x.id} style={{ cursor: "default" }}>
+                <div className="st-main">
+                  <div className="st-n">{x.title}</div>
+                  <div className="st-m">
+                    <span className={"pill " + (x.status === FAULT_STATUS.done ? "p-ok"
+                      : x.status === FAULT_STATUS.working ? "p-new" : "p-low")}>{x.status}</span>
+                    {x.place && <span>{x.place}</span>}
+                    <span className="num">{heDate(x.date)}</span>
+                  </div>
+                </div>
+                {x.photoUrl && (
+                  <a href={x.photoUrl} target="_blank" rel="noreferrer" className="thumb">
+                    <img src={x.photoUrl} alt="" />
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      <div style={{ height: 40 }} />
+    </>
+  );
+}
+
+/* ---------- הדף המלא — צוות ---------- */
 export function FaultsPage({ say }) {
   const { data, err, busy, reload } = useLoad(() => api.getFaults(), []);
   const [filter, setFilter] = useState("open"); // open | done | all
@@ -231,15 +426,42 @@ export function FaultsPage({ say }) {
   const list = all.filter((x) =>
     filter === "all" ? true :
     filter === "done" ? x.status === FAULT_STATUS.done :
+    filter === "urgent" ? x.status !== FAULT_STATUS.done && x.urgency === FAULT_URGENCY.urgent :
     x.status !== FAULT_STATUS.done);
 
   return (
     <>
       <div className="screen-title">תקלות ובעיות</div>
 
+      <div className="stat-grid" style={{ marginBottom: 12 }}>
+        <div className={"stat-tile " + (c.urgentOpen ? "warn" : "good")}>
+          <span className="sv num">{c.urgentOpen || 0}</span>
+          <span className="sl">דחופות פתוחות</span>
+          <span className="ss">{c.urgentOpen ? "דורש טיפול מיידי" : "אין דחופות"}</span>
+        </div>
+        <div className="stat-tile">
+          <span className="sv num">{(c.open || 0) + (c.working || 0)}</span>
+          <span className="sl">פתוחות בסך הכול</span>
+          <span className="ss">{c.working ? `${c.working} בטיפול` : "טרם נפתח טיפול"}</span>
+        </div>
+        <div className="stat-tile">
+          <span className="sv num">{c.done || 0}</span>
+          <span className="sl">טופלו</span>
+          <span className="ss">היסטוריית תחזוקה</span>
+        </div>
+        <div className="stat-tile">
+          <span className="sv num">{(c.totalCost || 0).toLocaleString("he-IL")}</span>
+          <span className="sl">עלות מצטברת (₪)</span>
+          <span className="ss">מה שנרשם עד היום</span>
+        </div>
+      </div>
+
       <div className="seg">
         <button className={filter === "open" ? "on" : ""} onClick={() => setFilter("open")}>
           פתוחות{(c.open || 0) + (c.working || 0) ? ` (${(c.open || 0) + (c.working || 0)})` : ""}
+        </button>
+        <button className={filter === "urgent" ? "on" : ""} onClick={() => setFilter("urgent")}>
+          דחופות{c.urgentOpen ? ` (${c.urgentOpen})` : ""}
         </button>
         <button className={filter === "done" ? "on" : ""} onClick={() => setFilter("done")}>
           טופלו{c.done ? ` (${c.done})` : ""}
@@ -249,8 +471,10 @@ export function FaultsPage({ say }) {
 
       {list.length === 0 ? (
         <div className="empty">
-          <div className="e1">{filter === "done" ? "עוד לא טופלו תקלות" : "אין תקלות פתוחות"}</div>
-          <div className="e2">{filter === "done" ? "" : "כשמשהו מתקלקל — רושמים אותו כאן."}</div>
+          <div className="e1">{filter === "done" ? "עוד לא טופלו תקלות"
+            : filter === "urgent" ? "אין תקלות דחופות" : "אין תקלות פתוחות"}</div>
+          <div className="e2">{filter === "done" ? ""
+            : filter === "urgent" ? "מה שדחוף יקפוץ לכאן." : "כשמשהו מתקלקל — רושמים אותו כאן."}</div>
         </div>
       ) : (
         <div className="rows">
