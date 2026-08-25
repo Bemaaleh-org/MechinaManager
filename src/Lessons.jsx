@@ -774,16 +774,26 @@ function Evals({ say }) {
 /* ---------- כרטיס חוות דעת ----------
    ⚠ שורה שנפתחה אוטומטית מגיעה בלי טקסט ועם דירוג בלבד. העריכה
      כאן היא הדרך להשלים אותה — וגם לתקן שם מרצה שנרשם מאוחר. */
-/* ⚠ מאיפה הגיע המספר. ממוצע של חניכים וציון שמדריך זכר נראים
-   אחרת בכוונה — אחרת אי אפשר לדעת על מה מסתכלים. */
+/* ⚠ הצבע לפי הציון, לא לפי המקור. ברשימה של 32 מרצים המספר
+   לבדו לא נקרא — 2 ו-10 נראים אותו דבר עד שקוראים אותם.
+   הסולם: 9+ ירוק · 8 עד 8.9 כחול · 6 עד 7.9 ענבר · מתחת ל-6
+   חימר. ⚠ הגבול התחתון הוא 6 ולא 6.5 בכוונה — אדום הוא אמירה
+   חזקה, ומרצה שקיבל 6 אינו נכשל. */
+const scoreTone = (n) =>
+  n >= 9 ? "sc-top" : n >= 8 ? "sc-good" : n >= 6 ? "sc-ok" : "sc-low";
+
+/* ⚠ המקור נשאר גלוי — בכוכב ובכיתוב שמתחת — אבל לא בצבע.
+   ממוצע של 23 חניכים וציון שמדריך זכר הם עדיין שני דברים,
+   ולכן להצבעות יש ★ ולדירוג הידני אין. */
 function Score({ e }) {
-  if (e.source === "students") {
-    return <span className="pill pp-ok num" title={`${e.votes} מדרגים`}>★ {e.score}</span>;
-  }
-  if (e.source === "manual") {
-    return <span className="pill p-manual num" title="דירוג שהוזן ידנית">{e.score}</span>;
-  }
-  return null;
+  if (e.score == null) return null;
+  const students = e.source === "students";
+  return (
+    <span className={`pill num sc ${scoreTone(e.score)}`}
+      title={students ? `${e.votes} מדרגים` : "דירוג שהוזן ידנית"}>
+      {students ? "★ " : ""}{e.score}
+    </span>
+  );
 }
 
 function EvalCard({ e, say, onSaved }) {
