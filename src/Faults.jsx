@@ -27,6 +27,8 @@ const FI = {
   chev: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
   plus: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" {...p}><path d="M12 5v14M5 12h14"/></svg>,
   camera: (p) => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 8.5A2 2 0 0 1 5 6.5h2.2l1.3-2h7l1.3 2H19a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8.5z"/><circle cx="12" cy="13" r="3.4"/></svg>,
+  check: (p) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M4 12.5 9.5 18 20 6.5"/></svg>,
+  coin: (p) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="9"/><path d="M14.6 9.2a3 3 0 0 0-2.6-1.2c-1.6 0-2.6.9-2.6 2s1 1.8 2.6 2 2.7.8 2.7 2-1.1 2-2.7 2a3 3 0 0 1-2.6-1.2M12 6.2v11.6"/></svg>,
 };
 
 function useLoad(fn, deps = []) {
@@ -433,28 +435,29 @@ export function FaultsPage({ say }) {
     <>
       <div className="screen-title">תקלות ובעיות</div>
 
-      <div className="stat-grid" style={{ marginBottom: 12 }}>
-        <div className={"stat-tile " + (c.urgentOpen ? "warn" : "good")}>
-          <span className="sv num">{c.urgentOpen || 0}</span>
-          <span className="sl">דחופות פתוחות</span>
-          <span className="ss">{c.urgentOpen ? "דורש טיפול מיידי" : "אין דחופות"}</span>
-        </div>
-        <div className="stat-tile">
-          <span className="sv num">{(c.open || 0) + (c.working || 0)}</span>
-          <span className="sl">פתוחות בסך הכול</span>
-          <span className="ss">{c.working ? `${c.working} בטיפול` : "טרם נפתח טיפול"}</span>
-        </div>
-        <div className="stat-tile">
-          <span className="sv num">{c.done || 0}</span>
-          <span className="sl">טופלו</span>
-          <span className="ss">היסטוריית תחזוקה</span>
-        </div>
-        <div className="stat-tile">
-          <span className="sv num">{(c.totalCost || 0).toLocaleString("he-IL")}</span>
-          <span className="sl">עלות מצטברת (₪)</span>
-          <span className="ss">מה שנרשם עד היום</span>
+      {/* ⚠ שלושת המספרים שמסכמים את מצב התחזוקה על כהה, ואחריהם
+          הפירוט. הדחופות ראשונות — הן מה שקובע אם צריך לרוץ. */}
+      <div className="band">
+        <div className="band-h">מצב התחזוקה</div>
+        <div className="band-grid">
+          <div className="band-c">
+            <div className={"band-n" + (c.urgentOpen ? " warn" : " ok")}>{c.urgentOpen || 0}</div>
+            <div className="band-l">דחופות פתוחות</div>
+          </div>
+          <div className="band-c">
+            <div className="band-n">{(c.open || 0) + (c.working || 0)}</div>
+            <div className="band-l">פתוחות בסך הכול</div>
+          </div>
+          <div className="band-c">
+            <div className="band-n">{(c.totalCost || 0).toLocaleString("he-IL")}</div>
+            <div className="band-l">עלות מצטברת (₪)</div>
+          </div>
         </div>
       </div>
+
+      {/* ⚠ אין כאן אריחי מספרים. הם הציגו בדיוק את מה שברצועה
+          שמעל, ולא היו לחיצים — שני עותקים של אותם מספרים על
+          אותו מסך. הסינון למטה הוא הדרך להגיע לדחופות ולטופלו. */}
 
       <div className="seg">
         <button className={filter === "open" ? "on" : ""} onClick={() => setFilter("open")}>
@@ -470,7 +473,8 @@ export function FaultsPage({ say }) {
       </div>
 
       {list.length === 0 ? (
-        <div className="empty">
+        <div className={"empty " + (filter === "urgent" ? "tone-8" : "tone-1")}>
+          <div className="e-ico">{filter === "urgent" ? <FI.warn /> : <FI.check />}</div>
           <div className="e1">{filter === "done" ? "עוד לא טופלו תקלות"
             : filter === "urgent" ? "אין תקלות דחופות" : "אין תקלות פתוחות"}</div>
           <div className="e2">{filter === "done" ? ""

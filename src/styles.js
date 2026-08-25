@@ -1028,6 +1028,81 @@ html,body{margin:0;padding:0;background:#012E58}
 .st-row{transition:background .12s var(--ease)}
 .tick{transition:all .12s var(--ease)}
 
+/* ---- עומק ברקע ----
+   ⚠ שלושה כתמי אור רכים מאחורי הכול, בגוונים של הזהות עצמה —
+     נייבי, חימר, ירוק — כל אחד ב-4%-5% שקיפות. רקע קרם שטוח
+     על מסך גדול נראה כמו נייר; הכתמים נותנים לו נפח בלי
+     שאיש שם לב שהם שם.
+
+   ⚠ fixed ולא scroll: הכתמים נשארים במקומם בזמן גלילה, ולכן
+     הם קוראים כתאורה של החדר ולא כחלק מהתוכן שזז. */
+.kx{
+  background:
+    radial-gradient(46% 32% at 88% 4%, rgba(0,36,84,.055), transparent 70%),
+    radial-gradient(42% 30% at 4% 24%, rgba(158,54,38,.042), transparent 70%),
+    radial-gradient(52% 34% at 62% 94%, rgba(31,107,69,.04), transparent 72%),
+    var(--bg);
+  background-attachment:fixed;
+}
+
+/* ---- רצועת סיכום ----
+   ⚠ המספרים שמסכמים מסך יושבים על כהה ולא על לבן. זו ההשראה
+     הישירה מ-busly: רצועה כהה עם זוהר עדין מלמעלה עוצרת את
+     העין ואומרת "זו התמונה הגדולה", לפני שיורדים לרשימה. */
+.band{position:relative;overflow:hidden;border-radius:var(--r-lg);
+  background:linear-gradient(162deg,#012E58 0%,#0A3A66 100%);
+  color:#fff;padding:15px 17px;margin-bottom:14px;
+  box-shadow:0 14px 34px -18px rgba(0,36,84,.8)}
+.band::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(72% 130% at 50% -28%,rgba(126,178,232,.22),transparent 62%)}
+.band-grid{position:relative;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px}
+.band-c{text-align:center;min-width:0}
+/* ⚠ קו מפריד ולא רווח: שלושה מספרים בשורה בלי הפרדה נקראים
+   כמספר אחד ארוך. */
+.band-c + .band-c{border-right:1px solid rgba(255,255,255,.16)}
+.band-n{font-family:'Suez One',Heebo,serif;font-size:25px;line-height:1.15;
+  font-variant-numeric:tabular-nums}
+.band-n.warn{color:#FFC4B4}
+.band-n.ok{color:#A8E6C4}
+.band-l{font-size:10.5px;font-weight:700;opacity:.72;margin-top:2px;line-height:1.3}
+.band-h{position:relative;font-size:11px;font-weight:800;letter-spacing:.9px;
+  opacity:.6;margin-bottom:11px}
+
+/* ---- מצב ריק ----
+   ⚠ מצב ריק אמיתי מקבל אייקון רגוע. כשל טעינה נשאר באנר אדום
+     ונפרד — שני מסכים שונים, תמיד (עיקרון 6). */
+.empty{text-align:center;padding:34px 18px}
+.empty .e-ico{width:52px;height:52px;border-radius:17px;margin:0 auto 12px;
+  display:grid;place-items:center;background:var(--t-s,var(--accent-soft));
+  color:var(--t,var(--accent))}
+.empty .e-ico svg{width:24px;height:24px}
+
+/* ---- שלד טעינה ----
+   ⚠ עדיף על "טוען…": השלד מראה את הצורה שתגיע, והמסך לא קופץ
+     כשהנתונים נכנסים. */
+@keyframes shim{from{background-position:100% 0}to{background-position:-100% 0}}
+.skel{border-radius:var(--r-md);background:linear-gradient(90deg,
+  rgba(211,201,182,.22) 25%,rgba(211,201,182,.42) 50%,rgba(211,201,182,.22) 75%);
+  background-size:200% 100%;animation:shim 1.25s linear infinite}
+.skel-card{height:74px;border-radius:var(--r-lg);margin-bottom:10px}
+.skel-line{height:13px;margin-bottom:9px}
+.skel-line.w60{width:60%}
+.skel-line.w40{width:40%}
+
+/* ---- מד קטן לשורה ----
+   ⚠ אותו רעיון של מד התפוסה בשיבוצים: כמות מול מפתח נקראת
+     כפס, לא כחישוב בראש. */
+.mini-bar{height:3px;border-radius:99px;background:var(--line);overflow:hidden;
+  margin-top:6px;max-width:150px}
+.mini-fill{height:100%;border-radius:99px;background:var(--ok);transition:width .4s var(--ease)}
+.mini-bar.low .mini-fill{background:var(--clay)}
+.mini-bar.mid .mini-fill{background:var(--amber)}
+
+/* ---- רשימות ---- */
+.kx .rows{overflow:hidden}
+.st-row{border-bottom-color:rgba(211,201,182,.45)}
+.led-item{border-bottom-color:rgba(211,201,182,.45)}
+
 /* ---- כניסה מדורגת, במסך הבית בלבד ----
    ⚠ רק על שתי הרשתות של מסך הבית ולא על כל כרטיס באפליקציה.
      רשימה של שלושים ימי תקציב שנכנסת בהנפשה נראית איטית, לא

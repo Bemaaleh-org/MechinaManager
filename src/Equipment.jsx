@@ -132,6 +132,15 @@ function EquipRow({ item, say, onChanged }) {
             {item.par != null && <span>מפתח {item.par}</span>}
             {missing > 0 && <span className="pill p-low">חסר {missing}</span>}
           </div>
+          {/* ⚠ כמות מול מפתח כפס. "18 · מפתח 30 · חסר 12" מחייב
+              חישוב בראש; פס באורך 60% נקרא במבט אחד. פריט בלי
+              מפתח אין מה למדוד מולו ולכן אין לו פס. */}
+          {item.par > 0 && (
+            <div className={"mini-bar" + (missing > 0 ? " low" : "")}>
+              <div className="mini-fill"
+                style={{ width: Math.min(100, ((item.qty || 0) / item.par) * 100) + "%" }} />
+            </div>
+          )}
         </div>
         <b className="num" style={{ fontSize: 15, fontWeight: 800, flex: "0 0 auto" }}>
           {item.qty || "—"}
@@ -467,6 +476,28 @@ function EquipmentScreen({ say, domain: d, area }) {
 
       {sub === "equip" && (
         <>
+          {/* ---------- התמונה הגדולה ----------
+              ⚠ לפני הרשימה הארוכה: כמה פריטים יש, כמה מהם מתחת
+                למפתח וכמה כבר בדרך. מי שנכנס למסך רוצה לדעת
+                אם יש בעיה, לא לספור שורות. */}
+          <div className="band">
+            <div className="band-h">{look.title}</div>
+            <div className="band-grid">
+              <div className="band-c">
+                <div className="band-n">{data.equipment.length}</div>
+                <div className="band-l">פריטים</div>
+              </div>
+              <div className="band-c">
+                <div className={"band-n" + (short.length ? " warn" : " ok")}>{short.length}</div>
+                <div className="band-l">מתחת למפתח</div>
+              </div>
+              <div className="band-c">
+                <div className="band-n">{(data.shopping || []).filter((x) => x.status === "פתוח").length}</div>
+                <div className="band-l">ברשימת הקניות</div>
+              </div>
+            </div>
+          </div>
+
           <div className="seg">
             <button className={!kindFilter ? "on" : ""} onClick={() => setKindFilter(null)}>הכול</button>
             <button className={kindFilter === "מתכלה" ? "on" : ""} onClick={() => setKindFilter("מתכלה")}>
@@ -535,7 +566,11 @@ function EquipmentScreen({ say, domain: d, area }) {
           <div className="rows">
             {equipment.map((x) => <EquipRow key={x.id} item={x} say={say} onChanged={reload} />)}
             {equipment.length === 0 && (
-              <div className="led-empty">אין ציוד תואם</div>
+              <div className="empty">
+                <div className="e-ico"><CI.box /></div>
+                <div className="e1">אין ציוד תואם</div>
+                <div className="e2">נסו סינון אחר או חיפוש אחר.</div>
+              </div>
             )}
           </div>
 

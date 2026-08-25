@@ -916,8 +916,43 @@ function StudentsList({ onOpen, say }) {
 
   const list = data.students.filter((s) => !q.trim() || s.name.includes(q.trim()));
 
+  /* ⚠ ממוצע הנוכחות של המחזור — לא של חניך בודד. הוא נגזר
+     מהסכומים ולא מממוצע-של-ממוצעים, שהיה נותן משקל זהה לחניך
+     שסומן ביום אחד ולחניך שסומן במאה. */
+  const totPresent = data.students.reduce((a, x) => a + ((x.summary && x.summary.present) || 0), 0);
+  const totDays = data.students.reduce((a, x) => a + ((x.summary && x.summary.schoolDays) || 0), 0);
+  /* ⚠ הסף הוא ימי לימוד שסומנו, לא סכום ימי-חניך. עם 33 חניכים
+     סכום ימי-החניך עובר 5 כבר אחרי יום אחד, ואז מוצג "0%
+     נוכחות ממוצעת" על סמך יום בודד — מספר נכון חשבונית
+     ומטעה לחלוטין. */
+  const markedDays = data.students[0] && data.students[0].summary
+    ? data.students[0].summary.schoolDays : 0;
+
   return (
     <>
+      <div className="band">
+        <div className="band-h">המחזור במספרים</div>
+        <div className="band-grid">
+          <div className="band-c">
+            <div className="band-n">{data.students.length}</div>
+            <div className="band-l">חניכים פעילים</div>
+          </div>
+          <div className="band-c">
+            <div className="band-n">
+              {markedDays >= 5 ? Math.round((totPresent / totDays) * 100) + "%" : "—"}
+            </div>
+            <div className="band-l">נוכחות ממוצעת</div>
+          </div>
+          {/* ⚠ הרצועה מדברת על השנה; מצב היום יושב באריחים
+              שמתחתיה. אותו מספר בשני מקומות על אותו מסך הוא
+              רעש, לא הדגשה. */}
+          <div className="band-c">
+            <div className="band-n">{markedDays}</div>
+            <div className="band-l">ימי לימוד שסומנו</div>
+          </div>
+        </div>
+      </div>
+
       <input className="search" value={q} onChange={(e) => setQ(e.target.value)}
         placeholder="חיפוש חניך" />
 
@@ -1962,30 +1997,36 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
     .filter((e) => e.end >= todayIso && e.type !== "שבת")
     .slice(0, 5);
 
+  /* ⚠ אותו טיפול בדיוק כמו במסך המנהל: גוון לכל תחום ואייקון
+     בתוך אריח. הגוון הוא של התחום ולא של המצב — אדום וירוק
+     שמורים למספר עצמו כשמשהו דורש טיפול. */
   const tiles = [
-    { key: "vac", go: () => go("year"), cls: quotaLeft === 0 ? "warn" : "good",
+    { key: "vac", tone: "tone-1", ico: <MI.cal />, go: () => go("year"),
+      cls: quotaLeft === 0 ? "warn" : "good",
       v: quotaLeft == null ? "…" : quotaLeft, l: "ימי חופש שנותרו",
       s: quotaTotal ? `מתוך ${quotaTotal} בשנה` : "טוען" },
-    { key: "req", go: () => go("requests"), cls: pending ? "warn" : "good",
+    { key: "req", tone: "tone-2", ico: <MI.note />, go: () => go("requests"),
+      cls: pending ? "warn" : "good",
       v: pending == null ? "…" : pending, l: "בקשות ממתינות",
       s: pending ? "ממתינות להחלטה" : "אין ממתינות" },
-    { key: "fault", go: () => go("report"), cls: faults ? "" : "good",
+    { key: "fault", tone: "tone-8", ico: <MI.tool />, go: () => go("report"),
+      cls: faults ? "" : "good",
       v: faults == null ? "…" : faults, l: "תקלות שדיווחת",
       s: faults ? "עדיין פתוחות" : "אין פתוחות" },
-    { key: "att", go: () => go("year"), cls: "good",
+    { key: "att", tone: "tone-7", ico: <MI.check />, go: () => go("year"), cls: "good",
       v: sum ? sum.present : "…", l: "ימים שנכחת",
       s: sum ? `מתוך ${sum.schoolDays} שסומנו` : "טוען" },
   ];
 
   const nav = [
-    { key: "n-year", l: "הנוכחות שלי", icon: <MI.cal />, go: () => go("year") },
-    { key: "n-req", l: "בקשות יציאה", icon: <MI.note />, go: () => go("requests"), badge: unseen },
-    { key: "n-prof", l: "הפרופיל שלי", icon: <MI.users />, go: () => go("profile") },
-    { key: "n-place", l: "השיבוצים שלי", icon: <MI.users />, go: () => go("placements") },
-    { key: "n-agenda", l: "הלו״ז שלי", icon: <MI.cal />, go: () => go("agenda") },
-    { key: "n-gantt", l: "גאנט שנתי", icon: <MI.cal />, go: () => go("gantt") },
-    { key: "n-report", l: "דיווח תקלה", icon: <MI.tool />, go: () => go("report") },
-    { key: "n-new", l: "בקשת יציאה חדשה", icon: <MI.plus />, go: () => go("new") },
+    { key: "n-year", tone: "tone-1", l: "הנוכחות שלי", icon: <MI.cal />, go: () => go("year") },
+    { key: "n-req", tone: "tone-2", l: "בקשות יציאה", icon: <MI.note />, go: () => go("requests"), badge: unseen },
+    { key: "n-prof", tone: "tone-5", l: "הפרופיל שלי", icon: <MI.users />, go: () => go("profile") },
+    { key: "n-place", tone: "tone-4", l: "השיבוצים שלי", icon: <MI.users />, go: () => go("placements") },
+    { key: "n-agenda", tone: "tone-6", l: "הלו״ז שלי", icon: <MI.cal />, go: () => go("agenda") },
+    { key: "n-gantt", tone: "tone-7", l: "גאנט שנתי", icon: <MI.cal />, go: () => go("gantt") },
+    { key: "n-report", tone: "tone-8", l: "דיווח תקלה", icon: <MI.tool />, go: () => go("report") },
+    { key: "n-new", tone: "tone-3", l: "בקשת יציאה חדשה", icon: <MI.plus />, go: () => go("new") },
   ];
 
   return (
@@ -2043,10 +2084,46 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
         </>
       )}
 
+      {/* ---------- רצועת הסיכום ----------
+          ⚠ שלושת המספרים שהחניך שואל עליהם באמת — כמה נכחתי,
+            כמה חופש נשאר, כמה מהשנה עברה — על כהה ובמקום אחד,
+            לפני שיורדים לפירוט. */}
+      {sum && (
+        <div className="band">
+          <div className="band-h">התמונה שלי בשנה</div>
+          <div className="band-grid">
+            {/* ⚠ אחוז מוצג רק כשיש מספיק ימים מאחוריו. בתחילת
+                שנה, כשסומן יום אחד, "0% נוכחות" הוא מספר נכון
+                חשבונית ושקרי במשמעותו — והוא הדבר הראשון
+                שהחניך רואה על עצמו. עד חמישה ימים מוצגת
+                השבירה עצמה. */}
+            <div className="band-c">
+              <div className="band-n">
+                {sum.schoolDays >= 5
+                  ? Math.round((sum.present / sum.schoolDays) * 100) + "%"
+                  : `${sum.present}/${sum.schoolDays}`}
+              </div>
+              <div className="band-l">נוכחות</div>
+            </div>
+            <div className="band-c">
+              <div className={"band-n" + (quotaLeft === 0 ? " warn" : quotaLeft > 0 ? " ok" : "")}>
+                {quotaLeft == null ? "—" : quotaLeft}
+              </div>
+              <div className="band-l">ימי חופש שנותרו</div>
+            </div>
+            <div className="band-c">
+              <div className="band-n">{sum.schoolDays}</div>
+              <div className="band-l">ימים שסומנו עד היום</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="sec-label">המצב שלי</div>
       <div className="stat-grid">
         {tiles.map((t) => (
-          <button key={t.key} className={"stat-tile " + t.cls} onClick={t.go}>
+          <button key={t.key} className={`stat-tile ${t.cls} ${t.tone || ""}`} onClick={t.go}>
+            <span className="tile sm">{t.ico}</span>
             <span className="sv num">{t.v}</span>
             <span className="sl">{t.l}</span>
             <span className="ss">{t.s}</span>
@@ -2088,7 +2165,7 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
       <div className="sec-label">הכול</div>
       <div className="navgrid">
         {nav.map((t) => (
-          <button key={t.key} className="nav-tile" onClick={t.go}>
+          <button key={t.key} className={"nav-tile " + (t.tone || "")} onClick={t.go}>
             <span className="nav-ico">{t.icon}</span>
             <b>{t.l}</b>
             {t.badge > 0 && <span className="nav-badge num">{t.badge}</span>}
