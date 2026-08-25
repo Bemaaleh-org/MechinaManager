@@ -717,26 +717,39 @@ html,body{margin:0;padding:0;background:#012E58}
 .bg-bar{height:5px;border-radius:99px;background:var(--line);margin-top:7px;overflow:hidden}
 .bg-bar span{display:block;height:100%;border-radius:99px;background:var(--accent)}
 
-/* ---- רשת חודש הגאנט ---- */
-.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;direction:rtl;margin-bottom:14px}
+/* ---- רשת חודש הגאנט ----
+   ⚠ שמות האירועים יושבים בתוך התאים ולא כנקודות: הרשת אמורה
+     להחליף את הגיליון, ונקודה בלי שם מחייבת לחיצה על כל יום. */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;direction:rtl;margin-bottom:14px}
 .cal-dow{text-align:center;font-size:11px;font-weight:800;color:var(--faint);padding:2px 0 4px}
-.cal-cell{position:relative;aspect-ratio:1;min-height:40px;border-radius:10px;
-  background:var(--surface);border:1px solid var(--line);display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:3px;padding:2px;cursor:pointer;color:inherit}
+.cal-cell{position:relative;min-height:74px;border-radius:9px;background:var(--surface);
+  border:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;
+  gap:2px;padding:4px 3px 3px;cursor:pointer;color:inherit;overflow:hidden}
 .cal-cell.empty{background:none;border:none;cursor:default}
 .cal-cell.sat{background:var(--bg)}
-.cal-cell.today{border-color:var(--accent);border-width:2px}
-.cal-cell.open{background:var(--accent);color:#fff;border-color:var(--accent)}
-.cal-n{font-size:14px;font-weight:800;line-height:1}
-.cal-dots{display:flex;gap:3px;min-height:6px}
-.cal-dots i{width:5px;height:5px;border-radius:99px;background:var(--accent);display:block}
-.cal-dots i.shabbat{background:var(--amber)}
-.cal-dots i.holiday{background:var(--clay)}
-.cal-cell.open .cal-dots i{background:#fff}
+.cal-cell.today{border-color:var(--accent);border-width:2px;padding:3px 2px 2px}
+.cal-cell.open{outline:2px solid var(--accent);outline-offset:-2px}
+.cal-n{font-size:12px;font-weight:800;line-height:1;text-align:center;color:var(--muted)}
+.cal-cell.today .cal-n{color:var(--accent)}
+.cal-evs{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cal-chip{display:block;font-style:normal;font-size:9px;font-weight:700;line-height:1.25;
+  border-radius:4px;padding:2px 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  background:var(--accent-soft);color:var(--accent)}
+.cal-chip.shabbat{background:var(--amber-soft);color:var(--amber)}
+.cal-chip.holiday{background:var(--clay-soft);color:var(--clay)}
+.cal-chip.more{background:none;color:var(--faint);padding:0 3px}
 .cal-day{margin-bottom:14px}
 .cal-day-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
 .cal-day-h b{font-size:15px}
 .cal-day-h button{background:none;border:none;color:var(--muted);font-size:12.5px;
   font-weight:700;cursor:pointer;padding:4px}
 .cal-day-empty{font-size:13.5px;color:var(--muted);font-weight:600;text-align:center;padding:6px 0}
+
+/* מסך רחב — תאים גבוהים יותר וטקסט קריא יותר */
+@media (min-width:600px){
+  .cal{gap:5px}
+  .cal-cell{min-height:104px;padding:6px 5px 5px}
+  .cal-n{font-size:13.5px}
+  .cal-chip{font-size:11px;padding:3px 5px}
+}
 `;

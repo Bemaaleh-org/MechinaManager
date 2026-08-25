@@ -273,6 +273,12 @@ export const api = {
 
   /** הגאנט השנתי — כל אירועי השנה. עריכה בלוח ב-monday. */
   getGantt: () => get("/api/lessons?action=gantt"),
+  /** עריכת הלו״ז — מנהל ואחראי לו״ז. השרת אוכף. */
+  addGanttEvent: ({ name, start, end, type }) =>
+    post("/api/lessons?action=gantt", { name, start, end, type }),
+  editGanttEvent: ({ id, name, start, end, type }) =>
+    put("/api/lessons?action=gantt", { id, name, start, end, type }),
+  deleteGanttEvent: (id) => del("/api/lessons?action=gantt", { id }),
 
   /** נתוני הדוח החודשי. בלי חודש — כל השנה. */
   getLessonReport: (month) =>
