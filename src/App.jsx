@@ -6,6 +6,7 @@ import Login from "./Login.jsx";
 import { MechinaApp, MechinaStaff, MechinaRolesPage } from "./Mechina.jsx";
 import { LessonsPage } from "./Lessons.jsx";
 import { ContainerPage } from "./Container.jsx";
+import { BudgetPage } from "./Budget.jsx";
 import { PlacementsPage } from "./Placements.jsx";
 import { SafetyPage } from "./Safety.jsx";
 import { FaultsPage } from "./Faults.jsx";
@@ -168,6 +169,9 @@ function Staff({ auth, onSignedOut }) {
       active: section === "kitchen" && kArea === "אוכל", onClick: () => goKitchen("אוכל") },
     { key: "k-disp", label: "ציוד חד״פ", icon: <I.box />,
       active: section === "kitchen" && kArea === "חד״פ", onClick: () => goKitchen("חד״פ") },
+    /* ⚠ תקציב הוא נתון כספי — מנהל בלבד, והשרת אוכף */
+    ...(isMgr ? [{ key: "k-budget", label: "תקציב המטבח", icon: <I.count />,
+      active: section === "budget", onClick: () => setSection("budget") }] : []),
   ];
 
   return (
@@ -288,6 +292,8 @@ function Staff({ auth, onSignedOut }) {
           {section === "placements" && isMgr && <PlacementsPage say={say} />}
           {section === "safety" && isMgr && <SafetyPage say={say} />}
           {section === "faults" && isMgr && <FaultsPage say={say} />}
+          {section === "budget" && isMgr && <BudgetPage say={say} />}
+
           {section === "container" && isMgr && <ContainerPage say={say} area={cArea} />}
         </main>
 

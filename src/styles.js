@@ -688,4 +688,29 @@ html,body{margin:0;padding:0;background:#012E58}
   box-shadow:0 10px 26px rgba(138,90,30,.22)}
 /* כשיש כמה כרטיסים ברצף — מרווח קטן יותר ביניהם */
 .pl-stack .pl-lead{margin:0 0 10px}
+
+/* ---- תקציב המטבח ---- */
+.bg-nav{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.bg-nav select{flex:1;min-height:46px;background:var(--surface);border:1px solid var(--line2);
+  border-radius:11px;padding:0 13px;font-size:15px;font-weight:700;outline:none;text-align:center}
+.bg-nav .btn{flex:0 0 46px;min-height:46px;padding:0}
+.bg-total{border-radius:20px;padding:20px;margin-bottom:12px;text-align:center;color:#fff;
+  background:linear-gradient(145deg,#0A4478 0%,#012E58 100%);
+  box-shadow:0 10px 26px rgba(1,46,88,.2)}
+.bg-total-k{font-size:11.5px;font-weight:800;letter-spacing:.6px;opacity:.75}
+.bg-total-v{font-family:'Suez One',Heebo,serif;font-size:36px;line-height:1.2;margin:4px 0 2px}
+.bg-total-s{font-size:12.5px;font-weight:700;opacity:.85}
+.bg-head{display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:10px 14px}
+.bg-head input{flex:1;min-height:42px;background:var(--bg);border:1px solid var(--line2);
+  border-radius:10px;padding:0 12px;font-size:15px;outline:none;text-align:center}
+.bg-row{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:13.5px;font-weight:700}
+.bg-row+.bg-row{border-top:1px solid var(--line)}
+.bg-day{flex:0 0 46px;display:flex;flex-direction:column;align-items:center;line-height:1.25}
+.bg-day b{font-size:13.5px}
+.bg-day span{font-size:11px;color:var(--faint);font-weight:700}
+.bg-calc{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:var(--bg);border-radius:11px;padding:11px 13px;margin-bottom:12px;
+  font-size:13.5px;font-weight:700;color:var(--muted)}
+.bg-calc b{font-size:17px;color:var(--ink)}
+.pick.pick-wrap{flex-wrap:wrap}
 `;

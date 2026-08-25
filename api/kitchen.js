@@ -2,6 +2,7 @@
    /api/kitchen — ציוד המטבח
      ?action=equip   GET/POST/PUT/DELETE   הציוד עצמו
      ?action=shop    POST/PUT/DELETE       רשימת הקניות
+     ?action=budget  GET/PUT/POST/DELETE   תקציב המזון החודשי
 
    שני תחומים באותו לוח: ציוד אוכל וציוד חד״פ. הסינון לפי
    תחום נעשה בשרת, לא בדפדפן.
@@ -19,5 +20,6 @@ import equip from "./_kitchen-equip.js";
 import shop from "./_kitchen-shop.js";
 import doctor from "./_kitchen-doctor.js";
 import parImport from "./_kitchen-par.js";
+import budget from "./_kitchen-budget.js";
 
-export default router({ equip, shop, doctor, "par-import": parImport });
+export default router({ equip, shop, doctor, "par-import": parImport, budget });

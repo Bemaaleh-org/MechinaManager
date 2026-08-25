@@ -106,6 +106,17 @@ export const api = {
     put("/api/kitchen?action=shop", { itemId, status }),
   deleteKitchenShopping: (itemId) => del("/api/kitchen?action=shop", { itemId }),
 
+  /* --- תקציב המטבח — מנהל בלבד --- */
+  getBudget: (month) =>
+    get("/api/kitchen?action=budget" + (month ? "&month=" + encodeURIComponent(month) : "")),
+  /** כפיית סוג או מחיר ליום. הכול ריק = חזרה לגזירה מהלו״ז. */
+  setBudgetDay: ({ date, type, cost, note }) =>
+    put("/api/kitchen?action=budget", { date, type, cost, note }),
+  setHeadcount: (headcount) => put("/api/kitchen?action=budget", { headcount }),
+  addDryOrder: ({ name, amount, startMonth, date, note }) =>
+    post("/api/kitchen?action=budget", { name, amount, startMonth, date, note }),
+  deleteDryOrder: (orderId) => del("/api/kitchen?action=budget", { orderId }),
+
   loginStudent: (tz) => post("/api/students?action=login", { tz }),
 
   /** רשימת החניכים וסיכומיהם. מנהל בלבד — השרת אוכף. */

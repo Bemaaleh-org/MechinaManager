@@ -1,0 +1,332 @@
+/* ============================================================
+   /api/kitchen?action=budget — תקציב המטבח
+     GET    ?month=YYYY-MM   חודש אחד: ימים, סכומים והזמנות
+     PUT    { date, type?, cost?, note? }   כפיית סוג ליום
+     POST   { name, amount, startMonth, date?, note? }  הזמנה
+     DELETE { orderId }                     מחיקת הזמנה
+     PUT    { headcount }                   מספר הסועדים
+
+   ⚠ מנהל בלבד. עלויות אינן נתון של תורן (עיקרון 4).
+
+   ⚠ סוג היום נגזר מהגאנט ומלוח השנה, ורק חריגה נשמרת בלוח.
+     ראו ההסבר ב-shared/budget-boards.js.
+   ============================================================ */
+
+import { withAuth } from "./_session.js";
+import { gql, allItems } from "./_monday.js";
+import { cached, invalidate } from "./_cache.js";
+import { loadCalendar } from "./_attendance-data.js";
+import { loadGantt } from "./_lessons-gantt.js";
+import {
+  BUDGET_BOARDS as B, BUDGET_COLS as C, budgetReady,
+  DEFAULT_HEADCOUNT, SETTING_HEADCOUNT,
+  dayCostPerPerson, isPairedSaturday, isFriday, isSaturday,
+  orderShareFor, orderMonths,
+} from "../shared/budget-boards.js";
+
+const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
+const num = (i, c) => { const t = val(i, c); return t === "" ? null : Number(t); };
+
+/* ---------- טעינה ---------- */
+async function loadDayTypes({ force = false } = {}) {
+  return cached("budget-daytypes", async () => {
+    const items = await allItems(B.dayTypes);
+    return items
+      .map((i) => ({
+        id: String(i.id),
+        name: String(i.name || "").trim(),
+        cost: num(i, C.dayTypes.cost) || 0,
+        weekend: val(i, C.dayTypes.weekend) === "v",
+      }))
+      .filter((x) => x.name);
+  }, { force });
+}
+
+/** רק הימים שנכפו ידנית */
+async function loadOverrides({ force = false } = {}) {
+  return cached("budget-days", async () => {
+    const items = await allItems(B.days);
+    return items
+      .map((i) => ({
+        id: String(i.id),
+        date: val(i, C.days.date),
+        type: val(i, C.days.type) || null,
+        cost: num(i, C.days.cost),
+        note: val(i, C.days.note) || null,
+      }))
+      .filter((x) => x.date);
+  }, { force });
+}
+
+async function loadOrders({ force = false } = {}) {
+  return cached("budget-orders", async () => {
+    const items = await allItems(B.orders);
+    return items
+      .map((i) => ({
+        id: String(i.id),
+        name: String(i.name || "").trim(),
+        amount: num(i, C.orders.amount) || 0,
+        startMonth: val(i, C.orders.startMonth),
+        date: val(i, C.orders.date) || null,
+        note: val(i, C.orders.note) || null,
+      }))
+      .filter((x) => x.name && x.startMonth);
+  }, { force });
+}
+
+async function loadHeadcount({ force = false } = {}) {
+  return cached("budget-settings", async () => {
+    const items = await allItems(B.settings);
+    const row = items.find((i) => String(i.name || "").trim() === SETTING_HEADCOUNT);
+    return {
+      id: row ? String(row.id) : null,
+      headcount: row ? (num(row, C.settings.value) ?? DEFAULT_HEADCOUNT) : DEFAULT_HEADCOUNT,
+    };
+  }, { force });
+}
+
+const invalidateBudget = () => {
+  invalidate("budget-daytypes"); invalidate("budget-days");
+  invalidate("budget-orders"); invalidate("budget-settings");
+};
+
+/* ------------------------------------------------------------
+   גזירת סוג היום מהלו״ז.
+   ⚠ הסדר הוא הכרעה: כלל מוקדם גובר על מאוחר.
+   ------------------------------------------------------------ */
+const T = {
+  routine: "יום שגרה במכינה",
+  series: "יום סדרה",
+  home: "יום בית",
+  volunteer: "יום התנדבות",
+  mechinaWeekend: "שבת מכינה",
+  backFromHome: "יום חזרה מהבית",
+  homeWeekend: "שישי שבת בבית",
+};
+
+/** האם התאריך מכוסה באירוע גאנט ששמו מרמז על שהות בבית */
+function homeEventsFor(gantt) {
+  const home = new Set();
+  for (const e of gantt) {
+    if (!/בית/.test(e.name || "")) continue;
+    const from = e.start, to = e.end || e.start;
+    if (!from) continue;
+    for (let d = new Date(from + "T12:00:00Z"); d.toISOString().slice(0, 10) <= to; d.setUTCDate(d.getUTCDate() + 1)) {
+      home.add(d.toISOString().slice(0, 10));
+    }
+  }
+  return home;
+}
+
+const prevDay = (iso) => {
+  const d = new Date(iso + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+};
+
+/**
+ * סוג היום לפי הלו״ז, בלי החריגות.
+ *   byDate  לוח השנה של המכינה (kind לכל תאריך)
+ *   home    התאריכים שהגאנט מסמן כשהות בבית
+ */
+function derivedType(iso, byDate, home) {
+  const day = byDate.get(iso);
+
+  if (isFriday(iso) || isSaturday(iso)) {
+    const pairFriday = isSaturday(iso) ? prevDay(iso) : iso;
+    return home.has(iso) || home.has(pairFriday) ? T.homeWeekend : T.mechinaWeekend;
+  }
+  if (home.has(iso)) return T.home;
+
+  /* היום שאחרי סופ״ש בית — חוזרים, וזו ארוחה אחת */
+  if (home.has(prevDay(iso))) return T.backFromHome;
+
+  if (day && day.kind === "סדרה") return T.series;
+  /* ⚠ טיול נגזר כיום סדרה: שניהם ימים מחוץ למכינה עם הסדר
+     אוכל דומה. מי שרוצה אחרת — כופה ידנית על היום. */
+  if (day && day.kind === "טיול") return T.series;
+  if (day && day.kind === "חופשה") return T.home;
+
+  return T.routine;
+}
+
+/* ---------- חישוב חודש ---------- */
+function buildMonth(month, { types, overrides, calendar, gantt, headcount }) {
+  const byName = new Map(types.map((t) => [t.name, t]));
+  const byDate = calendar.byDate;
+  const home = homeEventsFor(gantt);
+  const ovByDate = new Map(overrides.map((o) => [o.date, o]));
+
+  const days = calendar.days
+    .filter((d) => d.date.startsWith(month))
+    .map((d) => {
+      const ov = ovByDate.get(d.date) || null;
+      const typeName = (ov && ov.type) || derivedType(d.date, byDate, home);
+      const type = byName.get(typeName) || null;
+      const perPerson = ov && ov.cost != null ? ov.cost : dayCostPerPerson(type, d.date);
+      return {
+        date: d.date,
+        kind: d.kind,
+        type: typeName,
+        perPerson,
+        total: perPerson * headcount,
+        overridden: Boolean(ov),
+        pairedSaturday: isPairedSaturday(type, d.date) && !(ov && ov.cost != null),
+        note: ov ? ov.note : null,
+      };
+    });
+
+  return { days, foodTotal: days.reduce((a, d) => a + d.total, 0) };
+}
+
+/* ---------- נקודת הקצה ---------- */
+async function handler(req, res, session) {
+  if (!budgetReady()) {
+    return res.status(503).json({
+      error: "לוחות התקציב טרם הוקמו. הריצו: node --env-file=.env tools/seed-budget.mjs",
+      setupRequired: true,
+    });
+  }
+  if (!session.isManager) {
+    return res.status(403).json({ error: "תקציב המטבח מוצג למנהל בלבד" });
+  }
+
+  try {
+    if (req.method === "GET") {
+      const [types, overrides, orders, settings, calendar, gantt] = await Promise.all([
+        loadDayTypes(), loadOverrides(), loadOrders(), loadHeadcount(),
+        loadCalendar(), loadGantt(),
+      ]);
+
+      const months = [...new Set(calendar.days.map((d) => d.date.slice(0, 7)))].sort();
+      const month = String(req.query?.month || "") || months[0];
+      if (!months.includes(month)) {
+        return res.status(400).json({ error: "החודש אינו בשנת הלימודים", months });
+      }
+
+      const { days, foodTotal } = buildMonth(month, {
+        types, overrides, calendar, gantt, headcount: settings.headcount,
+      });
+      const orderShare = orders.reduce((a, o) => a + orderShareFor(o, month), 0);
+
+      /* פירוט לפי סוג — מה מושך את התקציב */
+      const byType = {};
+      for (const d of days) {
+        const e = byType[d.type] || (byType[d.type] = { type: d.type, days: 0, total: 0 });
+        e.days++; e.total += d.total;
+      }
+
+      return res.status(200).json({
+        month, months, days, types,
+        headcount: settings.headcount,
+        foodTotal,
+        orderShare,
+        total: foodTotal + orderShare,
+        byType: Object.values(byType).sort((a, b) => b.total - a.total),
+        orders: orders.map((o) => ({ ...o, months: orderMonths(o.startMonth) })),
+      });
+    }
+
+    const body = req.body ?? (await readJson(req));
+
+    if (req.method === "PUT") {
+      /* מספר הסועדים */
+      if (body.headcount !== undefined) {
+        const n = Number(body.headcount);
+        if (!Number.isFinite(n) || n < 1 || n > 500) {
+          return res.status(400).json({ error: "מספר סועדים לא הגיוני" });
+        }
+        const s = await loadHeadcount();
+        if (!s.id) return res.status(404).json({ error: "שורת ההגדרה חסרה בלוח" });
+        await setCols(B.settings, s.id, { [C.settings.value]: String(n) });
+        invalidateBudget();
+        return res.status(200).json({ ok: true, headcount: n });
+      }
+
+      /* כפיית סוג או מחיר ליום */
+      const date = String(body?.date || "").trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: "תאריך לא תקין" });
+
+      const types = await loadDayTypes();
+      if (body.type !== undefined && body.type !== null && !types.some((t) => t.name === body.type)) {
+        return res.status(400).json({ error: "סוג יום לא מוכר" });
+      }
+      let cost = null;
+      if (body.cost !== undefined && String(body.cost).trim() !== "") {
+        cost = Number(body.cost);
+        if (!Number.isFinite(cost) || cost < 0) return res.status(400).json({ error: "מחיר לא תקין" });
+      }
+
+      const overrides = await loadOverrides({ force: true });
+      const hit = overrides.find((o) => o.date === date);
+
+      /* ריקון מלא = חזרה לגזירה מהלו״ז, כלומר מחיקת החריגה */
+      const empty = (body.type === null || body.type === undefined || body.type === "")
+        && cost === null && !String(body.note || "").trim();
+      if (empty) {
+        if (hit) { await gql(`mutation{ delete_item(item_id:${Number(hit.id)}){ id } }`); }
+        invalidateBudget();
+        return res.status(200).json({ ok: true, date, cleared: true });
+      }
+
+      const cols = {
+        [C.days.date]: { date },
+        ...(body.type ? { [C.days.type]: { label: String(body.type) } } : {}),
+        [C.days.cost]: cost === null ? "" : String(cost),
+        [C.days.note]: String(body.note || "").slice(0, 200),
+      };
+      if (hit) await setCols(B.days, hit.id, cols);
+      else await createItem(B.days, date, cols);
+      invalidateBudget();
+      return res.status(200).json({ ok: true, date });
+    }
+
+    if (req.method === "POST") {
+      const name = String(body?.name || "").trim().slice(0, 200);
+      const amount = Number(body?.amount);
+      const startMonth = String(body?.startMonth || "").trim();
+      if (!name) return res.status(400).json({ error: "לא הוזן שם ההזמנה" });
+      if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: "סכום לא תקין" });
+      if (!/^\d{4}-\d{2}$/.test(startMonth)) return res.status(400).json({ error: "חודש פתיחה לא תקין" });
+
+      await createItem(B.orders, name, {
+        [C.orders.amount]: String(amount),
+        [C.orders.startMonth]: startMonth,
+        ...(body.date ? { [C.orders.date]: { date: String(body.date) } } : {}),
+        [C.orders.note]: String(body.note || "").slice(0, 200),
+      });
+      invalidateBudget();
+      return res.status(200).json({ ok: true, months: orderMonths(startMonth) });
+    }
+
+    if (req.method === "DELETE") {
+      const orderId = String(body?.orderId || "").trim();
+      if (!orderId) return res.status(400).json({ error: "לא צוינה הזמנה" });
+      await gql(`mutation{ delete_item(item_id:${Number(orderId)}){ id } }`);
+      invalidateBudget();
+      return res.status(200).json({ ok: true, orderId });
+    }
+
+    res.status(405).json({ error: "מתודה לא נתמכת" });
+  } catch (e) {
+    console.error("[kitchen-budget]", e);
+    res.status(502).json({ error: "פעולת התקציב נכשלה" });
+  }
+}
+
+const setCols = (board, id, v) => gql(
+  `mutation($b:ID!,$i:ID!,$v:JSON!){ change_multiple_column_values(board_id:$b,item_id:$i,column_values:$v,create_labels_if_missing:false){ id } }`,
+  { b: board, i: String(id), v: JSON.stringify(v) });
+
+const createItem = (board, name, v) => gql(
+  `mutation($b:ID!,$n:String!,$v:JSON!){ create_item(board_id:$b,item_name:$n,column_values:$v,create_labels_if_missing:false){ id } }`,
+  { b: board, n: name, v: JSON.stringify(v) });
+
+async function readJson(req) {
+  const chunks = [];
+  for await (const c of req) chunks.push(c);
+  const raw = Buffer.concat(chunks).toString("utf8");
+  return raw ? JSON.parse(raw) : {};
+}
+
+export default withAuth(handler, { manager: true });
