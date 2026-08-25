@@ -67,6 +67,7 @@ export default function Login({ notice, onDone }) {
       <main className="wrap">
         <img className="login-mark" src="/logo-mark.png" alt="במעלה הדרך" />
         <div className="login-title">מכינת ניר עוז</div>
+        <div className="login-sub">מחזור ב׳ · מערכת הניהול</div>
 
         {/* הודעות אמיתיות בלבד: קוד שהוחלף, תוקף שפג, הרשאה שכובתה */}
         {notice && (
@@ -117,6 +118,7 @@ export default function Login({ notice, onDone }) {
           </form>
         )}
       </main>
+      <div className="login-foot">במעלה הדרך · מכינת ניר עוז</div>
     </div>
   );
 }

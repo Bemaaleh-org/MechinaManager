@@ -2286,7 +2286,7 @@ export function MechinaApp({ auth, onSignedOut }) {
                   active: tab === "cleaning", onClick: () => setTab("cleaning") },
               ] : []),
               ...(auth.isSafety ? [
-                { key: "safety", label: "בטיחות ותקלות", icon: <MI.note />,
+                { key: "safety", label: "אירועי בטיחות", icon: <MI.note />,
                   active: tab === "safety", onClick: () => setTab("safety") },
               ] : []),
               ...(auth.isHouse ? [

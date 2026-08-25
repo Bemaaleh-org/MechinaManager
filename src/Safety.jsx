@@ -21,6 +21,8 @@ const SI = {
   shield: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3l7 3v5c0 4.5-3 8.4-7 10-4-1.6-7-5.5-7-10V6l7-3z"/></svg>,
   warn: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3 2 20h20L12 3z"/><path d="M12 9v5M12 17.5h.01"/></svg>,
   chev: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
+  check: (p) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M4 12.5 9.5 18 20 6.5"/></svg>,
+  bandage: (p) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="2.5" y="8" width="19" height="8" rx="4" transform="rotate(-45 12 12)"/><path d="M10.5 10.5h.01M13.5 13.5h.01M13.5 10.5h.01M10.5 13.5h.01"/></svg>,
   plus: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" {...p}><path d="M12 5v14M5 12h14"/></svg>,
 };
 
@@ -194,18 +196,26 @@ function IncidentCard({ x, onOpen }) {
     x.reportMod !== "כן" && "משרד הביטחון",
     x.reportCouncil !== "כן" && "מועצת המכינות",
   ].filter(Boolean);
+  /* ⚠ הגוון לפי חומרה ולא לפי מקום: פגיעה וכמעט-ונפגע הם
+     ההבחנה שקובעת מה עושים עם הדיווח. */
   return (
-    <button className="st-row" onClick={onOpen} style={{ width: "100%", textAlign: "right" }}>
+    <button className={"st-row " + (injury ? "tone-8" : "tone-3")}
+      onClick={onOpen} style={{ width: "100%", textAlign: "right" }}>
+      <div className="tile sm">{injury ? <SI.bandage /> : <SI.warn />}</div>
       <div className="st-main">
         <div className="st-n">{x.title}</div>
         <div className="st-m">
           <span className={"pill " + (injury ? "p-low" : "p-new")}>{x.severity || "—"}</span>
           {x.place && <span>{x.place}</span>}
           <span className="num">{heDate(x.date)}</span>
-          {pending.length > 0 && <span className="pill p-new">ממתין דיווח: {pending.join(" · ")}</span>}
         </div>
+        {/* ⚠ דיווח לגורם חיצוני שטרם נשלח הוא מטלה פתוחה, לא
+            עוד תגית בשורה. הוא מקבל שורה משלו ובצבע. */}
+        {pending.length > 0 && (
+          <div className="sf-pend">ממתין לדיווח: {pending.join(" · ")}</div>
+        )}
       </div>
-      <SI.chev style={{ color: "var(--line2)" }} />
+      <SI.chev style={{ color: "var(--line2)", flex: "0 0 auto" }} />
     </button>
   );
 }
@@ -241,6 +251,7 @@ function SetupCard({ say, onDone }) {
 export function SafetyPage({ say }) {
   const { data, err, busy, reload } = useLoad(() => api.getSafety(), []);
   const [form, setForm] = useState(null); // null | {} חדש | דיווח לעריכה
+  const [filter, setFilter] = useState("all"); // all | injury | owed
 
   if (busy && !data) return (
     <div className="empty" style={{ paddingTop: 60 }}><div className="e1">טוען דיווחים…</div></div>
@@ -265,19 +276,65 @@ export function SafetyPage({ say }) {
   );
 
   const list = data.incidents || [];
+  const isInjury = (x) => x.severity === SAFETY_SEVERITY.injury;
+  /* ⚠ "ממתין לדיווח" = לפחות אחד משני הגורמים החיצוניים טרם
+     קיבל דיווח. זו המטלה הפתוחה היחידה במסך הזה. */
+  const isOwed = (x) => x.reportMod !== "כן" || x.reportCouncil !== "כן";
+  const injuries = list.filter(isInjury).length;
+  const owed = list.filter(isOwed).length;
+  const shown = filter === "injury" ? list.filter(isInjury)
+    : filter === "owed" ? list.filter(isOwed) : list;
 
   return (
     <>
-      <div className="screen-title">בטיחות ותקלות</div>
+      <div className="screen-title">אירועי בטיחות</div>
 
-      {list.length === 0 ? (
-        <div className="empty">
-          <div className="e1">אין דיווחים</div>
-          <div className="e2">שיישאר ככה. אם קרה משהו — מדווחים כאן.</div>
+      {/* ⚠ שלושת המספרים שקובעים: כמה אירועים, כמה מהם פגיעה
+          בפועל, וכמה עוד ממתינים לדיווח לגורם חיצוני. האחרון
+          הוא היחיד שיש עליו מה לעשות היום. */}
+      <div className="band">
+        <div className="band-h">מצב הבטיחות</div>
+        <div className="band-grid">
+          <div className="band-c">
+            <div className="band-n">{list.length}</div>
+            <div className="band-l">דיווחים בשנה</div>
+          </div>
+          <div className="band-c">
+            <div className={"band-n" + (injuries ? " warn" : " ok")}>{injuries}</div>
+            <div className="band-l">פגיעות בפועל</div>
+          </div>
+          <div className="band-c">
+            <div className={"band-n" + (owed ? " warn" : " ok")}>{owed}</div>
+            <div className="band-l">ממתינים לדיווח</div>
+          </div>
+        </div>
+      </div>
+
+      {list.length > 0 && (
+        <div className="seg">
+          <button className={filter === "all" ? "on" : ""} onClick={() => setFilter("all")}>
+            הכול ({list.length})
+          </button>
+          <button className={filter === "injury" ? "on" : ""} onClick={() => setFilter("injury")}>
+            פגיעות ({injuries})
+          </button>
+          <button className={filter === "owed" ? "on" : ""} onClick={() => setFilter("owed")}>
+            לדיווח ({owed})
+          </button>
+        </div>
+      )}
+
+      {shown.length === 0 ? (
+        <div className="empty tone-1">
+          <div className="e-ico"><SI.check /></div>
+          <div className="e1">{list.length === 0 ? "אין דיווחים" : "אין אירועים בקטגוריה הזו"}</div>
+          <div className="e2">{list.length === 0
+            ? "שיישאר ככה. אם קרה משהו — מדווחים כאן."
+            : "נסו סינון אחר."}</div>
         </div>
       ) : (
         <div className="rows">
-          {list.map((x) => <IncidentCard key={x.id} x={x} onOpen={() => setForm(x)} />)}
+          {shown.map((x) => <IncidentCard key={x.id} x={x} onOpen={() => setForm(x)} />)}
         </div>
       )}
 

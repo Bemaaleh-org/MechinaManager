@@ -130,14 +130,10 @@ html,body{margin:0;padding:0;background:#012E58}
   font-size:30px;color:#012E58;text-align:center;letter-spacing:0;
   line-height:1.2;margin:0 0 26px}
 /* תמונת הכרם בשקיעה מתחת לשכבת הכחול — הטקסט הלבן נשאר קריא */
-.kx-login{background:
-  linear-gradient(180deg,rgba(1,46,88,.92) 0%,rgba(10,68,120,.86) 60%,rgba(6,50,92,.94) 100%),
-  url(/photos/login.jpg) center/cover no-repeat #0A4478}
+/* ⚠ הרקע והכרטיס של מסך הכניסה מוגדרים בשכבת ההרמה בסוף
+   הקובץ. כאן נשאר רק מה שלא השתנה. */
 .kx-login .login-title{color:#fff}
-.kx-login .login-mark{width:180px;height:180px;filter:drop-shadow(0 10px 30px rgba(0,0,0,.3))}
-.kx-login .seg{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.14)}
-.kx-login .seg button{color:rgba(255,255,255,.75)}
-.kx-login .seg button.on{background:#fff;color:#012E58;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.kx-login .seg button{color:rgba(255,255,255,.78)}
 .kx-login .login-err{background:rgba(255,255,255,.95)}
 .kx-login{padding-bottom:calc(24px + env(safe-area-inset-bottom));
   display:flex;flex-direction:column;min-height:100vh;min-height:100dvh}
@@ -1036,7 +1032,10 @@ html,body{margin:0;padding:0;background:#012E58}
 
    ⚠ fixed ולא scroll: הכתמים נשארים במקומם בזמן גלילה, ולכן
      הם קוראים כתאורה של החדר ולא כחלק מהתוכן שזז. */
-.kx{
+/* ⚠ :not(.kx-login) — מסך הכניסה מגדיר לעצמו רקע תמונה באותה
+   דרגת ספציפיות, והכלל הזה יושב אחריו בקובץ ולכן היה גובר
+   עליו. התוצאה: התמונה נעלמה והמסך נשאר קרם ריק. */
+.kx:not(.kx-login){
   background:
     radial-gradient(46% 32% at 88% 4%, rgba(0,36,84,.055), transparent 70%),
     radial-gradient(42% 30% at 4% 24%, rgba(158,54,38,.042), transparent 70%),
@@ -1102,6 +1101,115 @@ html,body{margin:0;padding:0;background:#012E58}
 .kx .rows{overflow:hidden}
 .st-row{border-bottom-color:rgba(211,201,182,.45)}
 .led-item{border-bottom-color:rgba(211,201,182,.45)}
+
+/* ---- מסך הכניסה ----
+   ⚠ הרושם הראשון של המערכת, והמסך היחיד שאינו על קרם. התמונה
+     נשארת; מה שהשתנה הוא מה שיושב עליה. */
+.kx-login{background:
+  linear-gradient(178deg,rgba(1,32,62,.86) 0%,rgba(4,52,96,.72) 42%,rgba(1,28,56,.94) 100%),
+  url(/photos/login.jpg) center/cover no-repeat #0A4478;
+  background-attachment:fixed}
+/* זוהר רך מאחורי הכרטיס — מפריד אותו מהתמונה בלי מסגרת */
+.kx-login::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(58% 42% at 50% 46%,rgba(126,178,232,.16),transparent 68%)}
+.kx-login .wrap{position:relative;z-index:1}
+.kx-login .login-mark{width:150px;height:150px;
+  filter:drop-shadow(0 14px 36px rgba(0,0,0,.45))}
+.kx-login .login-title{font-family:'Suez One',Heebo,serif;font-size:27px;font-weight:400;
+  letter-spacing:0;margin-top:6px;text-shadow:0 2px 14px rgba(0,16,40,.5)}
+.kx-login .login-sub{color:rgba(255,255,255,.72);font-size:13px;font-weight:600;
+  margin:5px 0 20px;letter-spacing:.2px}
+
+/* ⚠ הכרטיס מזוגג ולא אטום: התמונה נראית מבעדו והוא עדיין
+   קריא לחלוטין. backdrop-filter לא נתמך בכל דפדפן, ולכן
+   מתחתיו יושב לבן ב-92% שעומד בפני עצמו. */
+.kx-login .card{background:rgba(255,255,255,.92);
+  -webkit-backdrop-filter:blur(14px) saturate(1.1);backdrop-filter:blur(14px) saturate(1.1);
+  border:1px solid rgba(255,255,255,.5);border-radius:22px;padding:20px 18px;
+  box-shadow:0 24px 60px -24px rgba(0,14,34,.85)}
+.kx-login .seg{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.18);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-radius:15px}
+.kx-login .seg button.on{background:#fff;color:#012E58;
+  box-shadow:0 3px 12px rgba(0,10,30,.32)}
+.kx-login .fld label{color:var(--muted)}
+.kx-login .fld input{background:var(--bg);border-color:var(--line2)}
+.kx-login .btn-primary{margin-top:2px}
+
+/* שורת הסיום — מי בנה ולמי. שקטה, ורק כדי שהמסך לא ייגמר
+   בכפתור באוויר. */
+.kx-login .login-foot{position:relative;z-index:1;text-align:center;
+  color:rgba(255,255,255,.55);font-size:11.5px;font-weight:600;
+  padding:18px 12px calc(10px + env(safe-area-inset-bottom))}
+
+/* ---- אירועי בטיחות ----
+   ⚠ "ממתין לדיווח" הוא מטלה פתוחה מול גורם חיצוני, ולכן שורה
+     משלו בצבע ולא עוד תגית אפורה בתוך שורת המטא. */
+.sf-pend{margin-top:6px;font-size:11px;font-weight:800;color:var(--amber);
+  background:var(--amber-soft);border-radius:8px;padding:4px 8px;display:inline-block}
+
+/* ---- גאנט: צבע לכל אירוע ----
+   ⚠ .act לוקח את הגוון מהמחלקה tone-N שלצידו. שבת וחג שומרים
+     על הצבע הקבוע שלהם ולא עוברים דרך כאן. */
+.cal-chip.act{background:var(--t-s,var(--accent-soft));color:var(--t,var(--accent))}
+.cal-cell{border-color:rgba(211,201,182,.55);transition:transform .12s var(--ease)}
+.cal-cell:not(.empty):active{transform:scale(.97)}
+.cal-cell.today{box-shadow:0 0 0 3px var(--accent-soft)}
+.gnt-ev{border-bottom-color:rgba(211,201,182,.45)}
+/* נקודת צבע בתחילת שורת אירוע ברשימת היום */
+.gnt-ev .gnt-what::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:var(--t,var(--accent));margin-left:7px;vertical-align:middle}
+
+/* ---- שדות ובוררים ----
+   ⚠ שדה טופס הוא המקום שבו המשתמש עוצר וחושב. עד היום הוא
+     נראה כמו קלט של דפדפן; עכשיו יש לו רקע רך, מסגרת שמגיבה
+     ומיקוד עם טבעת. */
+.kx .fld input,.kx .fld select,.kx .fld textarea{
+  background:var(--bg);border:1.5px solid transparent;border-radius:var(--r-md);
+  transition:background .12s var(--ease),border-color .12s var(--ease),box-shadow .12s var(--ease)}
+.kx .fld input:hover,.kx .fld textarea:hover{background:#F1ECE0}
+.kx .fld input:focus,.kx .fld select:focus,.kx .fld textarea:focus{
+  background:var(--surface);border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.kx .fld input::placeholder,.kx .fld textarea::placeholder{color:var(--faint)}
+.fld label{color:var(--ink);opacity:.72}
+/* ⚠ חץ ה-select של הדפדפן נעלם ב-appearance:none, ולכן הוא
+   מצויר כאן — אחרת אין שום סימן שאפשר לפתוח את השדה. */
+.kx .fld select{appearance:none;-webkit-appearance:none;padding-left:34px;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='none' stroke='%236B6455' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M5 8l5 5 5-5'/></svg>");
+  background-repeat:no-repeat;background-position:left 10px center}
+
+.pick button{border-radius:var(--r-md);border:1.5px solid var(--line);background:var(--bg);
+  transition:all .12s var(--ease)}
+.pick button:active{transform:translateY(1px)}
+/* ⚠ הבורר לוקח את גוון ההקשר אם ניתן לו, ונופל לנייבי אחרת —
+   כך "דחוף" אדום ו"רגיל" כחול בלי כלל נפרד לכל מסך. */
+.pick button.on{background:var(--t,var(--accent));border-color:var(--t,var(--accent));color:#fff;
+  box-shadow:0 3px 10px -4px var(--t,var(--accent))}
+
+.search{border-radius:var(--r-md);transition:border-color .12s var(--ease),box-shadow .12s var(--ease)}
+.search:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+
+.tick{border-radius:9px;transition:all .12s var(--ease)}
+
+/* ---- טבלאות ורשימות ----
+   ⚠ כותרת קבוצה נדבקת בגלילה. ברשימה של 89 פריטי ציוד אי אפשר
+     לזכור באיזה תחום נמצאים אחרי שלוש גלילות. */
+.grp-h{position:sticky;top:0;z-index:2;background:var(--bg);
+  padding:8px 4px 7px;margin:0;backdrop-filter:blur(6px)}
+.kx .rows .st-row:last-child{border-bottom:none}
+/* ⚠ ריחוף בלבד ולא פס זברה: זברה על רשימה ארוכה מוסיפה רעש
+   ויזואלי בדיוק במקום שבו צריך לסרוק בשקט. */
+@media (hover:hover){
+  .kx .st-row:hover{background:rgba(211,201,182,.16)}
+  .kx .led-item:hover{background:rgba(211,201,182,.16)}
+}
+
+/* ---- כפתורים משניים ---- */
+.kx .btn-ghost{border-radius:var(--r-md);border:1.5px solid var(--line);
+  background:var(--surface);transition:all .12s var(--ease)}
+.kx .btn-ghost:active{transform:translateY(1px);background:var(--bg)}
+
+/* ---- מודאל ---- */
+.sheet{border-radius:24px 24px 0 0;box-shadow:0 -18px 50px -20px rgba(47,38,22,.5)}
 
 /* ---- כניסה מדורגת, במסך הבית בלבד ----
    ⚠ רק על שתי הרשתות של מסך הבית ולא על כל כרטיס באפליקציה.

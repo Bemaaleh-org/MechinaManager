@@ -241,7 +241,7 @@ function Staff({ auth, onSignedOut }) {
               { key: "l-evals", label: "חוות דעת", icon: <I.star />, active: false, onClick: () => goLessons("evals") },
             ] },
             { label: "בטיחות ותחזוקה", items: [
-              { key: "safety", label: "בטיחות ותקלות", icon: <I.warn />, active: section === "safety",
+              { key: "safety", label: "אירועי בטיחות", icon: <I.warn />, active: section === "safety",
                 onClick: () => setSection("safety") },
               { key: "faults", label: "תקלות ובעיות", icon: <I.gear />, active: section === "faults",
                 onClick: () => setSection("faults") },
@@ -467,7 +467,7 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
     { key: "n-gantt", tone: "tone-7", l: "גאנט שנתי", icon: <I.cal />, go: goGantt },
     { key: "n-budget", tone: "tone-6", l: "תקציב המטבח", icon: <I.count />, go: goBudget },
     { key: "n-faults", tone: "tone-8", l: "תקלות ובעיות", icon: <I.gear />, go: goFaults },
-    { key: "n-safety", tone: "tone-4", l: "בטיחות ותקלות", icon: <I.warn />, go: goSafety },
+    { key: "n-safety", tone: "tone-4", l: "אירועי בטיחות", icon: <I.warn />, go: goSafety },
     { key: "n-container", tone: "tone-7", l: "ציוד מכולה", icon: <I.box />, go: () => goContainer("מכולה") },
   ];
 

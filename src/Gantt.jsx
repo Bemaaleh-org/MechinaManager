@@ -24,6 +24,21 @@ const MONTHS = ["ינואר","פברואר","מרץ","אפריל","מאי","יו
 const DOW = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
 const CLASS = { "שבת": "shabbat", "חג ומועד": "holiday" };
 
+/* ⚠ שבת וחג הם משמעות קבועה ולכן צבע קבוע. כל השאר קיבל עד
+   היום את אותו כחול, ולוח חודש שלם נראה מונוכרומטי — אי אפשר
+   היה להבחין בין סמינר, מסע ויום חופש בלי לקרוא.
+
+   הגוון נגזר משם האירוע, כמו בשיבוצים: אירוע חדש מקבל צבע
+   מעצמו, ואותו שם מקבל תמיד אותו צבע — כך "הכנת צוות" נראה
+   זהה לאורך כל החודש. */
+function evTone(name) {
+  let h = 0;
+  const t = String(name || "");
+  for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0;
+  return "tone-" + (h % 8 + 1);
+}
+const chipClass = (e) => CLASS[e.type] ? CLASS[e.type] : "act " + evTone(e.name);
+
 const dm = (iso) => iso.slice(8, 10) + "/" + iso.slice(5, 7);
 const dmy = (iso) => dm(iso) + "/" + iso.slice(0, 4);
 const monthName = (m) => MONTHS[Number(m.slice(5, 7)) - 1] + " " + m.slice(0, 4);
@@ -318,7 +333,7 @@ export function GanttPage({ say }) {
               <span className="cal-n num">{Number(iso.slice(8, 10))}</span>
               <span className="cal-evs">
                 {evs.slice(0, 3).map((e) => (
-                  <i key={e.id} className={"cal-chip " + (CLASS[e.type] || "act")} title={e.name}>
+                  <i key={e.id} className={"cal-chip " + chipClass(e)} title={e.name}>
                     {e.name}
                   </i>
                 ))}
