@@ -40,9 +40,9 @@ export const DAY_TYPE_SEED = [
   { name: "שישי מכינה", catering: 34, fixedHeads: 0, purchases: 25 },
   { name: "שבת מכינה", catering: 34, fixedHeads: 0, purchases: 10 },
   { name: "חזרה מהבית", catering: 0, fixedHeads: 0, purchases: 15 },
+  /* ⚠ סוף שבוע בבית הוא "בית" ככל יום אחר: שלושה סוגים באפס
+     ₪ הם אותו דבר בשלושה שמות, והם רק האריכו את הרשימה. */
   { name: "בית", catering: 0, fixedHeads: 0, purchases: 0 },
-  { name: "שישי בית", catering: 0, fixedHeads: 0, purchases: 0 },
-  { name: "שבת בית", catering: 0, fixedHeads: 0, purchases: 0 },
   /* ⚠ "אחר" תמיד אחרון ברשימה — הוא המוצא לימים חריגים
      שאין להם סוג, ולא בחירה שמציעים ראשונה. */
   { name: "אחר", catering: 0, fixedHeads: 0, purchases: 0, last: true },

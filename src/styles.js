@@ -796,4 +796,8 @@ html,body{margin:0;padding:0;background:#012E58}
 .bg-f input{width:100%;min-height:38px;background:var(--bg);border:1px solid var(--line2);
   border-radius:9px;padding:0 6px;font-size:14px;text-align:center;outline:none}
 .bg-f input:focus{border-color:var(--accent)}
+
+.bg-fields.two-up{grid-template-columns:repeat(2,1fr)}
+.bg-fixed{font-size:11px;color:var(--muted);font-weight:600;line-height:1.55;
+  background:var(--bg);border-radius:9px;padding:7px 9px;margin-top:7px}
 `;

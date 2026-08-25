@@ -117,8 +117,6 @@ const T = {
   friMechina: "שישי מכינה",
   satMechina: "שבת מכינה",
   backFromHome: "חזרה מהבית",
-  friHome: "שישי בית",
-  satHome: "שבת בית",
   other: "אחר",
 };
 
@@ -171,12 +169,10 @@ function derivedType(iso, byDate, evByDate) {
   const friday = isSaturday(iso) ? prevDay(iso) : iso;
   const weekendEvents = isSaturday(iso) ? (evByDate.get(friday) || []) : [];
 
+  /* ⚠ סוף שבוע בבית הוא פשוט "בית" — אין טעם בסוג נפרד
+     לשישי ולשבת כשכולם עולים אפס. */
   const atHome = anyMatch(events, HOME_RE) || anyMatch(weekendEvents, HOME_RE);
-  if (atHome) {
-    if (isFriday(iso)) return T.friHome;
-    if (isSaturday(iso)) return T.satHome;
-    return T.home;
-  }
+  if (atHome) return T.home;
 
   /* היום שאחרי סופ״ש בית — חוזרים, וזו ארוחה אחת בלבד */
   if (!isFriday(iso) && !isSaturday(iso) && anyMatch(evByDate.get(prevDay(iso)), HOME_RE)) {

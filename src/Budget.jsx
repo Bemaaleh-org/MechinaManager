@@ -274,13 +274,11 @@ function PriceTab({ types, headcount, say, onChanged }) {
         <div style={{ fontSize: 13, color: "var(--muted)", fontWeight: 600, lineHeight: 1.6 }}>
           התקציב מחולק לשניים: <b>קייטרינג</b> — מה שמזמינים מבחוץ,
           ו<b>קניות</b> — כל השאר. שינוי כאן משפיע על כל השנה.
-          <b> מספר קבוע</b> פירושו שהקייטרינג מחושב לפיו תמיד ולא לפי
-          המצבה בפועל — 0 מחשב לפי מספר הסועדים.
         </div>
       </div>
 
       <div className="grp-h">
-        <span>לאדם, אלא אם צוין קבוע</span>
+        <span>סכומים לאדם</span>
         <span>× {headcount} סועדים</span>
       </div>
 
@@ -292,16 +290,21 @@ function PriceTab({ types, headcount, say, onChanged }) {
             <div className="bg-type" key={t.id}>
               <div className="bg-type-h">
                 <b>{t.name}</b>
-                <span className="num">
-                  {shekel(perDay)} ₪ ליום
-                  {t.fixedHeads > 0 ? ` · ${t.catering}×${t.fixedHeads} קבוע` : ""}
-                </span>
+                <span className="num">{shekel(perDay)} ₪ ליום</span>
               </div>
-              <div className="bg-fields">
-                {field(t, "catering", "קייטרינג לאדם")}
-                {field(t, "fixedHeads", "מספר קבוע")}
+              {/* ⚠ שני שדות בלבד. סוג עם מנה קבועה מחושב לפיה
+                  מאחורי הקלעים — המספר עצמו יושב בלוח ואינו
+                  נחשף כאן, כדי שלא ייראה כמו עוד תעריף לעריכה. */}
+              <div className="bg-fields two-up">
+                {field(t, "catering", t.fixedHeads > 0 ? "קייטרינג — מנה קבועה" : "קייטרינג לאדם")}
                 {field(t, "purchases", "קניות לאדם")}
               </div>
+              {t.fixedHeads > 0 && (
+                <div className="bg-fixed">
+                  הקייטרינג כאן קבוע — {shekel((t.catering || 0) * t.fixedHeads)} ₪ ליום,
+                  ואינו משתנה לפי מספר הסועדים
+                </div>
+              )}
             </div>
           );
         })}
