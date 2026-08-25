@@ -21,6 +21,7 @@ import { FaultsPage } from "./Faults.jsx";
 import { ContainerPage } from "./Container.jsx";
 import { FaultReportPage } from "./Faults.jsx";
 import { BudgetPage } from "./Budget.jsx";
+import { KitchenPage } from "./Kitchen.jsx";
 import { GanttPage } from "./Gantt.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
 import { useExcel, downloadTable } from "./excel.js";
@@ -2124,6 +2125,16 @@ export function MechinaApp({ auth, onSignedOut }) {
                 { key: "faults", label: "תקלות ובעיות", icon: <MI.box />,
                   active: tab === "faults", onClick: () => setTab("faults") },
               ] : []),
+              /* ⚠ הקוד המשותף לתורנים נגנז; אחראי המטבח הוא
+                 הדרך שבה חניך מגיע למסכי המטבח. */
+              ...(auth.isKitchen ? [
+                { key: "k-food", label: "ציוד אוכל", icon: <MI.box />,
+                  active: tab === "k-food", onClick: () => setTab("k-food") },
+                { key: "k-disp", label: "ציוד חד״פ", icon: <MI.box />,
+                  active: tab === "k-disp", onClick: () => setTab("k-disp") },
+                { key: "budget", label: "תקציב המטבח", icon: <MI.tick />,
+                  active: tab === "budget", onClick: () => setTab("budget") },
+              ] : []),
             ],
           }] : []),
         ]} />
@@ -2220,6 +2231,8 @@ export function MechinaApp({ auth, onSignedOut }) {
 
         {tab === "gantt" && <GanttPage say={say} />}
 
+        {tab === "k-food" && auth.isKitchen && <KitchenPage say={say} area="אוכל" />}
+        {tab === "k-disp" && auth.isKitchen && <KitchenPage say={say} area="חד״פ" />}
         {tab === "budget" && auth.isKitchen && <BudgetPage say={say} />}
 
         {tab === "container" && auth.isContainer && <ContainerPage say={say} area="מכולה" />}

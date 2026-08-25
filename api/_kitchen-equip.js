@@ -156,4 +156,7 @@ async function readJson(req) {
   return raw ? JSON.parse(raw) : {};
 }
 
-export default withAuth(handler);
+/* ⚠ הקוד המשותף לתורנים נגנז, ואיתו הדרך שבה חניך הגיע לכאן.
+   הגישה עוברת עכשיו דרך תפקיד "אחראי מטבח" בלוח החניכים —
+   מנהל או בעל התפקיד, וההרשאה נסגרת כשמסירים אותו. */
+export default withAuth(handler, { kitchen: true });
