@@ -2,10 +2,10 @@
    /api/kitchen?action=budget — תקציב המטבח
      GET    ?month=YYYY-MM   חודש אחד: ימים, סכומים והזמנות
      PUT    { date, type?, cost?, note? }   כפיית סוג ליום
-     POST   { name, amount, startMonth, date?, note? }  הזמנה
-     DELETE { orderId }                     מחיקת הזמנה
+     POST   { name, amount, kind, startMonth|date, note? }  קנייה
+     DELETE { orderId }                     מחיקת קנייה
      PUT    { headcount }                   מספר הסועדים
-     PUT    { typeId, cost }                 מחיר של סוג יום
+     PUT    { typeId, catering?, cateringFixed?, purchases? }  תקציב סוג יום
 
    ⚠ מנהל בלבד. עלויות אינן נתון של תורן (עיקרון 4).
 
@@ -21,7 +21,8 @@ import { loadGantt } from "./_lessons-gantt.js";
 import {
   BUDGET_BOARDS as B, BUDGET_COLS as C, budgetReady,
   DEFAULT_HEADCOUNT, SETTING_HEADCOUNT,
-  dayCostPerPerson, sortTypes, orderShareFor, orderMonths,
+  dayCost, perPersonOf, sortTypes, orderShareFor, monthsOf,
+  ORDER_KIND, ORDER_KINDS,
 } from "../shared/budget-boards.js";
 
 const dow = (iso) => new Date(iso + "T12:00:00Z").getUTCDay();
@@ -39,7 +40,9 @@ async function loadDayTypes({ force = false } = {}) {
       .map((i) => ({
         id: String(i.id),
         name: String(i.name || "").trim(),
-        cost: num(i, C.dayTypes.cost) || 0,
+        catering: num(i, C.dayTypes.catering) || 0,
+        cateringFixed: num(i, C.dayTypes.cateringFixed) || 0,
+        purchases: num(i, C.dayTypes.purchases) || 0,
       }))
       .filter((x) => x.name);
   }, { force });
@@ -72,8 +75,9 @@ async function loadOrders({ force = false } = {}) {
         startMonth: val(i, C.orders.startMonth),
         date: val(i, C.orders.date) || null,
         note: val(i, C.orders.note) || null,
+        kind: val(i, C.orders.kind) || ORDER_KIND.quarterly,
       }))
-      .filter((x) => x.name && x.startMonth);
+      .filter((x) => x.name && (x.startMonth || x.date));
   }, { force });
 }
 
@@ -101,7 +105,7 @@ const T = {
   routine: "שגרה",
   series: "סדרה",
   home: "בית",
-  volunteer: "התנדבות",
+  community: "עשייה קהילתית",
   friMechina: "שישי מכינה",
   satMechina: "שבת מכינה",
   backFromHome: "חזרה מהבית",
@@ -176,6 +180,10 @@ function derivedType(iso, byDate, evByDate) {
   if (isFriday(iso)) return T.friMechina;
   if (isSaturday(iso)) return T.satMechina;
 
+  /* ⚠ שלישי הוא יום העשייה הקהילתית, אלא אם הוא נבלע בבית,
+     בסדרה או בסוף שבוע — ולכן הבדיקה כאן ולא למעלה. */
+  if (dow(iso) === 2) return T.community;
+
   /* רשת ביטחון: יום בלי אירוע בגאנט — לפי לוח השנה */
   const day = byDate.get(iso);
   if (day && (day.kind === "סדרה" || day.kind === "טיול")) return T.series;
@@ -206,21 +214,29 @@ function buildMonth(month, { types, overrides, calendar, gantt, headcount }) {
     const ov = ovByDate.get(date) || null;
     const typeName = (ov && ov.type) || derivedType(date, byDate, evByDate);
     const type = byName.get(typeName) || null;
-    const perPerson = ov && ov.cost != null ? ov.cost : dayCostPerPerson(type);
-    const events = (evByDate.get(date) || []).map((e) => e.name);
+    const over = ov && ov.cost != null ? ov.cost : null;
+    const cost = dayCost(type, headcount, over);
     return {
       date,
       kind: (byDate.get(date) || {}).kind || null,
       type: typeName,
-      perPerson,
-      total: perPerson * headcount,
+      perPerson: over != null ? over : perPersonOf(type),
+      cateringFixed: over != null ? 0 : (type ? type.cateringFixed : 0),
+      catering: cost.catering,
+      purchases: cost.purchases,
+      total: cost.total,
       overridden: Boolean(ov),
       note: ov ? ov.note : null,
-      events,
+      events: (evByDate.get(date) || []).map((e) => e.name),
     };
   });
 
-  return { days, foodTotal: days.reduce((a, d) => a + d.total, 0) };
+  return {
+    days,
+    catering: days.reduce((a, d) => a + d.catering, 0),
+    purchases: days.reduce((a, d) => a + d.purchases, 0),
+    foodTotal: days.reduce((a, d) => a + d.total, 0),
+  };
 }
 
 /* ---------- נקודת הקצה ---------- */
@@ -251,23 +267,27 @@ async function handler(req, res, session) {
          החודשי — נקרא מאותה פונקציה ולא משוכפל. */
       if (String(req.query?.view || "") === "year") {
         const rows = months.map((m) => {
-          const { days, foodTotal } = buildMonth(m, {
+          const b = buildMonth(m, {
             types, overrides, calendar, gantt, headcount: settings.headcount,
           });
-          const share = orders.reduce((a, o) => a + orderShareFor(o, m), 0);
+          const spent = orders.reduce((a, o) => a + orderShareFor(o, m), 0);
           return {
-            month: m, days: days.length, foodTotal, orderShare: share,
-            total: foodTotal + share,
+            month: m, days: b.days.length,
+            catering: b.catering, purchases: b.purchases, total: b.foodTotal,
+            spent, left: b.purchases - spent,
           };
         });
+        const sum = (k) => rows.reduce((a, r) => a + r[k], 0);
         return res.status(200).json({
           view: "year", months, rows,
           types: sortTypes(types),
           headcount: settings.headcount,
-          foodTotal: rows.reduce((a, r) => a + r.foodTotal, 0),
-          orderShare: rows.reduce((a, r) => a + r.orderShare, 0),
-          total: rows.reduce((a, r) => a + r.total, 0),
-          orders: orders.map((o) => ({ ...o, months: orderMonths(o.startMonth) })),
+          catering: sum("catering"),
+          purchases: sum("purchases"),
+          total: sum("total"),
+          spent: sum("spent"),
+          left: sum("purchases") - sum("spent"),
+          orders: orders.map((o) => ({ ...o, months: monthsOf(o) })),
         });
       }
 
@@ -276,26 +296,36 @@ async function handler(req, res, session) {
         return res.status(400).json({ error: "החודש אינו בשנת הלימודים", months });
       }
 
-      const { days, foodTotal } = buildMonth(month, {
+      const b = buildMonth(month, {
         types, overrides, calendar, gantt, headcount: settings.headcount,
       });
-      const orderShare = orders.reduce((a, o) => a + orderShareFor(o, month), 0);
+
+      /* ⚠ הקניות אינן מוסיפות לתקציב אלא יורדות ממנו: התקציב
+         נקבע מסוגי הימים, והקניות הן ההוצאה מולו. ההפרש הוא
+         שאומר אם חרגנו. */
+      const monthOrders = orders
+        .map((o) => ({ ...o, months: monthsOf(o), share: orderShareFor(o, month) }))
+        .filter((o) => o.share > 0);
+      const spent = monthOrders.reduce((a, o) => a + o.share, 0);
 
       /* פירוט לפי סוג — מה מושך את התקציב */
       const byType = {};
-      for (const d of days) {
-        const e = byType[d.type] || (byType[d.type] = { type: d.type, days: 0, total: 0 });
-        e.days++; e.total += d.total;
+      for (const d of b.days) {
+        const e = byType[d.type]
+          || (byType[d.type] = { type: d.type, days: 0, catering: 0, purchases: 0, total: 0 });
+        e.days++; e.catering += d.catering; e.purchases += d.purchases; e.total += d.total;
       }
 
       return res.status(200).json({
-        month, months, days, types: sortTypes(types),
+        month, months, days: b.days, types: sortTypes(types),
         headcount: settings.headcount,
-        foodTotal,
-        orderShare,
-        total: foodTotal + orderShare,
-        byType: Object.values(byType).sort((a, b) => b.total - a.total),
-        orders: orders.map((o) => ({ ...o, months: orderMonths(o.startMonth) })),
+        catering: b.catering,
+        purchases: b.purchases,
+        total: b.foodTotal,
+        spent,
+        left: b.purchases - spent,
+        byType: Object.values(byType).sort((a, b2) => b2.total - a.total),
+        orders: orders.map((o) => ({ ...o, months: monthsOf(o), share: orderShareFor(o, month) })),
       });
     }
 
@@ -309,16 +339,31 @@ async function handler(req, res, session) {
       if (body.typeId !== undefined) {
         const typeId = String(body.typeId || "").trim();
         if (!typeId) return res.status(400).json({ error: "לא צוין סוג יום" });
-        const cost = Number(body.cost);
-        if (!Number.isFinite(cost) || cost < 0 || cost > 10000) {
-          return res.status(400).json({ error: "מחיר לא תקין" });
-        }
         const types = await loadDayTypes();
         const hit = types.find((t) => t.id === typeId);
         if (!hit) return res.status(404).json({ error: "סוג היום אינו נמצא" });
-        await setCols(B.dayTypes, typeId, { [C.dayTypes.cost]: String(cost) });
+
+        /* ⚠ שדה שלא נשלח אינו משתנה: המסך שולח רכיב אחד בכל
+           פעם, ושליחת השאר כאפס הייתה מאפסת אותם בשקט. */
+        const cols = {};
+        for (const [key, col] of [
+          ["catering", C.dayTypes.catering],
+          ["cateringFixed", C.dayTypes.cateringFixed],
+          ["purchases", C.dayTypes.purchases],
+        ]) {
+          if (body[key] === undefined) continue;
+          const n = Number(body[key]);
+          if (!Number.isFinite(n) || n < 0 || n > 100000) {
+            return res.status(400).json({ error: "סכום לא תקין" });
+          }
+          cols[col] = String(n);
+        }
+        if (!Object.keys(cols).length) {
+          return res.status(400).json({ error: "לא נשלח מה לעדכן" });
+        }
+        await setCols(B.dayTypes, typeId, cols);
         invalidateBudget();
-        return res.status(200).json({ ok: true, typeId, cost, name: hit.name });
+        return res.status(200).json({ ok: true, typeId, name: hit.name });
       }
 
       /* מספר הסועדים */
@@ -375,19 +420,37 @@ async function handler(req, res, session) {
     if (req.method === "POST") {
       const name = String(body?.name || "").trim().slice(0, 200);
       const amount = Number(body?.amount);
-      const startMonth = String(body?.startMonth || "").trim();
-      if (!name) return res.status(400).json({ error: "לא הוזן שם ההזמנה" });
+      const kind = String(body?.kind || ORDER_KIND.quarterly);
+      if (!name) return res.status(400).json({ error: "לא הוזן שם הקנייה" });
       if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: "סכום לא תקין" });
-      if (!/^\d{4}-\d{2}$/.test(startMonth)) return res.status(400).json({ error: "חודש פתיחה לא תקין" });
+      if (!ORDER_KINDS.includes(kind)) return res.status(400).json({ error: "סוג קנייה לא מוכר" });
 
-      await createItem(B.orders, name, {
+      const cols = {
         [C.orders.amount]: String(amount),
-        [C.orders.startMonth]: startMonth,
-        ...(body.date ? { [C.orders.date]: { date: String(body.date) } } : {}),
+        [C.orders.kind]: { label: kind },
         [C.orders.note]: String(body.note || "").slice(0, 200),
-      });
+      };
+
+      if (kind === ORDER_KIND.weekly) {
+        /* ⚠ שבועית נזקפת כולה לחודש שבו נעשתה — התאריך הוא
+           מה שקובע, ולכן הוא חובה. */
+        const date = String(body?.date || "").trim();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: "תאריך הקנייה לא תקין" });
+        cols[C.orders.date] = { date };
+        cols[C.orders.startMonth] = date.slice(0, 7);
+      } else {
+        const startMonth = String(body?.startMonth || "").trim();
+        if (!/^\d{4}-\d{2}$/.test(startMonth)) return res.status(400).json({ error: "חודש פתיחה לא תקין" });
+        cols[C.orders.startMonth] = startMonth;
+        if (body.date) cols[C.orders.date] = { date: String(body.date) };
+      }
+
+      await createItem(B.orders, name, cols);
       invalidateBudget();
-      return res.status(200).json({ ok: true, months: orderMonths(startMonth) });
+      return res.status(200).json({
+        ok: true, kind,
+        months: monthsOf({ kind, startMonth: cols[C.orders.startMonth], date: body.date }),
+      });
     }
 
     if (req.method === "DELETE") {

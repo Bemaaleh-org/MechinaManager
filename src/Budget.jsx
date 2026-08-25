@@ -1,16 +1,20 @@
 /* ============================================================
    תקציב המטבח — כמה עולה להאכיל את המכינה
    ------------------------------------------------------------
-   עמוד לכל חודש. סוג היום נגזר מהלו״ז, ומי שרוצה אחרת כופה
-   ליום בודד — כפייה מסומנת, וניתן לנקות אותה בחזרה לגזירה.
+   שני ראשים: קייטרינג (מה שמזמינים מבחוץ) וקניות (כל השאר).
+   התקציב נקבע מסוגי הימים; הקניות בפועל יורדות מתקציב
+   הקניות, וההפרש אומר אם חרגנו.
 
-   ⚠ מנהל בלבד. השרת אוכף; כאן זו תצוגה.
+   עמוד לכל חודש. סוג היום נגזר מהלו״ז, ומי שרוצה אחרת כופה
+   ליום בודד — כפייה מסומנת וניתנת לניקוי.
+
+   ⚠ מנהל ואחראי מטבח. השרת אוכף; כאן זו תצוגה.
    ============================================================ */
 
 import React, { useState } from "react";
 import { api } from "./api.js";
 import { useExcel, downloadTable } from "./excel.js";
-import { monthLabel, MONTHS_HE } from "../shared/budget-boards.js";
+import { monthLabel, ORDER_KIND } from "../shared/budget-boards.js";
 
 const BI = {
   chev: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
@@ -22,7 +26,7 @@ const BI = {
 const DOW = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
 const dowOf = (iso) => DOW[new Date(iso + "T12:00:00Z").getUTCDay()];
 const dm = (iso) => iso.slice(8, 10) + "/" + iso.slice(5, 7);
-const shekel = (n) => Math.round(n).toLocaleString("he-IL");
+const shekel = (n) => Math.round(n || 0).toLocaleString("he-IL");
 
 function useLoad(fn, deps = []) {
   const [data, setData] = useState(null);
@@ -43,12 +47,20 @@ function useLoad(fn, deps = []) {
 /* ---------- עריכת יום אחד ---------- */
 function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
   const [type, setType] = useState(day.type);
-  const [cost, setCost] = useState(day.overridden && day.perPerson !== null ? "" : "");
+  const [cost, setCost] = useState("");
   const [note, setNote] = useState(day.note || "");
   const [busy, setBusy] = useState(false);
 
   const chosen = types.find((t) => t.name === type);
-  const effective = cost.trim() !== "" ? Number(cost) : (chosen ? chosen.cost : 0);
+  const per = cost.trim() !== "" ? Number(cost) : null;
+  const preview = per != null
+    ? { catering: 0, purchases: per * headcount }
+    : chosen
+      ? {
+          catering: (chosen.cateringFixed || 0) + (chosen.catering || 0) * headcount,
+          purchases: (chosen.purchases || 0) * headcount,
+        }
+      : { catering: 0, purchases: 0 };
 
   const save = () => {
     if (busy) return;
@@ -81,17 +93,18 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
           <div className="pick pick-wrap">
             {types.map((t) => (
               <button type="button" key={t.name} className={type === t.name ? "on" : ""}
-                disabled={busy} onClick={() => setType(t.name)}>
-                {t.name}
-              </button>
+                disabled={busy} onClick={() => setType(t.name)}>{t.name}</button>
             ))}
           </div>
         </div>
 
         <div className="fld">
-          <label>מחיר מיוחד לאדם (לא חובה)</label>
+          <label>סכום מיוחד לאדם (לא חובה)</label>
           <input value={cost} onChange={(e) => setCost(e.target.value)} disabled={busy}
-            inputMode="numeric" placeholder={`ריק = ${chosen ? chosen.cost : 0} ₪ לפי סוג היום`} />
+            inputMode="numeric" placeholder="ריק = לפי סוג היום" />
+          <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 600, marginTop: 4 }}>
+            סכום מיוחד נזקף כולו לקניות — הוא הוצאה נקודתית ולא שינוי בהסכם הקייטרינג.
+          </div>
         </div>
 
         <div className="fld">
@@ -101,8 +114,8 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
         </div>
 
         <div className="bg-calc">
-          <span>{effective} ₪ × {headcount} סועדים</span>
-          <b className="num">{shekel(effective * headcount)} ₪</b>
+          <span>קייטרינג {shekel(preview.catering)} · קניות {shekel(preview.purchases)}</span>
+          <b className="num">{shekel(preview.catering + preview.purchases)} ₪</b>
         </div>
 
         <button className="btn btn-primary" disabled={busy} onClick={save}>
@@ -118,20 +131,31 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
   );
 }
 
-/* ---------- הזמנת אוכל יבש ---------- */
-function OrderForm({ months, defaultMonth, say, onDone, onCancel }) {
-  const [f, setF] = useState({ name: "", amount: "", startMonth: defaultMonth, note: "" });
+/* ---------- קנייה חדשה ----------
+   ⚠ הקנייה יורדת מהתקציב ואינה מוסיפה לו. שבועית נזקפת כולה
+     לחודש שבו נעשתה; רבעונית מתחלקת לשלושה חודשים. */
+function OrderForm({ months, defaultMonth, today, say, onDone, onCancel }) {
+  const [kind, setKind] = useState(ORDER_KIND.weekly);
+  const [f, setF] = useState({ name: "", amount: "", startMonth: defaultMonth, date: today, note: "" });
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
-  const ok = f.name.trim() && Number(f.amount) > 0 && f.startMonth;
-  const share = Number(f.amount) > 0 ? Number(f.amount) / 3 : 0;
+  const quarterly = kind === ORDER_KIND.quarterly;
+  const ok = f.name.trim() && Number(f.amount) > 0 && (quarterly ? f.startMonth : f.date);
+  const amount = Number(f.amount) || 0;
 
   const save = () => {
     if (busy || !ok) return;
     setBusy(true);
-    api.addDryOrder({ name: f.name.trim(), amount: Number(f.amount), startMonth: f.startMonth, note: f.note.trim() })
-      .then((r) => { say(`ההזמנה נוספה — מתחלקת על ${r.months.map(monthLabel).join(", ")}`); onDone(); })
+    api.addPurchase({
+      name: f.name.trim(), amount, kind,
+      ...(quarterly ? { startMonth: f.startMonth } : { date: f.date }),
+      note: f.note.trim(),
+    })
+      .then((r) => {
+        say(quarterly ? `נוספה — מתחלקת על ${r.months.map(monthLabel).join(", ")}` : "הקנייה נוספה");
+        onDone();
+      })
       .catch((e) => say(e.message))
       .finally(() => setBusy(false));
   };
@@ -141,42 +165,144 @@ function OrderForm({ months, defaultMonth, say, onDone, onCancel }) {
       <button className="btn btn-ghost btn-sm" style={{ marginBottom: 14 }} onClick={onCancel}>
         <BI.chev style={{ transform: "rotate(180deg)" }} />חזרה
       </button>
-      <div className="screen-title">הזמנת אוכל יבש</div>
+      <div className="screen-title">קנייה חדשה</div>
 
       <div className="card">
         <div className="fld">
-          <label>שם ההזמנה</label>
-          <input value={f.name} onChange={set("name")} disabled={busy} autoFocus
-            placeholder="למשל: הזמנה רבעונית — ספטמבר" />
+          <label>סוג הקנייה</label>
+          <div className="pick">
+            <button type="button" className={!quarterly ? "on" : ""} disabled={busy}
+              onClick={() => setKind(ORDER_KIND.weekly)}>שבועית</button>
+            <button type="button" className={quarterly ? "on" : ""} disabled={busy}
+              onClick={() => setKind(ORDER_KIND.quarterly)}>רבעונית</button>
+          </div>
+          <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 600, marginTop: 4 }}>
+            {quarterly
+              ? "מתחלקת על שלושה חודשים ויורדת מכל אחד מהם"
+              : "יורדת כולה מתקציב החודש שבו נעשתה"}
+          </div>
         </div>
+
+        <div className="fld">
+          <label>שם הקנייה</label>
+          <input value={f.name} onChange={set("name")} disabled={busy} autoFocus
+            placeholder={quarterly ? "למשל: אוכל יבש — רבעון ראשון" : "למשל: קנייה שבועית"} />
+        </div>
+
         <div className="two">
           <div className="fld">
-            <label>סכום כולל (₪)</label>
+            <label>סכום (₪)</label>
             <input value={f.amount} onChange={set("amount")} disabled={busy} inputMode="numeric" />
           </div>
-          <div className="fld">
-            <label>חודש פתיחה</label>
-            <select value={f.startMonth} onChange={set("startMonth")} disabled={busy}>
-              {months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
-            </select>
-          </div>
+          {quarterly ? (
+            <div className="fld">
+              <label>חודש פתיחה</label>
+              <select value={f.startMonth} onChange={set("startMonth")} disabled={busy}>
+                {months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
+              </select>
+            </div>
+          ) : (
+            <div className="fld">
+              <label>תאריך הקנייה</label>
+              <input type="date" value={f.date} onChange={set("date")} disabled={busy} />
+            </div>
+          )}
         </div>
+
         <div className="fld">
           <label>הערה</label>
           <input value={f.note} onChange={set("note")} disabled={busy} />
         </div>
 
-        {share > 0 && (
+        {amount > 0 && (
           <div className="bg-calc">
-            <span>מתחלק על שלושה חודשים</span>
-            <b className="num">{shekel(share)} ₪ לחודש</b>
+            <span>{quarterly ? "יורד מכל אחד משלושת החודשים" : "יורד מתקציב החודש"}</span>
+            <b className="num">{shekel(quarterly ? amount / 3 : amount)} ₪</b>
           </div>
         )}
 
         <button className="btn btn-primary" disabled={busy || !ok} onClick={save}>
-          {busy ? "שומר…" : "הוספת ההזמנה"}
+          {busy ? "שומר…" : "הוספת הקנייה"}
         </button>
       </div>
+    </>
+  );
+}
+
+/* ---------- תקציב סוגי הימים ----------
+   ⚠ שינוי כאן מזיז את כל השנה, לא חודש אחד: זה תעריף ולא
+     חריגה. חריגה ליום בודד נעשית בלחיצה על היום עצמו.
+
+   שלושה רכיבים לכל סוג. הקבוע קיים בגלל העשייה הקהילתית —
+   900 ₪ ליום, בין אם הגיעו עשרים אנשים או ארבעים. */
+function PriceTab({ types, headcount, say, onChanged }) {
+  const [draft, setDraft] = useState({});
+  const [busyId, setBusyId] = useState(null);
+
+  const key = (t, f) => t.id + ":" + f;
+  const valueOf = (t, f) => (key(t, f) in draft ? draft[key(t, f)] : String(t[f] ?? 0));
+
+  const commit = (t, f) => {
+    const k = key(t, f);
+    const v = draft[k];
+    if (v === undefined) return;
+    const clean = String(v).trim();
+    const drop = () => setDraft((d) => { const n = { ...d }; delete n[k]; return n; });
+    if (clean === String(t[f] ?? 0)) { drop(); return; }
+    const n = Number(clean);
+    if (!Number.isFinite(n) || n < 0) { say("סכום לא תקין"); drop(); return; }
+    setBusyId(t.id);
+    api.setDayTypeBudget({ typeId: t.id, [f]: n })
+      .then((r) => { say(`${r.name} עודכן`); drop(); onChanged(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusyId(null));
+  };
+
+  const field = (t, f, label) => (
+    <label className="bg-f">
+      <span>{label}</span>
+      <input value={valueOf(t, f)} inputMode="numeric" disabled={busyId === t.id}
+        onChange={(e) => setDraft((d) => ({ ...d, [key(t, f)]: e.target.value }))}
+        onBlur={() => commit(t, f)}
+        onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} />
+    </label>
+  );
+
+  return (
+    <>
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 13, color: "var(--muted)", fontWeight: 600, lineHeight: 1.6 }}>
+          התקציב מחולק לשניים: <b>קייטרינג</b> — מה שמזמינים מבחוץ,
+          ו<b>קניות</b> — כל השאר. שינוי כאן משפיע על כל השנה.
+          הסכום הקבוע אינו תלוי במספר הסועדים.
+        </div>
+      </div>
+
+      <div className="grp-h">
+        <span>לאדם, אלא אם צוין קבוע</span>
+        <span>× {headcount} סועדים</span>
+      </div>
+
+      <div className="rows">
+        {types.map((t) => {
+          const perDay = (t.cateringFixed || 0)
+            + ((t.catering || 0) + (t.purchases || 0)) * headcount;
+          return (
+            <div className="bg-type" key={t.id}>
+              <div className="bg-type-h">
+                <b>{t.name}</b>
+                <span className="num">{shekel(perDay)} ₪ ליום</span>
+              </div>
+              <div className="bg-fields">
+                {field(t, "catering", "קייטרינג לאדם")}
+                {field(t, "cateringFixed", "קייטרינג קבוע")}
+                {field(t, "purchases", "קניות לאדם")}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ height: 24 }} />
     </>
   );
 }
@@ -194,13 +320,14 @@ function YearView({ say, onMonth }) {
       file: "תקציב-מטבח-שנתי",
       sheet: "סיכום שנתי",
       title: `תקציב המטבח — סיכום שנתי · ${data.headcount} סועדים`,
-      header: ["חודש", "ימים", "אוכל", "אוכל יבש", "סה״כ"],
+      header: ["חודש", "ימים", "קייטרינג", "תקציב קניות", "נקנה בפועל", "יתרה", "סה״כ תקציב"],
       rows: [
-        ...data.rows.map((r) => [monthLabel(r.month), r.days, r.foodTotal,
-          Math.round(r.orderShare), Math.round(r.total)]),
-        [], ["סה״כ השנה", "", data.foodTotal, Math.round(data.orderShare), Math.round(data.total)],
+        ...data.rows.map((r) => [monthLabel(r.month), r.days, Math.round(r.catering),
+          Math.round(r.purchases), Math.round(r.spent), Math.round(r.left), Math.round(r.total)]),
+        [], ["סה״כ השנה", "", Math.round(data.catering), Math.round(data.purchases),
+          Math.round(data.spent), Math.round(data.left), Math.round(data.total)],
       ],
-      widths: [16, 8, 12, 12, 12],
+      widths: [16, 7, 12, 13, 12, 11, 13],
     });
     say("הקובץ ירד");
   };
@@ -213,11 +340,17 @@ function YearView({ say, onMonth }) {
         <div className="bg-total-k">סך התקציב לשנה</div>
         <div className="bg-total-v num">{shekel(data.total)} ₪</div>
         <div className="bg-total-s">
-          {shekel(data.foodTotal)} ₪ אוכל
-          {data.orderShare > 0 ? ` · ${shekel(data.orderShare)} ₪ אוכל יבש` : ""}
-          {" · "}{data.headcount} סועדים
+          קייטרינג {shekel(data.catering)} · קניות {shekel(data.purchases)} · {data.headcount} סועדים
         </div>
       </div>
+
+      {data.spent > 0 && (
+        <div className={"bg-spend " + (data.left < 0 ? "over" : "")}>
+          <div><b className="num">{shekel(data.spent)} ₪</b><span>נקנה בפועל</span></div>
+          <div><b className="num">{shekel(Math.abs(data.left))} ₪</b>
+            <span>{data.left < 0 ? "חריגה" : "נותר בקניות"}</span></div>
+        </div>
+      )}
 
       <div className="sec-label">חודש אחר חודש · לחיצה לפירוט</div>
       <div className="rows">
@@ -226,8 +359,9 @@ function YearView({ say, onMonth }) {
             <div className="st-main">
               <div className="st-n">{monthLabel(r.month)}</div>
               <div className="st-m">
-                <span>{r.days} ימים</span>
-                {r.orderShare > 0 && <span className="num">· {shekel(r.orderShare)} ₪ יבש</span>}
+                <span className="num">קייטרינג {shekel(r.catering)}</span>
+                <span className="num">· קניות {shekel(r.purchases)}</span>
+                {r.left < 0 && <span className="pill p-low">חריגה</span>}
               </div>
               <div className="bg-bar"><span style={{ width: `${(r.total / max) * 100}%` }} /></div>
             </div>
@@ -243,85 +377,10 @@ function YearView({ say, onMonth }) {
   );
 }
 
-/* ---------- מחירי סוגי הימים ----------
-   ⚠ שינוי כאן מזיז את כל השנה, לא חודש אחד: זה מחיר ולא
-     חריגה. חריגה ליום בודד נעשית בלחיצה על היום עצמו.
-
-   השמירה ביציאה מהשדה, כדי שאפשר יהיה לעדכן כמה מחירים
-   ברצף בלי ללחוץ "שמירה" בכל אחד. */
-function PriceTab({ types, headcount, say, onChanged }) {
-  const [draft, setDraft] = useState({});
-  const [busyId, setBusyId] = useState(null);
-
-  const valueOf = (t) => (t.id in draft ? draft[t.id] : String(t.cost));
-
-  const commit = (t) => {
-    const v = draft[t.id];
-    if (v === undefined) return;
-    const clean = String(v).trim();
-    if (clean === String(t.cost)) {
-      setDraft((d) => { const n = { ...d }; delete n[t.id]; return n; });
-      return;
-    }
-    const n = Number(clean);
-    if (!Number.isFinite(n) || n < 0) {
-      say("מחיר לא תקין");
-      setDraft((d) => { const x = { ...d }; delete x[t.id]; return x; });
-      return;
-    }
-    setBusyId(t.id);
-    api.setDayTypeCost({ typeId: t.id, cost: n })
-      .then((r) => {
-        say(`${r.name} — ${r.cost} ₪ לאדם`);
-        setDraft((d) => { const x = { ...d }; delete x[t.id]; return x; });
-        onChanged();
-      })
-      .catch((e) => say(e.message))
-      .finally(() => setBusyId(null));
-  };
-
-  return (
-    <>
-      <div className="card" style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 13, color: "var(--muted)", fontWeight: 600, lineHeight: 1.6 }}>
-          המחיר הוא לאדם ליום. שינוי כאן משפיע על כל השנה — כל
-          החודשים יחושבו מחדש. ליום בודד חריג, לחצו על היום עצמו.
-        </div>
-      </div>
-
-      <div className="grp-h">
-        <span>מחיר לאדם</span>
-        <span>× {headcount} סועדים</span>
-      </div>
-
-      <div className="rows">
-        {types.map((t) => (
-          <div className="st-row" key={t.id}>
-            <div className="st-main">
-              <div className="st-n">{t.name}</div>
-              <div className="st-m">
-                <span className="num">{(t.cost * headcount).toLocaleString("he-IL")} ₪ ליום לכל המכינה</span>
-              </div>
-            </div>
-            <input value={valueOf(t)} inputMode="numeric" disabled={busyId === t.id}
-              style={{ width: 74, minHeight: 40, background: "var(--bg)",
-                       border: "1px solid var(--line2)", borderRadius: 9,
-                       padding: "0 10px", fontSize: 14, textAlign: "center" }}
-              onChange={(e) => setDraft((d) => ({ ...d, [t.id]: e.target.value }))}
-              onBlur={() => commit(t)}
-              onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} />
-          </div>
-        ))}
-      </div>
-      <div style={{ height: 24 }} />
-    </>
-  );
-}
-
 /* ---------- הדף ---------- */
 export function BudgetPage({ say }) {
   useExcel();
-  const [view, setView] = useState("month"); // month | year
+  const [view, setView] = useState("month");
   const [month, setMonth] = useState(null);
   const { data, err, busy, reload } = useLoad(() => api.getBudget(month), [month]);
   const [editing, setEditing] = useState(null);
@@ -356,7 +415,7 @@ export function BudgetPage({ say }) {
       onCancel={() => setEditing(null)} />
   );
   if (adding) return (
-    <OrderForm months={data.months} defaultMonth={data.month} say={say}
+    <OrderForm months={data.months} defaultMonth={data.month} today={data.days[0].date} say={say}
       onDone={() => { setAdding(false); reload(); }}
       onCancel={() => setAdding(false)} />
   );
@@ -374,22 +433,25 @@ export function BudgetPage({ say }) {
       file: "תקציב-מטבח-" + data.month,
       sheet: "תקציב",
       title: `תקציב המטבח — ${monthLabel(data.month)} · ${data.headcount} סועדים`,
-      header: ["תאריך", "יום", "סוג היום", "₪ לאדם", "סה״כ ליום", "הערה"],
+      header: ["תאריך", "יום", "סוג היום", "קייטרינג", "קניות", "סה״כ", "הערה"],
       rows: [
-        ...data.days.map((d) => [
-          dm(d.date), dowOf(d.date), d.type, d.perPerson, d.total, d.note || "",
-        ]),
-        [], ["סה״כ אוכל", "", "", "", data.foodTotal, ""],
-        ["הזמנות אוכל יבש", "", "", "", Math.round(data.orderShare), ""],
-        ["סה״כ החודש", "", "", "", Math.round(data.total), ""],
+        ...data.days.map((d) => [dm(d.date), dowOf(d.date), d.type,
+          Math.round(d.catering), Math.round(d.purchases), Math.round(d.total), d.note || ""]),
+        [],
+        ["תקציב קייטרינג", "", "", Math.round(data.catering), "", "", ""],
+        ["תקציב קניות", "", "", "", Math.round(data.purchases), "", ""],
+        ["נקנה בפועל", "", "", "", Math.round(data.spent), "", ""],
+        ["יתרה בקניות", "", "", "", Math.round(data.left), "", ""],
+        ["סה״כ תקציב החודש", "", "", "", "", Math.round(data.total), ""],
       ],
-      widths: [10, 6, 20, 9, 11, 24],
+      widths: [10, 6, 16, 11, 10, 10, 22],
     });
     say("הקובץ ירד");
   };
 
   const idx = data.months.indexOf(data.month);
   const go = (i) => { if (i >= 0 && i < data.months.length) setMonth(data.months[i]); };
+  const monthOrders = data.orders.filter((o) => o.share > 0);
 
   return (
     <>
@@ -398,7 +460,7 @@ export function BudgetPage({ say }) {
       <div className="seg">
         <button className={view === "month" ? "on" : ""} onClick={() => setView("month")}>חודש</button>
         <button className={view === "year" ? "on" : ""} onClick={() => setView("year")}>כל השנה</button>
-        <button className={view === "prices" ? "on" : ""} onClick={() => setView("prices")}>מחירים</button>
+        <button className={view === "prices" ? "on" : ""} onClick={() => setView("prices")}>תקציב</button>
       </div>
 
       {view === "prices" ? (
@@ -407,125 +469,137 @@ export function BudgetPage({ say }) {
         <YearView say={say} onMonth={(m) => { setMonth(m); setView("month"); }} />
       ) : (
       <>
-      {/* ---------- בורר החודש ---------- */}
-      <div className="bg-nav">
-        <button className="btn btn-ghost btn-sm" disabled={idx <= 0} onClick={() => go(idx - 1)}>
-          <BI.chev style={{ transform: "rotate(180deg)" }} />
-        </button>
-        <select value={data.month} onChange={(e) => setMonth(e.target.value)}>
-          {data.months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
-        </select>
-        <button className="btn btn-ghost btn-sm" disabled={idx >= data.months.length - 1}
-          onClick={() => go(idx + 1)}>
-          <BI.chev />
-        </button>
-      </div>
-
-      {/* ---------- הסכום ---------- */}
-      <div className="bg-total">
-        <div className="bg-total-k">סך התקציב לחודש</div>
-        <div className="bg-total-v num">{shekel(data.total)} ₪</div>
-        <div className="bg-total-s">
-          {shekel(data.foodTotal)} ₪ אוכל
-          {data.orderShare > 0 ? ` · ${shekel(data.orderShare)} ₪ אוכל יבש` : ""}
+        <div className="bg-nav">
+          <button className="btn btn-ghost btn-sm" disabled={idx <= 0} onClick={() => go(idx - 1)}>
+            <BI.chev style={{ transform: "rotate(180deg)" }} />
+          </button>
+          <select value={data.month} onChange={(e) => setMonth(e.target.value)}>
+            {data.months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
+          </select>
+          <button className="btn btn-ghost btn-sm" disabled={idx >= data.months.length - 1}
+            onClick={() => go(idx + 1)}>
+            <BI.chev />
+          </button>
         </div>
-      </div>
 
-      {/* ---------- מספר הסועדים ---------- */}
-      <div className="card bg-head">
-        {headEdit ? (
-          <>
-            <input value={head} onChange={(e) => setHead(e.target.value)} inputMode="numeric" autoFocus />
-            <button className="btn btn-primary btn-sm" onClick={saveHead}>שמירה</button>
-            <button className="btn btn-ghost btn-sm" onClick={() => setHeadEdit(false)}>ביטול</button>
-          </>
-        ) : (
-          <>
-            <div style={{ flex: 1 }}>
-              <b className="num" style={{ fontSize: 18 }}>{data.headcount}</b>
-              <span style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600, marginRight: 8 }}>
-                סועדים — חניכים וצוות
-              </span>
-            </div>
-            <button className="btn btn-ghost btn-sm"
-              onClick={() => { setHead(String(data.headcount)); setHeadEdit(true); }}>שינוי</button>
-          </>
-        )}
-      </div>
-
-      {/* ---------- פירוט לפי סוג ---------- */}
-      <div className="sec-label">מה מושך את התקציב</div>
-      <div className="card" style={{ marginBottom: 12 }}>
-        {data.byType.map((t) => (
-          <div className="bg-row" key={t.type}>
-            <span style={{ flex: 1 }}>{t.type}</span>
-            <span className="num" style={{ color: "var(--muted)" }}>{t.days} ימים</span>
-            <b className="num">{shekel(t.total)} ₪</b>
+        <div className="bg-total">
+          <div className="bg-total-k">סך התקציב לחודש</div>
+          <div className="bg-total-v num">{shekel(data.total)} ₪</div>
+          <div className="bg-total-s">
+            קייטרינג {shekel(data.catering)} · קניות {shekel(data.purchases)}
           </div>
-        ))}
-      </div>
-
-      <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 14 }}
-        onClick={exportMonth}><BI.dl />הורדת החודש לאקסל</button>
-
-      {/* ---------- ההזמנות ---------- */}
-      <div className="sec-label">הזמנות אוכל יבש</div>
-      {data.orders.length === 0 ? (
-        <div className="card" style={{ marginBottom: 10, fontSize: 13.5, color: "var(--muted)",
-                                       fontWeight: 600, textAlign: "center" }}>
-          אין הזמנות. הזמנה מתחלקת על שלושה חודשים.
         </div>
-      ) : (
-        <div className="rows" style={{ marginBottom: 10 }}>
-          {data.orders.map((o) => {
-            const inMonth = o.months.includes(data.month);
-            return (
+
+        {/* ---------- הקניות מול תקציב הקניות ---------- */}
+        <div className={"bg-spend " + (data.left < 0 ? "over" : "")}>
+          <div><b className="num">{shekel(data.purchases)}</b><span>תקציב קניות</span></div>
+          <div><b className="num">{shekel(data.spent)}</b><span>נקנה בפועל</span></div>
+          <div><b className="num">{shekel(Math.abs(data.left))}</b>
+            <span>{data.left < 0 ? "חריגה" : "נותר"}</span></div>
+        </div>
+
+        <div className="card bg-head">
+          {headEdit ? (
+            <>
+              <input value={head} onChange={(e) => setHead(e.target.value)} inputMode="numeric" autoFocus />
+              <button className="btn btn-primary btn-sm" onClick={saveHead}>שמירה</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setHeadEdit(false)}>ביטול</button>
+            </>
+          ) : (
+            <>
+              <div style={{ flex: 1 }}>
+                <b className="num" style={{ fontSize: 18 }}>{data.headcount}</b>
+                <span style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600, marginRight: 8 }}>
+                  סועדים — חניכים וצוות
+                </span>
+              </div>
+              <button className="btn btn-ghost btn-sm"
+                onClick={() => { setHead(String(data.headcount)); setHeadEdit(true); }}>שינוי</button>
+            </>
+          )}
+        </div>
+
+        <div className="sec-label">מה מושך את התקציב</div>
+        <div className="card" style={{ marginBottom: 12 }}>
+          {data.byType.map((t) => (
+            <div className="bg-row" key={t.type}>
+              <span style={{ flex: 1 }}>{t.type}</span>
+              <span className="num" style={{ color: "var(--muted)" }}>{t.days} ימים</span>
+              <b className="num">{shekel(t.total)} ₪</b>
+            </div>
+          ))}
+        </div>
+
+        <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 14 }}
+          onClick={exportMonth}><BI.dl />הורדת החודש לאקסל</button>
+
+        <div className="sec-label">קניות החודש</div>
+        {monthOrders.length === 0 ? (
+          <div className="card" style={{ marginBottom: 10, fontSize: 13.5, color: "var(--muted)",
+                                         fontWeight: 600, textAlign: "center" }}>
+            עדיין לא נרשמה קנייה לחודש הזה
+          </div>
+        ) : (
+          <div className="rows" style={{ marginBottom: 10 }}>
+            {monthOrders.map((o) => (
               <div className="st-row" key={o.id} style={{ cursor: "default" }}>
                 <div className="st-main">
                   <div className="st-n">{o.name}</div>
                   <div className="st-m">
+                    <span className={"pill " + (o.kind === ORDER_KIND.weekly ? "p-ok" : "p-new")}>
+                      {o.kind}
+                    </span>
                     <span className="num">{shekel(o.amount)} ₪</span>
-                    <span>· {o.months.map(monthLabel).join(" · ")}</span>
-                    {inMonth && <span className="pill p-ok num">{shekel(o.amount / 3)} ₪ החודש</span>}
+                    {o.kind === ORDER_KIND.quarterly && (
+                      <span>· {o.months.map(monthLabel).join(" · ")}</span>
+                    )}
+                    {o.date && <span className="num">· {dm(o.date)}</span>}
                   </div>
                 </div>
+                <b className="num" style={{ flex: "0 0 auto", color: "var(--clay)" }}>
+                  −{shekel(o.share)}
+                </b>
                 <button className="btn btn-ghost btn-sm" style={{ color: "var(--clay)" }}
-                  onClick={() => api.deleteDryOrder(o.id)
-                    .then(() => { say("ההזמנה נמחקה"); reload(); })
+                  onClick={() => api.deletePurchase(o.id)
+                    .then(() => { say("הקנייה נמחקה"); reload(); })
                     .catch((e) => say(e.message))}>מחיקה</button>
               </div>
-            );
-          })}
-        </div>
-      )}
-      <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 16 }}
-        onClick={() => setAdding(true)}><BI.plus />הזמנה חדשה</button>
+            ))}
+          </div>
+        )}
+        <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 16 }}
+          onClick={() => setAdding(true)}><BI.plus />קנייה חדשה</button>
 
-      {/* ---------- הימים ---------- */}
-      <div className="sec-label">ימי החודש · לחיצה לשינוי</div>
-      <div className="rows">
-        {data.days.map((d) => (
-          <button className="st-row" key={d.date} onClick={() => setEditing(d)}>
-            <div className="bg-day num">
-              <b>{dm(d.date)}</b>
-              <span>{dowOf(d.date)}׳</span>
-            </div>
-            <div className="st-main">
-              <div className="st-n" style={{ fontSize: 14.5 }}>{d.type}</div>
-              <div className="st-m">
-                {d.overridden && <span className="pill p-new">נקבע ידנית</span>}
-                {d.note && <span>{d.note}</span>}
-                {!d.overridden && !d.note && <span>{d.perPerson} ₪ לאדם</span>}
+        <div className="sec-label">ימי החודש · לחיצה לשינוי</div>
+        <div className="rows">
+          {data.days.map((d) => (
+            <button className="st-row" key={d.date} onClick={() => setEditing(d)}>
+              <div className="bg-day num">
+                <b>{dm(d.date)}</b>
+                <span>{dowOf(d.date)}׳</span>
               </div>
-            </div>
-            <b className="num" style={{ flex: "0 0 auto", fontSize: 14.5,
-                                        color: d.total ? "var(--ink)" : "var(--faint)" }}>
-              {d.total ? shekel(d.total) + " ₪" : "—"}
-            </b>
-          </button>
-        ))}
-      </div>
-      <div style={{ height: 30 }} />
+              <div className="st-main">
+                <div className="st-n" style={{ fontSize: 14.5 }}>{d.type}</div>
+                <div className="st-m">
+                  {d.overridden && <span className="pill p-new">נקבע ידנית</span>}
+                  {d.note && <span>{d.note}</span>}
+                  {!d.overridden && !d.note && d.total > 0 && (
+                    <span className="num">
+                      {d.catering > 0 ? `קייטרינג ${shekel(d.catering)}` : ""}
+                      {d.catering > 0 && d.purchases > 0 ? " · " : ""}
+                      {d.purchases > 0 ? `קניות ${shekel(d.purchases)}` : ""}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <b className="num" style={{ flex: "0 0 auto", fontSize: 14.5,
+                                          color: d.total ? "var(--ink)" : "var(--faint)" }}>
+                {d.total ? shekel(d.total) + " ₪" : "—"}
+              </b>
+            </button>
+          ))}
+        </div>
+        <div style={{ height: 30 }} />
       </>
       )}
     </>

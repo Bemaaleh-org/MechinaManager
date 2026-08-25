@@ -776,4 +776,24 @@ html,body{margin:0;padding:0;background:#012E58}
   padding-top:8px;margin-top:4px;border-top:1px solid var(--line)}
 .kx .ag-card{display:block;width:100%;text-align:right;border:1px solid var(--line);
   cursor:pointer;margin-bottom:14px}
+
+/* ---- תקציב: שני ראשים וקניות ---- */
+.bg-spend{display:flex;gap:8px;margin-bottom:12px}
+.bg-spend>div{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:12px;
+  padding:10px 8px;text-align:center}
+.bg-spend b{display:block;font-size:16px;font-weight:800;line-height:1.2}
+.bg-spend span{display:block;font-size:11px;color:var(--muted);font-weight:700;margin-top:2px}
+.bg-spend.over>div:last-child{background:var(--clay-soft);border-color:var(--clay)}
+.bg-spend.over>div:last-child b{color:var(--clay)}
+.bg-type{padding:11px 13px;border-bottom:1px solid var(--line)}
+.bg-type:last-child{border-bottom:none}
+.bg-type-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:8px}
+.bg-type-h b{font-size:14.5px}
+.bg-type-h span{font-size:12px;color:var(--muted);font-weight:700}
+.bg-fields{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.bg-f{display:flex;flex-direction:column;gap:3px}
+.bg-f span{font-size:10.5px;color:var(--faint);font-weight:700;text-align:center}
+.bg-f input{width:100%;min-height:38px;background:var(--bg);border:1px solid var(--line2);
+  border-radius:9px;padding:0 6px;font-size:14px;text-align:center;outline:none}
+.bg-f input:focus{border-color:var(--accent)}
 `;
