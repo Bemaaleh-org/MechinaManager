@@ -243,6 +243,81 @@ function YearView({ say, onMonth }) {
   );
 }
 
+/* ---------- מחירי סוגי הימים ----------
+   ⚠ שינוי כאן מזיז את כל השנה, לא חודש אחד: זה מחיר ולא
+     חריגה. חריגה ליום בודד נעשית בלחיצה על היום עצמו.
+
+   השמירה ביציאה מהשדה, כדי שאפשר יהיה לעדכן כמה מחירים
+   ברצף בלי ללחוץ "שמירה" בכל אחד. */
+function PriceTab({ types, headcount, say, onChanged }) {
+  const [draft, setDraft] = useState({});
+  const [busyId, setBusyId] = useState(null);
+
+  const valueOf = (t) => (t.id in draft ? draft[t.id] : String(t.cost));
+
+  const commit = (t) => {
+    const v = draft[t.id];
+    if (v === undefined) return;
+    const clean = String(v).trim();
+    if (clean === String(t.cost)) {
+      setDraft((d) => { const n = { ...d }; delete n[t.id]; return n; });
+      return;
+    }
+    const n = Number(clean);
+    if (!Number.isFinite(n) || n < 0) {
+      say("מחיר לא תקין");
+      setDraft((d) => { const x = { ...d }; delete x[t.id]; return x; });
+      return;
+    }
+    setBusyId(t.id);
+    api.setDayTypeCost({ typeId: t.id, cost: n })
+      .then((r) => {
+        say(`${r.name} — ${r.cost} ₪ לאדם`);
+        setDraft((d) => { const x = { ...d }; delete x[t.id]; return x; });
+        onChanged();
+      })
+      .catch((e) => say(e.message))
+      .finally(() => setBusyId(null));
+  };
+
+  return (
+    <>
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 13, color: "var(--muted)", fontWeight: 600, lineHeight: 1.6 }}>
+          המחיר הוא לאדם ליום. שינוי כאן משפיע על כל השנה — כל
+          החודשים יחושבו מחדש. ליום בודד חריג, לחצו על היום עצמו.
+        </div>
+      </div>
+
+      <div className="grp-h">
+        <span>מחיר לאדם</span>
+        <span>× {headcount} סועדים</span>
+      </div>
+
+      <div className="rows">
+        {types.map((t) => (
+          <div className="st-row" key={t.id}>
+            <div className="st-main">
+              <div className="st-n">{t.name}</div>
+              <div className="st-m">
+                <span className="num">{(t.cost * headcount).toLocaleString("he-IL")} ₪ ליום לכל המכינה</span>
+              </div>
+            </div>
+            <input value={valueOf(t)} inputMode="numeric" disabled={busyId === t.id}
+              style={{ width: 74, minHeight: 40, background: "var(--bg)",
+                       border: "1px solid var(--line2)", borderRadius: 9,
+                       padding: "0 10px", fontSize: 14, textAlign: "center" }}
+              onChange={(e) => setDraft((d) => ({ ...d, [t.id]: e.target.value }))}
+              onBlur={() => commit(t)}
+              onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} />
+          </div>
+        ))}
+      </div>
+      <div style={{ height: 24 }} />
+    </>
+  );
+}
+
 /* ---------- הדף ---------- */
 export function BudgetPage({ say }) {
   useExcel();
@@ -323,9 +398,12 @@ export function BudgetPage({ say }) {
       <div className="seg">
         <button className={view === "month" ? "on" : ""} onClick={() => setView("month")}>חודש</button>
         <button className={view === "year" ? "on" : ""} onClick={() => setView("year")}>כל השנה</button>
+        <button className={view === "prices" ? "on" : ""} onClick={() => setView("prices")}>מחירים</button>
       </div>
 
-      {view === "year" ? (
+      {view === "prices" ? (
+        <PriceTab types={data.types} headcount={data.headcount} say={say} onChanged={reload} />
+      ) : view === "year" ? (
         <YearView say={say} onMonth={(m) => { setMonth(m); setView("month"); }} />
       ) : (
       <>

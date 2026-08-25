@@ -5,6 +5,7 @@
      POST   { name, amount, startMonth, date?, note? }  הזמנה
      DELETE { orderId }                     מחיקת הזמנה
      PUT    { headcount }                   מספר הסועדים
+     PUT    { typeId, cost }                 מחיר של סוג יום
 
    ⚠ מנהל בלבד. עלויות אינן נתון של תורן (עיקרון 4).
 
@@ -261,6 +262,7 @@ async function handler(req, res, session) {
         });
         return res.status(200).json({
           view: "year", months, rows,
+          types: sortTypes(types),
           headcount: settings.headcount,
           foodTotal: rows.reduce((a, r) => a + r.foodTotal, 0),
           orderShare: rows.reduce((a, r) => a + r.orderShare, 0),
@@ -300,6 +302,25 @@ async function handler(req, res, session) {
     const body = req.body ?? (await readJson(req));
 
     if (req.method === "PUT") {
+      /* מחיר של סוג יום — ⚠ משנה את כל השנה, לא חודש אחד.
+         שגרה שמתייקרת מ-40 ל-45 מזיזה כל יום שגרה בכל חודש,
+         וזו הכוונה: זה מחיר ולא חריגה. חריגה ליום בודד נשמרת
+         בלוח הימים ולא כאן. */
+      if (body.typeId !== undefined) {
+        const typeId = String(body.typeId || "").trim();
+        if (!typeId) return res.status(400).json({ error: "לא צוין סוג יום" });
+        const cost = Number(body.cost);
+        if (!Number.isFinite(cost) || cost < 0 || cost > 10000) {
+          return res.status(400).json({ error: "מחיר לא תקין" });
+        }
+        const types = await loadDayTypes();
+        const hit = types.find((t) => t.id === typeId);
+        if (!hit) return res.status(404).json({ error: "סוג היום אינו נמצא" });
+        await setCols(B.dayTypes, typeId, { [C.dayTypes.cost]: String(cost) });
+        invalidateBudget();
+        return res.status(200).json({ ok: true, typeId, cost, name: hit.name });
+      }
+
       /* מספר הסועדים */
       if (body.headcount !== undefined) {
         const n = Number(body.headcount);

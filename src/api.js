@@ -115,6 +115,8 @@ export const api = {
   setBudgetDay: ({ date, type, cost, note }) =>
     put("/api/kitchen?action=budget", { date, type, cost, note }),
   setHeadcount: (headcount) => put("/api/kitchen?action=budget", { headcount }),
+  /** מחיר של סוג יום. ⚠ משנה את כל השנה. */
+  setDayTypeCost: ({ typeId, cost }) => put("/api/kitchen?action=budget", { typeId, cost }),
   addDryOrder: ({ name, amount, startMonth, date, note }) =>
     post("/api/kitchen?action=budget", { name, amount, startMonth, date, note }),
   deleteDryOrder: (orderId) => del("/api/kitchen?action=budget", { orderId }),
