@@ -652,7 +652,9 @@ html,body{margin:0;padding:0;background:#012E58}
   border:1px solid var(--line2);background:var(--bg)}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
 
-/* ---- השיבוץ המרכזי של החניך: הענף ---- */
+/* ---- כרטיסי השיבוץ של החניך ----
+   צבע לכל קטגוריה, מתוך אותה פלטה של המערכת: כחול הסמל
+   לענף, ירוק לוועדה, חימר לסדרה וענבר לקבוצה. */
 /* ⚠ הסלקטור נושא את .kx: הכרטיס הוא <button> במסך הבית,
    ו-".kx button" (0,1,1) גובר על ".pl-lead" (0,1,0) ומאפס לו
    את הרקע והצבע. אותה מלכודת כמו בבורר התמונה. */
@@ -677,4 +679,13 @@ html,body{margin:0;padding:0;background:#012E58}
 
 .guide-h{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;
   padding:0;text-align:right;cursor:pointer;color:inherit}
+
+.kx .pl-lead.pl-committee{background:linear-gradient(145deg,#2E7D57 0%,#1B5638 100%);
+  box-shadow:0 10px 26px rgba(31,107,69,.22)}
+.kx .pl-lead.pl-series{background:linear-gradient(145deg,#B4442F 0%,#8A2E1F 100%);
+  box-shadow:0 10px 26px rgba(158,54,38,.22)}
+.kx .pl-lead.pl-group{background:linear-gradient(145deg,#A6702A 0%,#7A4E17 100%);
+  box-shadow:0 10px 26px rgba(138,90,30,.22)}
+/* כשיש כמה כרטיסים ברצף — מרווח קטן יותר ביניהם */
+.pl-stack .pl-lead{margin:0 0 10px}
 `;

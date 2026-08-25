@@ -124,11 +124,6 @@ function AssignEditor({ def, semester, assigned, roster, say, onDone, onCancel }
           לחניך הוא אינו מגיע: השרת אינו שולח אותו. */}
       <PlacementDetail def={def} />
 
-      <button className="btn btn-primary" disabled={busy || over} onClick={save}
-        style={{ marginBottom: 12 }}>
-        {busy ? "שומר…" : over ? `חריגה ממכסה (${picked.size}/${def.capacity})` : "שמירת השיבוץ"}
-      </button>
-
       <input className="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="חיפוש חניך" />
 
       <div className="rows" style={{ maxHeight: "52vh", overflowY: "auto" }}>

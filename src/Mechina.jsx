@@ -1708,6 +1708,34 @@ export function MechinaRolesPage({ say, sub0 }) {
    ⚠ השרת מחזיר לחניך את השיבוצים שלו בלבד — הסינון שם,
      לא כאן.
    ============================================================ */
+/* ---------- כרטיס שיבוץ אחד ----------
+   ⚠ אותו כרטיס בכל מקום שהחניך רואה שיבוץ — מסך הבית ומסך
+     השיבוצים. צבע לפי קטגוריה.
+
+   ⚠ הסמסטר נכתב רק בוועדות, ורק כשהוא באמת חצי שנה: ענף
+     וסדרה הם שנתיים ממילא, ו"לאורך כל השנה" על כל כרטיס הוא
+     רעש ולא מידע. */
+const PL_LOOK = {
+  "ענף": { cls: "", eyebrow: "הענף שלי" },
+  "ועדה": { cls: "pl-committee", eyebrow: "ועדה" },
+  "סדרה": { cls: "pl-series", eyebrow: "צוות סדרה" },
+  "קבוצה": { cls: "pl-group", eyebrow: "קבוצה" },
+};
+
+function PlacementTile({ m, onClick }) {
+  const look = PL_LOOK[m.def.category] || PL_LOOK["ענף"];
+  const semester = m.def.category === "ועדה" && m.semester !== "שנתי" ? m.semester : null;
+  const Tag = onClick ? "button" : "div";
+  return (
+    <Tag className={("pl-lead " + look.cls).trim()} onClick={onClick || undefined}>
+      <div className="pl-lead-k">{look.eyebrow}</div>
+      <div className="pl-lead-n">{m.def.name}</div>
+      {m.def.hours && <div className="pl-lead-h num">{m.def.hours}</div>}
+      {semester && <div className="pl-lead-s">{semester}</div>}
+    </Tag>
+  );
+}
+
 function MyPlacements({ say }) {
   const { data, err, busy, reload } = useLoad(() => api.getPlacements(), []);
 
@@ -1729,67 +1757,25 @@ function MyPlacements({ say }) {
     .map((m) => ({ ...m, def: defs[m.placement] }))
     .filter((m) => m.def);
 
-  const semOrder = { "סמסטר א׳": 0, "סמסטר ב׳": 1, "שנתי": 2 };
-  const CATS = [
-    ["ענף", "הענף שלי"],
-    ["ועדה", "הוועדות שלי"],
-    ["סדרה", "צוותי הסדרות שלי"],
-    ["קבוצה", "הקבוצה שלי"],
-  ];
-
-  const branch = mine.find((m) => m.def.category === "ענף");
+  /* סדר הצגה: ענף, ועדות, סדרות, קבוצות */
+  const ORDER = ["ענף", "ועדה", "סדרה", "קבוצה"];
+  const sorted = [...mine].sort((a, b) =>
+    ORDER.indexOf(a.def.category) - ORDER.indexOf(b.def.category)
+    || a.def.name.localeCompare(b.def.name, "he"));
 
   return (
     <>
       <div className="screen-title">השיבוצים שלי</div>
 
-      {mine.length === 0 ? (
+      {sorted.length === 0 ? (
         <div className="attn-calm">
           <b>עוד לא שובצת</b>
           <span>כשהצוות ישבץ — הכול יופיע כאן</span>
         </div>
       ) : (
-        <>
-          {/* ⚠ הענף ראשון ובגדול: זה השיבוץ שהחניך פוגש כל בוקר,
-              ובשונה מהשאר יש לו שעות שצריך לדעת. */}
-          {branch && (
-            <div className="pl-lead">
-              <div className="pl-lead-k">הענף שלי</div>
-              <div className="pl-lead-n">{branch.def.name}</div>
-              {branch.def.hours && (
-                <div className="pl-lead-h num">{branch.def.hours}</div>
-              )}
-              <div className="pl-lead-s">
-                {branch.semester === "שנתי" ? "לאורך כל השנה" : branch.semester}
-              </div>
-            </div>
-          )}
-
-          {CATS.map(([cat, title]) => {
-            const list = mine
-              .filter((m) => m.def.category === cat && m !== branch)
-              .sort((a, b) => (semOrder[a.semester] ?? 9) - (semOrder[b.semester] ?? 9));
-            if (!list.length) return null;
-            return (
-              <div key={cat}>
-                <div className="sec-label">{title}</div>
-                <div className="rows" style={{ marginBottom: 14 }}>
-                  {list.map((m) => (
-                    <div className="st-row" key={m.id} style={{ cursor: "default" }}>
-                      <div className="st-main">
-                        <div className="st-n">{m.def.name}</div>
-                        <div className="st-m">
-                          <span>{m.semester === "שנתי" ? "לאורך כל השנה" : m.semester}</span>
-                          {m.def.hours && <span className="num">· {m.def.hours}</span>}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </>
+        <div className="pl-stack">
+          {sorted.map((m) => <PlacementTile key={m.id} m={m} />)}
+        </div>
       )}
     </>
   );
@@ -1877,11 +1863,6 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
   /* ---------- השיבוצים ----------
      ⚠ הענף פותח את המסך ולא מספרי הנוכחות: זה מה שהחניך צריך
        לדעת בבוקר. הנוכחות, החופש והבקשות יורדים למטה. */
-  const byCat = (c) => (places || []).filter((m) => m.def.category === c);
-  const branch = byCat("ענף")[0] || null;
-  const committees = byCat("ועדה");
-  const seriesList = byCat("סדרה");
-
   const tiles = [
     { key: "vac", go: () => go("year"), cls: quotaLeft === 0 ? "warn" : "good",
       v: quotaLeft == null ? "…" : quotaLeft, l: "ימי חופש שנותרו",
@@ -1920,36 +1901,19 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
 
       {year.err && <LoadFail msg={year.err} onRetry={year.reload} />}
 
-      {/* ---------- השיבוצים שלי — ראש המסך ---------- */}
-      {branch && (
-        <button className="pl-lead" onClick={() => go("placements")}>
-          <div className="pl-lead-k">הענף שלי</div>
-          <div className="pl-lead-n">{branch.def.name}</div>
-          {branch.def.hours && <div className="pl-lead-h num">{branch.def.hours}</div>}
-          <div className="pl-lead-s">
-            {branch.semester === "שנתי" ? "לאורך כל השנה" : branch.semester}
-          </div>
-        </button>
-      )}
-
-      {(committees.length > 0 || seriesList.length > 0) && (
-        <>
-          <div className="sec-label">השיבוצים שלי</div>
-          <div className="rows" style={{ marginBottom: 14 }}>
-            {[...committees, ...seriesList].map((m) => (
-              <button className="st-row" key={m.id} onClick={() => go("placements")}>
-                <div className="st-main">
-                  <div className="st-n">{m.def.name}</div>
-                  <div className="st-m">
-                    <span className="pill p-new">{m.def.category}</span>
-                    <span>{m.semester === "שנתי" ? "לאורך כל השנה" : m.semester}</span>
-                  </div>
-                </div>
-                <MI.chev style={{ color: "var(--line2)" }} />
-              </button>
+      {/* ---------- השיבוצים שלי — ראש המסך ----------
+          ⚠ אותם כרטיסים בדיוק כמו במסך השיבוצים. */}
+      {places && places.length > 0 && (
+        <div className="pl-stack" style={{ marginBottom: 16 }}>
+          {[...places]
+            .sort((a, b) =>
+              ["ענף", "ועדה", "סדרה", "קבוצה"].indexOf(a.def.category)
+              - ["ענף", "ועדה", "סדרה", "קבוצה"].indexOf(b.def.category)
+              || a.def.name.localeCompare(b.def.name, "he"))
+            .map((m) => (
+              <PlacementTile key={m.id} m={m} onClick={() => go("placements")} />
             ))}
-          </div>
-        </>
+        </div>
       )}
 
       {places && places.length === 0 && (
