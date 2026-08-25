@@ -463,6 +463,69 @@ html,body{margin:0;padding:0;background:#012E58}
 .dash-v.warn{color:#B91C1C}
 .dash-col{display:flex;flex-direction:column;gap:9px}
 
+/* ============ מסך הבית של המנהל — הגרסה הגדולה ============
+   שלוש רצועות: פתיח על התמונה, מספרי היום, ומה שדורש טיפול.
+   הניווט המהיר יושב באריחים בתחתית — המגירה נשארת המפה
+   המלאה, וכאן רק היעדים השכיחים.                            */
+.hero2{position:relative;border-radius:22px;overflow:hidden;margin:4px 0 16px;
+  box-shadow:0 12px 30px -14px rgba(0,36,84,.45)}
+.hero2 img{display:block;width:100%;height:210px;object-fit:cover}
+.hero2 .h2-veil{position:absolute;inset:0;
+  background:linear-gradient(178deg,rgba(0,36,84,.06) 30%,rgba(0,26,60,.82) 88%)}
+.hero2 .h2-txt{position:absolute;right:18px;left:18px;bottom:14px;color:#fff}
+.hero2 .h2-greet{font-family:'Suez One',Heebo,serif;font-size:30px;line-height:1.15;
+  text-shadow:0 1px 10px rgba(0,20,50,.5)}
+.hero2 .h2-date{font-size:13.5px;font-weight:700;opacity:.92;margin-top:3px}
+.hero2 .h2-cap{position:absolute;top:12px;left:14px;font-size:11.5px;font-weight:800;
+  color:#fff;background:rgba(0,26,60,.45);backdrop-filter:blur(3px);
+  padding:4px 11px;border-radius:20px;letter-spacing:.3px}
+
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+.kx .stat-tile{background:var(--surface);border:1px solid var(--line);border-radius:18px;
+  padding:14px 15px 12px;text-align:right;display:flex;flex-direction:column;gap:1px;
+  transition:transform .06s}
+.kx .stat-tile:active{transform:scale(.98)}
+.stat-tile .sv{font-family:'Suez One',Heebo,serif;font-size:34px;line-height:1.1;
+  font-variant-numeric:tabular-nums;color:var(--accent)}
+.stat-tile.warn .sv{color:var(--clay)}
+.stat-tile.good .sv{color:var(--ok)}
+.stat-tile .sl{font-size:13px;font-weight:800;letter-spacing:-.2px}
+.stat-tile .ss{font-size:11.5px;color:var(--muted);font-weight:600;min-height:15px}
+
+.attn{display:flex;flex-direction:column;gap:9px;margin-bottom:18px}
+.kx .attn-row{width:100%;text-align:right;background:var(--surface);border:1px solid var(--line);
+  border-right:4px solid var(--line2);border-radius:14px;padding:12px 14px;
+  display:flex;align-items:center;gap:12px}
+.kx .attn-row.clay{border-right-color:var(--clay)}
+.kx .attn-row.amber{border-right-color:var(--amber)}
+.kx .attn-row:active{background:#F7F3EA}
+.attn-t{font-size:14px;font-weight:800}
+.attn-s{font-size:12.5px;color:var(--muted);font-weight:600;margin-top:1px}
+.attn-calm{background:var(--ok-soft);border:1px solid #CBE3D5;border-radius:16px;
+  padding:18px 16px;text-align:center;margin-bottom:18px}
+.attn-calm b{display:block;font-size:15px;color:var(--ok);margin-bottom:2px}
+.attn-calm span{font-size:12.5px;color:var(--muted);font-weight:600}
+
+.gantt-strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:18px;
+  scrollbar-width:none}
+.gantt-strip::-webkit-scrollbar{display:none}
+.kx .gantt-chip{flex:0 0 auto;background:var(--accent-soft);color:var(--accent);border-radius:12px;
+  padding:8px 13px;font-size:12.5px;font-weight:800;white-space:nowrap}
+.kx .gantt-chip.now{background:var(--accent);color:#fff}
+
+.navgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kx .nav-tile{background:var(--surface);border:1px solid var(--line);border-radius:16px;
+  padding:14px 13px;text-align:right;display:flex;align-items:center;gap:11px;
+  transition:transform .06s}
+.kx .nav-tile:active{transform:scale(.98)}
+.nav-ico{width:38px;height:38px;border-radius:12px;background:var(--accent-soft);
+  color:var(--accent);display:grid;place-items:center;flex:0 0 auto}
+.nav-tile b{font-size:13.5px;font-weight:800;letter-spacing:-.2px}
+.nav-badge{margin-right:auto;background:var(--clay);color:#fff;border-radius:20px;
+  min-width:21px;height:21px;display:grid;place-items:center;
+  font-size:11.5px;font-weight:800;padding:0 6px}
+
+
 /* ---- מגירת ניווט (שלושת הקווים) ---- */
 .hamb{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex:0 0 auto;
   background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);color:#fff}

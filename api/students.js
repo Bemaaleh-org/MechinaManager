@@ -8,6 +8,8 @@
      ?action=role    POST   קביעת תפקידים לחניך (מנהל בלבד)
      ?action=profile GET/POST  הפרופיל האישי
      ?action=incident GET/POST אירועים חריגים (מנהל בלבד)
+     ?action=placements GET/POST שיבוצי חניכים — ענפים, ועדות,
+                        סדרות וקבוצות. חניך רואה את שלו בלבד.
 
    ⚠ login אינו דורש סשן, ולכן הקובץ הזה אינו נעטף ב-withAuth —
      כל מודול מביא את ההגנה שלו, בדיוק כמו ב-api/auth.js.
@@ -24,5 +26,13 @@ import role from "./_student-role.js";
 import weeks from "./_leader-weeks.js";
 import profile from "./_student-profile.js";
 import incident from "./_student-incidents.js";
+import placements from "./_placements.js";
+import placementsSetup from "./_placements-setup.js";
+import safety from "./_safety.js";
+import safetySetup from "./_safety-setup.js";
+import faults from "./_faults.js";
+import faultsSetup from "./_faults-setup.js";
 
-export default router({ login, list, year, leader, weeks, role, profile, incident });
+export default router({ login, list, year, leader, weeks, role, profile, incident, placements,
+  "placements-setup": placementsSetup, safety, "safety-setup": safetySetup,
+  faults, "faults-setup": faultsSetup });

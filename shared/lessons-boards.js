@@ -117,5 +117,11 @@ export const ROLE_SCHEDULE = "אחראי לו״ז";
 /** אחראי המכולה — פותח את דף ציוד המכולה */
 export const ROLE_CONTAINER = "אחראי מכולה";
 
+/** אחראי הבטיחות — פותח את דף בטיחות ותקלות */
+export const ROLE_SAFETY = "אחראי בטיחות";
+
+/** אב הבית — פותח את דף תקלות ובעיות */
+export const ROLE_HOUSE = "אב בית";
+
 /** התפקידים שהוגדרו בהקמה. אינם רשימה סגורה. */
-export const KNOWN_ROLES = [ROLE_SCHEDULE, "אחראי מטבח", ROLE_CONTAINER];
+export const KNOWN_ROLES = [ROLE_SCHEDULE, "אחראי מטבח", ROLE_CONTAINER, ROLE_HOUSE, ROLE_SAFETY];
