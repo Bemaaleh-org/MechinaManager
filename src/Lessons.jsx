@@ -929,85 +929,142 @@ const GNT_CLASS = { "שבת": "shabbat", "חג ומועד": "holiday" };
 
 function Gantt() {
   const { data, err, busy, reload } = useLoad(() => api.getGantt(), []);
+  const [month, setMonth] = useState(null);
   const [type, setType] = useState(null);
-  const [past, setPast] = useState(false);
+  const [openDay, setOpenDay] = useState(null);
 
   if (busy && !data) return <Loading what="טוען את הלו״ז" />;
   if (err) return <LoadFail msg={err} onRetry={reload} />;
   if (!data) return null;
 
   const today = new Date().toISOString().slice(0, 10);
-  const shown = data.events.filter((e) => !type || e.type === type);
+  const events = data.events.filter((e) => !type || e.type === type);
 
-  /* קיבוץ לחודשים; חודש שכולו עבר מתקפל אלא אם ביקשו לראות הכול */
-  const months = [];
-  for (const e of shown) {
-    const key = e.start.slice(0, 7);
-    let m = months[months.length - 1];
-    if (!m || m.key !== key) {
-      m = { key, label: GNT_MONTH[Number(e.start.slice(5, 7)) - 1] + " " + e.start.slice(0, 4), events: [] };
-      months.push(m);
+  /* החודשים שיש בהם לו״ז */
+  const months = [...new Set(data.events.map((e) => e.start.slice(0, 7)))].sort();
+  const cur = month || (months.includes(today.slice(0, 7)) ? today.slice(0, 7) : months[0]);
+  const idx = months.indexOf(cur);
+
+  /* תאריך → האירועים שחלים עליו */
+  const byDate = new Map();
+  for (const e of events) {
+    for (let d = new Date(e.start + "T12:00:00Z"); d.toISOString().slice(0, 10) <= e.end; d.setUTCDate(d.getUTCDate() + 1)) {
+      const iso = d.toISOString().slice(0, 10);
+      if (!iso.startsWith(cur)) continue;
+      (byDate.get(iso) || byDate.set(iso, []).get(iso)).push(e);
     }
-    m.events.push(e);
   }
-  const isPastMonth = (m) => m.events.every((e) => e.end < today);
-  const visible = past ? months : months.filter((m) => !isPastMonth(m));
-  const hiddenCount = months.length - visible.length;
 
-  const range = (e) => e.start === e.end
-    ? dm(e.start)
-    : `${dm(e.start)}–${dm(e.end)}`;
-  const days = (e) => {
+  /* ⚠ הרשת נבנית משבועות שלמים: הראשון מרופד בימים ריקים עד
+     יום ראשון, אחרת החודש מתחיל בעמודה שגויה. */
+  const [y, mo] = cur.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+  const firstDow = new Date(Date.UTC(y, mo - 1, 1)).getUTCDay();
+  const cells = [
+    ...Array.from({ length: firstDow }, () => null),
+    ...Array.from({ length: lastDay }, (_, i) => `${cur}-${String(i + 1).padStart(2, "0")}`),
+  ];
+
+  const monthEvents = events
+    .filter((e) => e.start.slice(0, 7) === cur || (e.start < cur + "-01" && e.end >= cur + "-01"))
+    .sort((a, b) => a.start.localeCompare(b.start));
+
+  const span = (e) => {
     const n = Math.round((new Date(e.end) - new Date(e.start)) / 86400000) + 1;
-    return n > 1 ? `${n} ימים` : null;
+    return n > 1 ? `${dm(e.start)}–${dm(e.end)} · ${n} ימים` : dm(e.start);
   };
+
+  const go = (i) => { if (i >= 0 && i < months.length) { setMonth(months[i]); setOpenDay(null); } };
 
   return (
     <>
+      <div className="bg-nav">
+        <button className="btn btn-ghost btn-sm" disabled={idx <= 0} onClick={() => go(idx - 1)}>
+          <LI.chev style={{ transform: "rotate(180deg)" }} />
+        </button>
+        <select value={cur} onChange={(e) => { setMonth(e.target.value); setOpenDay(null); }}>
+          {months.map((m) => (
+            <option key={m} value={m}>
+              {GNT_MONTH[Number(m.slice(5, 7)) - 1]} {m.slice(0, 4)}
+            </option>
+          ))}
+        </select>
+        <button className="btn btn-ghost btn-sm" disabled={idx >= months.length - 1} onClick={() => go(idx + 1)}>
+          <LI.chev />
+        </button>
+      </div>
+
       <div className="seg seg-scroll">
         {[[null, "הכול"], ["פעילות", "פעילות"], ["שבת", "שבתות"], ["חג ומועד", "חגים"]].map(([v, l]) => (
-          <button key={l} className={type === v ? "on" : ""} onClick={() => setType(v)}>{l}</button>
+          <button key={l} className={type === v ? "on" : ""} onClick={() => { setType(v); setOpenDay(null); }}>{l}</button>
         ))}
       </div>
 
-      {hiddenCount > 0 && !past && (
-        <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 12 }}
-          onClick={() => setPast(true)}>
-          הצגת {hiddenCount} חודשים שעברו
-        </button>
+      {/* ---------- רשת החודש ---------- */}
+      <div className="cal">
+        {["א", "ב", "ג", "ד", "ה", "ו", "ש"].map((d) => (
+          <div className="cal-dow" key={d}>{d}</div>
+        ))}
+        {cells.map((iso, i) => {
+          if (!iso) return <div className="cal-cell empty" key={"e" + i} />;
+          const evs = byDate.get(iso) || [];
+          const dow = new Date(iso + "T12:00:00Z").getUTCDay();
+          return (
+            <button className={"cal-cell"
+              + (iso === today ? " today" : "")
+              + (dow === 6 ? " sat" : "")
+              + (openDay === iso ? " open" : "")}
+              key={iso} onClick={() => setOpenDay(openDay === iso ? null : iso)}>
+              <span className="cal-n num">{Number(iso.slice(8, 10))}</span>
+              <span className="cal-dots">
+                {evs.slice(0, 3).map((e, j) => (
+                  <i key={j} className={GNT_CLASS[e.type] || "act"} />
+                ))}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ---------- מה יש ביום שנבחר ---------- */}
+      {openDay && (
+        <div className="card cal-day">
+          <div className="cal-day-h">
+            <b>{dmy(openDay)}</b>
+            <button onClick={() => setOpenDay(null)}>סגירה</button>
+          </div>
+          {(byDate.get(openDay) || []).length === 0 ? (
+            <div className="cal-day-empty">אין אירועים ביום הזה</div>
+          ) : (byDate.get(openDay) || []).map((e) => (
+            <div className={"gnt-ev " + (GNT_CLASS[e.type] || "")} key={e.id}>
+              <div className="gnt-what">
+                <div className="t">{e.name}</div>
+                <div className="s">{span(e)}{e.type !== "פעילות" ? " · " + e.type : ""}</div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
-      {visible.map((m) => {
-        /* סמן "אנחנו כאן" — לפני האירוע הראשון שטרם הסתיים */
-        let marker = -1;
-        if (today.slice(0, 7) === m.key) {
-          marker = m.events.findIndex((e) => e.end >= today);
-        }
-        return (
-          <div className="gnt-month" key={m.key}>
-            <div className="gnt-mh">
-              <span className="m">{m.label}</span>
-              <span className="c">{m.events.length} אירועים</span>
-            </div>
-            {m.events.map((e, i) => (
-              <React.Fragment key={e.id}>
-                {i === marker && <div className="gnt-now">אנחנו כאן</div>}
-                <div className={"gnt-ev " + (GNT_CLASS[e.type] || "")
-                  + (e.start <= today && today <= e.end ? " today" : "")}>
-                  <div className="gnt-when">
-                    <div className="d num">{range(e)}</div>
-                    {days(e) && <div className="r">{days(e)}</div>}
-                  </div>
-                  <div className="gnt-what">
-                    <div className="t">{e.name}</div>
-                    {e.type !== "פעילות" && <div className="s">{e.type}</div>}
-                  </div>
-                </div>
-              </React.Fragment>
-            ))}
+      {/* ---------- רשימת החודש ---------- */}
+      <div className="sec-label">
+        {GNT_MONTH[Number(cur.slice(5, 7)) - 1]} — {monthEvents.length} אירועים
+      </div>
+      {monthEvents.length === 0 ? (
+        <div className="empty"><div className="e1">אין אירועים בחודש הזה</div></div>
+      ) : monthEvents.map((e) => (
+        <div className={"gnt-ev " + (GNT_CLASS[e.type] || "")
+          + (e.start <= today && today <= e.end ? " today" : "")} key={e.id}>
+          <div className="gnt-when">
+            <div className="d num">{dm(e.start)}</div>
+            {e.end !== e.start && <div className="r">עד {dm(e.end)}</div>}
           </div>
-        );
-      })}
+          <div className="gnt-what">
+            <div className="t">{e.name}</div>
+            {e.type !== "פעילות" && <div className="s">{e.type}</div>}
+          </div>
+        </div>
+      ))}
 
       <div style={{ fontSize: 12, color: "var(--faint)", fontWeight: 600,
                     textAlign: "center", margin: "14px 0 20px", lineHeight: 1.6 }}>

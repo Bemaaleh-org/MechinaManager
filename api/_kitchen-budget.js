@@ -109,18 +109,34 @@ const T = {
   other: "אחר",
 };
 
-/** האם התאריך מכוסה באירוע גאנט ששמו מרמז על שהות בבית */
-function homeEventsFor(gantt) {
-  const home = new Set();
+/* ------------------------------------------------------------
+   ⚠ הכול נגזר מהגאנט, ולא מלוח השנה של הנוכחות.
+
+     שני הלוחות נשאו את אותה עובדה — מתי סדרה, מתי סופ״ש בית —
+     ולוח השנה יובא פעם אחת מקובץ ולא זז מאז. כשמזיזים שבת או
+     סדרה בגאנט, לוח השנה נשאר מאחור והתקציב היה מציג מספר
+     שאיש לא הזין אבל גם לא נכון.
+
+     מהיום הגאנט הוא המקור: שינוי בו משתקף בתקציב בשליפה הבאה.
+     לוח השנה נשאר מה שהוא — הנוכחות — ומשמש כאן רק כרשת ביטחון
+     לימים שאין עליהם אירוע.
+   ------------------------------------------------------------ */
+
+const HOME_RE = /סופ״ש בית|סופ"ש בית|^בית$|יום בית/;
+const SERIES_RE = /סדרה|סדרת|מסע/;
+
+/** תאריך → אירועי הגאנט שחלים עליו */
+function eventsByDate(gantt) {
+  const map = new Map();
   for (const e of gantt) {
-    if (!/בית/.test(e.name || "")) continue;
     const from = e.start, to = e.end || e.start;
     if (!from) continue;
     for (let d = new Date(from + "T12:00:00Z"); d.toISOString().slice(0, 10) <= to; d.setUTCDate(d.getUTCDate() + 1)) {
-      home.add(d.toISOString().slice(0, 10));
+      const iso = d.toISOString().slice(0, 10);
+      (map.get(iso) || map.set(iso, []).get(iso)).push(e);
     }
   }
-  return home;
+  return map;
 }
 
 const prevDay = (iso) => {
@@ -129,61 +145,79 @@ const prevDay = (iso) => {
   return d.toISOString().slice(0, 10);
 };
 
+const anyMatch = (events, re) => (events || []).some((e) => re.test(e.name || ""));
+
 /**
- * סוג היום לפי הלו״ז, בלי החריגות.
- *   byDate  לוח השנה של המכינה (kind לכל תאריך)
- *   home    התאריכים שהגאנט מסמן כשהות בבית
+ * סוג היום, בלי החריגות.
+ * ⚠ סדר הכללים הוא ההכרעה: בית גובר על הכול, סדרה גוברת על
+ *   סוף שבוע רגיל (סדרה שנמשכת לשבת עדיין סדרה), וסוף שבוע
+ *   גובר על שגרה.
  */
-function derivedType(iso, byDate, home) {
-  const day = byDate.get(iso);
+function derivedType(iso, byDate, evByDate) {
+  const events = evByDate.get(iso) || [];
+  const friday = isSaturday(iso) ? prevDay(iso) : iso;
+  const weekendEvents = isSaturday(iso) ? (evByDate.get(friday) || []) : [];
 
-  /* ⚠ שישי ושבת הם שני סוגים נפרדים, כל אחד עם המחיר שלו.
-     ההכרעה אם הסופ״ש בבית נעשית על הזוג: מספיק שאחד מהם
-     מסומן בגאנט כשהות בבית כדי ששניהם ייחשבו כך. */
-  if (isFriday(iso) || isSaturday(iso)) {
-    const friday = isSaturday(iso) ? prevDay(iso) : iso;
-    const atHome = home.has(iso) || home.has(friday);
-    if (isFriday(iso)) return atHome ? T.friHome : T.friMechina;
-    return atHome ? T.satHome : T.satMechina;
+  const atHome = anyMatch(events, HOME_RE) || anyMatch(weekendEvents, HOME_RE);
+  if (atHome) {
+    if (isFriday(iso)) return T.friHome;
+    if (isSaturday(iso)) return T.satHome;
+    return T.home;
   }
-  if (home.has(iso)) return T.home;
 
-  /* היום שאחרי סופ״ש בית — חוזרים, וזו ארוחה אחת */
-  if (home.has(prevDay(iso))) return T.backFromHome;
+  /* היום שאחרי סופ״ש בית — חוזרים, וזו ארוחה אחת בלבד */
+  if (!isFriday(iso) && !isSaturday(iso) && anyMatch(evByDate.get(prevDay(iso)), HOME_RE)) {
+    return T.backFromHome;
+  }
 
-  if (day && day.kind === "סדרה") return T.series;
-  /* ⚠ טיול נגזר כיום סדרה: שניהם ימים מחוץ למכינה עם הסדר
-     אוכל דומה. מי שרוצה אחרת — כופה ידנית על היום. */
-  if (day && day.kind === "טיול") return T.series;
+  if (anyMatch(events, SERIES_RE)) return T.series;
+
+  if (isFriday(iso)) return T.friMechina;
+  if (isSaturday(iso)) return T.satMechina;
+
+  /* רשת ביטחון: יום בלי אירוע בגאנט — לפי לוח השנה */
+  const day = byDate.get(iso);
+  if (day && (day.kind === "סדרה" || day.kind === "טיול")) return T.series;
   if (day && day.kind === "חופשה") return T.home;
 
   return T.routine;
+}
+
+/** כל ימי החודש, גם אלה שמחוץ ללוח השנה — מסע עלייה למשל */
+function datesOfMonth(month) {
+  const [y, m] = month.split("-").map(Number);
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const out = [];
+  for (let d = 1; d <= last; d++) {
+    out.push(`${month}-${String(d).padStart(2, "0")}`);
+  }
+  return out;
 }
 
 /* ---------- חישוב חודש ---------- */
 function buildMonth(month, { types, overrides, calendar, gantt, headcount }) {
   const byName = new Map(types.map((t) => [t.name, t]));
   const byDate = calendar.byDate;
-  const home = homeEventsFor(gantt);
+  const evByDate = eventsByDate(gantt);
   const ovByDate = new Map(overrides.map((o) => [o.date, o]));
 
-  const days = calendar.days
-    .filter((d) => d.date.startsWith(month))
-    .map((d) => {
-      const ov = ovByDate.get(d.date) || null;
-      const typeName = (ov && ov.type) || derivedType(d.date, byDate, home);
-      const type = byName.get(typeName) || null;
-      const perPerson = ov && ov.cost != null ? ov.cost : dayCostPerPerson(type);
-      return {
-        date: d.date,
-        kind: d.kind,
-        type: typeName,
-        perPerson,
-        total: perPerson * headcount,
-        overridden: Boolean(ov),
-        note: ov ? ov.note : null,
-      };
-    });
+  const days = datesOfMonth(month).map((date) => {
+    const ov = ovByDate.get(date) || null;
+    const typeName = (ov && ov.type) || derivedType(date, byDate, evByDate);
+    const type = byName.get(typeName) || null;
+    const perPerson = ov && ov.cost != null ? ov.cost : dayCostPerPerson(type);
+    const events = (evByDate.get(date) || []).map((e) => e.name);
+    return {
+      date,
+      kind: (byDate.get(date) || {}).kind || null,
+      type: typeName,
+      perPerson,
+      total: perPerson * headcount,
+      overridden: Boolean(ov),
+      note: ov ? ov.note : null,
+      events,
+    };
+  });
 
   return { days, foodTotal: days.reduce((a, d) => a + d.total, 0) };
 }
