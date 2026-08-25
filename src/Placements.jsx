@@ -13,6 +13,7 @@
 
 import React, { useState } from "react";
 import { api } from "./api.js";
+import { GUIDES } from "./placement-guides.js";
 import { RoleHolders } from "./Mechina.jsx";
 import { CATEGORIES, semestersFor } from "../shared/placements.js";
 
@@ -94,6 +95,8 @@ function AssignEditor({ def, semester, assigned, roster, say, onDone, onCancel }
 
   const save = () => {
     if (busy) return;
+    /* ⚠ המכסה נאכפת בשרת; כאן חוסכים שליחה שתידחה ממילא. */
+    if (over) { say(`ל"${def.name}" יש ${def.capacity} מקומות — נבחרו ${picked.size}`); return; }
     setBusy(true);
     api.assignPlacement({ placementId: def.id, semester, studentIds: [...picked] })
       .then((r) => { say(`נשמר — ${r.total} משובצים`); onDone(); })
@@ -116,6 +119,16 @@ function AssignEditor({ def, semester, assigned, roster, say, onDone, onCancel }
         {over && <span className="pill p-low">מעל המכסה</span>}
       </div>
 
+      {/* ⚠ הפירוט מוצג כאן, ליד השיבוץ עצמו — זה הרגע שבו
+          המנהל צריך לדעת מה הענף דורש ומי מתאים לו.
+          לחניך הוא אינו מגיע: השרת אינו שולח אותו. */}
+      <PlacementDetail def={def} />
+
+      <button className="btn btn-primary" disabled={busy || over} onClick={save}
+        style={{ marginBottom: 12 }}>
+        {busy ? "שומר…" : over ? `חריגה ממכסה (${picked.size}/${def.capacity})` : "שמירת השיבוץ"}
+      </button>
+
       <input className="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="חיפוש חניך" />
 
       <div className="rows" style={{ maxHeight: "52vh", overflowY: "auto" }}>
@@ -133,12 +146,44 @@ function AssignEditor({ def, semester, assigned, roster, say, onDone, onCancel }
       </div>
 
       <div className="sticky">
-        <button className="btn btn-primary" disabled={busy} onClick={save}>
-          {busy ? "שומר…" : "שמירת השיבוץ"}
+        <button className="btn btn-primary" disabled={busy || over} onClick={save}>
+          {busy ? "שומר…" : over ? `חריגה ממכסה (${picked.size}/${def.capacity})` : "שמירת השיבוץ"}
         </button>
       </div>
       <div style={{ height: 60 }} />
     </>
+  );
+}
+
+/* ---------- פירוט השיבוץ — צוות בלבד ----------
+   ⚠ התיאור, הדרישות והאחראי אינם יוצאים מהשרת אל החניך.
+     המסך הזה נפתח רק במסלול של המנהל. */
+function PlacementDetail({ def }) {
+  const [open, setOpen] = useState(false);
+  if (!def.desc && !def.needs && !def.hours && !def.lead) return null;
+  return (
+    <div className="card" style={{ marginBottom: 12 }}>
+      <div className="pd-head">
+        {def.hours && <span className="pill p-new num">{def.hours}</span>}
+        {def.lead && <span className="pill p-ok">אחראי: {def.lead}</span>}
+        {def.capacity != null && <span className="pill">{def.capacity} מקומות</span>}
+      </div>
+      {def.desc && (
+        <div className={"pd-text" + (open ? " open" : "")}>{def.desc}</div>
+      )}
+      {def.needs && open && (
+        <>
+          <div className="pd-k">מה נדרש</div>
+          <div className="pd-text open">{def.needs}</div>
+        </>
+      )}
+      {(def.desc || def.needs) && (
+        <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginTop: 8 }}
+          onClick={() => setOpen(!open)}>
+          {open ? "פחות" : "קראו עוד"}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -179,6 +224,37 @@ function PlacementCard({ def, assignments, say, onEdit }) {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/* ---------- דף מידע לצוות ----------
+   ⚠ מוצג רק במסלול המנהל. הטקסט ב-src/placement-guides.js. */
+function GuideCard({ cat }) {
+  const g = GUIDES[cat];
+  const [open, setOpen] = useState(false);
+  if (!g) return null;
+  return (
+    <div className="card" style={{ marginBottom: 12 }}>
+      <button className="guide-h" onClick={() => setOpen(!open)}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 14.5, fontWeight: 800 }}>{g.title}</div>
+          <div style={{ fontSize: 12.5, color: "var(--muted)", fontWeight: 600, marginTop: 2 }}>
+            {open ? "לחצו לסגירה" : g.intro}
+          </div>
+        </div>
+        <PI.chev style={{ color: "var(--line2)", transform: open ? "rotate(-90deg)" : "none" }} />
+      </button>
+      {open && (
+        <div style={{ marginTop: 10 }}>
+          {g.sections.map((sec) => (
+            <div key={sec.k}>
+              <div className="pd-k">{sec.k}</div>
+              <div className="pd-text open">{sec.t}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -233,6 +309,8 @@ export function PlacementsPage({ say }) {
         <RoleHolders say={say} />
       ) : (
         <>
+          <GuideCard cat={cat} />
+
           {defs.length === 0 && (
             <div className="empty"><div className="e1">אין שיבוצים בקטגוריה הזו</div>
               <div className="e2">מוסיפים שורה בלוח ההגדרות ב-monday והיא תופיע כאן.</div></div>

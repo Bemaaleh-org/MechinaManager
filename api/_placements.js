@@ -38,6 +38,11 @@ async function loadDefinitions({ force = false } = {}) {
           category: val(i, D.category),
           period: val(i, D.period) || PERIOD.yearly,
           capacity: cap === "" ? null : Number(cap),
+          /* ⚠ פירוט לצוות בלבד — ראו toStudentDef */
+          hours: val(i, D.hours) || null,
+          desc: val(i, D.desc) || null,
+          needs: val(i, D.needs) || null,
+          lead: val(i, D.lead) || null,
         };
       })
       .filter((x) => x.name && CATEGORIES.includes(x.category));
@@ -63,6 +68,15 @@ async function loadAssignments({ force = false } = {}) {
 
 const invalidatePlacements = () => { invalidate("placement-defs"); invalidate("placement-asgn"); };
 
+/**
+ * מה חניך רואה על שיבוץ. שם ושעות פעילות — המידע התפעולי
+ * שהוא צריך כדי לדעת לאן ומתי.
+ * ⚠ מיפוי מפורש ולא השמטה: עמודה חדשה בלוח לא תדלוף מעצמה.
+ */
+const toStudentDef = (d) => ({
+  id: d.id, name: d.name, category: d.category, period: d.period, hours: d.hours,
+});
+
 async function handler(req, res, session) {
   if (!placementsReady()) {
     return res.status(503).json({
@@ -75,12 +89,14 @@ async function handler(req, res, session) {
     if (req.method === "GET") {
       const [definitions, assignments] = await Promise.all([loadDefinitions(), loadAssignments()]);
 
-      /* חניך מקבל את שלו בלבד. ⚠ הסינון כאן, בשרת — לא בתצוגה. */
+      /* חניך מקבל את שלו בלבד. ⚠ הסינון כאן, בשרת — לא בתצוגה.
+         והתיאורים, הדרישות והמכסות אינם יוצאים אליו כלל: החלטת
+         המכינה היא שהחומר הזה הוא חומר של הצוות. */
       if (!session.isManager) {
         const mine = assignments
           .filter((x) => x.student === String(session.itemId))
-          .map(({ id, placement, semester }) => ({ id, placement, semester }));
-        return res.status(200).json({ definitions, mine });
+          .map(({ id, placement, placementName, semester }) => ({ id, placement, placementName, semester }));
+        return res.status(200).json({ definitions: definitions.map(toStudentDef), mine });
       }
 
       const roster = (await activeStudents()).map((r) => ({ id: r.id, name: r.name }));
@@ -112,6 +128,15 @@ async function handler(req, res, session) {
       const byId = Object.fromEntries(roster.map((r) => [r.id, r]));
       const unknown = studentIds.filter((s) => !byId[s]);
       if (unknown.length) return res.status(400).json({ error: "ברשימה חניך שאינו פעיל או אינו קיים" });
+
+      /* ⚠ המכסה נאכפת בשרת, לא רק בתצוגה. המכינה קבעה מספר
+         מדויק לכל ענף — ענף עם 8 מקומות לא יקבל תשיעי, גם אם
+         הבקשה הגיעה מכתובת ישירה. מכסה ריקה = בלי הגבלה. */
+      if (def.capacity != null && studentIds.length > def.capacity) {
+        return res.status(400).json({
+          error: `ל"${def.name}" יש ${def.capacity} מקומות — נשלחו ${studentIds.length}`,
+        });
+      }
 
       /* ההפרש מול המצב הקיים: מוחקים את מי שירד, מוסיפים את מי שנוסף.
          מי שנשאר — לא נוגעים בשורה שלו. */

@@ -651,4 +651,30 @@ html,body{margin:0;padding:0;background:#012E58}
 .thumb{flex:0 0 auto;width:42px;height:42px;border-radius:9px;overflow:hidden;
   border:1px solid var(--line2);background:var(--bg)}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* ---- השיבוץ המרכזי של החניך: הענף ---- */
+/* ⚠ הסלקטור נושא את .kx: הכרטיס הוא <button> במסך הבית,
+   ו-".kx button" (0,1,1) גובר על ".pl-lead" (0,1,0) ומאפס לו
+   את הרקע והצבע. אותה מלכודת כמו בבורר התמונה. */
+.kx .pl-lead{position:relative;display:block;width:100%;text-align:right;border:none;
+  border-radius:20px;padding:20px 20px 18px;margin:2px 0 18px;
+  background:linear-gradient(145deg,#0A4478 0%,#012E58 100%);color:#fff;
+  box-shadow:0 10px 26px rgba(1,46,88,.22);overflow:hidden}
+.kx .pl-lead::after{content:"";position:absolute;left:-40px;top:-40px;width:150px;height:150px;
+  border-radius:50%;background:rgba(255,255,255,.06)}
+.kx .pl-lead-k{font-size:11.5px;font-weight:800;letter-spacing:.6px;opacity:.75;margin-bottom:5px}
+.kx .pl-lead-n{font-family:'Suez One',Heebo,serif;font-size:29px;line-height:1.15}
+.kx .pl-lead-h{margin-top:9px;display:inline-block;background:rgba(255,255,255,.14);
+  border-radius:999px;padding:5px 12px;font-size:13.5px;font-weight:800}
+.kx .pl-lead-s{margin-top:9px;font-size:12.5px;font-weight:700;opacity:.8}
+
+/* ---- פירוט שיבוץ במסך המנהל ---- */
+.pd-head{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.pd-k{font-size:11.5px;font-weight:800;color:var(--muted);letter-spacing:.4px;margin:10px 0 4px}
+.pd-text{font-size:13.5px;line-height:1.75;color:var(--ink);white-space:pre-wrap;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.pd-text.open{display:block;-webkit-line-clamp:none;overflow:visible}
+
+.guide-h{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;
+  padding:0;text-align:right;cursor:pointer;color:inherit}
 `;

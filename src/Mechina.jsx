@@ -1713,12 +1713,13 @@ function MyPlacements({ say }) {
 
   if (busy && !data) return <Loading what="טוען את השיבוצים" />;
   if (err && err.setupRequired) return (
-    <div className="card" style={{ padding: "22px 20px", textAlign: "center" }}>
-      <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>השיבוצים עוד לא פתוחים</div>
-      <div style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600 }}>
-        כשהצוות יגדיר אותם — הם יופיעו כאן.
+    <>
+      <div className="screen-title">השיבוצים שלי</div>
+      <div className="attn-calm">
+        <b>השיבוצים עוד לא פתוחים</b>
+        <span>כשהצוות יגדיר אותם — הם יופיעו כאן</span>
       </div>
-    </div>
+    </>
   );
   if (err) return <LoadFail msg={err.message || String(err)} onRetry={reload} />;
   if (!data) return null;
@@ -1728,50 +1729,68 @@ function MyPlacements({ say }) {
     .map((m) => ({ ...m, def: defs[m.placement] }))
     .filter((m) => m.def);
 
-  /* סדר קבוע: ענף, ועדה, סדרה, קבוצה — ובתוך זה לפי סמסטר */
-  const CATS = [
-    ["ענף", "הענף שלי", "🌾"],
-    ["ועדה", "הוועדות שלי", "🤝"],
-    ["סדרה", "סדרות", "🎒"],
-    ["קבוצה", "קבוצות", "🎵"],
-  ];
   const semOrder = { "סמסטר א׳": 0, "סמסטר ב׳": 1, "שנתי": 2 };
+  const CATS = [
+    ["ענף", "הענף שלי"],
+    ["ועדה", "הוועדות שלי"],
+    ["סדרה", "צוותי הסדרות שלי"],
+    ["קבוצה", "הקבוצה שלי"],
+  ];
+
+  const branch = mine.find((m) => m.def.category === "ענף");
 
   return (
     <>
       <div className="screen-title">השיבוצים שלי</div>
 
-      {mine.length === 0 && (
-        <div className="empty">
-          <div className="e1">עוד לא שובצת</div>
-          <div className="e2">כשהצוות ישבץ — הכול יופיע כאן.</div>
+      {mine.length === 0 ? (
+        <div className="attn-calm">
+          <b>עוד לא שובצת</b>
+          <span>כשהצוות ישבץ — הכול יופיע כאן</span>
         </div>
-      )}
+      ) : (
+        <>
+          {/* ⚠ הענף ראשון ובגדול: זה השיבוץ שהחניך פוגש כל בוקר,
+              ובשונה מהשאר יש לו שעות שצריך לדעת. */}
+          {branch && (
+            <div className="pl-lead">
+              <div className="pl-lead-k">הענף שלי</div>
+              <div className="pl-lead-n">{branch.def.name}</div>
+              {branch.def.hours && (
+                <div className="pl-lead-h num">{branch.def.hours}</div>
+              )}
+              <div className="pl-lead-s">
+                {branch.semester === "שנתי" ? "לאורך כל השנה" : branch.semester}
+              </div>
+            </div>
+          )}
 
-      {CATS.map(([cat, title, emoji]) => {
-        const list = mine
-          .filter((m) => m.def.category === cat)
-          .sort((a, b) => (semOrder[a.semester] ?? 9) - (semOrder[b.semester] ?? 9));
-        if (!list.length) return null;
-        return (
-          <div key={cat} style={{ marginBottom: 16 }}>
-            <div className="sec-label">{title}</div>
-            {list.map((m) => (
-              <div key={m.id} className="card" style={{
-                marginBottom: 8, display: "flex", alignItems: "center", gap: 12,
-              }}>
-                <span style={{ fontSize: 26 }} aria-hidden="true">{emoji}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15.5, fontWeight: 800 }}>{m.def.name}</div>
-                  <div style={{ fontSize: 12.5, color: "var(--muted)", fontWeight: 600 }}>
-                    {m.semester === "שנתי" ? "לאורך כל השנה" : m.semester}
-                  </div>
+          {CATS.map(([cat, title]) => {
+            const list = mine
+              .filter((m) => m.def.category === cat && m !== branch)
+              .sort((a, b) => (semOrder[a.semester] ?? 9) - (semOrder[b.semester] ?? 9));
+            if (!list.length) return null;
+            return (
+              <div key={cat}>
+                <div className="sec-label">{title}</div>
+                <div className="rows" style={{ marginBottom: 14 }}>
+                  {list.map((m) => (
+                    <div className="st-row" key={m.id} style={{ cursor: "default" }}>
+                      <div className="st-main">
+                        <div className="st-n">{m.def.name}</div>
+                        <div className="st-m">
+                          <span>{m.semester === "שנתי" ? "לאורך כל השנה" : m.semester}</span>
+                          {m.def.hours && <span className="num">· {m.def.hours}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
-        );
-      })}
+            );
+          })}
+        </>
+      )}
     </>
   );
 }
@@ -1795,10 +1814,18 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
   const [profile, setProfile] = useState(null);
   const [faults, setFaults] = useState(null);
   const [ratable, setRatable] = useState(null);
+  const [places, setPlaces] = useState(null);
 
   useEffect(() => {
     let live = true;
     api.getProfile().then((r) => { if (live) setProfile(r); }).catch(() => {});
+    api.getPlacements()
+      .then((r) => {
+        if (!live) return;
+        const defs = Object.fromEntries((r.definitions || []).map((d) => [d.id, d]));
+        setPlaces((r.mine || []).map((m) => ({ ...m, def: defs[m.placement] })).filter((m) => m.def));
+      })
+      .catch(() => { if (live) setPlaces([]); });
     api.getFaults()
       .then((r) => { if (live) setFaults((r.faults || []).filter((x) => x.status !== "טופלה").length); })
       .catch(() => {});
@@ -1847,10 +1874,15 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
       t: "שיחה אישית קרובה", s: dmy(nextTalk), go: () => go("profile") });
   }
 
+  /* ---------- השיבוצים ----------
+     ⚠ הענף פותח את המסך ולא מספרי הנוכחות: זה מה שהחניך צריך
+       לדעת בבוקר. הנוכחות, החופש והבקשות יורדים למטה. */
+  const byCat = (c) => (places || []).filter((m) => m.def.category === c);
+  const branch = byCat("ענף")[0] || null;
+  const committees = byCat("ועדה");
+  const seriesList = byCat("סדרה");
+
   const tiles = [
-    { key: "att", go: () => go("year"), cls: "good",
-      v: sum ? sum.present : "…", l: "ימים שנכחת",
-      s: sum ? `מתוך ${sum.schoolDays} שסומנו` : "טוען" },
     { key: "vac", go: () => go("year"), cls: quotaLeft === 0 ? "warn" : "good",
       v: quotaLeft == null ? "…" : quotaLeft, l: "ימי חופש שנותרו",
       s: quotaTotal ? `מתוך ${quotaTotal} בשנה` : "טוען" },
@@ -1860,6 +1892,9 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
     { key: "fault", go: () => go("report"), cls: faults ? "" : "good",
       v: faults == null ? "…" : faults, l: "תקלות שדיווחת",
       s: faults ? "עדיין פתוחות" : "אין פתוחות" },
+    { key: "att", go: () => go("year"), cls: "good",
+      v: sum ? sum.present : "…", l: "ימים שנכחת",
+      s: sum ? `מתוך ${sum.schoolDays} שסומנו` : "טוען" },
   ];
 
   const nav = [
@@ -1885,6 +1920,46 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
 
       {year.err && <LoadFail msg={year.err} onRetry={year.reload} />}
 
+      {/* ---------- השיבוצים שלי — ראש המסך ---------- */}
+      {branch && (
+        <button className="pl-lead" onClick={() => go("placements")}>
+          <div className="pl-lead-k">הענף שלי</div>
+          <div className="pl-lead-n">{branch.def.name}</div>
+          {branch.def.hours && <div className="pl-lead-h num">{branch.def.hours}</div>}
+          <div className="pl-lead-s">
+            {branch.semester === "שנתי" ? "לאורך כל השנה" : branch.semester}
+          </div>
+        </button>
+      )}
+
+      {(committees.length > 0 || seriesList.length > 0) && (
+        <>
+          <div className="sec-label">השיבוצים שלי</div>
+          <div className="rows" style={{ marginBottom: 14 }}>
+            {[...committees, ...seriesList].map((m) => (
+              <button className="st-row" key={m.id} onClick={() => go("placements")}>
+                <div className="st-main">
+                  <div className="st-n">{m.def.name}</div>
+                  <div className="st-m">
+                    <span className="pill p-new">{m.def.category}</span>
+                    <span>{m.semester === "שנתי" ? "לאורך כל השנה" : m.semester}</span>
+                  </div>
+                </div>
+                <MI.chev style={{ color: "var(--line2)" }} />
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {places && places.length === 0 && (
+        <div className="attn-calm" style={{ marginBottom: 14 }}>
+          <b>עוד לא שובצת</b>
+          <span>כשהצוות ישבץ אותך — הענף והוועדות יופיעו כאן</span>
+        </div>
+      )}
+
+      <div className="sec-label">המצב שלי</div>
       <div className="stat-grid">
         {tiles.map((t) => (
           <button key={t.key} className={"stat-tile " + t.cls} onClick={t.go}>
