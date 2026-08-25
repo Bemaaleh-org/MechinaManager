@@ -18,7 +18,7 @@
 
 import crypto from "node:crypto";
 import { gql } from "./_monday.js";
-import { AUTH_BOARD, AUTH_COLS, KIND } from "../shared/auth-board.js";
+import { AUTH_BOARD, AUTH_COLS, KIND, STAFF_ROLE } from "../shared/auth-board.js";
 import { cached } from "./_cache.js";
 import { studentRows } from "./_student-rows.js";
 import { ROLE_CONTAINER, ROLE_KITCHEN, ROLE_SAFETY, ROLE_HOUSE } from "../shared/lessons-boards.js";
@@ -44,7 +44,7 @@ export const fingerprint = (code) => b64(hmac("code:" + code)).slice(0, 22);
 /* ---------- מטמון לוח המשתמשים ---------- */
 export async function authRows({ force = false } = {}) {
   return cached("auth-rows", async () => {
-    const cols = JSON.stringify([AUTH_COLS.kind, AUTH_COLS.code, AUTH_COLS.active]);
+    const cols = JSON.stringify([AUTH_COLS.kind, AUTH_COLS.code, AUTH_COLS.active, AUTH_COLS.role]);
     const d = await gql(
       `{ boards(ids:[${AUTH_BOARD}]){ items_page(limit:500){ items {
            id name column_values(ids:${cols}){ id text } } } } }`
@@ -56,6 +56,8 @@ export async function authRows({ force = false } = {}) {
       kind: val(i, AUTH_COLS.kind),
       code: val(i, AUTH_COLS.code),
       active: val(i, AUTH_COLS.active) === "v",
+      /* ריק = איש צוות רגיל. ראו STAFF_ROLE. */
+      role: val(i, AUTH_COLS.role) || null,
     }));
   }, { force });
 }
@@ -175,6 +177,9 @@ export async function requireAuth(req, res) {
       isKitchen: (row.roles || []).includes(ROLE_KITCHEN),
       isSafety: (row.roles || []).includes(ROLE_SAFETY),
       isHouse: (row.roles || []).includes(ROLE_HOUSE),
+      /* ⚠ תפקידי ההכרעה בבקשות יציאה שייכים לצוות בלבד */
+      isHead: false,
+      isGuide: false,
     };
   }
 
@@ -197,6 +202,10 @@ export async function requireAuth(req, res) {
     isManager: payload.kind === "manager",
     isStudent: false,
     isLeader: false,
+    /* ⚠ נקרא טרי מהלוח בכל בקשה, כמו "אחראי לו״ז" — הסרת התפקיד
+       סוגרת את ההכרעה מיד ולא בכניסה הבאה. */
+    isHead: row.role === STAFF_ROLE.head,
+    isGuide: row.role === STAFF_ROLE.guide,
     roles: [],
     isScheduler: false,
     isContainer: false,

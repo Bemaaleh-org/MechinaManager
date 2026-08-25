@@ -16,6 +16,7 @@
 import { withAuth } from "./_session.js";
 import { gql, allItems } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
+import { invalidateGuides } from "./_guides.js";
 import { activeStudents } from "./_student-rows.js";
 import {
   PLACEMENT_BOARDS, PLACEMENT_COLS, CATEGORIES, PERIOD, placementsReady, semestersFor,
@@ -66,7 +67,11 @@ async function loadAssignments({ force = false } = {}) {
   }, { force });
 }
 
-const invalidatePlacements = () => { invalidate("placement-defs"); invalidate("placement-asgn"); };
+/* ⚠ גם מפת המדריכים: היא נגזרת מהשיבוצים, וחניך
+   שהועבר בין קבוצות אמור להגיע למדריך החדש מיד. */
+const invalidatePlacements = () => {
+  invalidate("placement-defs"); invalidate("placement-asgn"); invalidateGuides();
+};
 
 /**
  * מה חניך רואה על שיבוץ. שם ושעות פעילות — המידע התפעולי

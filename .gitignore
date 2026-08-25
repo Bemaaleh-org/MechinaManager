@@ -12,3 +12,4 @@ build/
 # מערכת הפעלה ועורכים
 .DS_Store
 *.log
+scratchpad/

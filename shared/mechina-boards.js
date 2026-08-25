@@ -100,9 +100,17 @@ export const MECHINA_COLS = {
     /* אישור מחלה. הקובץ עולה לעמודת הקבצים של הלוח. */
     file: "file_mm6c3rdf",
     detail: "long_text_mm6c5z09",
+    /* ⚠ ההחלטה הסופית. נשארת "ממתין" גם אחרי שהמדריך המליץ —
+       ראש המכינה הוא שקובע, וממנה נגזרת שורת ההיעדרות. */
     status: "color_mm6cggsc",
     by: "text_mm6cvzz2",
     decided: "date_mm6c87vt",
+    /* ---- שלב ראשון: המלצת המדריך ----
+       ⚠ המלצה ולא הכרעה. גם דחייה עוברת הלאה, כדי שראש המכינה
+         יראה את כל התמונה ולא רק את מה שהמדריך אישר. */
+    guide: "color_mm6jbc5h",
+    guideBy: "text_mm6jdx7k",
+    guideAt: "date_mm6jebdm",
   },
 };
 
@@ -162,6 +170,31 @@ export const REQ_STATUS = {
   approved: "מאושר",
   rejected: "נדחה",
 };
+
+/* ------------------------------------------------------------
+   ⚠ בקשת יציאה עוברת שני שלבים: המדריך של הקבוצה ממליץ, וראש
+     המכינה מכריע. השלב אינו נשמר בלוח — הוא נגזר מהנתונים,
+     ולכן אי אפשר שיסתור אותם:
+
+       הוכרעה סופית          → REQ_STAGE.done
+       אין המלצה ויש מדריך   → REQ_STAGE.guide
+       אחרת                  → REQ_STAGE.head
+
+     חניך שאינו משובץ לקבוצה מתחיל ישר אצל ראש המכינה — שיבוץ
+     חסר לא יתקע לו בקשה.
+   ------------------------------------------------------------ */
+export const REQ_STAGE = {
+  guide: "אצל המדריך",
+  head: "אצל ראש המכינה",
+  done: "הסתיים",
+};
+
+/** השלב שבו הבקשה נמצאת. `hasGuide` — האם לחניך יש מדריך קבוצה. */
+export function requestStage(request, hasGuide) {
+  if (request.status && request.status !== REQ_STATUS.pending) return REQ_STAGE.done;
+  if (!request.guideDecision && hasGuide) return REQ_STAGE.guide;
+  return REQ_STAGE.head;
+}
 
 /* מכסת ימי חופש לכל מחצית. מתאפסת בשבוע האמצע.
    ⚠ אם המכינה תרצה לשנות את המספר בלי דיפלוי — מקומו עובר

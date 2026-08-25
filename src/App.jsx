@@ -136,7 +136,13 @@ function Staff({ auth, onSignedOut }) {
 
   /* פעמון המנהל: בקשות היציאה שממתינות. נבדק בטעינה ומדי דקה
      וחצי — התראה, לא זמן-אמת. */
+  /* ⚠ שתי רשימות ולא אחת. מאז שיש שני שלבים, "ממתינה" אינה
+     "ממתינה לי": איש צוות שאינו המדריך של הקבוצה ואינו ראש
+     המכינה אינו מכריע בכלום, ופעמון שמצלצל לו על בקשה שאינו
+     יכול לגעת בה הוא רעש. הפעמון וכרטיס תשומת הלב הולכים לפי
+     mineList; המונה במסך הבית מציג את שתיהן. */
   const [pendingList, setPendingList] = useState([]);
+  const mineList = pendingList.filter((r) => r.canDecide);
   const [notifOpen, setNotifOpen] = useState(false);
 
   /* ניווט פנימי מהמגירה ומהפעמון: לאיזה תת-מסך לפתוח את התחום */
@@ -191,7 +197,7 @@ function Staff({ auth, onSignedOut }) {
               <button className="bell-btn" aria-label="התראות"
                 onClick={() => setNotifOpen((v) => !v)}>
                 <I.bell />
-                {pendingList.length > 0 && <span className="bell-badge num">{pendingList.length}</span>}
+                {mineList.length > 0 && <span className="bell-badge num">{mineList.length}</span>}
               </button>
             )}
             <div className="brand-coin" aria-label="במעלה הדרך">
@@ -216,7 +222,7 @@ function Staff({ auth, onSignedOut }) {
             { label: "נוכחות", items: [
               { key: "a-mark", label: "סימון יומי", icon: <I.check />, active: false, onClick: () => goStaff("mark") },
               { key: "a-students", label: "חניכים", icon: <I.users />, active: false, onClick: () => goStaff("students") },
-              { key: "a-requests", label: "בקשות יציאה", icon: <I.note />, badge: pendingList.length,
+              { key: "a-requests", label: "בקשות יציאה", icon: <I.note />, badge: mineList.length,
                 active: false, onClick: () => goStaff("requests") },
             ] },
             { label: "תפקידים ושיבוצים", items: [
@@ -253,12 +259,17 @@ function Staff({ auth, onSignedOut }) {
         {notifOpen && (
           <div className="notif-panel">
             <div className="notif-h">
-              <b>בקשות יציאה ממתינות</b>
+              <b>בקשות שממתינות להחלטתך</b>
               <button onClick={() => setNotifOpen(false)}>סגירה</button>
             </div>
-            {pendingList.length === 0 ? (
-              <div className="notif-empty">אין בקשות שממתינות להחלטה</div>
-            ) : pendingList.slice(0, 8).map((r) => (
+            {mineList.length === 0 ? (
+              /* ⚠ "אין בקשות" ו"אין בקשות שלך" הם שני מצבים שונים */
+              <div className="notif-empty">
+                {pendingList.length
+                  ? `${pendingList.length} בקשות בתהליך — אף אחת אינה ממתינה להחלטתך`
+                  : "אין בקשות שממתינות להחלטה"}
+              </div>
+            ) : mineList.slice(0, 8).map((r) => (
               <button className="notif-item" key={r.id} onClick={openRequests}>
                 <div className="ni-t">{r.student ? r.student.name : ""} · {r.type}</div>
                 <div className="ni-s">
@@ -328,6 +339,8 @@ function Staff({ auth, onSignedOut }) {
      הבית לעולם לא נופל בגלל תחום אחד (או תחום שטרם הוקם). */
 function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
   goPlacements, goSafety, goFaults, goGantt, goBudget, goAgenda }) {
+  /* ⚠ מה שממתין *לי*, מתוך כל מה שממתין. ראו ההערה למעלה. */
+  const mineList = pendingList.filter((r) => r.canDecide);
   const [today, setToday] = useState(null);
   const [gantt, setGantt] = useState(null);
   const [faults, setFaults] = useState(null);   // {open, urgent}
@@ -387,12 +400,14 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
     attn.push({ key: "mark", cls: "clay", t: "הנוכחות של היום טרם סומנה",
       s: "לחצו לסימון", go: () => goStaff("mark") });
   }
-  if (pendingList.length > 0) {
+  /* ⚠ רק מה שהמשתמש הזה יכול להכריע. בקשה שממתינה למדריך אינה
+     משימה של ראש המכינה, ולהפך. */
+  if (mineList.length > 0) {
     attn.push({ key: "req", cls: "amber",
-      t: pendingList.length === 1 ? "בקשת יציאה ממתינה להחלטה"
-        : `${pendingList.length} בקשות יציאה ממתינות`,
-      s: pendingList.slice(0, 2).map((r) => r.student ? r.student.name : "").filter(Boolean).join(", ")
-        + (pendingList.length > 2 ? ` ועוד ${pendingList.length - 2}` : ""),
+      t: mineList.length === 1 ? "בקשת יציאה ממתינה להחלטתך"
+        : `${mineList.length} בקשות יציאה ממתינות להחלטתך`,
+      s: mineList.slice(0, 2).map((r) => r.student ? r.student.name : "").filter(Boolean).join(", ")
+        + (mineList.length > 2 ? ` ועוד ${mineList.length - 2}` : ""),
       go: () => goStaff("requests") });
   }
   if (faults && faults.urgent > 0) {
@@ -417,9 +432,10 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
     },
     {
       key: "req", go: () => goStaff("requests"),
-      cls: pendingList.length ? "warn" : "good",
+      cls: mineList.length ? "warn" : "good",
       v: pendingList.length, l: "בקשות יציאה",
-      s: pendingList.length ? "ממתינות להחלטה" : "אין ממתינות",
+      s: mineList.length ? `${mineList.length} להחלטתך`
+        : pendingList.length ? "בתהליך אצל אחרים" : "אין ממתינות",
     },
     {
       key: "faults", go: goFaults,

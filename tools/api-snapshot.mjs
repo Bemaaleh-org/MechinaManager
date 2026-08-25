@@ -184,25 +184,39 @@ for (const label of ["ללא סשן", "תורן", "מנהל"]) {
   }
 }
 
-/* --- סינון מחירים --- */
+/* --- סינון מחירים ---
+   ⚠ /api/catalog ו-/api/lists נמחקו יחד עם קטלוג המלאי, ואיתם
+     המחירים. הבדיקה נשארת ומדלגת במפורש במקום ליפול, כדי שמי
+     שיחזיר עמודת עלות ללוח הציוד ימצא כאן בדיקה מוכנה ולא
+     יצטרך לכתוב אותה מחדש. */
 say("\n### סינון מחירים");
-for (const [label, as] of [["תורן", "trainee"], ["מנהל", "manager"]]) {
-  const c = await call(URL_OF["/api/catalog"], { as });
-  const l = await call(URL_OF["/api/lists"], { as });
-  const hasPrice = (c.data.products || []).some((p) => "price" in p);
-  const hasCost = (l.data.lists || []).some((x) => "cost" in x);
-  say(`  ${label.padEnd(6)} catalog.price=${hasPrice ? "קיים" : "מסונן"}   lists.cost=${hasCost ? "קיים" : "מסונן"}`);
+if (!URL_OF["/api/catalog"]) {
+  say("  מדולג — אין כרגע מחירים במערכת. ראו עיקרון 4 ב-CLAUDE.md.");
+} else {
+  for (const [label, as] of [["תורן", "trainee"], ["מנהל", "manager"]]) {
+    const c = await call(URL_OF["/api/catalog"], { as });
+    const l = await call(URL_OF["/api/lists"], { as });
+    const hasPrice = (c.data.products || []).some((x) => "price" in x);
+    const hasCost = (l.data.lists || []).some((x) => "cost" in x);
+    say(`  ${label.padEnd(6)} catalog.price=${hasPrice ? "קיים" : "מסונן"}   lists.cost=${hasCost ? "קיים" : "מסונן"}`);
+  }
 }
 
-/* --- פרמטר התאריך --- */
+/* --- פרמטר התאריך ---
+   ⚠ ארבע הכתובות שנבדקו כאן פעם (tasks-today, duty-today,
+     tasks-summary, duty-week) נמחקו יחד עם לוח המשימות
+     השבועי. השער עצמו חי ובועט, ומי שקורא לו היום הוא
+     _attendance-data ו-_session — ולכן הבדיקה עברה לנוכחות.
+     לא להחזיר כתובות מתות לרשימה הזו. */
 say("\n### פרמטר ?date=");
 for (const [q, label] of [["", "ללא"], ["date=2026-08-16", "תקין"], ["date=2026-02-31", "פסול"]]) {
-  for (const p of ["/api/tasks-today", "/api/duty-today", "/api/tasks-summary", "/api/duty-week"]) {
-    const url = q ? addParam(URL_OF[p], q) : URL_OF[p];
+  for (const p of ["/api/attendance?action=day", "/api/kitchen?action=budget&month=2026-09"]) {
+    const url = q ? addParam(p, q) : p;
     const r = await call(url, { as: "manager" });
-    const w = r.data && r.data.week;
+    const d = r.data && (r.data.date || r.data.month);
     const tm = r.data && r.data.testMode;
-    say(`  ${label.padEnd(6)} ${p.padEnd(22)} ${String(r.status).padEnd(4)} week=${String(w).padEnd(16)} testMode=${tm === true}`);
+    say(`  ${label.padEnd(6)} ${p.split("action=")[1].padEnd(22)} ${String(r.status).padEnd(4)} ` +
+        `יום=${String(d).padEnd(16)} testMode=${tm === true}`);
   }
 }
 

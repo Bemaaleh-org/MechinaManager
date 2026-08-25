@@ -18,6 +18,11 @@ export default async function handler(req, res) {
         kind: session.kind,
         name: session.name,
         isManager: session.isManager,
+        /* ⚠ תפקיד בתוך הצוות. חניך מקבל false תמיד — ראו _session.
+           משמש את המסך כדי להסביר מי מכריע; ההרשאה עצמה נאכפת
+           בשרת בכל הכרעה, לא כאן. */
+        isHead: Boolean(session.isHead),
+        isGuide: Boolean(session.isGuide),
         needsName: session.kind === "trainee" && !session.name,
         roster: session.kind === "trainee" ? await traineeRoster() : [],
         /* ⚠ נוסף רק לחניך. אצל תורן ומנהל התשובה נשארת זהה

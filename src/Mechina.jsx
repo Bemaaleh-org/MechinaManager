@@ -394,8 +394,57 @@ function RequestForm({ days, quota, onDone, say }) {
 /* ============================================================
    כרטיס בקשה. אצל המנהל מופיעים כפתורי ההכרעה.
    ============================================================ */
+/* ============================================================
+   מסלול הבקשה — המדריך ואז ראש המכינה
+   ------------------------------------------------------------
+   ⚠ שתי תחנות תמיד, גם כשהראשונה מדולגת. חניך בלי שיבוץ
+     לקבוצה מגיע ישר לראש המכינה, והתחנה הראשונה מוצגת אפורה
+     עם הסבר — עדיף שיראו שהמדריך לא נשאל מאשר שהשלב ייעלם
+     ואיש לא ידע שהוא היה אמור להיות שם.
+   ============================================================ */
+/* ⚠ שמות בלוח ההרשאות נושאים תיאור תפקיד — "דני לויט — מנהל
+   המכינה". בכרטיס צר זה גולש, והתיאור ממילא כתוב מעליו. */
+const shortName = (n) => String(n || "").split(/[—–-]/)[0].replace(/\s+/g, " ").trim();
+
+function RequestTrack({ r }) {
+  const done = r.stage === "הסתיים";
+  const atHead = r.stage === "אצל ראש המכינה";
+
+  const first = !r.guideName
+    ? { state: "skip", title: "מדריך", note: "אין שיבוץ לקבוצה" }
+    : r.guideDecision
+      ? { state: r.guideDecision === "מאושר" ? "ok" : "no",
+          title: shortName(r.guideBy) || r.guideName,
+          note: "המליץ" + (r.guideDecision === "מאושר" ? " לאשר" : " לדחות") }
+      : { state: "now", title: r.guideName, note: "ממתין להמלצה" };
+
+  const second = done
+    ? { state: r.status === "מאושר" ? "ok" : "no",
+        title: shortName(r.decidedBy) || "ראש המכינה",
+        note: r.status === "מאושר" ? "אישר" : "דחה" }
+    : { state: atHead ? "now" : "wait", title: "ראש המכינה",
+        note: atHead ? "ממתין להכרעה" : "יגיע אחרי המדריך" };
+
+  return (
+    <div className="rq-track">
+      {[first, second].map((st, i) => (
+        <div className={"trk trk-" + st.state} key={i}>
+          <span className="trk-dot" />
+          <div>
+            <b>{st.title}</b>
+            <span>{st.note}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function RequestCard({ r, onDecide, busyId }) {
   const busy = busyId === r.id;
+  /* ⚠ המדריך ממליץ, ראש המכינה מכריע. אותם כפתורים, טקסט אחר —
+     כדי שהמדריך לא יחשוב שסגר את הבקשה. */
+  const isRec = r.stage === "אצל המדריך";
   return (
     <div className="rq">
       <div className="rq-top">
@@ -408,16 +457,17 @@ function RequestCard({ r, onDecide, busyId }) {
         <span className={"pill " + (TYPE_PILL[r.type] || "p-new")}>{r.type}</span>
         <span className={"pill " + (STATUS_PILL[r.status] || "p-new")}>{r.status}</span>
         {r.hasFile && <span className="pill p-ok">צורף אישור</span>}
-        {r.decidedBy && <span>· {r.decidedBy}</span>}
+        {r.groupName && <span>· {r.groupName}</span>}
       </div>
       {r.detail && <div className="rq-detail">{r.detail}</div>}
-      {onDecide && r.status === "ממתין" && (
+      {r.stage && <RequestTrack r={r} />}
+      {onDecide && r.canDecide && (
         <div className="rq-act">
           <button className="ok" disabled={busy} onClick={() => onDecide(r.id, "approve")}>
-            {busy ? "…" : "אישור"}
+            {busy ? "…" : isRec ? "ממליץ לאשר" : "אישור"}
           </button>
           <button className="no" disabled={busy} onClick={() => onDecide(r.id, "reject")}>
-            דחייה
+            {isRec ? "ממליץ לדחות" : "דחייה"}
           </button>
         </div>
       )}
@@ -974,9 +1024,20 @@ function HalfPicker({ half, setHalf }) {
 /* ============================================================
    בקשות — מנהל
    ============================================================ */
+/* ⚠ "אין בקשות" ו"אין בקשות *שלך*" הם שני מסכים שונים. מדריך
+   שרואה ריק צריך לדעת שהבקשות קיימות ופשוט לא אצלו. */
+const EMPTY = {
+  mine: ["אין בקשה שממתינה להחלטתך",
+         "בקשה תופיע כאן כשהיא תגיע לשלב שלך בתהליך."],
+  pending: ["אין בקשות בתהליך",
+            "כשחניך יגיש בקשה היא תופיע כאן, עם השלב שהיא נמצאת בו."],
+  decided: ["עדיין לא הוכרעה בקשה",
+            "בקשות שראש המכינה אישר או דחה יופיעו כאן."],
+};
+
 function ManagerRequests({ say }) {
   useExcel();
-  const [showDecided, setShowDecided] = useState(false);
+  const [tab, setTab] = useState("mine"); // mine · pending · decided
   const { data, err, busy, reload } = useLoad(() => api.getRequests(), []);
   const [busyId, setBusyId] = useState(null);
 
@@ -984,9 +1045,15 @@ function ManagerRequests({ say }) {
     setBusyId(requestId);
     api.decideRequest({ requestId, decision })
       .then((r) => {
-        say(r.status === "מאושר"
-          ? (r.alreadyAbsent ? "אושר. כבר הייתה היעדרות ליום הזה" : "אושר ונרשמה היעדרות")
-          : "הבקשה נדחתה");
+        /* ⚠ המלצת מדריך אינה הכרעה. השרת מחזיר stage, והטקסט
+           נגזר ממנו — אחרת המדריך היה מקבל "אושר" ומניח שסיים. */
+        if (r.stage === "אצל ראש המכינה") {
+          say(`ההמלצה נרשמה — הבקשה הועברה לראש המכינה`);
+        } else {
+          say(r.status === "מאושר"
+            ? (r.alreadyAbsent ? "אושר. כבר הייתה היעדרות ליום הזה" : "אושר ונרשמה היעדרות")
+            : "הבקשה נדחתה");
+        }
         reload();
       })
       .catch((e) => say(e.message))
@@ -997,17 +1064,24 @@ function ManagerRequests({ say }) {
   if (err) return <LoadFail msg={err} onRetry={reload} />;
   if (!data) return null;
 
+  /* ⚠ שלוש רשימות ולא שתיים. "ממתינות" בלבד לא הספיק ברגע
+     שיש שני שלבים: מדריך צריך לראות מיד מה תלוי בו, ולא לחפש
+     בין בקשות שממתינות לראש המכינה. */
+  const mine = data.requests.filter((r) => r.canDecide);
   const pending = data.requests.filter((r) => r.status === "ממתין");
   const decided = data.requests.filter((r) => r.status !== "ממתין");
-  const list = showDecided ? decided : pending;
+  const list = tab === "mine" ? mine : tab === "pending" ? pending : decided;
 
   return (
     <>
       <div className="seg">
-        <button className={!showDecided ? "on" : ""} onClick={() => setShowDecided(false)}>
-          ממתינות{pending.length ? ` (${pending.length})` : ""}
+        <button className={tab === "mine" ? "on" : ""} onClick={() => setTab("mine")}>
+          להחלטתי{mine.length ? ` (${mine.length})` : ""}
         </button>
-        <button className={showDecided ? "on" : ""} onClick={() => setShowDecided(true)}>הוכרעו</button>
+        <button className={tab === "pending" ? "on" : ""} onClick={() => setTab("pending")}>
+          בתהליך{pending.length ? ` (${pending.length})` : ""}
+        </button>
+        <button className={tab === "decided" ? "on" : ""} onClick={() => setTab("decided")}>הוכרעו</button>
       </div>
 
       {data.requests.length > 0 && (
@@ -1017,13 +1091,16 @@ function ManagerRequests({ say }) {
               file: "בקשות-יציאה",
               sheet: "בקשות יציאה",
               title: "בקשות יציאה — מכינת ניר עוז",
-              header: ["חניך", "סוג", "מתאריך", "עד תאריך", "פירוט", "אישור מחלה", "סטטוס", "הוכרע על ידי"],
+              header: ["חניך", "קבוצה", "סוג", "מתאריך", "עד תאריך", "פירוט", "אישור מחלה",
+                       "שלב", "המלצת המדריך", "המדריך", "סטטוס", "הוכרע על ידי"],
               rows: data.requests.map((r) => [
-                r.student ? r.student.name : "", r.type, dmy(r.date),
+                r.student ? r.student.name : "", r.groupName || "", r.type, dmy(r.date),
                 r.endDate && r.endDate !== r.date ? dmy(r.endDate) : "",
-                r.detail || "", r.hasFile ? "צורף" : "", r.status, r.decidedBy || "",
+                r.detail || "", r.hasFile ? "צורף" : "",
+                r.stage || "", r.guideDecision || "", r.guideBy || r.guideName || "",
+                r.status, r.decidedBy || "",
               ]),
-              widths: [20, 10, 12, 12, 34, 11, 10, 16],
+              widths: [20, 13, 10, 12, 12, 30, 11, 15, 13, 15, 10, 16],
             });
             say("הקובץ ירד");
           }}><MI.dl />הורדת כל הבקשות לאקסל</button>
@@ -1031,11 +1108,12 @@ function ManagerRequests({ say }) {
 
       {list.length === 0 ? (
         <div className="empty">
-          <div className="e1">{showDecided ? "עדיין לא הוכרעה בקשה" : "אין בקשות ממתינות"}</div>
-          <div className="e2">{showDecided ? "בקשות שאושרו או נדחו יופיעו כאן." : "כשחניך יגיש בקשה היא תופיע כאן."}</div>
+          <div className="e1">{EMPTY[tab][0]}</div>
+          <div className="e2">{EMPTY[tab][1]}</div>
         </div>
       ) : (
-        list.map((r) => <RequestCard key={r.id} r={r} onDecide={showDecided ? null : decide} busyId={busyId} />)
+        list.map((r) => <RequestCard key={r.id} r={r}
+          onDecide={tab === "decided" ? null : decide} busyId={busyId} />)
       )}
     </>
   );

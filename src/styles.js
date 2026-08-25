@@ -800,4 +800,26 @@ html,body{margin:0;padding:0;background:#012E58}
 .bg-fields.two-up{grid-template-columns:repeat(2,1fr)}
 .bg-fixed{font-size:11px;color:var(--muted);font-weight:600;line-height:1.55;
   background:var(--bg);border-radius:9px;padding:7px 9px;margin-top:7px}
+
+/* ---- מסלול בקשת יציאה: מדריך → ראש מכינה ---- */
+.rq-track{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;
+  padding-top:10px;border-top:1px solid var(--line)}
+.trk{display:flex;align-items:flex-start;gap:7px;position:relative}
+.trk>div{display:flex;flex-direction:column;min-width:0}
+.trk b{font-size:12px;font-weight:800;line-height:1.35;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trk span:not(.trk-dot){font-size:10.5px;font-weight:700;color:var(--faint);line-height:1.4}
+.trk-dot{width:9px;height:9px;border-radius:50%;flex:0 0 9px;margin-top:3px;
+  background:var(--line);box-shadow:0 0 0 3px var(--bg)}
+/* ⚠ הקו מחבר את שתי התחנות. נמתח מהנקודה הראשונה שמאלה, כי
+   הכיוון עברי — התחנה הראשונה מימין. */
+.trk:first-child::after{content:"";position:absolute;top:7px;left:-8px;
+  width:calc(100% - 9px);height:2px;background:var(--line)}
+.trk-now .trk-dot{background:var(--accent)}
+.trk-now b{color:var(--accent)}
+.trk-ok .trk-dot{background:var(--ok)}
+.trk-no .trk-dot{background:var(--clay)}
+.trk-skip .trk-dot{background:transparent;border:2px dashed var(--line);
+  width:9px;height:9px;box-sizing:border-box}
+.trk-skip b,.trk-wait b{color:var(--faint);font-weight:700}
 `;

@@ -19,8 +19,9 @@ import {
   loadCalendar, loadAbsences, loadMarked, summarize, vacationRule,
 } from "./_attendance-data.js";
 import {
-  MECHINA_BOARDS, MECHINA_COLS, ABSENCE, REQ_STATUS,
+  MECHINA_BOARDS, MECHINA_COLS, ABSENCE, REQ_STATUS, REQ_STAGE, requestStage,
 } from "../shared/mechina-boards.js";
+import { guideMap, isGuideOf } from "./_guides.js";
 
 const R = MECHINA_COLS.requests;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -47,6 +48,9 @@ export async function loadRequests({ force = false } = {}) {
         status: val(i, R.status) || REQ_STATUS.pending,
         decidedBy: val(i, R.by) || null,
         decidedAt: val(i, R.decided) || null,
+        guideDecision: val(i, R.guide) || null,
+        guideBy: val(i, R.guideBy) || null,
+        guideAt: val(i, R.guideAt) || null,
       }))
       .filter((r) => r.studentId && r.date && r.type)
       .sort((a, b) => b.date.localeCompare(a.date));
@@ -64,7 +68,9 @@ async function handler(req, res, session) {
 /* ---------- קריאה ---------- */
 async function list(req, res, session) {
   try {
-    const [all, rows] = await Promise.all([loadRequests(), studentRows()]);
+    const [all, rows, guides] = await Promise.all([
+      loadRequests(), studentRows(), guideMap(),
+    ]);
     const byId = new Map(rows.map((r) => [r.id, r]));
 
     // ⚠ הסינון כאן. חניך לעולם לא מקבל בקשות של אחרים.
@@ -74,22 +80,46 @@ async function list(req, res, session) {
     const filtered = wanted ? mine.filter((r) => r.status === wanted) : mine;
 
     res.status(200).json({
-      requests: filtered.map((r) => ({
-        id: r.id,
-        type: r.type,
-        date: r.date,
-        endDate: r.endDate,
-        hasFile: r.hasFile,
-        detail: r.detail || null,
-        status: r.status,
-        decidedBy: r.decidedBy,
-        decidedAt: r.decidedAt,
-        // שם החניך נחוץ רק למנהל; לחניך זה תמיד הוא עצמו
-        student: session.isManager
-          ? (byId.get(r.studentId) ? toPublic(byId.get(r.studentId)) : { id: r.studentId, name: "—" })
-          : undefined,
-      })),
+      requests: filtered.map((r) => {
+        const guide = guides.get(r.studentId) || null;
+        const stage = requestStage(r, Boolean(guide));
+        return {
+          id: r.id,
+          type: r.type,
+          date: r.date,
+          endDate: r.endDate,
+          hasFile: r.hasFile,
+          detail: r.detail || null,
+          status: r.status,
+          decidedBy: r.decidedBy,
+          decidedAt: r.decidedAt,
+          /* ---- שני השלבים ----
+             ⚠ השלב נגזר, לא נשמר. ראו requestStage. */
+          stage,
+          guideName: guide ? guide.short : null,
+          groupName: guide ? guide.group : null,
+          guideDecision: r.guideDecision,
+          guideBy: r.guideBy,
+          guideAt: r.guideAt,
+          /* האם *המשתמש הזה* יכול להכריע עכשיו. תצוגה בלבד —
+             ההרשאה נאכפת שוב ב-decide. */
+          canDecide:
+            (stage === REQ_STAGE.guide && isGuideOf(session, guide)) ||
+            (stage === REQ_STAGE.head && Boolean(session.isHead)),
+          // שם החניך נחוץ רק למנהל; לחניך זה תמיד הוא עצמו
+          student: session.isManager
+            ? (byId.get(r.studentId) ? toPublic(byId.get(r.studentId)) : { id: r.studentId, name: "—" })
+            : undefined,
+        };
+      }),
       count: filtered.length,
+      /* כמה ממתינות *להחלטתי* — מה שממלא את המונה במסך */
+      mine: mine.filter((r) => {
+        const g = guides.get(r.studentId) || null;
+        const st = requestStage(r, Boolean(g));
+        return (st === REQ_STAGE.guide && isGuideOf(session, g)) ||
+               (st === REQ_STAGE.head && Boolean(session.isHead));
+      }).length,
       pending: mine.filter((r) => r.status === REQ_STATUS.pending).length,
     });
   } catch (e) {
