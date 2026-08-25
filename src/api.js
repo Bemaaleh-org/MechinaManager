@@ -114,7 +114,9 @@ export const api = {
   /** כפיית סוג או מחיר ליום. הכול ריק = חזרה לגזירה מהלו״ז. */
   setBudgetDay: ({ date, type, cost, note }) =>
     put("/api/kitchen?action=budget", { date, type, cost, note }),
-  setHeadcount: (headcount) => put("/api/kitchen?action=budget", { headcount }),
+  /** מצבת סועדים. ⚠ mode:"forward" משנה קדימה בלבד; "retro" מתקן את כל השנה. */
+  setHeadcount: ({ headcount, mode, from }) =>
+    put("/api/kitchen?action=budget", { headcount, mode, from }),
   /** תקציב סוג יום — קייטרינג/קבוע/קניות. ⚠ משנה את כל השנה. */
   setDayTypeBudget: (body) => put("/api/kitchen?action=budget", body),
   /** קנייה — שבועית או רבעונית. ⚠ יורדת מתקציב הקניות. */

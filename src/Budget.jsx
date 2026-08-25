@@ -57,7 +57,7 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
     ? { catering: 0, purchases: per * headcount }
     : chosen
       ? {
-          catering: (chosen.cateringFixed || 0) + (chosen.catering || 0) * headcount,
+          catering: (chosen.catering || 0) * (chosen.fixedHeads > 0 ? chosen.fixedHeads : headcount),
           purchases: (chosen.purchases || 0) * headcount,
         }
       : { catering: 0, purchases: 0 };
@@ -274,7 +274,8 @@ function PriceTab({ types, headcount, say, onChanged }) {
         <div style={{ fontSize: 13, color: "var(--muted)", fontWeight: 600, lineHeight: 1.6 }}>
           התקציב מחולק לשניים: <b>קייטרינג</b> — מה שמזמינים מבחוץ,
           ו<b>קניות</b> — כל השאר. שינוי כאן משפיע על כל השנה.
-          הסכום הקבוע אינו תלוי במספר הסועדים.
+          <b> מספר קבוע</b> פירושו שהקייטרינג מחושב לפיו תמיד ולא לפי
+          המצבה בפועל — 0 מחשב לפי מספר הסועדים.
         </div>
       </div>
 
@@ -285,17 +286,20 @@ function PriceTab({ types, headcount, say, onChanged }) {
 
       <div className="rows">
         {types.map((t) => {
-          const perDay = (t.cateringFixed || 0)
-            + ((t.catering || 0) + (t.purchases || 0)) * headcount;
+          const heads = t.fixedHeads > 0 ? t.fixedHeads : headcount;
+          const perDay = (t.catering || 0) * heads + (t.purchases || 0) * headcount;
           return (
             <div className="bg-type" key={t.id}>
               <div className="bg-type-h">
                 <b>{t.name}</b>
-                <span className="num">{shekel(perDay)} ₪ ליום</span>
+                <span className="num">
+                  {shekel(perDay)} ₪ ליום
+                  {t.fixedHeads > 0 ? ` · ${t.catering}×${t.fixedHeads} קבוע` : ""}
+                </span>
               </div>
               <div className="bg-fields">
                 {field(t, "catering", "קייטרינג לאדם")}
-                {field(t, "cateringFixed", "קייטרינג קבוע")}
+                {field(t, "fixedHeads", "מספר קבוע")}
                 {field(t, "purchases", "קניות לאדם")}
               </div>
             </div>
@@ -387,6 +391,8 @@ export function BudgetPage({ say }) {
   const [adding, setAdding] = useState(false);
   const [headEdit, setHeadEdit] = useState(false);
   const [head, setHead] = useState("");
+  const [headMode, setHeadMode] = useState("forward");
+  const [headFrom, setHeadFrom] = useState("");
 
   if (busy && !data) return (
     <div className="empty" style={{ paddingTop: 60 }}><div className="e1">טוען תקציב…</div></div>
@@ -423,8 +429,11 @@ export function BudgetPage({ say }) {
   const saveHead = () => {
     const n = Number(head);
     if (!Number.isFinite(n) || n < 1) { say("מספר לא תקין"); return; }
-    api.setHeadcount(n)
-      .then(() => { say("מספר הסועדים עודכן"); setHeadEdit(false); reload(); })
+    api.setHeadcount({ headcount: n, mode: headMode, from: headFrom })
+      .then(() => {
+        say(headMode === "retro" ? "המצבה עודכנה לכל השנה" : "המצבה עודכנה מהתאריך והלאה");
+        setHeadEdit(false); reload();
+      })
       .catch((e) => say(e.message));
   };
 
@@ -498,26 +507,64 @@ export function BudgetPage({ say }) {
             <span>{data.left < 0 ? "חריגה" : "נותר"}</span></div>
         </div>
 
-        <div className="card bg-head">
-          {headEdit ? (
-            <>
-              <input value={head} onChange={(e) => setHead(e.target.value)} inputMode="numeric" autoFocus />
-              <button className="btn btn-primary btn-sm" onClick={saveHead}>שמירה</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setHeadEdit(false)}>ביטול</button>
-            </>
-          ) : (
-            <>
-              <div style={{ flex: 1 }}>
-                <b className="num" style={{ fontSize: 18 }}>{data.headcount}</b>
-                <span style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600, marginRight: 8 }}>
-                  סועדים — חניכים וצוות
-                </span>
+        {headEdit ? (
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div className="two">
+              <div className="fld">
+                <label>מספר סועדים</label>
+                <input value={head} onChange={(e) => setHead(e.target.value)}
+                  inputMode="numeric" autoFocus />
               </div>
-              <button className="btn btn-ghost btn-sm"
-                onClick={() => { setHead(String(data.headcount)); setHeadEdit(true); }}>שינוי</button>
-            </>
-          )}
-        </div>
+              {headMode === "forward" && (
+                <div className="fld">
+                  <label>בתוקף מתאריך</label>
+                  <input type="date" value={headFrom} onChange={(e) => setHeadFrom(e.target.value)} />
+                </div>
+              )}
+            </div>
+
+            <div className="fld">
+              <label>ממתי זה תקף</label>
+              <div className="pick">
+                <button type="button" className={headMode === "forward" ? "on" : ""}
+                  onClick={() => setHeadMode("forward")}>מהתאריך והלאה</button>
+                <button type="button" className={headMode === "retro" ? "on" : ""}
+                  onClick={() => setHeadMode("retro")}>לכל השנה</button>
+              </div>
+              <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 600, marginTop: 4,
+                            lineHeight: 1.6 }}>
+                {headMode === "forward"
+                  ? "חודשים שקדמו לתאריך יישארו עם המצבה שהייתה בהם — מי שעזב באמצע השנה אינו מוזיל אותם."
+                  : "מתקן את כל השנה למספר הזה ומוחק את היסטוריית השינויים. מתאים כשהמספר הוזן שגוי מלכתחילה."}
+              </div>
+            </div>
+
+            <button className="btn btn-primary" onClick={saveHead}>שמירה</button>
+            <button className="btn btn-ghost" style={{ marginTop: 8 }}
+              onClick={() => setHeadEdit(false)}>ביטול</button>
+          </div>
+        ) : (
+          <div className="card bg-head">
+            <div style={{ flex: 1 }}>
+              <b className="num" style={{ fontSize: 18 }}>{data.headcount}</b>
+              <span style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600, marginRight: 8 }}>
+                סועדים — חניכים וצוות
+              </span>
+              {(data.headcounts || []).length > 1 && (
+                <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 600, marginTop: 3 }}>
+                  {data.headcounts.filter((h) => h.from).length} שינויים במהלך השנה
+                </div>
+              )}
+            </div>
+            <button className="btn btn-ghost btn-sm"
+              onClick={() => {
+                setHead(String(data.headcount));
+                setHeadFrom(data.days[0].date);
+                setHeadMode("forward");
+                setHeadEdit(true);
+              }}>שינוי</button>
+          </div>
+        )}
 
         <div className="sec-label">מה מושך את התקציב</div>
         <div className="card" style={{ marginBottom: 12 }}>

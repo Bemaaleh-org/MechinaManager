@@ -6,12 +6,13 @@
      קייטרינג — מה שמזמינים מבחוץ
      קניות    — כל השאר
 
-   לכל סוג יום שלושה מספרים: קייטרינג לאדם, קייטרינג קבוע
-   ליום (שאינו תלוי בכמות), וקניות לאדם.
+   לכל סוג יום שלושה מספרים: קייטרינג לאדם, מספר קבוע
+   לקייטרינג, וקניות לאדם.
 
-   ⚠ הקבוע קיים בגלל העשייה הקהילתית: 900 ₪ ליום, בין אם
-     הגיעו עשרים אנשים או ארבעים. מודל של "מחיר לאדם" בלבד
-     לא ידע לבטא אותו והיה מנפח או מכווץ אותו לפי המצבה.
+   ⚠ המספר הקבוע קיים בגלל העשייה הקהילתית: 45 ₪ כפול 20,
+     תמיד — גם אם יאכלו שם ארבעים איש או עשרה. שם הוא חלק
+     מההסכם ולא נגזרת של המצבה, ולכן הוא לא זז איתה לעולם.
+     0 פירושו "לפי מספר הסועדים בפועל".
 
    ⚠ המחירים חיים בלוח ולא בקוד. המכינה מייקרת יום שגרה
      ב-monday והחישוב משתנה מיד, בלי דיפלוי (עיקרון 1).
@@ -32,18 +33,19 @@ export const budgetReady = () =>
    קיים, הוא מקור האמת, וסוג חדש נוסף שם.
    ------------------------------------------------------------ */
 export const DAY_TYPE_SEED = [
-  { name: "שגרה", catering: 34, cateringFixed: 0, purchases: 10 },
-  { name: "סדרה", catering: 0, cateringFixed: 0, purchases: 35 },
-  { name: "עשייה קהילתית", catering: 0, cateringFixed: 900, purchases: 8 },
-  { name: "שישי מכינה", catering: 34, cateringFixed: 0, purchases: 25 },
-  { name: "שבת מכינה", catering: 34, cateringFixed: 0, purchases: 10 },
-  { name: "חזרה מהבית", catering: 0, cateringFixed: 0, purchases: 15 },
-  { name: "בית", catering: 0, cateringFixed: 0, purchases: 0 },
-  { name: "שישי בית", catering: 0, cateringFixed: 0, purchases: 0 },
-  { name: "שבת בית", catering: 0, cateringFixed: 0, purchases: 0 },
+  { name: "שגרה", catering: 34, fixedHeads: 0, purchases: 10 },
+  { name: "סדרה", catering: 0, fixedHeads: 0, purchases: 35 },
+  /* 45 × 20, קבוע — ראו ההערה למעלה */
+  { name: "עשייה קהילתית", catering: 45, fixedHeads: 20, purchases: 8 },
+  { name: "שישי מכינה", catering: 34, fixedHeads: 0, purchases: 25 },
+  { name: "שבת מכינה", catering: 34, fixedHeads: 0, purchases: 10 },
+  { name: "חזרה מהבית", catering: 0, fixedHeads: 0, purchases: 15 },
+  { name: "בית", catering: 0, fixedHeads: 0, purchases: 0 },
+  { name: "שישי בית", catering: 0, fixedHeads: 0, purchases: 0 },
+  { name: "שבת בית", catering: 0, fixedHeads: 0, purchases: 0 },
   /* ⚠ "אחר" תמיד אחרון ברשימה — הוא המוצא לימים חריגים
      שאין להם סוג, ולא בחירה שמציעים ראשונה. */
-  { name: "אחר", catering: 0, cateringFixed: 0, purchases: 0, last: true },
+  { name: "אחר", catering: 0, fixedHeads: 0, purchases: 0, last: true },
 ];
 
 /** ברירת מחדל למספר הסועדים — חניכים וצוות יחד */
@@ -69,14 +71,36 @@ export function dayCost(type, head, over = null) {
     return { catering: 0, purchases: over * head, total: over * head };
   }
   if (!type) return { catering: 0, purchases: 0, total: 0 };
-  const catering = (Number(type.cateringFixed) || 0) + (Number(type.catering) || 0) * head;
+  /* ⚠ מספר קבוע גובר על המצבה — הוא לא זז איתה לעולם */
+  const heads = Number(type.fixedHeads) > 0 ? Number(type.fixedHeads) : head;
+  const catering = (Number(type.catering) || 0) * heads;
   const purchases = (Number(type.purchases) || 0) * head;
   return { catering, purchases, total: catering + purchases };
 }
 
-/** מה שמוצג כ"לאדם" — בלי הקבוע, שאינו תלוי בכמות */
+/** מה שמוצג כ"לאדם" */
 export const perPersonOf = (type) =>
   type ? (Number(type.catering) || 0) + (Number(type.purchases) || 0) : 0;
+
+/* ------------------------------------------------------------
+   מצבת הסועדים לאורך השנה
+   ------------------------------------------------------------
+   ⚠ שינוי במצבה אינו רטרואקטיבי כברירת מחדל: חניך שעזב
+     בינואר לא מוזיל את ספטמבר. לכן זו רשימת שינויים עם תאריך
+     תחילה, ולא מספר אחד — ומי שכן רוצה לתקן את כל השנה בוחר
+     בכך במפורש.
+   ------------------------------------------------------------ */
+
+/** המצבה שתקפה בתאריך נתון */
+export function headcountAt(history, date, fallback = DEFAULT_HEADCOUNT) {
+  if (!history || !history.length) return fallback;
+  const sorted = [...history].sort((a, b) => String(a.from).localeCompare(String(b.from)));
+  let value = sorted[0].value;
+  for (const row of sorted) {
+    if (!row.from || row.from <= date) value = row.value;
+  }
+  return value ?? fallback;
+}
 
 /** סדר התצוגה: "אחר" תמיד בסוף, השאר כסדר הלוח */
 export function sortTypes(types) {

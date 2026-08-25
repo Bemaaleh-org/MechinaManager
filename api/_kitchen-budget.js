@@ -4,8 +4,8 @@
      PUT    { date, type?, cost?, note? }   כפיית סוג ליום
      POST   { name, amount, kind, startMonth|date, note? }  קנייה
      DELETE { orderId }                     מחיקת קנייה
-     PUT    { headcount }                   מספר הסועדים
-     PUT    { typeId, catering?, cateringFixed?, purchases? }  תקציב סוג יום
+     PUT    { headcount, mode, from? }       מצבת הסועדים
+     PUT    { typeId, catering?, fixedHeads?, purchases? }  תקציב סוג יום
 
    ⚠ מנהל בלבד. עלויות אינן נתון של תורן (עיקרון 4).
 
@@ -16,13 +16,13 @@
 import { withAuth } from "./_session.js";
 import { gql, allItems } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
-import { loadCalendar } from "./_attendance-data.js";
+import { loadCalendar, israelToday } from "./_attendance-data.js";
 import { loadGantt } from "./_lessons-gantt.js";
 import {
   BUDGET_BOARDS as B, BUDGET_COLS as C, budgetReady,
   DEFAULT_HEADCOUNT, SETTING_HEADCOUNT,
   dayCost, perPersonOf, sortTypes, orderShareFor, monthsOf,
-  ORDER_KIND, ORDER_KINDS,
+  headcountAt, ORDER_KIND, ORDER_KINDS,
 } from "../shared/budget-boards.js";
 
 const dow = (iso) => new Date(iso + "T12:00:00Z").getUTCDay();
@@ -41,7 +41,7 @@ async function loadDayTypes({ force = false } = {}) {
         id: String(i.id),
         name: String(i.name || "").trim(),
         catering: num(i, C.dayTypes.catering) || 0,
-        cateringFixed: num(i, C.dayTypes.cateringFixed) || 0,
+        fixedHeads: num(i, C.dayTypes.fixedHeads) || 0,
         purchases: num(i, C.dayTypes.purchases) || 0,
       }))
       .filter((x) => x.name);
@@ -81,14 +81,22 @@ async function loadOrders({ force = false } = {}) {
   }, { force });
 }
 
+/**
+ * מצבת הסועדים — שורה לכל שינוי, עם תאריך תחילה.
+ * ⚠ שורה בלי תאריך היא הבסיס: היא תקפה מתחילת הזמן.
+ */
 async function loadHeadcount({ force = false } = {}) {
   return cached("budget-settings", async () => {
     const items = await allItems(B.settings);
-    const row = items.find((i) => String(i.name || "").trim() === SETTING_HEADCOUNT);
-    return {
-      id: row ? String(row.id) : null,
-      headcount: row ? (num(row, C.settings.value) ?? DEFAULT_HEADCOUNT) : DEFAULT_HEADCOUNT,
-    };
+    const rows = items
+      .filter((i) => String(i.name || "").trim() === SETTING_HEADCOUNT)
+      .map((i) => ({
+        id: String(i.id),
+        value: num(i, C.settings.value) ?? DEFAULT_HEADCOUNT,
+        from: val(i, C.settings.from) || "",
+      }))
+      .sort((a, b) => String(a.from).localeCompare(String(b.from)));
+    return rows;
   }, { force });
 }
 
@@ -204,7 +212,7 @@ function datesOfMonth(month) {
 }
 
 /* ---------- חישוב חודש ---------- */
-function buildMonth(month, { types, overrides, calendar, gantt, headcount }) {
+function buildMonth(month, { types, overrides, calendar, gantt, heads }) {
   const byName = new Map(types.map((t) => [t.name, t]));
   const byDate = calendar.byDate;
   const evByDate = eventsByDate(gantt);
@@ -215,13 +223,17 @@ function buildMonth(month, { types, overrides, calendar, gantt, headcount }) {
     const typeName = (ov && ov.type) || derivedType(date, byDate, evByDate);
     const type = byName.get(typeName) || null;
     const over = ov && ov.cost != null ? ov.cost : null;
-    const cost = dayCost(type, headcount, over);
+    /* ⚠ המצבה נלקחת לפי היום עצמו ולא לפי היום: שינוי במצבה
+       אינו רטרואקטיבי, ולכן ספטמבר ממשיך להיות מחושב במצבה
+       שהייתה בספטמבר. */
+    const head = headcountAt(heads, date);
+    const cost = dayCost(type, head, over);
     return {
       date,
       kind: (byDate.get(date) || {}).kind || null,
       type: typeName,
+      headcount: head,
       perPerson: over != null ? over : perPersonOf(type),
-      cateringFixed: over != null ? 0 : (type ? type.cateringFixed : 0),
       catering: cost.catering,
       purchases: cost.purchases,
       total: cost.total,
@@ -267,9 +279,7 @@ async function handler(req, res, session) {
          החודשי — נקרא מאותה פונקציה ולא משוכפל. */
       if (String(req.query?.view || "") === "year") {
         const rows = months.map((m) => {
-          const b = buildMonth(m, {
-            types, overrides, calendar, gantt, headcount: settings.headcount,
-          });
+          const b = buildMonth(m, { types, overrides, calendar, gantt, heads: settings });
           const spent = orders.reduce((a, o) => a + orderShareFor(o, m), 0);
           return {
             month: m, days: b.days.length,
@@ -281,7 +291,8 @@ async function handler(req, res, session) {
         return res.status(200).json({
           view: "year", months, rows,
           types: sortTypes(types),
-          headcount: settings.headcount,
+          headcount: headcountAt(settings, months[months.length - 1] + "-28"),
+          headcounts: settings,
           catering: sum("catering"),
           purchases: sum("purchases"),
           total: sum("total"),
@@ -296,9 +307,7 @@ async function handler(req, res, session) {
         return res.status(400).json({ error: "החודש אינו בשנת הלימודים", months });
       }
 
-      const b = buildMonth(month, {
-        types, overrides, calendar, gantt, headcount: settings.headcount,
-      });
+      const b = buildMonth(month, { types, overrides, calendar, gantt, heads: settings });
 
       /* ⚠ הקניות אינן מוסיפות לתקציב אלא יורדות ממנו: התקציב
          נקבע מסוגי הימים, והקניות הן ההוצאה מולו. ההפרש הוא
@@ -318,7 +327,9 @@ async function handler(req, res, session) {
 
       return res.status(200).json({
         month, months, days: b.days, types: sortTypes(types),
-        headcount: settings.headcount,
+        /* המצבה שתקפה בסוף החודש — היא שמוצגת ככותרת */
+        headcount: headcountAt(settings, b.days[b.days.length - 1].date),
+        headcounts: settings,
         catering: b.catering,
         purchases: b.purchases,
         total: b.foodTotal,
@@ -348,7 +359,7 @@ async function handler(req, res, session) {
         const cols = {};
         for (const [key, col] of [
           ["catering", C.dayTypes.catering],
-          ["cateringFixed", C.dayTypes.cateringFixed],
+          ["fixedHeads", C.dayTypes.fixedHeads],
           ["purchases", C.dayTypes.purchases],
         ]) {
           if (body[key] === undefined) continue;
@@ -366,17 +377,54 @@ async function handler(req, res, session) {
         return res.status(200).json({ ok: true, typeId, name: hit.name });
       }
 
-      /* מספר הסועדים */
+      /* ---------- מצבת הסועדים ----------
+         ⚠ ברירת המחדל היא קדימה בלבד: חניך שעזב בינואר אינו
+           מוזיל את ספטמבר, שכבר נאכל ושולם. מי שרוצה לתקן את
+           כל השנה — למשל כי המספר הוזן שגוי מלכתחילה — בוחר
+           "retro" במפורש, וזה מוחק את ההיסטוריה. */
       if (body.headcount !== undefined) {
         const n = Number(body.headcount);
         if (!Number.isFinite(n) || n < 1 || n > 500) {
           return res.status(400).json({ error: "מספר סועדים לא הגיוני" });
         }
-        const s = await loadHeadcount();
-        if (!s.id) return res.status(404).json({ error: "שורת ההגדרה חסרה בלוח" });
-        await setCols(B.settings, s.id, { [C.settings.value]: String(n) });
+        const mode = String(body.mode || "forward");
+        if (!["forward", "retro"].includes(mode)) {
+          return res.status(400).json({ error: "אופן עדכון לא מוכר" });
+        }
+
+        const rows = await loadHeadcount({ force: true });
+
+        if (mode === "retro") {
+          /* מספר אחד לכל השנה — שאר השורות מיותרות */
+          const keep = rows[0];
+          for (const r of rows.slice(1)) {
+            await gql(`mutation{ delete_item(item_id:${Number(r.id)}){ id } }`);
+          }
+          if (keep) {
+            await setCols(B.settings, keep.id, {
+              [C.settings.value]: String(n), [C.settings.from]: {},
+            });
+          } else {
+            await createItem(B.settings, SETTING_HEADCOUNT, { [C.settings.value]: String(n) });
+          }
+          invalidateBudget();
+          return res.status(200).json({ ok: true, headcount: n, mode });
+        }
+
+        const from = String(body.from || "").trim() || israelToday();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) {
+          return res.status(400).json({ error: "תאריך לא תקין" });
+        }
+        /* שינוי חוזר לאותו תאריך מעדכן ולא מוסיף שורה */
+        const same = rows.find((r) => r.from === from);
+        if (same) await setCols(B.settings, same.id, { [C.settings.value]: String(n) });
+        else {
+          await createItem(B.settings, SETTING_HEADCOUNT, {
+            [C.settings.value]: String(n), [C.settings.from]: { date: from },
+          });
+        }
         invalidateBudget();
-        return res.status(200).json({ ok: true, headcount: n });
+        return res.status(200).json({ ok: true, headcount: n, mode, from });
       }
 
       /* כפיית סוג או מחיר ליום */

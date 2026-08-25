@@ -16,9 +16,9 @@ export const BUDGET_BOARDS = {
 export const BUDGET_COLS = {
   dayTypes: {
     catering: "numeric_mm6j4k1d", cateringFixed: "numeric_mm6jhnp0",
-    purchases: "numeric_mm6j850p",
+    purchases: "numeric_mm6j850p", fixedHeads: "numeric_mm6j4ppw",
   },
   days: { date: "date_mm6jzcmd", type: "color_mm6jh6g3", cost: "numeric_mm6jw604", note: "text_mm6jh0dx" },
   orders: { amount: "numeric_mm6jnhh2", startMonth: "text_mm6j7pqm", date: "date_mm6jp9as", note: "text_mm6jv2xv", kind: "color_mm6jtyvv" },
-  settings: { value: "numeric_mm6jkeme" },
+  settings: { value: "numeric_mm6jkeme", from: "date_mm6jb0xz" },
 };
