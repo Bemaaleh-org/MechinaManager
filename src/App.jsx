@@ -8,6 +8,7 @@ import { LessonsPage } from "./Lessons.jsx";
 import { ContainerPage } from "./Container.jsx";
 import { BudgetPage } from "./Budget.jsx";
 import { GanttPage } from "./Gantt.jsx";
+import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { PlacementsPage } from "./Placements.jsx";
 import { SafetyPage } from "./Safety.jsx";
 import { FaultsPage } from "./Faults.jsx";
@@ -223,8 +224,10 @@ function Staff({ auth, onSignedOut }) {
               { key: "a-place", label: "שיבוצי חניכים", icon: <I.users />, active: section === "placements",
                 onClick: () => setSection("placements") },
             ] },
-            { label: "גאנט שנתי", items: [
-              { key: "gantt", label: "לו״ז השנה", icon: <I.cal />,
+            { label: "לו״ז", items: [
+              { key: "agenda", label: "הלו״ז שלי", icon: <I.day />,
+                active: section === "agenda", onClick: () => setSection("agenda") },
+              { key: "gantt", label: "גאנט שנתי", icon: <I.cal />,
                 active: section === "gantt", onClick: () => setSection("gantt") },
             ] },
             { label: "שיעורים", items: [
@@ -280,7 +283,8 @@ function Staff({ auth, onSignedOut }) {
               goSafety={() => setSection("safety")}
               goFaults={() => setSection("faults")}
               goGantt={() => setSection("gantt")}
-              goBudget={() => setSection("budget")} />
+              goBudget={() => setSection("budget")}
+              goAgenda={() => setSection("agenda")} />
           )}
 
           {section === "kitchen" && <KitchenPage say={say} area={kArea} />}
@@ -298,6 +302,8 @@ function Staff({ auth, onSignedOut }) {
           {section === "placements" && isMgr && <PlacementsPage say={say} />}
           {section === "safety" && isMgr && <SafetyPage say={say} />}
           {section === "faults" && isMgr && <FaultsPage say={say} />}
+          {section === "agenda" && <AgendaPage />}
+
           {section === "gantt" && <GanttPage say={say} />}
 
           {section === "budget" && isMgr && <BudgetPage say={say} />}
@@ -321,7 +327,7 @@ function Staff({ auth, onSignedOut }) {
    ⚠ כל שליפה נכשלת בשקט ומורידה את הרכיב שלה בלבד — מסך
      הבית לעולם לא נופל בגלל תחום אחד (או תחום שטרם הוקם). */
 function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
-  goPlacements, goSafety, goFaults, goGantt, goBudget }) {
+  goPlacements, goSafety, goFaults, goGantt, goBudget, goAgenda }) {
   const [today, setToday] = useState(null);
   const [gantt, setGantt] = useState(null);
   const [faults, setFaults] = useState(null);   // {open, urgent}
@@ -461,6 +467,8 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
           <div className="h2-date">{hebDate(new Date())}</div>
         </div>
       </div>
+
+      <TodayAgenda onOpen={goAgenda} />
 
       {failed && (
         <div className="alert a-clay" style={{ marginBottom: 14 }}>

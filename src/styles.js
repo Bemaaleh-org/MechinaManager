@@ -752,4 +752,28 @@ html,body{margin:0;padding:0;background:#012E58}
   .cal-n{font-size:13.5px}
   .cal-chip{font-size:11px;padding:3px 5px}
 }
+
+/* ---- לו״ז יומי מהיומן ---- */
+.ag-day{background:var(--surface);border:1px solid var(--line);border-radius:16px;
+  padding:12px 14px;margin-bottom:10px}
+.ag-day.today{border-color:var(--accent);box-shadow:0 6px 18px rgba(1,46,88,.08)}
+.ag-day-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+  padding-bottom:8px;margin-bottom:6px;border-bottom:1px solid var(--line)}
+.ag-day-h b{font-size:14.5px}
+.ag-day-h span{font-size:12px;color:var(--faint);font-weight:700}
+.ag-ev{display:flex;gap:11px;padding:7px 0;align-items:flex-start}
+.ag-ev+.ag-ev{border-top:1px solid var(--line)}
+.ag-time{flex:0 0 50px;display:flex;flex-direction:column;line-height:1.3;padding-top:1px}
+.ag-time b{font-size:13.5px;font-weight:800}
+.ag-time span{font-size:11px;color:var(--faint);font-weight:700}
+.ag-allday{font-size:11px;color:var(--accent);font-weight:800}
+.ag-body{flex:1;min-width:0}
+.ag-name{font-size:14px;font-weight:700;line-height:1.4}
+.ag-loc{display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--muted);
+  font-weight:600;margin-top:2px}
+.ag-empty{font-size:13px;color:var(--muted);font-weight:600;text-align:center;padding:8px 0}
+.ag-more{font-size:12px;color:var(--accent);font-weight:800;text-align:center;
+  padding-top:8px;margin-top:4px;border-top:1px solid var(--line)}
+.kx .ag-card{display:block;width:100%;text-align:right;border:1px solid var(--line);
+  cursor:pointer;margin-bottom:14px}
 `;
