@@ -423,7 +423,7 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
 
   const statTiles = [
     {
-      key: "att", go: () => goStaff("mark"),
+      key: "att", tone: "tone-1", ico: <I.check />, go: () => goStaff("mark"),
       cls: today && today.kind && !today.marked ? "warn" : "good",
       v: !today ? "…" : !today.kind ? "—" : today.marked ? (today.present ?? 0) : "!",
       l: "נוכחות היום",
@@ -431,27 +431,27 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
         : today.marked ? `${today.absent || 0} חסרים` : "טרם סומנה",
     },
     {
-      key: "req", go: () => goStaff("requests"),
+      key: "req", tone: "tone-2", ico: <I.note />, go: () => goStaff("requests"),
       cls: mineList.length ? "warn" : "good",
       v: pendingList.length, l: "בקשות יציאה",
       s: mineList.length ? `${mineList.length} להחלטתך`
         : pendingList.length ? "בתהליך אצל אחרים" : "אין ממתינות",
     },
     {
-      key: "faults", go: goFaults,
+      key: "faults", tone: "tone-8", ico: <I.gear />, go: goFaults,
       cls: faults ? (faults.urgent ? "warn" : faults.open ? "" : "good") : "",
       v: faults ? faults.open : "—", l: "תקלות פתוחות",
       s: faults ? (faults.urgent ? `${faults.urgent} דחופות` : faults.open ? "בטיפול" : "אין תקלות")
         : "טרם חובר",
     },
     {
-      key: "kitchen", go: () => goKitchen("אוכל"),
+      key: "kitchen", tone: "tone-3", ico: <I.cart />, go: () => goKitchen("אוכל"),
       cls: kitchen ? (kitchen.missing ? "warn" : "good") : "",
       v: kitchen ? kitchen.missing : "—", l: "חוסרים במטבח",
       s: kitchen ? (kitchen.missing ? "מתחת למפתח" : "המלאי מלא") : "טרם חובר",
     },
     {
-      key: "budget", go: goBudget, cls: "",
+      key: "budget", tone: "tone-6", ico: <I.count />, go: goBudget, cls: "",
       v: budget ? Math.round(budget.total).toLocaleString("he-IL") : "—",
       l: "תקציב החודש (₪)",
       s: budget ? `${budget.head} סועדים` : "טרם חובר",
@@ -459,16 +459,16 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
   ];
 
   const navTiles = [
-    { key: "n-food", l: "ציוד אוכל", icon: <I.cart />, go: () => goKitchen("אוכל") },
-    { key: "n-disp", l: "ציוד חד״פ", icon: <I.box />, go: () => goKitchen("חד״פ") },
-    { key: "n-place", l: "שיבוצי חניכים", icon: <I.users />, go: goPlacements },
-    { key: "n-students", l: "חניכים", icon: <I.note />, go: () => goStaff("students") },
-    { key: "n-lessons", l: "גיליונות מרצים", icon: <I.book />, go: () => goLessons("sheets") },
-    { key: "n-gantt", l: "גאנט שנתי", icon: <I.cal />, go: goGantt },
-    { key: "n-budget", l: "תקציב המטבח", icon: <I.count />, go: goBudget },
-    { key: "n-faults", l: "תקלות ובעיות", icon: <I.gear />, go: goFaults },
-    { key: "n-safety", l: "בטיחות ותקלות", icon: <I.warn />, go: goSafety },
-    { key: "n-container", l: "ציוד מכולה", icon: <I.box />, go: () => goContainer("מכולה") },
+    { key: "n-food", tone: "tone-3", l: "ציוד אוכל", icon: <I.cart />, go: () => goKitchen("אוכל") },
+    { key: "n-disp", tone: "tone-6", l: "ציוד חד״פ", icon: <I.box />, go: () => goKitchen("חד״פ") },
+    { key: "n-place", tone: "tone-5", l: "שיבוצי חניכים", icon: <I.users />, go: goPlacements },
+    { key: "n-students", tone: "tone-2", l: "חניכים", icon: <I.note />, go: () => goStaff("students") },
+    { key: "n-lessons", tone: "tone-1", l: "גיליונות מרצים", icon: <I.book />, go: () => goLessons("sheets") },
+    { key: "n-gantt", tone: "tone-7", l: "גאנט שנתי", icon: <I.cal />, go: goGantt },
+    { key: "n-budget", tone: "tone-6", l: "תקציב המטבח", icon: <I.count />, go: goBudget },
+    { key: "n-faults", tone: "tone-8", l: "תקלות ובעיות", icon: <I.gear />, go: goFaults },
+    { key: "n-safety", tone: "tone-4", l: "בטיחות ותקלות", icon: <I.warn />, go: goSafety },
+    { key: "n-container", tone: "tone-7", l: "ציוד מכולה", icon: <I.box />, go: () => goContainer("מכולה") },
   ];
 
   return (
@@ -498,7 +498,11 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
       {/* ---------- מספרי היום ---------- */}
       <div className="stat-grid">
         {statTiles.map((t) => (
-          <button key={t.key} className={"stat-tile " + t.cls} onClick={t.go}>
+          /* ⚠ הגוון הוא של התחום ולא של המצב. אדום נשמר למספר
+             עצמו כשמשהו דורש טיפול — אילו גם האריח היה מאדים,
+             מסך עם שתי בעיות היה נראה כמו אזעקה. */
+          <button key={t.key} className={`stat-tile ${t.cls} ${t.tone || ""}`} onClick={t.go}>
+            <span className="tile sm">{t.ico}</span>
             <span className="sv num">{t.v}</span>
             <span className="sl">{t.l}</span>
             <span className="ss">{t.s}</span>
@@ -548,7 +552,7 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
       <div className="sec-label">כל המערכת</div>
       <div className="navgrid">
         {navTiles.map((t) => (
-          <button key={t.key} className="nav-tile" onClick={t.go}>
+          <button key={t.key} className={"nav-tile " + (t.tone || "")} onClick={t.go}>
             <span className="nav-ico">{t.icon}</span>
             <b>{t.l}</b>
             {t.key === "n-students" && pendingList.length > 0 && (

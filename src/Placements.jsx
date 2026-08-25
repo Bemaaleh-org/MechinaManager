@@ -21,7 +21,26 @@ const PI = {
   chev: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
   warn: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3 2 20h20L12 3z"/><path d="M12 9v5M12 17.5h.01"/></svg>,
   users: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="9" cy="8" r="3.4"/><path d="M3 20c0-3.3 2.7-5.4 6-5.4s6 2.1 6 5.4"/><path d="M16 5.2a3.4 3.4 0 0 1 0 6.6M18 20c0-2.4-1-4.1-2.6-5"/></svg>,
+  leaf: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>,
+  flag: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M5 22V4M5 4h11l-1.5 4L16 12H5"/></svg>,
+  gavel: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M4 20h10M6 15l6-6M9 4l7 7M12 3.5 15.5 7M8.5 10.5 12 14"/></svg>,
 };
+
+/* ⚠ אייקון לכל קטגוריה. ברשימה ארוכה העין תופסת צורה לפני
+   שהיא קוראת מילה. */
+const CAT_ICON = { "ענף": PI.leaf, "סדרה": PI.flag, "ועדה": PI.gavel, "קבוצה": PI.users };
+
+/* ⚠ הגוון נגזר משם הפריט ולא נשמר בשום מקום: ענף חדש שיתווסף
+   בלוח מקבל צבע מעצמו, בלי דיפלוי ובלי עמודת צבע לתחזק. אותו
+   שם מקבל תמיד אותו צבע — הרשימה לא מתחלפת בכל טעינה.
+
+   ⚠ שמונה גוונים. פחות מזה וענפים שכנים יוצאים זהים, יותר
+     מזה והם מתחילים להידמות זה לזה ממילא. */
+function tone(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return "tone-" + (h % 8 + 1);
+}
 
 function useLoad(fn, deps = []) {
   const [data, setData] = React.useState(null);
@@ -183,39 +202,74 @@ function PlacementDetail({ def }) {
 }
 
 /* ---------- כרטיס שיבוץ אחד ---------- */
-function PlacementCard({ def, assignments, say, onEdit }) {
+function PlacementCard({ def, assignments, say, onEdit, cat }) {
   const sems = semestersFor(def.period);
+  const Ico = CAT_ICON[cat] || PI.users;
+  const mine = assignments.filter((a) => a.placement === def.id);
+  const total = mine.length;
+  const cap = def.capacity;
+  /* ⚠ רק בוועדות התקופה נאמרת. "לאורך כל השנה" הוא ברירת המחדל
+     ואינו מוסיף מידע — הוא רק האריך כל כרטיס בשורה. */
+  const showPeriod = cat === "ועדה";
+
+  const names = (list) => list.length === 0
+    ? "אין משובצים — לחצו לשיבוץ"
+    : list.slice(0, 4).map((a) => a.studentName).join(", ")
+      + (list.length > 4 ? ` ועוד ${list.length - 4}` : "");
+
+  const bar = cap == null ? null : (
+    <div className={"cap-bar" + (total > cap ? " over" : total === cap ? " full" : "")}>
+      <div className="cap-fill" style={{ width: Math.min(100, (total / cap) * 100) + "%" }} />
+    </div>
+  );
+
+  /* ⚠ שיבוץ שנתי הוא כרטיס אחד לחיץ, לא כותרת ומתחתיה שורה
+     שחוזרת על אותו מספר. שני סמסטרים — אז יש מה להפריד, וכל
+     סמסטר מקבל שורה משלו. */
+  if (sems.length === 1) {
+    const over = cap != null && total > cap;
+    return (
+      <button className={`card pl-card one ${tone(def.name)}`}
+        onClick={() => onEdit(def, sems[0], mine)}>
+        <div className="pl-head">
+          <div className="tile">{Ico ? <Ico /> : null}</div>
+          <div className="pl-nm">
+            <b>{def.name}</b>
+            <div className="pl-sub">{names(mine)}</div>
+          </div>
+          <b className={"pl-n" + (over ? " over" : "")}>
+            {total}{cap != null ? `/${cap}` : ""}
+          </b>
+          <PI.chev style={{ color: "var(--line2)", flex: "0 0 auto" }} />
+        </div>
+        {bar}
+      </button>
+    );
+  }
+
   return (
-    <div className="card" style={{ marginBottom: 10 }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-        <b style={{ fontSize: 15.5 }}>{def.name}</b>
-        <span style={{ fontSize: 12, color: "var(--faint)", fontWeight: 700 }}>{def.period}</span>
-        {def.capacity != null && (
-          <span style={{ fontSize: 12, color: "var(--faint)", fontWeight: 700, marginRight: "auto" }}>
-            מכסה {def.capacity}
-          </span>
-        )}
+    <div className={`card pl-card ${tone(def.name)}`}>
+      <div className="pl-head">
+        <div className="tile">{Ico ? <Ico /> : null}</div>
+        <div className="pl-nm">
+          <b>{def.name}</b>
+          {showPeriod && <div className="pl-sub">{def.period}</div>}
+        </div>
+        {cap != null && <span className="pl-cap">{total}/{cap}</span>}
       </div>
+      {bar}
 
       {sems.map((sem) => {
-        const here = assignments.filter((a) => a.placement === def.id && a.semester === sem);
-        const over = def.capacity != null && here.length > def.capacity;
+        const here = mine.filter((a) => a.semester === sem);
+        const over = cap != null && here.length > cap;
         return (
-          <button key={sem} className="st-row" style={{ width: "100%", textAlign: "right" }}
-            onClick={() => onEdit(def, sem, here)}>
-            <div className="st-main">
-              {sems.length > 1 && <div className="st-n" style={{ fontSize: 13.5 }}>{sem}</div>}
-              <div className="st-m">
-                {here.length === 0
-                  ? <span>אין משובצים — לחצו לשיבוץ</span>
-                  : <span>{here.slice(0, 4).map((a) => a.studentName).join(", ")}
-                      {here.length > 4 ? ` ועוד ${here.length - 4}` : ""}</span>}
-              </div>
-            </div>
-            <b className={"num" + (over ? " pill p-low" : "")} style={{ flex: "0 0 auto", fontSize: 15, fontWeight: 800 }}>
-              {here.length}{def.capacity != null ? `/${def.capacity}` : ""}
+          <button key={sem} className="pl-sem" onClick={() => onEdit(def, sem, here)}>
+            <span className="pl-semnm">{sem}</span>
+            <span className="pl-who">{names(here)}</span>
+            <b className={"pl-n" + (over ? " over" : "")}>
+              {here.length}{cap != null ? `/${cap}` : ""}
             </b>
-            <PI.chev style={{ color: "var(--line2)" }} />
+            <PI.chev style={{ color: "var(--line2)", flex: "0 0 auto" }} />
           </button>
         );
       })}
@@ -311,7 +365,7 @@ export function PlacementsPage({ say }) {
               <div className="e2">מוסיפים שורה בלוח ההגדרות ב-monday והיא תופיע כאן.</div></div>
           )}
           {defs.map((d) => (
-            <PlacementCard key={d.id} def={d} assignments={data.assignments || []}
+            <PlacementCard key={d.id} def={d} assignments={data.assignments || []} cat={cat}
               say={say} onEdit={(def, semester, assigned) => setEditing({ def, semester, assigned })} />
           ))}
         </>

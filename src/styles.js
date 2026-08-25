@@ -17,6 +17,30 @@ html,body{margin:0;padding:0;background:#012E58}
   --clay:#9E3626; --clay-soft:#F8E6E2;
   --brand-clay:#906048; --brand-clay-soft:#EFE6DE;
   --ok:#1F6B45; --ok-soft:#E1EFE8;
+
+  /* ---- רדיוסים, צללים ותנועה ----
+     ⚠ הצל בשתי שכבות: קו דק וצמוד שמגדיר את הקצה, ופיזור רחב
+       ורך שמרים את הכרטיס מהרקע. שכבה אחת נותנת או קצה חד או
+       ערפל — לא את שתיהן. */
+  --r-lg:20px; --r-md:14px; --r-sm:10px;
+  --sh-1:0 1px 2px rgba(47,38,22,.05), 0 8px 20px -12px rgba(47,38,22,.18);
+  --sh-2:0 2px 5px rgba(47,38,22,.06), 0 20px 44px -20px rgba(47,38,22,.3);
+  --ease:cubic-bezier(.22,1,.36,1);
+
+  /* ---- פלטת הקטגוריות ----
+     ⚠ שמונה צבעים, כל אחד ברמת מילוי רכה וברמת דיו. ענף, סדרה,
+       ועדה וקבוצה מקבלים כל אחד את שלו, וגם כל פריט בתוכם —
+       נוי אינו רפת. הצבע נגזר מהשם (ראו tone ב-Placements),
+       ולכן ענף חדש שיתווסף בלוח מקבל צבע מעצמו, בלי דיפלוי
+       ובלי עמודת צבע לתחזק. */
+  --t1:#0E7C6B; --t1-s:#DEF2EE;
+  --t2:#3B4C9E; --t2-s:#E4E7F7;
+  --t3:#9A6410; --t3-s:#FAEDD9;
+  --t4:#A83A5B; --t4-s:#F9E3E9;
+  --t5:#6D4796; --t5-s:#ECE4F6;
+  --t6:#16639E; --t6-s:#DEEAF6;
+  --t7:#5B7A2E; --t7-s:#EAF1DB;
+  --t8:#A84B32; --t8-s:#FAE5DF;
   font-family:'Heebo',system-ui,-apple-system,'Segoe UI',Arial,sans-serif;
   direction:rtl; background:var(--bg); color:var(--ink);
   min-height:100vh; padding-bottom:28px; font-size:16px; line-height:1.45;
@@ -834,4 +858,194 @@ html,body{margin:0;padding:0;background:#012E58}
   background:var(--bg);border-radius:9px;padding:7px 9px;margin:2px 0 8px}
 .rq-skip{font-size:11px;font-weight:700;color:var(--amber);line-height:1.5;
   background:var(--amber-soft);border-radius:9px;padding:7px 9px;margin-top:10px}
+
+/* ============================================================
+   שכבת ההרמה
+   ------------------------------------------------------------
+   ⚠ יושבת בסוף בכוונה: היא דורסת כללים שמעליה בלי לגעת בהם,
+     וכך אפשר להסיר אותה בבלוק אחד אם משהו נשבר.
+
+   העיקרון: אותה זהות חמה — קרם, נייבי, חימר — אבל עם עומק
+   במקום קווים. עד היום כל משטח הוגדר על ידי מסגרת 1px; מסגרת
+   מפרידה, צל מרים. מה שהוחלף:
+
+     מסגרת קשה  →  צל דו-שכבתי + מסגרת כמעט שקופה
+     רדיוס 16   →  20 לכרטיס, 14 לאלמנט פנימי
+     בלי מעבר   →  120ms על ease-out לכל דבר לחיץ
+
+   ⚠ המסגרת לא הוסרה לגמרי אלא הוחלשה. בלעדיה משטח לבן על רקע
+     קרם בהיר מאבד את הקצה במסכים חיוורים ובאור שמש.
+   ============================================================ */
+
+.kx .card{border-radius:var(--r-lg);border:1px solid rgba(211,201,182,.5);
+  box-shadow:var(--sh-1);padding:16px 17px}
+
+/* ---- אריח האייקון ----
+   ⚠ הלב של השדרוג. ריבוע מעוגל בגוון הקטגוריה עם האייקון בדיו
+     שלה — מה שהופך רשימה של שמות לרשימה שאפשר לסרוק בעין. */
+.tile{width:46px;height:46px;border-radius:var(--r-md);display:grid;place-items:center;
+  flex:0 0 auto;font-size:21px;line-height:1;font-weight:800;
+  background:var(--t-s,var(--accent-soft));color:var(--t,var(--accent));
+  transition:transform .12s var(--ease)}
+.tile.sm{width:38px;height:38px;border-radius:11px;font-size:17px}
+.tile.lg{width:54px;height:54px;border-radius:16px;font-size:25px}
+.tile svg{width:22px;height:22px}
+.tile.sm svg{width:18px;height:18px}
+
+/* גוונים. ⚠ --t ו---t-s נקבעים על ההורה, כדי שגם הכותרת,
+   הפס והתגית באותו כרטיס יירשו את אותו צבע. */
+.tone-1{--t:var(--t1);--t-s:var(--t1-s)}
+.tone-2{--t:var(--t2);--t-s:var(--t2-s)}
+.tone-3{--t:var(--t3);--t-s:var(--t3-s)}
+.tone-4{--t:var(--t4);--t-s:var(--t4-s)}
+.tone-5{--t:var(--t5);--t-s:var(--t5-s)}
+.tone-6{--t:var(--t6);--t-s:var(--t6-s)}
+.tone-7{--t:var(--t7);--t-s:var(--t7-s)}
+.tone-8{--t:var(--t8);--t-s:var(--t8-s)}
+
+/* ---- כרטיס שיבוץ ----
+   ⚠ פס הגוון בקצה הימני הוא מה שנותן לרשימה את התחושה החיה:
+     בסריקה מהירה רואים ענפים לעומת ועדות בלי לקרוא מילה. */
+.kx .pl-card{position:relative;overflow:hidden;padding:0;
+  transition:transform .12s var(--ease),box-shadow .12s var(--ease)}
+.kx .pl-card::before{content:"";position:absolute;top:0;bottom:0;right:0;width:4px;
+  background:var(--t,var(--accent))}
+.kx .pl-card{margin-bottom:11px}
+/* ⚠ הכרטיס השנתי הוא כפתור שלם. text-align מפורש כי .kx button
+   יורש מרכוז מהדפדפן וזה הופך את השם למרוכז. */
+.kx button.pl-card{width:100%;text-align:right;display:block}
+.kx button.pl-card:active{transform:translateY(1px);box-shadow:var(--sh-1)}
+.pl-head{display:flex;align-items:center;gap:12px;padding:14px 17px 12px}
+.pl-card.one .pl-head{padding-bottom:11px}
+/* בכרטיס השנתי המד הוא הקצה התחתון — בלי מרווח מתחתיו */
+.pl-card.one .cap-bar{margin-bottom:0;border-radius:0;height:4px}
+.pl-nm{flex:1;min-width:0}
+.pl-nm b{display:block;font-size:16px;font-weight:800;letter-spacing:-.3px;line-height:1.25}
+.pl-sub{font-size:11.5px;font-weight:700;color:var(--muted);margin-top:2px}
+.pl-cap{font-size:11px;font-weight:800;color:var(--t,var(--accent));background:var(--t-s,var(--accent-soft));
+  padding:4px 9px;border-radius:999px;white-space:nowrap;flex:0 0 auto}
+
+/* מד תפוסה: כמה מהמכסה מלאה. ⚠ עדיף פס על מספר — "4/6" דורש
+   חישוב, פס נקרא במבט. */
+.cap-bar{height:5px;background:var(--line);border-radius:99px;overflow:hidden;margin:0 17px 12px}
+.cap-fill{height:100%;border-radius:99px;background:var(--t,var(--accent));
+  transition:width .4s var(--ease)}
+.cap-bar.full .cap-fill{background:var(--ok)}
+.cap-bar.over .cap-fill{background:var(--clay)}
+
+.pl-sem{width:100%;text-align:right;display:flex;align-items:center;gap:11px;
+  padding:11px 17px;border-top:1px solid rgba(211,201,182,.45);
+  transition:background .12s var(--ease)}
+.pl-sem:active{background:var(--t-s,#F7F3EA)}
+.pl-sem .pl-who{flex:1;min-width:0;font-size:12.5px;font-weight:600;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl-sem .pl-n{font-size:15px;font-weight:900;letter-spacing:-.5px;flex:0 0 auto;
+  font-variant-numeric:tabular-nums;color:var(--t,var(--accent))}
+.pl-sem .pl-n.over{color:var(--clay)}
+.pl-semnm{font-size:12.5px;font-weight:800;flex:0 0 auto}
+
+/* ---- כותרת מקטע עם תווית מעל ----
+   השאלה מ-busly: תווית קטנה בצבע מעל הכותרת. היא נותנת
+   היררכיה בלי להגדיל עוד גופן. */
+.eyebrow{font-size:10.5px;font-weight:900;letter-spacing:1.2px;color:var(--t,var(--accent));
+  margin:20px 2px 5px;text-transform:uppercase}
+.eyebrow + .screen-title{margin-top:0}
+
+/* ---- הרמות ומעברים ---- */
+.kx .stat-tile{border-radius:var(--r-lg);border:1px solid rgba(211,201,182,.5);
+  box-shadow:var(--sh-1);transition:transform .12s var(--ease),box-shadow .12s var(--ease)}
+.kx .stat-tile:active{transform:translateY(1px) scale(.985);box-shadow:var(--sh-1)}
+.kx .dash-card,.kx .attn-row{border-radius:var(--r-lg);border:1px solid rgba(211,201,182,.5);
+  box-shadow:var(--sh-1);transition:transform .12s var(--ease),background .12s var(--ease)}
+.kx .dash-card:active,.kx .attn-row:active{transform:translateY(1px)}
+.dash-ico{border-radius:var(--r-md)}
+
+/* ---- הבורר ---- */
+.seg{background:rgba(211,201,182,.34);border-radius:var(--r-md);padding:4px}
+.seg button{border-radius:11px;transition:color .12s var(--ease),background .12s var(--ease),
+  box-shadow .12s var(--ease)}
+.seg button.on{box-shadow:0 1px 2px rgba(47,38,22,.06),0 4px 12px -6px rgba(47,38,22,.28)}
+
+/* ---- כפתורים ----
+   ⚠ הראשי מקבל שיפוע עדין ולא צבע שטוח. שני גוונים של אותו
+     נייבי — מספיק כדי שייראה מואר, לא מספיק כדי לצעוק. */
+.kx .btn{border-radius:var(--r-md);transition:transform .12s var(--ease),
+  box-shadow .12s var(--ease),opacity .12s var(--ease)}
+.kx .btn-primary{background:linear-gradient(135deg,#012E58 0%,#0A4478 100%);
+  box-shadow:0 2px 4px rgba(0,36,84,.16),0 10px 24px -12px rgba(0,36,84,.6)}
+.kx .btn-primary:active{transform:translateY(1px);
+  box-shadow:0 1px 2px rgba(0,36,84,.2)}
+.kx .btn-sm{border-radius:11px}
+
+/* ---- תגיות ---- */
+.pill{border-radius:999px;padding:3px 9px;letter-spacing:.2px}
+
+/* ---- שדות ---- */
+.kx .fld input,.kx .fld select,.kx .fld textarea,.kx .search{
+  border-radius:var(--r-md);transition:border-color .12s var(--ease),box-shadow .12s var(--ease)}
+.kx .fld input:focus,.kx .fld select:focus,.kx .fld textarea:focus,.kx .search:focus{
+  border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+
+/* ---- מסך הבית ----
+   ⚠ האייקון יושב מעל המספר ולא לצידו: המספר הוא העיקר באריח
+     הזה, ואייקון בשורה אחת איתו היה גוזל ממנו רוחב. */
+.stat-tile .tile{margin-bottom:9px}
+.kx .stat-tile{padding:14px 15px 13px}
+.stat-tile .sv{color:var(--t,var(--accent))}
+/* ⚠ מצב שדורש טיפול גובר על גוון התחום — לשם הוא נועד. */
+.kx .stat-tile.warn .sv{color:var(--clay)}
+.kx .stat-tile.good .sv{color:var(--ok)}
+
+.kx .nav-tile{border-radius:var(--r-lg);border:1px solid rgba(211,201,182,.5);
+  box-shadow:var(--sh-1);transition:transform .12s var(--ease),box-shadow .12s var(--ease)}
+.kx .nav-tile:active{transform:translateY(1px) scale(.99)}
+.nav-ico{border-radius:11px;background:var(--t-s,var(--accent-soft));color:var(--t,var(--accent))}
+
+/* ---- המשטחים שחוזרים בכל מסך ----
+   ⚠ אלה נעשים ביחד ולא מסך-מסך: כרטיס עם צל במסך אחד וכרטיס
+     עם מסגרת במסך שכן נראה כמו תקלה, לא כמו עיצוב. */
+.kx .ledger,.kx .rows,.kx .rq,.kx .alert,.kx .grp{
+  border-radius:var(--r-lg);border:1px solid rgba(211,201,182,.5);box-shadow:var(--sh-1)}
+.kx .rq{padding:15px 17px}
+
+/* תווית מקטע — קטנה, מרווחת ובצבע.
+   ⚠ ההשראה מ-busly: תווית זעירה מעל הכותרת נותנת היררכיה בלי
+     להגדיל עוד גופן ובלי להוסיף עוד שורה גדולה למסך. */
+.sec-label{font-size:10.5px;font-weight:900;letter-spacing:1.3px;color:var(--accent);
+  opacity:.62;margin:24px 3px 10px}
+
+/* כותרת המסך: קו גוון קצר מתחתיה במקום כלום.
+   ⚠ ::after ולא border-bottom — קו על כל הרוחב היה מחלק את
+     המסך לשניים; קו קצר רק מדגיש את הכותרת. */
+.screen-title{position:relative;padding-bottom:9px;margin-bottom:15px}
+.screen-title::after{content:"";position:absolute;bottom:0;right:2px;width:34px;height:3px;
+  border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--t,#0A4478))}
+
+/* הסרגל העליון — צל רך במקום קצה חד */
+.top{box-shadow:0 2px 18px -6px rgba(0,20,50,.45)}
+
+/* שורות ברשימות — מעבר רך במקום קפיצה */
+.st-row{transition:background .12s var(--ease)}
+.tick{transition:all .12s var(--ease)}
+
+/* ---- כניסה מדורגת, במסך הבית בלבד ----
+   ⚠ רק על שתי הרשתות של מסך הבית ולא על כל כרטיס באפליקציה.
+     רשימה של שלושים ימי תקציב שנכנסת בהנפשה נראית איטית, לא
+     חיה — וזה גם המסך שמשתמשים בו הכי הרבה במהלך היום. מסך
+     הבית נפתח פעם בכניסה, ושם זה שווה.
+
+   ⚠ both כדי שהמצב ההתחלתי יחול לפני ההשהיה — בלעדיו האריחים
+     מהבהבים בגודל מלא לרגע ואז קופצים. */
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.stat-grid>*,.navgrid>*{animation:rise .34s var(--ease) both}
+.stat-grid>*:nth-child(2),.navgrid>*:nth-child(2){animation-delay:.03s}
+.stat-grid>*:nth-child(3),.navgrid>*:nth-child(3){animation-delay:.06s}
+.stat-grid>*:nth-child(4),.navgrid>*:nth-child(4){animation-delay:.09s}
+.stat-grid>*:nth-child(5),.navgrid>*:nth-child(5){animation-delay:.12s}
+.stat-grid>*:nth-child(n+6),.navgrid>*:nth-child(n+6){animation-delay:.15s}
+
+/* ⚠ מי שביקש פחות תנועה מקבל פחות תנועה. */
+@media (prefers-reduced-motion:reduce){
+  .kx *{transition-duration:.01ms !important;animation-duration:.01ms !important}
+}
 `;
