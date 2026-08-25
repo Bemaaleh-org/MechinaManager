@@ -83,6 +83,28 @@ async function list(req, res, session) {
       requests: filtered.map((r) => {
         const guide = guides.get(r.studentId) || null;
         const stage = requestStage(r, Boolean(guide));
+
+        /* ⚠ לחניך יוצאת תשובה אחת: ממתין, מאושר או נדחה. השלבים
+           הפנימיים — מי המדריך שלו, מה הוא המליץ, האם הבקשה
+           כבר עברה הלאה — הם עניין של הצוות. חניך שיראה
+           "המדריך המליץ לדחות" יתחיל לנהל משא ומתן על שלב
+           שאינו סופי, ובקשה שנדחתה בסוף תיראה כאילו נדחתה
+           פעמיים. מיפוי מפורש ונפרד, לא השמטה — כדי ששדה חדש
+           לא ידלוף לכאן מעצמו. */
+        if (!session.isManager) {
+          return {
+            id: r.id,
+            type: r.type,
+            date: r.date,
+            endDate: r.endDate,
+            hasFile: r.hasFile,
+            detail: r.detail || null,
+            status: r.status,
+            decidedBy: r.decidedBy,
+            decidedAt: r.decidedAt,
+          };
+        }
+
         return {
           id: r.id,
           type: r.type,
@@ -93,23 +115,26 @@ async function list(req, res, session) {
           status: r.status,
           decidedBy: r.decidedBy,
           decidedAt: r.decidedAt,
-          /* ---- שני השלבים ----
-             ⚠ השלב נגזר, לא נשמר. ראו requestStage. */
+          /* ---- שני השלבים. ⚠ השלב נגזר, לא נשמר. ---- */
           stage,
           guideName: guide ? guide.short : null,
           groupName: guide ? guide.group : null,
           guideDecision: r.guideDecision,
           guideBy: r.guideBy,
           guideAt: r.guideAt,
-          /* האם *המשתמש הזה* יכול להכריע עכשיו. תצוגה בלבד —
-             ההרשאה נאכפת שוב ב-decide. */
-          canDecide:
-            (stage === REQ_STAGE.guide && isGuideOf(session, guide)) ||
-            (stage === REQ_STAGE.head && Boolean(session.isHead)),
-          // שם החניך נחוץ רק למנהל; לחניך זה תמיד הוא עצמו
-          student: session.isManager
-            ? (byId.get(r.studentId) ? toPublic(byId.get(r.studentId)) : { id: r.studentId, name: "—" })
-            : undefined,
+          /* ⚠ ראש המכינה מכריע בכל שלב — ראו _request-decide.
+             תצוגה בלבד; ההרשאה נאכפת שוב שם. */
+          canDecide: stage !== REQ_STAGE.done &&
+            (Boolean(session.isHead) ||
+             (stage === REQ_STAGE.guide && isGuideOf(session, guide))),
+          /* ⚠ באיזה כובע המשתמש הזה מחליט כאן. ראש מכינה מכריע
+             תמיד, גם בשלב המדריך — ולכן אצלו הכפתור אומר
+             "אישור" ולא "ממליץ לאשר". */
+          decideAs: session.isHead ? "head"
+            : (stage === REQ_STAGE.guide && isGuideOf(session, guide)) ? "guide" : null,
+          student: byId.get(r.studentId)
+            ? toPublic(byId.get(r.studentId))
+            : { id: r.studentId, name: "—" },
         };
       }),
       count: filtered.length,
@@ -117,8 +142,9 @@ async function list(req, res, session) {
       mine: mine.filter((r) => {
         const g = guides.get(r.studentId) || null;
         const st = requestStage(r, Boolean(g));
-        return (st === REQ_STAGE.guide && isGuideOf(session, g)) ||
-               (st === REQ_STAGE.head && Boolean(session.isHead));
+        return st !== REQ_STAGE.done &&
+          (Boolean(session.isHead) ||
+           (st === REQ_STAGE.guide && isGuideOf(session, g)));
       }).length,
       pending: mine.filter((r) => r.status === REQ_STATUS.pending).length,
     });

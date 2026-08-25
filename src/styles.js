@@ -801,25 +801,28 @@ html,body{margin:0;padding:0;background:#012E58}
 .bg-fixed{font-size:11px;color:var(--muted);font-weight:600;line-height:1.55;
   background:var(--bg);border-radius:9px;padding:7px 9px;margin-top:7px}
 
-/* ---- מסלול בקשת יציאה: מדריך → ראש מכינה ---- */
-.rq-track{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;
-  padding-top:10px;border-top:1px solid var(--line)}
-.trk{display:flex;align-items:flex-start;gap:7px;position:relative}
-.trk>div{display:flex;flex-direction:column;min-width:0}
-.trk b{font-size:12px;font-weight:800;line-height:1.35;
+/* ---- מסלול בקשת יציאה: מדריך → ראש מכינה ----
+   ⚠ שתי שורות לכל תחנה: פס עם הנקודה, ומתחתיו הטקסט. הקו
+     המחבר נמתח בתוך הפס בלבד ולכן אינו יכול לחצות שם. */
+.rq-track{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:11px;
+  padding-top:11px;border-top:1px solid var(--line)}
+.trk{min-width:0}
+.trk-rail{position:relative;height:9px;margin-bottom:7px}
+.trk-dot{position:absolute;right:0;top:0;width:9px;height:9px;border-radius:50%;
+  background:var(--line2)}
+/* מימין לשמאל: הקו יוצא משמאל לנקודה הראשונה וחוצה את המרווח */
+.trk:first-child .trk-rail::after{content:"";position:absolute;top:3px;
+  right:15px;left:-12px;height:2px;background:var(--line);border-radius:2px}
+.trk b{display:block;font-size:12.5px;font-weight:800;line-height:1.35;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.trk span:not(.trk-dot){font-size:10.5px;font-weight:700;color:var(--faint);line-height:1.4}
-.trk-dot{width:9px;height:9px;border-radius:50%;flex:0 0 9px;margin-top:3px;
-  background:var(--line);box-shadow:0 0 0 3px var(--bg)}
-/* ⚠ הקו מחבר את שתי התחנות. נמתח מהנקודה הראשונה שמאלה, כי
-   הכיוון עברי — התחנה הראשונה מימין. */
-.trk:first-child::after{content:"";position:absolute;top:7px;left:-8px;
-  width:calc(100% - 9px);height:2px;background:var(--line)}
-.trk-now .trk-dot{background:var(--accent)}
+.trk-note{display:block;font-size:10.5px;font-weight:700;color:var(--faint);
+  line-height:1.45;margin-top:1px}
+.trk-now .trk-dot{background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 .trk-now b{color:var(--accent)}
 .trk-ok .trk-dot{background:var(--ok)}
 .trk-no .trk-dot{background:var(--clay)}
-.trk-skip .trk-dot{background:transparent;border:2px dashed var(--line);
-  width:9px;height:9px;box-sizing:border-box}
+.trk-skip .trk-dot{background:transparent;border:2px dashed var(--line2);box-sizing:border-box}
 .trk-skip b,.trk-wait b{color:var(--faint);font-weight:700}
+.rq-skip{font-size:11px;font-weight:700;color:var(--amber);line-height:1.5;
+  background:var(--amber-soft);border-radius:9px;padding:7px 9px;margin-top:10px}
 `;

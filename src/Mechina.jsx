@@ -429,11 +429,11 @@ function RequestTrack({ r }) {
     <div className="rq-track">
       {[first, second].map((st, i) => (
         <div className={"trk trk-" + st.state} key={i}>
-          <span className="trk-dot" />
-          <div>
-            <b>{st.title}</b>
-            <span>{st.note}</span>
-          </div>
+          {/* ⚠ הנקודה והקו המחבר חיים בשורה משלהם, מעל הטקסט.
+              כשהקו עבר באותו גובה כמו השם הוא חצה אותו. */}
+          <div className="trk-rail"><span className="trk-dot" /></div>
+          <b>{st.title}</b>
+          <span className="trk-note">{st.note}</span>
         </div>
       ))}
     </div>
@@ -444,7 +444,10 @@ function RequestCard({ r, onDecide, busyId }) {
   const busy = busyId === r.id;
   /* ⚠ המדריך ממליץ, ראש המכינה מכריע. אותם כפתורים, טקסט אחר —
      כדי שהמדריך לא יחשוב שסגר את הבקשה. */
-  const isRec = r.stage === "אצל המדריך";
+  const isRec = r.decideAs === "guide";
+  /* ראש המכינה שמכריע לפני שהמדריך המליץ — עוקף אותו, וכדאי
+     שיֵדע. הודעה ולא חסימה: זו סמכותו. */
+  const skipping = r.decideAs === "head" && r.stage === "אצל המדריך";
   return (
     <div className="rq">
       <div className="rq-top">
@@ -461,6 +464,11 @@ function RequestCard({ r, onDecide, busyId }) {
       </div>
       {r.detail && <div className="rq-detail">{r.detail}</div>}
       {r.stage && <RequestTrack r={r} />}
+      {onDecide && r.canDecide && skipping && (
+        <div className="rq-skip">
+          הבקשה עדיין אצל {r.guideName} — החלטה שלך תסגור אותה בלי להמתין להמלצה
+        </div>
+      )}
       {onDecide && r.canDecide && (
         <div className="rq-act">
           <button className="ok" disabled={busy} onClick={() => onDecide(r.id, "approve")}>
