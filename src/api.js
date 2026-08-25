@@ -307,6 +307,8 @@ export const api = {
     post("/api/lessons?action=evals", { name, topic, field, phone, opinion, cycle, meetingId }),
 
   /** עריכת חוות דעת — בעיקר ההערה על שורה שנפתחה אוטומטית */
-  editLessonEval: ({ evalId, name, topic, field, phone, opinion }) =>
-    put("/api/lessons?action=evals", { evalId, name, topic, field, phone, opinion }),
+  /** ⚠ manualScore: מספר 1–10, או null לניקוי. השמטה = בלי שינוי. */
+  editLessonEval: ({ evalId, name, topic, field, phone, opinion, manualScore }) =>
+    put("/api/lessons?action=evals",
+      { evalId, name, topic, field, phone, opinion, manualScore }),
 };

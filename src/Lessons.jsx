@@ -738,12 +738,15 @@ function Evals({ say }) {
               file: "חוות-דעת" + (cycle ? "-" + cycle.replace(" ", "-") : ""),
               sheet: "חוות דעת",
               title: "חוות דעת על מרצים — " + (cycle || "כל המחזורים"),
-              header: ["מרצה", "תחום", "נושא", "מחזור", "טלפון", "דירוג", "מדרגים", "חוות דעת", "נכתב על ידי"],
+              header: ["מרצה", "תחום", "נושא", "מחזור", "טלפון", "דירוג", "מקור הדירוג",
+                       "מדרגים", "חוות דעת", "נכתב על ידי"],
               rows: list.map((e) => [
                 e.name, e.field || "", e.topic || "", e.cycle || "", e.phone || "",
-                e.avg != null ? e.avg : "", e.votes || "", e.opinion || "", e.by || "",
+                e.score != null ? e.score : "",
+                e.source === "students" ? "חניכים" : e.source === "manual" ? "ידני" : "",
+                e.votes || "", e.opinion || "", e.by || "",
               ]),
-              widths: [18, 14, 22, 11, 13, 8, 8, 50, 14],
+              widths: [18, 14, 22, 11, 13, 8, 12, 8, 50, 14],
             });
             say("הקובץ ירד");
           }}><LI.dl />הורדה לאקסל ({list.length})</button>
@@ -771,16 +774,41 @@ function Evals({ say }) {
 /* ---------- כרטיס חוות דעת ----------
    ⚠ שורה שנפתחה אוטומטית מגיעה בלי טקסט ועם דירוג בלבד. העריכה
      כאן היא הדרך להשלים אותה — וגם לתקן שם מרצה שנרשם מאוחר. */
+/* ⚠ מאיפה הגיע המספר. ממוצע של חניכים וציון שמדריך זכר נראים
+   אחרת בכוונה — אחרת אי אפשר לדעת על מה מסתכלים. */
+function Score({ e }) {
+  if (e.source === "students") {
+    return <span className="pill pp-ok num" title={`${e.votes} מדרגים`}>★ {e.score}</span>;
+  }
+  if (e.source === "manual") {
+    return <span className="pill p-manual num" title="דירוג שהוזן ידנית">{e.score}</span>;
+  }
+  return null;
+}
+
 function EvalCard({ e, say, onSaved }) {
   const [edit, setEdit] = useState(false);
-  const [f, setF] = useState({ name: e.name, opinion: e.opinion || "" });
+  const [f, setF] = useState({
+    name: e.name, opinion: e.opinion || "",
+    manual: e.manual == null ? "" : String(e.manual),
+  });
   const [busy, setBusy] = useState(false);
   const auto = Boolean(e.meetingId);
+  /* הצבעות חניכים גוברות. הציון הידני עדיין ניתן לעריכה, אבל
+     המסך אומר במפורש שהוא אינו מה שמוצג. */
+  const byStudents = e.source === "students";
 
   const save = () => {
     if (busy || !f.name.trim()) return;
+    const raw = f.manual.trim();
+    if (raw && !(Number(raw) >= 1 && Number(raw) <= 10)) {
+      say("דירוג חייב להיות בין 1 ל-10"); return;
+    }
     setBusy(true);
-    api.editLessonEval({ evalId: e.id, name: f.name.trim(), opinion: f.opinion.trim() })
+    api.editLessonEval({
+      evalId: e.id, name: f.name.trim(), opinion: f.opinion.trim(),
+      manualScore: raw === "" ? null : Number(raw),
+    })
       .then(() => { say("נשמר"); setEdit(false); onSaved(); })
       .catch((err) => say(err.message))
       .finally(() => setBusy(false));
@@ -791,9 +819,7 @@ function EvalCard({ e, say, onSaved }) {
       <div className="rq-top">
         <div className="rq-name">{e.name}</div>
         <span style={{ display: "flex", gap: 5 }}>
-          {e.avg != null && (
-            <span className="pill pp-ok num" title={`${e.votes} מדרגים`}>★ {e.avg}</span>
-          )}
+          <Score e={e} />
           {e.field && <span className="pill p-new">{e.field}</span>}
         </span>
       </div>
@@ -801,11 +827,25 @@ function EvalCard({ e, say, onSaved }) {
 
       {edit ? (
         <div style={{ marginTop: 9 }}>
-          <div className="fld">
-            <label>שם המרצה</label>
-            <input value={f.name} disabled={busy}
-              onChange={(ev) => setF({ ...f, name: ev.target.value })} />
+          <div className="two">
+            <div className="fld">
+              <label>שם המרצה</label>
+              <input value={f.name} disabled={busy}
+                onChange={(ev) => setF({ ...f, name: ev.target.value })} />
+            </div>
+            <div className="fld">
+              <label>דירוג 1–10</label>
+              <input value={f.manual} disabled={busy} inputMode="decimal"
+                placeholder="ריק = בלי דירוג"
+                onChange={(ev) => setF({ ...f, manual: ev.target.value })} />
+            </div>
           </div>
+          {byStudents && (
+            <div className="ev-note">
+              למרצה הזה יש {e.votes} דירוגי חניכים ({e.score}) — הם מה שמוצג.
+              הדירוג הידני נשמר לצידם ואינו מחליף אותם.
+            </div>
+          )}
           <textarea value={f.opinion} disabled={busy} rows={4}
             placeholder="חוות הדעת על המרצה"
             style={{ width: "100%", background: "var(--surface)", border: "1px solid var(--line2)",
@@ -817,7 +857,11 @@ function EvalCard({ e, say, onSaved }) {
               {busy ? "שומר…" : "שמירה"}
             </button>
             <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} disabled={busy}
-              onClick={() => { setF({ name: e.name, opinion: e.opinion || "" }); setEdit(false); }}>
+              onClick={() => {
+                setF({ name: e.name, opinion: e.opinion || "",
+                       manual: e.manual == null ? "" : String(e.manual) });
+                setEdit(false);
+              }}>
               ביטול
             </button>
           </div>
@@ -834,7 +878,7 @@ function EvalCard({ e, say, onSaved }) {
               )}
           <button className="btn btn-ghost btn-sm" style={{ marginTop: 8, width: "100%" }}
             onClick={() => setEdit(true)}>
-            {e.opinion ? "עריכה" : "הוספת הערה"}
+            {e.opinion ? "עריכה" : e.source ? "הוספת הערה" : "הוספת הערה ודירוג"}
           </button>
         </>
       )}
@@ -844,6 +888,8 @@ function EvalCard({ e, say, onSaved }) {
         {e.phone && <span>· {e.phone}</span>}
         {e.by && <span>· {e.by}</span>}
         {e.votes > 0 && <span>· {e.votes} מדרגים</span>}
+        {/* ⚠ מוצג גם כשההצבעות גוברות — כדי שלא ייעלם בשקט */}
+        {e.manual != null && <span>· דירוג ידני {e.manual}</span>}
       </div>
     </div>
   );

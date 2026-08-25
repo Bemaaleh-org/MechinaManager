@@ -7,6 +7,16 @@
 
    ⚠ צוות או אחראי לו״ז. חוות דעת נושאות שמות של מרצים חיצוניים
      ומספרי טלפון שלהם, ואין סיבה שיגיעו לחניך שאינו אחראי הלו״ז.
+
+   ⚠ לדירוג יש שני מקורות, והם לעולם לא מתערבבים:
+
+       students  ממוצע חי של הצבעות החניכים למפגש
+       manual    ציון שאיש צוות הזין ביד
+
+     הצבעות גוברות תמיד. חוות דעת עם שניהם מציגה את החניכים,
+     והציון הידני נשאר לצידו ומסומן ככזה — לא נמחק ולא מנצח.
+     הסיבה פשוטה: ברגע שהחניכים דיברו, ההערכה של אדם אחד אינה
+     מחליפה אותם, אבל גם אין סיבה למחוק מה שמישהו זכר.
    ============================================================ */
 
 import { withAuth, actorName } from "./_session.js";
@@ -36,9 +46,18 @@ async function list(req, res) {
     /* ⚠ הדירוג הממוצע מחושב חי מלוח הדירוגים, לא מהשדה השמור —
        חניך שמדרג אחרי שחוות הדעת נכתבה עדיין נספר. */
     const withRating = shown.map((e) => {
-      if (!e.meetingId) return e;
-      const r = ratingFor(e.meetingId, ratings);
-      return r ? { ...e, avg: r.avg, votes: r.votes } : e;
+      const live = e.meetingId ? ratingFor(e.meetingId, ratings) : null;
+      const students = live || (e.votes ? { avg: e.avg, votes: e.votes } : null);
+      return {
+        ...e,
+        avg: students ? students.avg : null,
+        votes: students ? students.votes : null,
+        /* ⚠ score הוא המספר להצגה, ו-source אומר מאיפה הוא בא.
+           מסך שיציג score בלי source יטשטש בדיוק את ההבחנה
+           שבגללה יש כאן שתי עמודות. */
+        score: students ? students.avg : e.manual,
+        source: students ? "students" : e.manual != null ? "manual" : null,
+      };
     });
 
     res.status(200).json({
@@ -117,6 +136,22 @@ async function edit(req, res, session) {
     if (body.topic !== undefined) cols[E.topic] = String(body.topic).slice(0, 200);
     if (body.phone !== undefined) cols[E.phone] = String(body.phone).slice(0, 40);
     if (body.field !== undefined && body.field) cols[E.field] = { label: String(body.field) };
+
+    /* ---------- דירוג ידני ----------
+       ⚠ null מנקה. הסולם זהה לזה של החניכים (1–10) כדי ששני
+         המספרים יהיו ברי-השוואה; ספרה אחת אחרי הנקודה, כמו
+         שהממוצע מוצג ממילא. */
+    if (body.manualScore !== undefined) {
+      if (body.manualScore === null || body.manualScore === "") {
+        cols[E.manual] = "";
+      } else {
+        const n = Number(body.manualScore);
+        if (!Number.isFinite(n) || n < 1 || n > 10) {
+          return res.status(400).json({ error: "דירוג חייב להיות בין 1 ל-10" });
+        }
+        cols[E.manual] = String(Math.round(n * 10) / 10);
+      }
+    }
 
     /* ⚠ נרשם מי נגע אחרון — חוות דעת היא טקסט שאדם כתב, ולא
        נתון אנונימי כמו סימון משימה. */

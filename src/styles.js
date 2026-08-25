@@ -823,6 +823,12 @@ html,body{margin:0;padding:0;background:#012E58}
 .trk-no .trk-dot{background:var(--clay)}
 .trk-skip .trk-dot{background:transparent;border:2px dashed var(--line2);box-sizing:border-box}
 .trk-skip b,.trk-wait b{color:var(--faint);font-weight:700}
+/* ⚠ דירוג ידני נראה אחרת מדירוג חניכים — מסגרת ולא מילוי,
+   ובלי הכוכב. אותו מספר משני מקורות אינו אותו דבר. */
+.pill.p-manual{background:transparent;color:var(--muted);
+  border:1px dashed var(--line2);font-weight:800}
+.ev-note{font-size:11px;font-weight:700;color:var(--muted);line-height:1.55;
+  background:var(--bg);border-radius:9px;padding:7px 9px;margin:2px 0 8px}
 .rq-skip{font-size:11px;font-weight:700;color:var(--amber);line-height:1.5;
   background:var(--amber-soft);border-radius:9px;padding:7px 9px;margin-top:10px}
 `;

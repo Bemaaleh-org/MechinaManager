@@ -125,6 +125,7 @@ export async function loadEvals({ force = false } = {}) {
         meetingId: val(i, E.meetingId) || null,
         avg: Number(val(i, E.avg)) || null,
         votes: Number(val(i, E.votes)) || null,
+        manual: Number(val(i, E.manual)) || null,
       }))
       .sort((a, b) => a.name.localeCompare(b.name, "he"));
   }, { force });
