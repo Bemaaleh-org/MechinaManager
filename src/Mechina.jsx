@@ -21,6 +21,7 @@ import { FaultsPage } from "./Faults.jsx";
 import { ContainerPage } from "./Container.jsx";
 import { FaultReportPage } from "./Faults.jsx";
 import { BudgetPage } from "./Budget.jsx";
+import { GanttPage } from "./Gantt.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
 import { useExcel, downloadTable } from "./excel.js";
 
@@ -1802,6 +1803,7 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
   const [faults, setFaults] = useState(null);
   const [ratable, setRatable] = useState(null);
   const [places, setPlaces] = useState(null);
+  const [gantt, setGantt] = useState(null);
 
   useEffect(() => {
     let live = true;
@@ -1818,6 +1820,9 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
       .catch(() => {});
     api.getRatable()
       .then((r) => { if (live) setRatable((r.meetings || []).filter((m) => !m.rated).length); })
+      .catch(() => {});
+    api.getGantt()
+      .then((r) => { if (live) setGantt(r.events || []); })
       .catch(() => {});
     return () => { live = false; };
   }, []);
@@ -1864,6 +1869,11 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
   /* ---------- השיבוצים ----------
      ⚠ הענף פותח את המסך ולא מספרי הנוכחות: זה מה שהחניך צריך
        לדעת בבוקר. הנוכחות, החופש והבקשות יורדים למטה. */
+  const todayIso = testDate() || new Date().toISOString().slice(0, 10);
+  const upcoming = (gantt || [])
+    .filter((e) => e.end >= todayIso && e.type !== "שבת")
+    .slice(0, 5);
+
   const tiles = [
     { key: "vac", go: () => go("year"), cls: quotaLeft === 0 ? "warn" : "good",
       v: quotaLeft == null ? "…" : quotaLeft, l: "ימי חופש שנותרו",
@@ -1884,6 +1894,7 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
     { key: "n-req", l: "בקשות יציאה", icon: <MI.note />, go: () => go("requests"), badge: unseen },
     { key: "n-prof", l: "הפרופיל שלי", icon: <MI.users />, go: () => go("profile") },
     { key: "n-place", l: "השיבוצים שלי", icon: <MI.users />, go: () => go("placements") },
+    { key: "n-gantt", l: "גאנט שנתי", icon: <MI.cal />, go: () => go("gantt") },
     { key: "n-report", l: "דיווח תקלה", icon: <MI.tool />, go: () => go("report") },
     { key: "n-new", l: "בקשת יציאה חדשה", icon: <MI.plus />, go: () => go("new") },
   ];
@@ -1922,6 +1933,23 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
           <b>עוד לא שובצת</b>
           <span>כשהצוות ישבץ אותך — הענף והוועדות יופיעו כאן</span>
         </div>
+      )}
+
+      {/* ---------- מה קרוב בלו״ז ----------
+          ⚠ רק מה שעוד לא הסתיים, ובלי שבתות: החניך רוצה לדעת
+            מה בא, לא לקרוא את כל השנה. */}
+      {upcoming.length > 0 && (
+        <>
+          <div className="sec-label">מה קרוב</div>
+          <div className="gantt-strip">
+            {upcoming.map((e) => (
+              <button key={e.id} className={"gantt-chip" + (e.start <= todayIso ? " now" : "")}
+                onClick={() => go("gantt")}>
+                {e.start <= todayIso ? `עכשיו · ${e.name}` : `${dm(e.start)} · ${e.name}`}
+              </button>
+            ))}
+          </div>
+        </>
       )}
 
       <div className="sec-label">המצב שלי</div>
@@ -2074,6 +2102,7 @@ export function MechinaApp({ auth, onSignedOut }) {
             { key: "profile", label: "הפרופיל שלי", icon: <MI.users />, active: tab === "profile", onClick: () => setTab("profile") },
             { key: "placements", label: "השיבוצים שלי", icon: <MI.users />, active: tab === "placements", onClick: () => setTab("placements") },
             { key: "report", label: "דיווח תקלה", icon: <MI.tool />, active: tab === "report", onClick: () => setTab("report") },
+            { key: "gantt", label: "גאנט שנתי", icon: <MI.cal />, active: tab === "gantt", onClick: () => setTab("gantt") },
           ] },
           ...(auth.isLeader || auth.isScheduler || auth.isContainer || auth.isSafety || auth.isHouse || auth.isKitchen ? [{
             label: "תפקידים", items: [
@@ -2188,6 +2217,8 @@ export function MechinaApp({ auth, onSignedOut }) {
         )}
 
         {tab === "report" && <FaultReportPage say={say} />}
+
+        {tab === "gantt" && <GanttPage say={say} />}
 
         {tab === "budget" && auth.isKitchen && <BudgetPage say={say} />}
 

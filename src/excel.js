@@ -28,13 +28,25 @@ export function useExcel() {
  *   header  מערך כותרות העמודות
  *   rows    מערך שורות; כל שורה מערך תאים
  *   widths  רוחבי עמודות בתווים (לא חובה)
+ *   merges  תאים ממוזגים [{ s:{r,c}, e:{r,c} }] — יחסית ל-rows,
+ *           כלומר שורה 0 היא השורה הראשונה ב-rows. ⚠ ב-CSV אין
+ *           מיזוג, ולכן שם הערך יופיע בתא הראשון בלבד.
  */
-export function downloadTable({ file, sheet = "גיליון", title = null, header, rows, widths = null }) {
-  const aoa = [...(title ? [[title], []] : []), header, ...rows];
+export function downloadTable({
+  file, sheet = "גיליון", title = null, header, rows, widths = null, merges = null,
+}) {
+  const lead = (title ? 2 : 0) + (header ? 1 : 0);
+  const aoa = [...(title ? [[title], []] : []), ...(header ? [header] : []), ...rows];
   const XLSX = window.XLSX;
   if (XLSX) {
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     if (widths) ws["!cols"] = widths.map((wch) => ({ wch }));
+    if (merges && merges.length) {
+      ws["!merges"] = merges.map((m) => ({
+        s: { r: m.s.r + lead, c: m.s.c },
+        e: { r: m.e.r + lead, c: m.e.c },
+      }));
+    }
     const wb = XLSX.utils.book_new();
     wb.Workbook = { Views: [{ RTL: true }] };
     XLSX.utils.book_append_sheet(wb, ws, sheet);

@@ -7,6 +7,7 @@ import { MechinaApp, MechinaStaff, MechinaRolesPage } from "./Mechina.jsx";
 import { LessonsPage } from "./Lessons.jsx";
 import { ContainerPage } from "./Container.jsx";
 import { BudgetPage } from "./Budget.jsx";
+import { GanttPage } from "./Gantt.jsx";
 import { PlacementsPage } from "./Placements.jsx";
 import { SafetyPage } from "./Safety.jsx";
 import { FaultsPage } from "./Faults.jsx";
@@ -222,9 +223,12 @@ function Staff({ auth, onSignedOut }) {
               { key: "a-place", label: "שיבוצי חניכים", icon: <I.users />, active: section === "placements",
                 onClick: () => setSection("placements") },
             ] },
+            { label: "גאנט שנתי", items: [
+              { key: "gantt", label: "לו״ז השנה", icon: <I.cal />,
+                active: section === "gantt", onClick: () => setSection("gantt") },
+            ] },
             { label: "שיעורים", items: [
               { key: "l-sheets", label: "גיליונות מרצים", icon: <I.book />, active: false, onClick: () => goLessons("sheets") },
-              { key: "l-gantt", label: "גאנט שנתי", icon: <I.cal />, active: false, onClick: () => goLessons("gantt") },
               { key: "l-evals", label: "חוות דעת", icon: <I.star />, active: false, onClick: () => goLessons("evals") },
             ] },
             { label: "בטיחות ותחזוקה", items: [
@@ -274,7 +278,9 @@ function Staff({ auth, onSignedOut }) {
               goKitchen={goKitchen} goContainer={goContainer}
               goPlacements={() => setSection("placements")}
               goSafety={() => setSection("safety")}
-              goFaults={() => setSection("faults")} />
+              goFaults={() => setSection("faults")}
+              goGantt={() => setSection("gantt")}
+              goBudget={() => setSection("budget")} />
           )}
 
           {section === "kitchen" && <KitchenPage say={say} area={kArea} />}
@@ -292,6 +298,8 @@ function Staff({ auth, onSignedOut }) {
           {section === "placements" && isMgr && <PlacementsPage say={say} />}
           {section === "safety" && isMgr && <SafetyPage say={say} />}
           {section === "faults" && isMgr && <FaultsPage say={say} />}
+          {section === "gantt" && <GanttPage say={say} />}
+
           {section === "budget" && isMgr && <BudgetPage say={say} />}
 
           {section === "container" && isMgr && <ContainerPage say={say} area={cArea} />}
@@ -313,11 +321,12 @@ function Staff({ auth, onSignedOut }) {
    ⚠ כל שליפה נכשלת בשקט ומורידה את הרכיב שלה בלבד — מסך
      הבית לעולם לא נופל בגלל תחום אחד (או תחום שטרם הוקם). */
 function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
-  goPlacements, goSafety, goFaults }) {
+  goPlacements, goSafety, goFaults, goGantt, goBudget }) {
   const [today, setToday] = useState(null);
   const [gantt, setGantt] = useState(null);
   const [faults, setFaults] = useState(null);   // {open, urgent}
   const [kitchen, setKitchen] = useState(null); // {missing, openShopping}
+  const [budget, setBudget] = useState(null);   // {month, total, head}
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -337,6 +346,9 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
           urgent: openList.filter((x) => x.urgency === "דחוף").length,
         });
       })
+      .catch(() => {});
+    api.getBudget()
+      .then((r) => { if (live) setBudget({ month: r.month, total: r.total, head: r.headcount }); })
       .catch(() => {});
     Promise.all([api.getKitchen("אוכל"), api.getKitchen("חד״פ")])
       .then(([a, b]) => {
@@ -416,6 +428,12 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
       v: kitchen ? kitchen.missing : "—", l: "חוסרים במטבח",
       s: kitchen ? (kitchen.missing ? "מתחת למפתח" : "המלאי מלא") : "טרם חובר",
     },
+    {
+      key: "budget", go: goBudget, cls: "",
+      v: budget ? Math.round(budget.total).toLocaleString("he-IL") : "—",
+      l: "תקציב החודש (₪)",
+      s: budget ? `${budget.head} סועדים` : "טרם חובר",
+    },
   ];
 
   const navTiles = [
@@ -424,7 +442,9 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
     { key: "n-place", l: "שיבוצי חניכים", icon: <I.users />, go: goPlacements },
     { key: "n-students", l: "חניכים", icon: <I.note />, go: () => goStaff("students") },
     { key: "n-lessons", l: "גיליונות מרצים", icon: <I.book />, go: () => goLessons("sheets") },
-    { key: "n-gantt", l: "גאנט שנתי", icon: <I.cal />, go: () => goLessons("gantt") },
+    { key: "n-gantt", l: "גאנט שנתי", icon: <I.cal />, go: goGantt },
+    { key: "n-budget", l: "תקציב המטבח", icon: <I.count />, go: goBudget },
+    { key: "n-faults", l: "תקלות ובעיות", icon: <I.gear />, go: goFaults },
     { key: "n-safety", l: "בטיחות ותקלות", icon: <I.warn />, go: goSafety },
     { key: "n-container", l: "ציוד מכולה", icon: <I.box />, go: () => goContainer("מכולה") },
   ];
@@ -492,7 +512,7 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
           <div className="gantt-strip">
             {upcoming.map((e, i) => (
               <button key={i} className={"gantt-chip" + (e.start <= iso ? " now" : "")}
-                onClick={() => goLessons("gantt")}>
+                onClick={goGantt}>
                 {e.start <= iso ? `עכשיו · ${e.name}` : e.name}
               </button>
             ))}
