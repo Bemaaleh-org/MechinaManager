@@ -20,6 +20,7 @@ import { SafetyPage } from "./Safety.jsx";
 import { FaultsPage } from "./Faults.jsx";
 import { ContainerPage } from "./Container.jsx";
 import { FaultReportPage } from "./Faults.jsx";
+import { BudgetPage } from "./Budget.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
 import { useExcel, downloadTable } from "./excel.js";
 
@@ -2074,7 +2075,7 @@ export function MechinaApp({ auth, onSignedOut }) {
             { key: "placements", label: "השיבוצים שלי", icon: <MI.users />, active: tab === "placements", onClick: () => setTab("placements") },
             { key: "report", label: "דיווח תקלה", icon: <MI.tool />, active: tab === "report", onClick: () => setTab("report") },
           ] },
-          ...(auth.isLeader || auth.isScheduler || auth.isContainer || auth.isSafety || auth.isHouse ? [{
+          ...(auth.isLeader || auth.isScheduler || auth.isContainer || auth.isSafety || auth.isHouse || auth.isKitchen ? [{
             label: "תפקידים", items: [
               ...(auth.isLeader ? [{ key: "mark", label: "סימון נוכחות", icon: <MI.tick />,
                 active: tab === "mark", onClick: () => setTab("mark") }] : []),
@@ -2187,6 +2188,8 @@ export function MechinaApp({ auth, onSignedOut }) {
         )}
 
         {tab === "report" && <FaultReportPage say={say} />}
+
+        {tab === "budget" && auth.isKitchen && <BudgetPage say={say} />}
 
         {tab === "container" && auth.isContainer && <ContainerPage say={say} area="מכולה" />}
         {tab === "cleaning" && auth.isContainer && <ContainerPage say={say} area="ניקיון" />}

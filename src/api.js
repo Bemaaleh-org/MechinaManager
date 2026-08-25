@@ -109,6 +109,8 @@ export const api = {
   /* --- תקציב המטבח — מנהל בלבד --- */
   getBudget: (month) =>
     get("/api/kitchen?action=budget" + (month ? "&month=" + encodeURIComponent(month) : "")),
+  /** סיכום שנתי — חודש־חודש ובסוף הסך הכול */
+  getBudgetYear: () => get("/api/kitchen?action=budget&view=year"),
   /** כפיית סוג או מחיר ליום. הכול ריק = חזרה לגזירה מהלו״ז. */
   setBudgetDay: ({ date, type, cost, note }) =>
     put("/api/kitchen?action=budget", { date, type, cost, note }),

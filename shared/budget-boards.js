@@ -27,13 +27,18 @@ export const budgetReady = () =>
    קיים, הוא מקור האמת, וסוג חדש נוסף שם.
    ------------------------------------------------------------ */
 export const DAY_TYPE_SEED = [
-  { name: "יום שגרה במכינה", cost: 40, weekend: false },
-  { name: "יום סדרה", cost: 20, weekend: false },
-  { name: "יום בית", cost: 0, weekend: false },
-  { name: "יום התנדבות", cost: 20, weekend: false },
-  { name: "שבת מכינה", cost: 75, weekend: true },
-  { name: "יום חזרה מהבית", cost: 15, weekend: false },
-  { name: "שישי שבת בבית", cost: 0, weekend: true },
+  { name: "שגרה", cost: 40 },
+  { name: "סדרה", cost: 20 },
+  { name: "התנדבות", cost: 20 },
+  { name: "חזרה מהבית", cost: 15 },
+  { name: "שישי מכינה", cost: 38 },
+  { name: "שבת מכינה", cost: 37 },
+  { name: "בית", cost: 0 },
+  { name: "שישי בית", cost: 0 },
+  { name: "שבת בית", cost: 0 },
+  /* ⚠ "אחר" תמיד אחרון ברשימה — הוא המוצא לימים חריגים
+     שאין להם סוג, ולא בחירה שמציעים ראשונה. */
+  { name: "אחר", cost: 0, last: true },
 ];
 
 /** ברירת מחדל למספר הסועדים — חניכים וצוות יחד */
@@ -43,33 +48,24 @@ export const DEFAULT_HEADCOUNT = 37;
 export const SETTING_HEADCOUNT = "מספר סועדים";
 
 /* ------------------------------------------------------------
-   ⚠ סוג "סופ״ש" מתומחר פעם אחת לזוג הימים ולא לכל יום.
-     75 ₪ לאדם הם המחיר של שישי ושבת יחד, ולכן הם נזקפים ליום
-     שישי והשבת שאחריו נספרת באפס. בלי הכלל הזה כל סוף שבוע
-     היה נספר פעמיים והתקציב החודשי היה מנופח ב-40 אחוז.
+   ⚠ סוף השבוע מתומחר יומיים נפרדים: שישי 38 ושבת 37, יחד 75.
+     קודם הוא היה סוג אחד ב-75 שנזקף כולו ליום שישי, והשבת
+     הופיעה באפס — נכון חשבונית, מבלבל למי שקורא את הטבלה.
+     שני סוגים נפרדים מייתרים את כלל ה"נספר בשישי" לגמרי.
    ------------------------------------------------------------ */
-export const isFriday = (iso) => new Date(iso + "T12:00:00Z").getUTCDay() === 5;
-export const isSaturday = (iso) => new Date(iso + "T12:00:00Z").getUTCDay() === 6;
 
-/**
- * כמה עולה יום אחד לאדם.
- *   type    שורת סוג היום ({ cost, weekend })
- *   iso     התאריך
- * מחזיר 0 לשבת של סוג סופ״ש — המחיר כבר נזקף ביום שישי.
- */
-export function dayCostPerPerson(type, iso) {
-  if (!type) return 0;
-  if (type.weekend && isSaturday(iso)) return 0;
-  return Number(type.cost) || 0;
+/** כמה עולה יום אחד לאדם */
+export function dayCostPerPerson(type) {
+  return type ? (Number(type.cost) || 0) : 0;
 }
 
-/** האם היום הזה "נבלע" בתמחור של יום שישי שלפניו */
-export const isPairedSaturday = (type, iso) => Boolean(type && type.weekend && isSaturday(iso));
+/** סדר התצוגה: "אחר" תמיד בסוף, השאר כסדר הלוח */
+export function sortTypes(types) {
+  const lastNames = new Set(DAY_TYPE_SEED.filter((t) => t.last).map((t) => t.name));
+  return [...types].sort((a, b) =>
+    (lastNames.has(a.name) ? 1 : 0) - (lastNames.has(b.name) ? 1 : 0));
+}
 
-/**
- * החלק החודשי של הזמנה רבעונית.
- * ההזמנה נפרסת על שלושה חודשים רצופים מחודש הפתיחה שנבחר.
- */
 export const ORDER_MONTHS = 3;
 
 export function orderMonths(startMonth) {

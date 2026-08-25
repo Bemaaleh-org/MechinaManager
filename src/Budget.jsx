@@ -181,9 +181,72 @@ function OrderForm({ months, defaultMonth, say, onDone, onCancel }) {
   );
 }
 
+/* ---------- סיכום שנתי ---------- */
+function YearView({ say, onMonth }) {
+  const { data, err, busy } = useLoad(() => api.getBudgetYear(), []);
+  if (busy && !data) return <div className="empty" style={{ paddingTop: 40 }}><div className="e1">טוען…</div></div>;
+  if (err) return <div className="alert a-clay"><BI.warn /><div style={{ flex: 1 }}>
+    <div className="ttl">לא הצלחנו לטעון</div><div className="bd">{err.message}</div></div></div>;
+  if (!data) return null;
+
+  const exportYear = () => {
+    downloadTable({
+      file: "תקציב-מטבח-שנתי",
+      sheet: "סיכום שנתי",
+      title: `תקציב המטבח — סיכום שנתי · ${data.headcount} סועדים`,
+      header: ["חודש", "ימים", "אוכל", "אוכל יבש", "סה״כ"],
+      rows: [
+        ...data.rows.map((r) => [monthLabel(r.month), r.days, r.foodTotal,
+          Math.round(r.orderShare), Math.round(r.total)]),
+        [], ["סה״כ השנה", "", data.foodTotal, Math.round(data.orderShare), Math.round(data.total)],
+      ],
+      widths: [16, 8, 12, 12, 12],
+    });
+    say("הקובץ ירד");
+  };
+
+  const max = Math.max(...data.rows.map((r) => r.total), 1);
+
+  return (
+    <>
+      <div className="bg-total">
+        <div className="bg-total-k">סך התקציב לשנה</div>
+        <div className="bg-total-v num">{shekel(data.total)} ₪</div>
+        <div className="bg-total-s">
+          {shekel(data.foodTotal)} ₪ אוכל
+          {data.orderShare > 0 ? ` · ${shekel(data.orderShare)} ₪ אוכל יבש` : ""}
+          {" · "}{data.headcount} סועדים
+        </div>
+      </div>
+
+      <div className="sec-label">חודש אחר חודש · לחיצה לפירוט</div>
+      <div className="rows">
+        {data.rows.map((r) => (
+          <button className="st-row" key={r.month} onClick={() => onMonth(r.month)}>
+            <div className="st-main">
+              <div className="st-n">{monthLabel(r.month)}</div>
+              <div className="st-m">
+                <span>{r.days} ימים</span>
+                {r.orderShare > 0 && <span className="num">· {shekel(r.orderShare)} ₪ יבש</span>}
+              </div>
+              <div className="bg-bar"><span style={{ width: `${(r.total / max) * 100}%` }} /></div>
+            </div>
+            <b className="num" style={{ flex: "0 0 auto", fontSize: 14.5 }}>{shekel(r.total)} ₪</b>
+          </button>
+        ))}
+      </div>
+
+      <button className="btn btn-ghost btn-sm" style={{ width: "100%", margin: "12px 0" }}
+        onClick={exportYear}><BI.dl />הורדת הסיכום השנתי לאקסל</button>
+      <div style={{ height: 20 }} />
+    </>
+  );
+}
+
 /* ---------- הדף ---------- */
 export function BudgetPage({ say }) {
   useExcel();
+  const [view, setView] = useState("month"); // month | year
   const [month, setMonth] = useState(null);
   const { data, err, busy, reload } = useLoad(() => api.getBudget(month), [month]);
   const [editing, setEditing] = useState(null);
@@ -257,6 +320,15 @@ export function BudgetPage({ say }) {
     <>
       <div className="screen-title">תקציב המטבח</div>
 
+      <div className="seg">
+        <button className={view === "month" ? "on" : ""} onClick={() => setView("month")}>חודש</button>
+        <button className={view === "year" ? "on" : ""} onClick={() => setView("year")}>כל השנה</button>
+      </div>
+
+      {view === "year" ? (
+        <YearView say={say} onMonth={(m) => { setMonth(m); setView("month"); }} />
+      ) : (
+      <>
       {/* ---------- בורר החודש ---------- */}
       <div className="bg-nav">
         <button className="btn btn-ghost btn-sm" disabled={idx <= 0} onClick={() => go(idx - 1)}>
@@ -364,9 +436,8 @@ export function BudgetPage({ say }) {
               <div className="st-n" style={{ fontSize: 14.5 }}>{d.type}</div>
               <div className="st-m">
                 {d.overridden && <span className="pill p-new">נקבע ידנית</span>}
-                {d.pairedSaturday && <span>נספר ביום שישי</span>}
                 {d.note && <span>{d.note}</span>}
-                {!d.overridden && !d.pairedSaturday && !d.note && <span>{d.perPerson} ₪ לאדם</span>}
+                {!d.overridden && !d.note && <span>{d.perPerson} ₪ לאדם</span>}
               </div>
             </div>
             <b className="num" style={{ flex: "0 0 auto", fontSize: 14.5,
@@ -377,6 +448,8 @@ export function BudgetPage({ say }) {
         ))}
       </div>
       <div style={{ height: 30 }} />
+      </>
+      )}
     </>
   );
 }

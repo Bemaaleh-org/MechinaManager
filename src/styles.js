@@ -713,4 +713,7 @@ html,body{margin:0;padding:0;background:#012E58}
   font-size:13.5px;font-weight:700;color:var(--muted)}
 .bg-calc b{font-size:17px;color:var(--ink)}
 .pick.pick-wrap{flex-wrap:wrap}
+
+.bg-bar{height:5px;border-radius:99px;background:var(--line);margin-top:7px;overflow:hidden}
+.bg-bar span{display:block;height:100%;border-radius:99px;background:var(--accent)}
 `;

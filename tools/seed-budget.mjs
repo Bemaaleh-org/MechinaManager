@@ -41,12 +41,8 @@ console.log("יוצר לוחות…");
 /* ---------- 1. סוגי ימים ---------- */
 const dayTypes = await board("מטבח – סוגי ימים");
 const dtCost = await column(dayTypes, "מחיר לאדם", "numbers");
-const dtWeekend = await column(dayTypes, "מחיר לסופ״ש שלם", "checkbox");
 for (const t of DAY_TYPE_SEED) {
-  await item(dayTypes, t.name, {
-    [dtCost]: String(t.cost),
-    ...(t.weekend ? { [dtWeekend]: { checked: "true" } } : {}),
-  });
+  await item(dayTypes, t.name, { [dtCost]: String(t.cost) });
   console.log(`  סוג יום: ${t.name} — ${t.cost} ₪`);
 }
 
@@ -87,7 +83,7 @@ export const BUDGET_BOARDS = {
 };
 
 export const BUDGET_COLS = {
-  dayTypes: { cost: "${dtCost}", weekend: "${dtWeekend}" },
+  dayTypes: { cost: "${dtCost}" },
   days: { date: "${dDate}", type: "${dType}", cost: "${dCost}", note: "${dNote}" },
   orders: { amount: "${oAmount}", startMonth: "${oStart}", date: "${oDate}", note: "${oNote}" },
   settings: { value: "${sValue}" },

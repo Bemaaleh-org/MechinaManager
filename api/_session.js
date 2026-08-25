@@ -21,7 +21,7 @@ import { gql } from "./_monday.js";
 import { AUTH_BOARD, AUTH_COLS, KIND } from "../shared/auth-board.js";
 import { cached } from "./_cache.js";
 import { studentRows } from "./_student-rows.js";
-import { ROLE_CONTAINER, ROLE_SAFETY, ROLE_HOUSE } from "../shared/lessons-boards.js";
+import { ROLE_CONTAINER, ROLE_KITCHEN, ROLE_SAFETY, ROLE_HOUSE } from "../shared/lessons-boards.js";
 import { leadersForDate } from "./_leader-weeks.js";
 import { parseTestDate } from "./_test-date.js";
 
@@ -172,6 +172,7 @@ export async function requireAuth(req, res) {
          בכל בקשה, ולכן הסרת התפקיד סוגרת את הגישה מיד. */
       isScheduler: Boolean(row.isScheduler),
       isContainer: (row.roles || []).includes(ROLE_CONTAINER),
+      isKitchen: (row.roles || []).includes(ROLE_KITCHEN),
       isSafety: (row.roles || []).includes(ROLE_SAFETY),
       isHouse: (row.roles || []).includes(ROLE_HOUSE),
     };
@@ -199,6 +200,7 @@ export async function requireAuth(req, res) {
     roles: [],
     isScheduler: false,
     isContainer: false,
+    isKitchen: false,
     isSafety: false,
     isHouse: false,
   };
@@ -238,7 +240,7 @@ export async function requireManager(req, res) {
  */
 export function withAuth(
   handler,
-  { manager = false, marker = false, student = false, scheduler = false, container = false, safety = false, house = false } = {}
+  { manager = false, marker = false, student = false, scheduler = false, container = false, safety = false, house = false, kitchen = false } = {}
 ) {
   return async (req, res) => {
     let session;
@@ -265,7 +267,10 @@ export function withAuth(
       if (house && !session.isManager && !session.isHouse) {
         throw new AuthError("הפעולה מותרת למנהל או לאב הבית בלבד", 403);
       }
-      if (!manager && !marker && !student && !scheduler && !container && !safety && !house && session.isStudent) {
+      if (kitchen && !session.isManager && !session.isKitchen) {
+        throw new AuthError("הפעולה מותרת למנהל או לאחראי המטבח בלבד", 403);
+      }
+      if (!manager && !marker && !student && !scheduler && !container && !safety && !house && !kitchen && session.isStudent) {
         throw new AuthError("הפעולה אינה זמינה לחניכים", 403);
       }
     } catch (e) {

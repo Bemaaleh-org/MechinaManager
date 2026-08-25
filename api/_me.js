@@ -30,6 +30,7 @@ export default async function handler(req, res) {
           roles: session.roles || [],
           isScheduler: session.isScheduler,
           isContainer: session.isContainer,
+          isKitchen: session.isKitchen,
           isSafety: session.isSafety,
           isHouse: session.isHouse,
         } : {}),

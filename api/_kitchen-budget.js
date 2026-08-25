@@ -20,9 +20,12 @@ import { loadGantt } from "./_lessons-gantt.js";
 import {
   BUDGET_BOARDS as B, BUDGET_COLS as C, budgetReady,
   DEFAULT_HEADCOUNT, SETTING_HEADCOUNT,
-  dayCostPerPerson, isPairedSaturday, isFriday, isSaturday,
-  orderShareFor, orderMonths,
+  dayCostPerPerson, sortTypes, orderShareFor, orderMonths,
 } from "../shared/budget-boards.js";
+
+const dow = (iso) => new Date(iso + "T12:00:00Z").getUTCDay();
+const isFriday = (iso) => dow(iso) === 5;
+const isSaturday = (iso) => dow(iso) === 6;
 
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
 const num = (i, c) => { const t = val(i, c); return t === "" ? null : Number(t); };
@@ -36,7 +39,6 @@ async function loadDayTypes({ force = false } = {}) {
         id: String(i.id),
         name: String(i.name || "").trim(),
         cost: num(i, C.dayTypes.cost) || 0,
-        weekend: val(i, C.dayTypes.weekend) === "v",
       }))
       .filter((x) => x.name);
   }, { force });
@@ -95,13 +97,16 @@ const invalidateBudget = () => {
    ⚠ הסדר הוא הכרעה: כלל מוקדם גובר על מאוחר.
    ------------------------------------------------------------ */
 const T = {
-  routine: "יום שגרה במכינה",
-  series: "יום סדרה",
-  home: "יום בית",
-  volunteer: "יום התנדבות",
-  mechinaWeekend: "שבת מכינה",
-  backFromHome: "יום חזרה מהבית",
-  homeWeekend: "שישי שבת בבית",
+  routine: "שגרה",
+  series: "סדרה",
+  home: "בית",
+  volunteer: "התנדבות",
+  friMechina: "שישי מכינה",
+  satMechina: "שבת מכינה",
+  backFromHome: "חזרה מהבית",
+  friHome: "שישי בית",
+  satHome: "שבת בית",
+  other: "אחר",
 };
 
 /** האם התאריך מכוסה באירוע גאנט ששמו מרמז על שהות בבית */
@@ -132,9 +137,14 @@ const prevDay = (iso) => {
 function derivedType(iso, byDate, home) {
   const day = byDate.get(iso);
 
+  /* ⚠ שישי ושבת הם שני סוגים נפרדים, כל אחד עם המחיר שלו.
+     ההכרעה אם הסופ״ש בבית נעשית על הזוג: מספיק שאחד מהם
+     מסומן בגאנט כשהות בבית כדי ששניהם ייחשבו כך. */
   if (isFriday(iso) || isSaturday(iso)) {
-    const pairFriday = isSaturday(iso) ? prevDay(iso) : iso;
-    return home.has(iso) || home.has(pairFriday) ? T.homeWeekend : T.mechinaWeekend;
+    const friday = isSaturday(iso) ? prevDay(iso) : iso;
+    const atHome = home.has(iso) || home.has(friday);
+    if (isFriday(iso)) return atHome ? T.friHome : T.friMechina;
+    return atHome ? T.satHome : T.satMechina;
   }
   if (home.has(iso)) return T.home;
 
@@ -163,7 +173,7 @@ function buildMonth(month, { types, overrides, calendar, gantt, headcount }) {
       const ov = ovByDate.get(d.date) || null;
       const typeName = (ov && ov.type) || derivedType(d.date, byDate, home);
       const type = byName.get(typeName) || null;
-      const perPerson = ov && ov.cost != null ? ov.cost : dayCostPerPerson(type, d.date);
+      const perPerson = ov && ov.cost != null ? ov.cost : dayCostPerPerson(type);
       return {
         date: d.date,
         kind: d.kind,
@@ -171,7 +181,6 @@ function buildMonth(month, { types, overrides, calendar, gantt, headcount }) {
         perPerson,
         total: perPerson * headcount,
         overridden: Boolean(ov),
-        pairedSaturday: isPairedSaturday(type, d.date) && !(ov && ov.cost != null),
         note: ov ? ov.note : null,
       };
     });
@@ -187,8 +196,10 @@ async function handler(req, res, session) {
       setupRequired: true,
     });
   }
-  if (!session.isManager) {
-    return res.status(403).json({ error: "תקציב המטבח מוצג למנהל בלבד" });
+  /* ⚠ מנהל או אחראי המטבח. אחראי המטבח הוא חניך, ומי שיסיר
+     ממנו את התפקיד בלוח סוגר לו את הגישה בבקשה הבאה. */
+  if (!session.isManager && !session.isKitchen) {
+    return res.status(403).json({ error: "התקציב מוצג למנהל ולאחראי המטבח" });
   }
 
   try {
@@ -199,6 +210,31 @@ async function handler(req, res, session) {
       ]);
 
       const months = [...new Set(calendar.days.map((d) => d.date.slice(0, 7)))].sort();
+
+      /* ---------- סיכום שנתי ----------
+         חודש-חודש, ובסוף הסך הכול. אותו חישוב בדיוק כמו במסך
+         החודשי — נקרא מאותה פונקציה ולא משוכפל. */
+      if (String(req.query?.view || "") === "year") {
+        const rows = months.map((m) => {
+          const { days, foodTotal } = buildMonth(m, {
+            types, overrides, calendar, gantt, headcount: settings.headcount,
+          });
+          const share = orders.reduce((a, o) => a + orderShareFor(o, m), 0);
+          return {
+            month: m, days: days.length, foodTotal, orderShare: share,
+            total: foodTotal + share,
+          };
+        });
+        return res.status(200).json({
+          view: "year", months, rows,
+          headcount: settings.headcount,
+          foodTotal: rows.reduce((a, r) => a + r.foodTotal, 0),
+          orderShare: rows.reduce((a, r) => a + r.orderShare, 0),
+          total: rows.reduce((a, r) => a + r.total, 0),
+          orders: orders.map((o) => ({ ...o, months: orderMonths(o.startMonth) })),
+        });
+      }
+
       const month = String(req.query?.month || "") || months[0];
       if (!months.includes(month)) {
         return res.status(400).json({ error: "החודש אינו בשנת הלימודים", months });
@@ -217,7 +253,7 @@ async function handler(req, res, session) {
       }
 
       return res.status(200).json({
-        month, months, days, types,
+        month, months, days, types: sortTypes(types),
         headcount: settings.headcount,
         foodTotal,
         orderShare,
@@ -329,4 +365,4 @@ async function readJson(req) {
   return raw ? JSON.parse(raw) : {};
 }
 
-export default withAuth(handler, { manager: true });
+export default withAuth(handler, { kitchen: true });
