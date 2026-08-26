@@ -25,5 +25,6 @@ import gantt from "./_lessons-gantt.js";
 import agenda from "./_agenda.js";
 import report from "./_lesson-report.js";
 import rate from "./_lesson-rate.js";
+import board from "./_lessons-board.js";
 
-export default router({ list, sheet, mark, meeting, evals, gantt, report, rate, agenda });
+export default router({ list, sheet, mark, meeting, evals, gantt, report, rate, agenda, board });

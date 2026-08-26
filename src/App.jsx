@@ -4,7 +4,7 @@ import { LOGO } from "./logo.js";
 import { api, setUnauthorizedHandler } from "./api.js";
 import Login from "./Login.jsx";
 import { MechinaApp, MechinaStaff, MechinaRolesPage } from "./Mechina.jsx";
-import { LessonsPage } from "./Lessons.jsx";
+import { LessonsPage, LessonsBoard } from "./Lessons.jsx";
 import { ContainerPage } from "./Container.jsx";
 import { BudgetPage } from "./Budget.jsx";
 import { GanttPage } from "./Gantt.jsx";
@@ -522,6 +522,14 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
           </button>
         ))}
       </div>
+
+      {/* ---------- לוח השיעורים ----------
+          ⚠ אחראי הלו״ז נכנס למסך הבית כדי לדעת מה עליו היום.
+            הלוח כאן, ולא רק בתוך השיעורים, כי מה שטרם דווח
+            נשכח בדיוק כשלא רואים אותו. */}
+      <div className="sec-label">לוח השיעורים</div>
+      <LessonsBoard compact
+        onOpenSheet={() => goLessons("board")} />
 
       {/* ---------- דורש טיפול ---------- */}
       {attn.length > 0 ? (

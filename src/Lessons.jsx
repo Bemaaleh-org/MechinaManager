@@ -13,11 +13,13 @@
 
 import React, { useState, useMemo } from "react";
 import { api } from "./api.js";
+import { testDate } from "./testDate.js";
 import { useExcel, downloadTable } from "./excel.js";
 
 const LI = {
   book: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22V4.5z"/><path d="M4 17.5h16"/></svg>,
   star: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z"/></svg>,
+  warn: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3 2 20h20L12 3z"/><path d="M12 9v5M12 17.5h.01"/></svg>,
   chev: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
   plus: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" {...p}><path d="M12 5v14M5 12h14"/></svg>,
   warn: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3 2 20h20L12 3z"/><path d="M12 9v5M12 17.5h.01"/></svg>,
@@ -986,6 +988,93 @@ const GNT_CLASS = { "שבת": "shabbat", "חג ומועד": "holiday" };
 /* ============================================================
    הדף המלא
    ============================================================ */
+/* ============================================================
+   לוח השיעורים של אחראי הלו״ז
+   ------------------------------------------------------------
+   ⚠ אין כאן נתון משלו. הכול נשלף מהגיליונות, וכל סימון חוזר
+     לאותו מפגש באותו גיליון. זו תצוגה שמקצרת דרך, לא מאגר
+     מקביל — גיליון שישתנה משנה גם כאן.
+
+   ⚠ "טרם דווח" הוא מצב שלישי ולא "לא התקיים". זו כל הסיבה
+     שהרשימה השנייה קיימת.
+   ============================================================ */
+export function LessonsBoard({ say, onOpenSheet, compact = false }) {
+  const td = testDate();
+  const { data, err, busy, reload } = useLoad(() => api.getLessonsBoard(td), [td]);
+
+  if (busy && !data) return <div className="skel skel-card" />;
+  if (err) return <LoadFail msg={err} onRetry={reload} />;
+  if (!data) return null;
+
+  const Row = ({ m, late }) => (
+    <button className={"st-row " + (late ? "tone-8" : "tone-1")}
+      onClick={() => onOpenSheet && onOpenSheet(m.sheetId)}>
+      <div className="tile sm">{late ? <LI.warn /> : <LI.book />}</div>
+      <div className="st-main">
+        <div className="st-n">{m.subject}</div>
+        <div className="st-m">
+          <span className="num">{dm(m.date)}</span>
+          <span>· {m.day}</span>
+          {m.lecturer && <span>· {m.lecturer}</span>}
+          {m.guestLecturer && <span className="pill p-new">אורח</span>}
+        </div>
+      </div>
+      <LI.chev style={{ color: "var(--line2)", flex: "0 0 auto" }} />
+    </button>
+  );
+
+  const both = data.counts.upcoming + data.counts.unreported;
+
+  return (
+    <>
+      {!compact && (
+        <div className="band">
+          <div className="band-h">לוח השיעורים · שבועיים לכל כיוון</div>
+          <div className="band-grid">
+            <div className="band-c">
+              <div className="band-n">{data.counts.upcoming}</div>
+              <div className="band-l">שיעורים קרובים</div>
+            </div>
+            <div className="band-c">
+              <div className={"band-n" + (data.counts.unreported ? " warn" : " ok")}>
+                {data.counts.unreported}
+              </div>
+              <div className="band-l">טרם דווחו</div>
+            </div>
+            <div className="band-c">
+              <div className="band-n">{both}</div>
+              <div className="band-l">בסך הכול</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ⚠ מה שטרם דווח ראשון — זו המטלה, והשאר הוא מידע. */}
+      {data.unreported.length > 0 && (
+        <>
+          <div className="sec-label">התקיימו וטרם דווחו</div>
+          <div className="rows" style={{ marginBottom: 14 }}>
+            {data.unreported.map((m) => <Row key={m.id} m={m} late />)}
+          </div>
+        </>
+      )}
+
+      <div className="sec-label">השיעורים הקרובים</div>
+      {data.upcoming.length === 0 ? (
+        <div className="empty tone-1">
+          <div className="e-ico"><LI.book /></div>
+          <div className="e1">אין שיעורים בשבועיים הקרובים</div>
+          <div className="e2">מה שיתווסף בגיליונות יופיע כאן.</div>
+        </div>
+      ) : (
+        <div className="rows">
+          {data.upcoming.map((m) => <Row key={m.id} m={m} />)}
+        </div>
+      )}
+    </>
+  );
+}
+
 export function LessonsPage({ say, sub0, onSub }) {
   const [sub, setSub] = useState(sub0 || "sheets");
   /* ⚠ מדווח החוצה כדי שהתפריט יסמן את הדף שנמצאים בו. */
@@ -1003,8 +1092,11 @@ export function LessonsPage({ say, sub0, onSub }) {
 
       {!inner && (
         <div className="seg seg-scroll">
+          {/* ⚠ הלוח ראשון: הוא המסך שנפתח כדי לדעת "מה עליי
+              היום", והגיליונות הם המקום שאליו נכנסים לתקן. */}
+          <button className={sub === "board" ? "on" : ""} onClick={() => setSub("board")}>הלוח שלי</button>
           <button className={sub === "sheets" ? "on" : ""} onClick={() => setSub("sheets")}>גיליונות</button>
-            <button className={sub === "evals" ? "on" : ""} onClick={() => setSub("evals")}>חוות דעת</button>
+          <button className={sub === "evals" ? "on" : ""} onClick={() => setSub("evals")}>חוות דעת</button>
         </div>
       )}
 
@@ -1020,6 +1112,14 @@ export function LessonsPage({ say, sub0, onSub }) {
           <SheetList key={seq} onOpen={setSheet} onNew={() => setCreating(true)}
             onReport={() => setReporting(true)} canEdit />
         )
+      )}
+
+      {/* ⚠ פתיחת שיעור מהלוח מובילה לגיליון שלו — שם מדווחים,
+          וזה המקור היחיד. הלוח אינו יודע לשמור דבר. */}
+      {sub === "board" && (
+        sheet
+          ? <SheetDetail sheet={sheet} say={say} onBack={() => setSheet(null)} />
+          : <LessonsBoard say={say} onOpenSheet={(id) => setSheet({ id })} />
       )}
 
       {sub === "evals" && <Evals say={say} />}

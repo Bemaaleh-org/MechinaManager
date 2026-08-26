@@ -77,6 +77,19 @@ export async function guideMap() {
 
 export const invalidateGuides = () => invalidate("mechina-guides");
 
+/**
+ * המדריכים הפעילים, לבחירה במסכים.
+ * ⚠ נקרא מלוח המשתמשים לפי התפקיד, ולא מרשימה בקוד: מדריך
+ *   חדש שיסומן בלוח יופיע בבורר מעצמו, בלי דיפלוי.
+ */
+export async function guideList() {
+  const users = await authRows();
+  return users
+    .filter((u) => u.active && u.role === STAFF_ROLE.guide)
+    .map((u) => ({ id: u.id, name: norm(u.name) }))
+    .sort((a, b) => a.name.localeCompare(b.name, "he"));
+}
+
 /** האם המשתמש המחובר הוא המדריך של החניך הזה */
 export const isGuideOf = (session, guide) =>
   Boolean(guide && session?.itemId && String(guide.userId) === String(session.itemId));

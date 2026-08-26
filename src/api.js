@@ -214,6 +214,10 @@ export const api = {
   assignWeek: ({ weekId, studentIds }) =>
     post("/api/students?action=weeks", { weekId, studentIds }),
 
+  /** ⚠ קריאה נפרדת משיבוץ המובילים: החלפת מלווה לא תמחק אותם. */
+  setWeekEscort: ({ weekId, escort }) =>
+    post("/api/students?action=weeks", { weekId, escort }),
+
   /** עריכת תאריכי שבוע. מנהל בלבד. */
   editWeek: ({ weekId, start, end }) =>
     put("/api/students?action=weeks", { weekId, start, end }),
@@ -287,6 +291,10 @@ export const api = {
   /** הגאנט השנתי — כל אירועי השנה. עריכה בלוח ב-monday. */
   /** הלו״ז מיומן Google — היום ושבועיים קדימה. ⚠ צפייה בלבד. */
   getAgenda: () => get("/api/lessons?action=agenda"),
+
+  /** לוח השיעורים של אחראי הלו״ז — הכול נשלף מהגיליונות. */
+  getLessonsBoard: (today) =>
+    get("/api/lessons?action=board" + (today ? "&today=" + encodeURIComponent(today) : "")),
 
   getGantt: () => get("/api/lessons?action=gantt"),
   /** עריכת הלו״ז — מנהל ואחראי לו״ז. השרת אוכף. */

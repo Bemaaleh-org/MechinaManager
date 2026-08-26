@@ -1773,6 +1773,17 @@ function WeekLeaders({ say }) {
   const ledElsewhere = (s, w) =>
     (data.leadCounts?.[s.id] || 0) - (w.leaderIds?.includes(s.id) ? 1 : 0);
 
+  /* ⚠ שולח escort בלבד. ראו ההערה בשרת — שליחה משותפת עם
+     המובילים הייתה מוחקת אותם בכל החלפת מלווה. */
+  const saveEscort = (w, name) => {
+    if (saving) return;
+    setSaving(true);
+    api.setWeekEscort({ weekId: w.id, escort: name })
+      .then(() => { say(name ? `${name} מלווה את ${w.name}` : "המלווה הוסר"); reload(); })
+      .catch((e) => say(e.message))
+      .finally(() => setSaving(false));
+  };
+
   const exportWeeks = () => {
     downloadTable({
       file: "מובילי-שבוע",
@@ -1819,12 +1830,36 @@ function WeekLeaders({ say }) {
                             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {!w.assignable ? "ללא שיבוץ"
                   : w.leaders.length ? w.leaders.map((l) => l.name.split(" ")[0]).join(" · ") : "לא שובץ"}
+                {/* ⚠ המלווה מוצג בשורה ולא רק בפתיחה: מי שסורק
+                    את השנה רוצה לראות איזה שבוע עדיין בלי ליווי. */}
+                {w.escort && (
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", marginTop: 2 }}>
+                    מלווה: {w.escort}
+                  </div>
+                )}
               </div>
               <MI.chev style={{ transform: open === w.id ? "rotate(-90deg)" : "none", color: "var(--line2)" }} />
             </button>
 
             {open === w.id && (
               <div style={{ padding: "0 13px 13px", borderBottom: "1px solid var(--line)" }}>
+                {/* ---------- מדריך מלווה ----------
+                    ⚠ הרשימה נקראת מלוח המשתמשים לפי תפקיד
+                      "מדריך" — מדריך חדש יופיע כאן בלי דיפלוי. */}
+                {w.assignable && (data.guides || []).length > 0 && (
+                  <div className="fld" style={{ marginTop: 10 }}>
+                    <label>מדריך מלווה</label>
+                    <div className="pick">
+                      <button type="button" className={!w.escort ? "on" : ""} disabled={saving}
+                        onClick={() => saveEscort(w, "")}>בלי</button>
+                      {data.guides.map((g) => (
+                        <button type="button" key={g.id} disabled={saving}
+                          className={w.escort === g.name ? "on" : ""}
+                          onClick={() => saveEscort(w, g.name)}>{g.name}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                   {editDates ? (
                     <>

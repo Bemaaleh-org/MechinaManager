@@ -23,6 +23,7 @@ import { cached, invalidate } from "./_cache.js";
 import { activeStudents, toPublic } from "./_student-rows.js";
 import { todayFor } from "./_attendance-data.js";
 import { MECHINA_BOARDS, MECHINA_COLS } from "../shared/mechina-boards.js";
+import { guideList } from "./_guides.js";
 
 const W = MECHINA_COLS.leaderWeeks;
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
@@ -91,6 +92,9 @@ async function list(req, res, session) {
         isCurrent: w.start <= today && today <= w.end,
       })),
       roster: students.map(toPublic),
+      /* ⚠ נקרא מלוח המשתמשים לפי תפקיד "מדריך" — מדריך חדש
+         יופיע כאן בלי דיפלוי. ראו guideList ב-_guides.js. */
+      guides: await guideList(),
       leadCounts,
       today,
     });
@@ -111,6 +115,27 @@ async function assign(req, res, session) {
     const studentIds = Array.isArray(body?.studentIds) ? body.studentIds.map(String) : null;
 
     if (!weekId) return res.status(400).json({ error: "לא צוין שבוע" });
+
+    /* ---------- מלווה ----------
+       ⚠ קריאה נפרדת: שיבוץ מלווה אינו משנה את המובילים, ולהפך.
+         מסך ששולח את שניהם יחד היה מוחק מובילים בכל פעם
+         שמישהו מחליף מלווה. */
+    if (body.escort !== undefined) {
+      const name = String(body.escort || "").trim();
+      if (name) {
+        const guides = await guideList();
+        if (!guides.some((g) => g.name === name)) {
+          return res.status(400).json({ error: "המלווה אינו מדריך מוכר" });
+        }
+      }
+      await gql(
+        `mutation($b:ID!,$i:ID!,$v:JSON!){ change_multiple_column_values(board_id:$b,item_id:$i,column_values:$v,create_labels_if_missing:false){ id } }`,
+        { b: MECHINA_BOARDS.leaderWeeks, i: weekId, v: JSON.stringify({ [W.escort]: name }) }
+      );
+      invalidate("leader-weeks");
+      return res.status(200).json({ ok: true, weekId, escort: name || null });
+    }
+
     if (!studentIds) return res.status(400).json({ error: "לא נשלחה רשימת מובילים" });
     if (studentIds.length > 3) {
       return res.status(400).json({ error: "עד שלושה מובילים לשבוע" });
