@@ -20,6 +20,7 @@ import { studentRows, toPublic } from "./_student-rows.js";
 import {
   loadCalendar, loadAbsences, loadMarked, summarize, todayFor, isSchoolDay,
 } from "./_attendance-data.js";
+import { trainingByStudent, EMPTY_TRAINING } from "./_training-summary.js";
 
 async function handler(req, res, session) {
   if (req.method !== "GET") {
@@ -74,6 +75,9 @@ async function handler(req, res, session) {
       student: toPublic(student),
       days,
       summary: summarize(studentId, { absences, marked, byDate: cal.byDate }),
+      /* ⚠ נפרד מ-summary: נוכחות אימון ונוכחות יומית הן שתי
+         אמיתות שונות. ראו _training-summary.js. */
+      training: (await trainingByStudent()).get(studentId) || EMPTY_TRAINING,
       today,
     });
   } catch (e) {

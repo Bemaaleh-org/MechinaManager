@@ -1009,6 +1009,16 @@ function StudentsList({ onOpen, say }) {
                 <b className="p-new num">{s.summary.justified}</b>
                 <b className="p-ok num">{s.summary.vacation}</b>
               </div>
+              {/* ⚠ נוכחות אימון נפרדת מהיומית — ראו
+                  _training-summary.js. מוצגת רק כשיש מה להציג. */}
+              {s.training && s.training.marked > 0 && (
+                <div className="st-train">
+                  <span className={"pill " + (s.training.pct != null && s.training.pct < 70 ? "p-low" : "p-ok")}>
+                    אימונים {s.training.pct != null ? `${s.training.pct}%` : `${s.training.present}/${s.training.marked}`}
+                  </span>
+                  {s.training.kitchen > 0 && <span className="st-train-k">{s.training.kitchen} מטבח</span>}
+                </div>
+              )}
             </button>
           ))}
         </div>
@@ -1080,6 +1090,31 @@ function StudentDetail({ student, onBack, say }) {
           </div>
 
           <Summary s={data.summary} />
+
+          {/* ---------- נוכחות באימונים ----------
+              ⚠ אמת נפרדת מהנוכחות היומית. חניך יכול להיות נוכח
+                במכינה ולהיעדר מהאימון, ולהפך. מטבח אינו
+                היעדרות — הוא נספר בנפרד ואינו במכנה. */}
+          <div className="sec-label">נוכחות באימונים</div>
+          {data.training && data.training.marked > 0 ? (
+            <div className="card tr-card">
+              <div className="tr-pct num"
+                style={{ color: data.training.pct != null && data.training.pct < 70 ? "var(--clay)" : "var(--ok)" }}>
+                {data.training.pct != null ? `${data.training.pct}%` : "—"}
+              </div>
+              <div className="tr-legs">
+                <div><b className="num">{data.training.present}</b><span>נכח</span></div>
+                <div><b className="num">{data.training.absent}</b><span>נעדר</span></div>
+                <div><b className="num">{data.training.kitchen}</b><span>מטבח</span></div>
+              </div>
+            </div>
+          ) : (
+            <div className="attn-calm" style={{ marginBottom: 14 }}>
+              <b>עוד לא סומנה נוכחות באימונים</b>
+              <span>הסימון נעשה מתוך המפגש בגיליון</span>
+            </div>
+          )}
+
           <div className="sec-label">ימי חופש</div>
           <Quota quota={data.summary.quota} />
           <div className="sec-label">לוח שנתי</div>

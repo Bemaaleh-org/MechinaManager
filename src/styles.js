@@ -1349,6 +1349,16 @@ html,body{margin:0;padding:0;background:#012E58}
 .chart-tip i{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
 .tip-over{color:#B02A1F !important;font-weight:900}
 
+/* ---- נוכחות אימונים ---- */
+.st-train{display:flex;align-items:center;gap:7px;margin-top:5px}
+.st-train-k{font-size:10.5px;font-weight:700;color:var(--faint)}
+.tr-card{display:flex;align-items:center;gap:16px;margin-bottom:14px}
+.tr-pct{font-family:'Suez One',Heebo,serif;font-size:34px;line-height:1;flex:0 0 auto;
+  font-variant-numeric:tabular-nums}
+.tr-legs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;flex:1;text-align:center}
+.tr-legs b{display:block;font-size:16px;font-weight:800}
+.tr-legs span{display:block;font-size:10.5px;font-weight:700;color:var(--faint);margin-top:1px}
+
 /* ---- כניסה מדורגת, במסך הבית בלבד ----
    ⚠ רק על שתי הרשתות של מסך הבית ולא על כל כרטיס באפליקציה.
      רשימה של שלושים ימי תקציב שנכנסת בהנפשה נראית איטית, לא

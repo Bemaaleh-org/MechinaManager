@@ -25,6 +25,13 @@ const DOMAIN = {
       title: "ציוד חד״פ", photo: null,
       loading: "טוען את ציוד החד״פ", file: "ציוד-חדפ", shopFile: "רשימת-קניות-חדפ",
     },
+    /* ⚠ המצב המאוחד. שני התחומים חולקים לוח אחד ממילא, ורשימת
+       הקניות שלהם משותפת — ההפרדה למסכים רק אילצה לעבור
+       ביניהם באמצע ספירת מלאי. */
+    all: {
+      title: "אוכל וחד״פ", photo: null,
+      loading: "טוען את ציוד המטבח", file: "ציוד-מטבח", shopFile: "רשימת-קניות-מטבח",
+    },
   },
   load: (area) => api.getKitchen(area),
   addEquip: (b) => api.addKitchenItem(b),

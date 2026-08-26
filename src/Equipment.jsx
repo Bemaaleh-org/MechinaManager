@@ -436,10 +436,14 @@ function ParTab({ equipment, short, say, onChanged }) {
 /* ---------- הדף המלא ----------
    domain — הגדרת התחום: { look, areas, ...שבע קריאות השרת }.
    area  — התחום המוצג כרגע, אחד מ-domain.areas.               */
+/* ⚠ area === null פירושו "כל התחומים יחד". השרת כבר תמך בזה —
+   ?action=equip בלי area מחזיר את הלוח כולו עם עמודת area לכל
+   פריט — ורק המסך הכריח לבחור אחד. */
 export function EquipmentPage({ say, domain, area }) {
   return (
     <DomainCtx.Provider value={domain}>
-      <EquipmentScreen say={say} domain={domain} area={area || domain.areas[0]} />
+      <EquipmentScreen say={say} domain={domain}
+        area={area === null ? null : area || domain.areas[0]} />
     </DomainCtx.Provider>
   );
 }
@@ -449,13 +453,15 @@ function EquipmentScreen({ say, domain: d, area }) {
   const { data, err, busy, reload } = useLoad(() => d.load(area), [area]);
   const [sub, setSub] = useState("equip");
   const [kindFilter, setKindFilter] = useState(null);
+  /* ⚠ רק במצב המאוחד. ראו ההערה ליד הבורר. */
+  const [areaFilter, setAreaFilter] = useState(null);
   const [q, setQ] = useState("");
   const [adding, setAdding] = useState(false);
   const [building, setBuilding] = useState(null); // null | "manual" | "missing"
   const [nf, setNf] = useState({ name: "", qty: "", kind: d.defaultKind, par: "" });
   const [savingNew, setSavingNew] = useState(false);
 
-  const look = d.look[area] || d.look[d.areas[0]];
+  const look = (area === null ? d.look.all : d.look[area]) || d.look[d.areas[0]];
 
   /* ⚠ המסך מוחלף כשעוברים בין תחום לתחום — הסינון והחיפוש
      של הקודם היו נשארים ומסתירים חצי מהרשימה. */
@@ -487,13 +493,18 @@ function EquipmentScreen({ say, domain: d, area }) {
   const addNew = () => {
     if (savingNew || !nf.name.trim()) return;
     setSavingNew(true);
-    d.addEquip({ name: nf.name.trim(), qty: nf.qty, kind: nf.kind, par: nf.par, area })
+    /* ⚠ במצב המאוחד אין "התחום הנוכחי", ולכן הפריט נכנס לתחום
+       שנבחר במסנן — ואם לא נבחר, לתחום הראשון. פריט בלי תחום
+       לא היה מופיע באף מסנן. */
+    d.addEquip({ name: nf.name.trim(), qty: nf.qty, kind: nf.kind, par: nf.par,
+      area: area || areaFilter || d.areas[0] })
       .then(() => { say("הציוד נוסף"); setAdding(false); setNf({ name: "", qty: "", kind: d.defaultKind, par: "" }); reload(); })
       .catch((e) => say(e.message))
       .finally(() => setSavingNew(false));
   };
 
   const equipment = data.equipment
+    .filter((x) => !areaFilter || x.area === areaFilter)
     .filter((x) => !kindFilter || x.kind === kindFilter)
     .filter((x) => !q.trim() || x.name.includes(q.trim()));
   const open = data.shopping.filter((x) => x.status === "פתוח");
@@ -551,6 +562,19 @@ function EquipmentScreen({ say, domain: d, area }) {
               </div>
             </div>
           </div>
+
+          {/* ⚠ מסנן התחום מוצג רק במצב המאוחד. במסך של תחום
+              יחיד הוא היה שורה שלמה עם תשובה אחת. */}
+          {area === null && d.areas.length > 1 && (
+            <div className="seg">
+              <button className={!areaFilter ? "on" : ""}
+                onClick={() => setAreaFilter(null)}>הכול</button>
+              {d.areas.map((a) => (
+                <button key={a} className={areaFilter === a ? "on" : ""}
+                  onClick={() => setAreaFilter(a)}>{a}</button>
+              ))}
+            </div>
+          )}
 
           <div className="seg">
             <button className={!kindFilter ? "on" : ""} onClick={() => setKindFilter(null)}>הכול</button>

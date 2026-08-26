@@ -128,7 +128,8 @@ function Staff({ auth, onSignedOut }) {
   /* התחום שמסך הציוד מציג — אוכל או חד״פ במטבח, מכולה או
      ניקיון בציוד המכינה. שני מצבים נפרדים, אחרת מעבר בין
      התחומים היה גורר את התחום של המסך השני. */
-  const [kArea, setKArea] = useState("אוכל");
+  /* ⚠ null = אוכל וחד״פ יחד, וזו ברירת המחדל. */
+  const [kArea, setKArea] = useState(null);
   const [cArea, setCArea] = useState("מכולה");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [toast, setToast] = useState(null);
@@ -178,10 +179,11 @@ function Staff({ auth, onSignedOut }) {
   const user = { name: auth.name || "תורן", role: isMgr ? "צוות" : "תורנות מטבח" };
 
   const kitchenItems = [
-    { key: "k-food", label: "ציוד אוכל", icon: <I.cart />,
-      active: section === "kitchen" && kArea === "אוכל", onClick: () => goKitchen("אוכל") },
-    { key: "k-disp", label: "ציוד חד״פ", icon: <I.box />,
-      active: section === "kitchen" && kArea === "חד״פ", onClick: () => goKitchen("חד״פ") },
+    /* ⚠ פריט אחד ולא שניים. אוכל וחד״פ חולקים לוח אחד ורשימת
+       קניות אחת, וההפרדה למסכים רק אילצה לעבור ביניהם באמצע
+       ספירת מלאי. המסנן שבתוך המסך מפריד כשצריך. */
+    { key: "k-all", label: "אוכל וחד״פ", icon: <I.cart />,
+      active: section === "kitchen", onClick: () => goKitchen(null) },
     /* ⚠ תקציב הוא נתון כספי — מנהל בלבד, והשרת אוכף */
     ...(isMgr ? [{ key: "k-budget", label: "תקציב המטבח", icon: <I.count />,
       active: section === "budget", onClick: () => setSection("budget") }] : []),
@@ -223,7 +225,7 @@ function Staff({ auth, onSignedOut }) {
               { key: "dash", label: "מסך הבית", icon: <I.home />, active: section === "dash",
                 onClick: () => setSection("dash") },
             ] },
-            { label: "מטבח", items: kitchenItems },
+            { label: "מטבח וחד״א", items: kitchenItems },
             { label: "חניכים ונוכחות", items: [
               { key: "a-students", label: "חניכים", icon: <I.users />,
                 active: section === "mechina" && staffSub === "students", onClick: () => goStaff("students") },
@@ -430,7 +432,7 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
   if (kitchen && kitchen.missing > 0) {
     attn.push({ key: "kitchen", cls: "amber",
       t: `${kitchen.missing} פריטי מטבח מתחת למפתח`,
-      s: "אפשר להפוך לרשימת קניות בלחיצה", go: () => goKitchen("אוכל") });
+      s: "אפשר להפוך לרשימת קניות בלחיצה", go: () => goKitchen(null) });
   }
 
   const statTiles = [
@@ -457,7 +459,7 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
         : "טרם חובר",
     },
     {
-      key: "kitchen", tone: "tone-3", ico: <I.cart />, go: () => goKitchen("אוכל"),
+      key: "kitchen", tone: "tone-3", ico: <I.cart />, go: () => goKitchen(null),
       cls: kitchen ? (kitchen.missing ? "warn" : "good") : "",
       v: kitchen ? kitchen.missing : "—", l: "חוסרים במטבח",
       s: kitchen ? (kitchen.missing ? "מתחת למפתח" : "המלאי מלא") : "טרם חובר",
@@ -471,8 +473,7 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
   ];
 
   const navTiles = [
-    { key: "n-food", tone: "tone-3", l: "ציוד אוכל", icon: <I.cart />, go: () => goKitchen("אוכל") },
-    { key: "n-disp", tone: "tone-6", l: "ציוד חד״פ", icon: <I.box />, go: () => goKitchen("חד״פ") },
+    { key: "n-food", tone: "tone-3", l: "אוכל וחד״פ", icon: <I.cart />, go: () => goKitchen(null) },
     { key: "n-place", tone: "tone-5", l: "שיבוצי חניכים", icon: <I.users />, go: goPlacements },
     { key: "n-students", tone: "tone-2", l: "חניכים", icon: <I.note />, go: () => goStaff("students") },
     { key: "n-lessons", tone: "tone-1", l: "גיליונות מרצים", icon: <I.book />, go: () => goLessons("sheets") },

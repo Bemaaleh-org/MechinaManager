@@ -15,6 +15,7 @@ import { withAuth } from "./_session.js";
 import { activeStudents, toPublic } from "./_student-rows.js";
 import { loadCalendar, loadAbsences, loadMarked, summarize, israelToday } from "./_attendance-data.js";
 import { availableRoles } from "./_student-role.js";
+import { trainingByStudent, EMPTY_TRAINING } from "./_training-summary.js";
 
 async function handler(req, res) {
   if (req.method !== "GET") {
@@ -22,8 +23,9 @@ async function handler(req, res) {
   }
 
   try {
-    const [students, cal, absences, marked, roles] = await Promise.all([
+    const [students, cal, absences, marked, roles, training] = await Promise.all([
       activeStudents(), loadCalendar(), loadAbsences(), loadMarked(), availableRoles(),
+      trainingByStudent(),
     ]);
 
     const today = israelToday();
@@ -38,6 +40,9 @@ async function handler(req, res) {
       return {
         ...toPublic(s),
         summary: summarize(s.id, { absences, marked, byDate: cal.byDate }),
+        /* ⚠ נפרד מ-summary בכוונה: נוכחות אימון ונוכחות יומית
+           הן שתי אמיתות שונות ואין לערבב ביניהן. */
+        training: training.get(s.id) || EMPTY_TRAINING,
         today: hit ? { absent: true, type: hit.type, detail: hit.detail || null } : { absent: false },
       };
     });
