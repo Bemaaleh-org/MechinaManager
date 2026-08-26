@@ -1390,7 +1390,12 @@ html,body{margin:0;padding:0;background:#012E58}
   padding-right:18px;position:relative}
 .rl-perms li::before{content:"";position:absolute;right:5px;top:7px;width:6px;height:6px;
   border-radius:50%;background:var(--t,var(--accent))}
-.rl-pick{max-height:44vh;overflow-y:auto;margin-top:8px}
+/* ⚠ ספציפיות גבוהה מ-".kx .rows{overflow:hidden}" שבשכבת
+   ההרמה. בלעדיה overflow:hidden גובר, והרשימה של 33 החניכים
+   נחתכת בלי שאפשר לגלול אליה — היא נראית כאילו יש בה שמונה
+   חניכים בלבד. */
+.kx .rows.rl-pick{max-height:44vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  margin-top:8px}
 
 /* ---- תיאור המוביל״ש ---- */
 .ld-info{white-space:pre-line;font-size:13px;font-weight:600;line-height:1.7}
@@ -1408,6 +1413,44 @@ html,body{margin:0;padding:0;background:#012E58}
 .brw-bar>span{display:block;height:100%;background:var(--accent);border-radius:99px;
   transition:width .5s var(--ease)}
 .brw b{flex:0 0 auto;font-size:13px;font-weight:800;min-width:20px;text-align:left}
+
+/* ⚠ אותה מלכודת גם כאן. */
+.kx .rows.scroll-y{max-height:40vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+/* ---- כרטיסיית מנה ----
+   ⚠ הכרטיס כולו לחיץ, והבחירה מסומנת בשלושה סימנים ביחד: וי,
+     מסגרת וגוון. סימן יחיד על כרטיס גדול קל לפספס. */
+.dish-grid{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.kx .dish-card{width:100%;text-align:right;display:block;background:var(--surface);
+  border:1.5px solid rgba(211,201,182,.55);border-radius:var(--r-lg);
+  box-shadow:var(--sh-1);padding:14px 16px;
+  transition:border-color .12s var(--ease),box-shadow .12s var(--ease),
+    transform .12s var(--ease)}
+.kx .dish-card:active{transform:translateY(1px)}
+.kx .dish-card.on{border-color:var(--accent);
+  box-shadow:0 0 0 3px var(--accent-soft),var(--sh-1)}
+.dish-top{display:flex;align-items:center;gap:11px}
+.dish-nm{flex:1;min-width:0}
+.dish-nm b{display:block;font-size:16px;font-weight:800;letter-spacing:-.3px}
+.dish-nm span{display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin-top:2px}
+.dish-card.on .dish-nm b{color:var(--accent)}
+
+/* המצרכים כשבבים — נקראים במבט ולא כרשימה שצריך לרוץ עליה */
+.dish-items{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px;
+  padding-top:11px;border-top:1px solid rgba(211,201,182,.45)}
+.dish-it{display:inline-flex;align-items:baseline;gap:5px;font-size:11.5px;
+  font-weight:700;color:var(--muted);background:var(--bg);border-radius:99px;
+  padding:4px 10px}
+.dish-it b{font-size:12px;font-weight:900;color:var(--ink);
+  font-variant-numeric:tabular-nums}
+.dish-card.on .dish-it{background:var(--accent-soft);color:var(--accent)}
+.dish-card.on .dish-it b{color:var(--accent)}
+
+/* ⚠ הוראות ההכנה נחתכות לשלוש שורות. הן שייכות לכרטיס, אבל
+   כרטיס שגובהו תלוי באורך ההוראות הופך רשימה לבלתי נסרקת. */
+.dish-how{margin-top:9px;font-size:11.5px;font-weight:600;color:var(--faint);
+  line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;
+  overflow:hidden;white-space:pre-line}
 
 /* ---- מצרכים ----
    ⚠ שלושה מצבים לשורת מצרך: יש · חסר · לא נמצא במלאי.

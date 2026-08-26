@@ -256,23 +256,29 @@ function Staff({ auth, onSignedOut }) {
               { key: "l-evals", label: "חוות דעת", icon: <I.star />,
                 active: section === "lessons" && lessonsSub === "evals", onClick: () => goLessons("evals") },
             ] },
+            /* ⚠ הבוגרים אינם בטיחות ואינם תחזוקה. הם קטגוריה
+               בפני עצמה — מי שכבר סיים את המכינה. */
+            { label: "בוגרים", items: [
+              { key: "alumni", label: "בוגרי המכינה", icon: <I.users />,
+                active: section === "alumni", onClick: () => setSection("alumni") },
+            ] },
             { label: "בטיחות ותחזוקה", items: [
               { key: "safety", label: "אירועי בטיחות", icon: <I.warn />, active: section === "safety",
                 onClick: () => setSection("safety") },
               { key: "hosting", label: "אירוח קבוצות", icon: <I.home />,
                 active: section === "hosting", onClick: () => setSection("hosting") },
-              { key: "loans", label: "השאלת ציוד", icon: <I.box />,
-                active: section === "loans", onClick: () => setSection("loans") },
-              { key: "alumni", label: "בוגרים", icon: <I.users />,
-                active: section === "alumni", onClick: () => setSection("alumni") },
               { key: "faults", label: "תקלות ובעיות", icon: <I.gear />, active: section === "faults",
                 onClick: () => setSection("faults") },
             ] },
-            { label: "ציוד מכינה", items: [
+            /* ⚠ ההשאלות יושבות עם המכולה: הציוד שיוצא ונכנס
+               הוא אותו ציוד שבמכולה, ואותו אדם אחראי עליו. */
+            { label: "מכולה והשאלת ציוד", items: [
               { key: "c-container", label: "מכולה", icon: <I.box />,
                 active: section === "container" && cArea === "מכולה", onClick: () => goContainer("מכולה") },
               { key: "c-clean", label: "ציוד ניקיון", icon: <I.box />,
                 active: section === "container" && cArea === "ניקיון", onClick: () => goContainer("ניקיון") },
+              { key: "loans", label: "השאלת ציוד", icon: <I.box />,
+                active: section === "loans", onClick: () => setSection("loans") },
             ] },
           ] : [
             { label: "המטבח", items: kitchenItems },

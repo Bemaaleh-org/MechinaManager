@@ -275,8 +275,8 @@ export function HostingPage({ say }) {
             <div className="band-l">עם לינה</div>
           </div>
           <div className="band-c">
-            <div className={"band-n" + (data.counts.owed ? " warn" : " ok")}>{data.counts.owed}</div>
-            <div className="band-l">מטלות פתוחות</div>
+            <div className={"band-n" + (data.counts.pending ? " warn" : " ok")}>{data.counts.pending}</div>
+            <div className="band-l">בתיאום</div>
           </div>
         </div>
       </div>
@@ -290,9 +290,9 @@ export function HostingPage({ say }) {
       ) : (
         <div className="rows">
           {data.hosting.map((h) => {
-            const owed = h.status !== "בוטל" && (h.briefed !== "כן" || h.handback !== "כן");
+            const pending = h.status === "בתיאום";
             return (
-              <button className={"st-row " + (owed ? "tone-3" : "tone-1")} key={h.id}
+              <button className={"st-row " + (pending ? "tone-3" : "tone-1")} key={h.id}
                 onClick={() => setForm(h)}>
                 <div className="tile sm"><XI.home /></div>
                 <div className="st-main">
@@ -303,12 +303,6 @@ export function HostingPage({ say }) {
                     {h.people != null && <span>· {h.people} איש</span>}
                     {h.sleeping && <span>· {h.sleeping}</span>}
                   </div>
-                  {owed && (
-                    <div className="sf-pend">
-                      {[h.briefed !== "כן" && "טרם תודרך",
-                        h.handback !== "כן" && "המבנים טרם הוחזרו"].filter(Boolean).join(" · ")}
-                    </div>
-                  )}
                 </div>
                 <XI.chev style={{ color: "var(--line2)", flex: "0 0 auto" }} />
               </button>
@@ -336,7 +330,6 @@ function HostingForm({ initial, options, say, onDone, onCancel }) {
     sleeping: initial?.sleeping || "לא לנים",
     buildings: initial?.buildings || "", meals: initial?.meals || "",
     status: initial?.status || "בתיאום",
-    briefed: initial?.briefed || "לא", handback: initial?.handback || "לא",
     note: initial?.note || "",
   });
   const [busy, setBusy] = useState(false);
@@ -399,14 +392,6 @@ function HostingForm({ initial, options, say, onDone, onCancel }) {
         <Pick label="סטטוס" options={options.status} value={f.status}
           onChange={(v) => setF({ ...f, status: v })} disabled={busy} />
 
-        {/* ⚠ שתי מטלות בשני קצות האירוח, ולכן שני שדות. */}
-        <div className="two">
-          <Pick label="תודרך" options={["כן", "לא"]} value={f.briefed}
-            onChange={(v) => setF({ ...f, briefed: v })} disabled={busy} />
-          <Pick label="המבנים הוחזרו" options={["כן", "לא"]} value={f.handback}
-            onChange={(v) => setF({ ...f, handback: v })} disabled={busy} />
-        </div>
-
         <Field label="הערות">
           <textarea value={f.note} onChange={set("note")} disabled={busy} rows={3} />
         </Field>
@@ -421,6 +406,69 @@ function HostingForm({ initial, options, say, onDone, onCancel }) {
       </div>
       <div style={{ height: 40 }} />
     </>
+  );
+}
+
+/* ---------- בחירת ציוד מהמכולה ----------
+   ⚠ בוחרים מהמלאי, אבל התוצאה נשארת טקסט חופשי וניתנת לעריכה.
+     השאלה כוללת לעיתים פריט שאינו בלוח ("שני שולחנות של
+     הקיבוץ"), ורשימה סגורה הייתה מונעת לרשום אותו. */
+function StockPicker({ value, onChange, disabled }) {
+  const { data } = useLoad(() => api.getContainer("מכולה"), []);
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const lines = String(value || "").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+  const has = (name) => lines.some((l) => l === name || l.startsWith(name + " "));
+
+  const toggle = (item) => {
+    const next = has(item.name)
+      ? lines.filter((l) => !(l === item.name || l.startsWith(item.name + " ")))
+      : [...lines, item.qty ? `${item.name} — יש ${item.qty}` : item.name];
+    onChange(next.join("\n"));
+  };
+
+  const list = (data ? data.equipment : [])
+    .filter((x) => !q.trim() || x.name.includes(q.trim()));
+
+  return (
+    <Field label="הציוד" hint="בוחרים מהמכולה, ואפשר גם להקליד ידנית">
+      <textarea value={value} onChange={(e) => onChange(e.target.value)}
+        disabled={disabled} rows={4} placeholder="שורה לכל פריט" />
+
+      <button type="button" className="btn btn-ghost btn-sm"
+        style={{ width: "100%", marginTop: 8 }} disabled={disabled}
+        onClick={() => setOpen(!open)}>
+        {open ? "סגירת רשימת המכולה" : `בחירה מהמכולה${data ? ` (${data.equipment.length})` : ""}`}
+      </button>
+
+      {open && (
+        <div style={{ marginTop: 8 }}>
+          <input className="search" value={q} placeholder="חיפוש ציוד"
+            onChange={(e) => setQ(e.target.value)} />
+          <div className="rows scroll-y" style={{ marginTop: 8 }}>
+            {list.map((x) => {
+              const on = has(x.name);
+              return (
+                <button type="button" className="st-row" key={x.id}
+                  disabled={disabled} onClick={() => toggle(x)}>
+                  <div className={"tick" + (on ? " on" : "")}>
+                    {on && <span style={{ color: "#fff", fontWeight: 900 }}>✓</span>}
+                  </div>
+                  <div className="st-main">
+                    <div className="st-n">{x.name}</div>
+                    <div className="st-m"><span>{x.qty || "—"}</span></div>
+                  </div>
+                </button>
+              );
+            })}
+            {list.length === 0 && (
+              <div className="led-empty">{data ? "אין ציוד תואם" : "טוען…"}</div>
+            )}
+          </div>
+        </div>
+      )}
+    </Field>
   );
 }
 
@@ -559,9 +607,17 @@ function LoanForm({ initial, directions, say, onDone, onCancel }) {
           <Field label="הגוף"><input value={f.party} onChange={set("party")} disabled={busy} /></Field>
           <Field label="איש קשר"><input value={f.contact} onChange={set("contact")} disabled={busy} /></Field>
         </div>
-        <Field label="הציוד" hint="שורה לכל פריט">
-          <textarea value={f.items} onChange={set("items")} disabled={busy} rows={4} />
-        </Field>
+        {/* ---------- הציוד ----------
+            ⚠ בחירה מהמכולה רק כשמשאילים מאיתנו. ציוד ששאלנו
+              מגוף אחר אינו במלאי שלנו, ורשימה שתציע אותו הייתה
+              מבלבלת בין שני הכיוונים. */}
+        {f.direction === "הושאל מאיתנו"
+          ? <StockPicker value={f.items} onChange={(v) => setF((p2) => ({ ...p2, items: v }))} disabled={busy} />
+          : (
+            <Field label="הציוד" hint="שורה לכל פריט">
+              <textarea value={f.items} onChange={set("items")} disabled={busy} rows={4} />
+            </Field>
+          )}
         <div className="two">
           <Field label="תאריך יציאה"><input type="date" value={f.out} onChange={set("out")} disabled={busy} /></Field>
           <Field label="תאריך החזרה"><input type="date" value={f.due} onChange={set("due")} disabled={busy} /></Field>

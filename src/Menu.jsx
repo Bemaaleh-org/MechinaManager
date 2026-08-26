@@ -65,7 +65,7 @@ export function MenuPage({ say }) {
   if (!data) return null;
 
   if (editing) {
-    return <DishForm initial={editing.id ? editing : null} kinds={data.kinds}
+    return <DishForm initial={editing.id ? editing : null}
       defaultBase={data.defaultBase} say={say}
       onDone={() => { setEditing(null); reload(); }} onCancel={() => setEditing(null)} />;
   }
@@ -102,8 +102,7 @@ export function MenuPage({ say }) {
                   <div className="st-main">
                     <div className="st-n">{d.name}</div>
                     <div className="st-m">
-                      {d.kind && <span className="pill p-new">{d.kind}</span>}
-                      <span>· מצרכים ל-{d.baseHeads}</span>
+                      <span>מצרכים ל-{d.baseHeads}</span>
                       <span>· {parseItems(d.items).length} מצרכים</span>
                     </div>
                   </div>
@@ -196,21 +195,45 @@ function Planner({ dishes, picked, onToggle, heads, setHeads, meals, say, onRelo
           <div className="e2">הוסיפו מנה בלשונית "המנות".</div>
         </div>
       ) : (
-        <div className="rows" style={{ maxHeight: "40vh", overflowY: "auto" }}>
+        /* ---------- כרטיסייה לכל מנה ----------
+           ⚠ הכרטיס מראה את המצרכים **בכמות שנבחרה**, לא בכמות
+             שנשמרה. זו כל התועלת: מי שמתכנן ל-17 רוצה לראות
+             2.92 קילו, לא "6 קילו ל-35" ולחשב בראש.
+
+           ⚠ ולכן גם מנה שלא נבחרה מציגה את הכמות המחושבת —
+             ההחלטה אם לקחת אותה תלויה בדיוק במספר הזה. */
+        <div className="dish-grid">
           {dishes.map((d) => {
             const on = picked.includes(d.id);
+            const items = n > 0
+              ? scaleItems(parseItems(d.items), d.baseHeads, n)
+              : parseItems(d.items);
             return (
-              <button className="st-row" key={d.id} onClick={() => onToggle(d.id)}>
-                <div className={"tick" + (on ? " on" : "")}>
-                  {on && <span style={{ color: "#fff", fontWeight: 900 }}>✓</span>}
-                </div>
-                <div className="st-main">
-                  <div className="st-n">{d.name}</div>
-                  <div className="st-m">
-                    {d.kind && <span>{d.kind}</span>}
-                    <span>· ל-{d.baseHeads}</span>
+              <button className={"dish-card" + (on ? " on" : "")} key={d.id}
+                onClick={() => onToggle(d.id)}>
+                <div className="dish-top">
+                  <div className={"tick" + (on ? " on" : "")}>
+                    {on && <span style={{ color: "#fff", fontWeight: 900 }}>✓</span>}
                   </div>
+                  <div className="dish-nm">
+                    <b>{d.name}</b>
+                    <span>{n > 0 ? `מצרכים ל-${n} סועדים` : `מצרכים ל-${d.baseHeads}`}</span>
+                  </div>
+                  <MI.dish style={{ color: on ? "var(--accent)" : "var(--line2)", flex: "0 0 auto" }} />
                 </div>
+
+                {items.length > 0 && (
+                  <div className="dish-items">
+                    {items.map((it, i) => (
+                      <span className="dish-it" key={i}>
+                        {it.name}
+                        <b>{qty(it.qty)}{it.unit ? ` ${it.unit}` : ""}</b>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {d.how && <div className="dish-how">{d.how}</div>}
               </button>
             );
           })}
@@ -297,9 +320,11 @@ function Planner({ dishes, picked, onToggle, heads, setHeads, meals, say, onRelo
 }
 
 /* ---------- טופס מנה ---------- */
-function DishForm({ initial, kinds, defaultBase, say, onDone, onCancel }) {
+function DishForm({ initial, defaultBase, say, onDone, onCancel }) {
+  /* ⚠ בלי "סוג". מנה היא שם, כמות אנשים ומצרכים — סיווג
+     שאיש אינו מסנן לפיו הוא שדה שצריך למלא בלי סיבה. */
   const [f, setF] = useState({
-    name: initial?.name || "", kind: initial?.kind || "עיקרית",
+    name: initial?.name || "",
     baseHeads: String(initial?.baseHeads || defaultBase),
     items: initial?.items || "", how: initial?.how || "",
   });
@@ -339,17 +364,6 @@ function DishForm({ initial, kinds, defaultBase, say, onDone, onCancel }) {
         <div className="fld">
           <label>שם המנה</label>
           <input value={f.name} onChange={set("name")} disabled={busy} placeholder="למשל: שניצל" />
-        </div>
-
-        <div className="fld">
-          <label>סוג</label>
-          <div className="pick pick-wrap">
-            {kinds.map((k) => (
-              <button type="button" key={k} disabled={busy}
-                className={f.kind === k ? "on" : ""}
-                onClick={() => setF({ ...f, kind: k })}>{k}</button>
-            ))}
-          </div>
         </div>
 
         <div className="fld">

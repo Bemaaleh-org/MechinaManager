@@ -79,7 +79,6 @@ function colsFrom(body, res) {
   }
   for (const [k, c, allowed] of [
     ["status", C.status, STATUS], ["sleeping", C.sleeping, SLEEP],
-    ["briefed", C.briefed, YN], ["handback", C.handback, YN],
   ]) {
     if (body[k] === undefined || body[k] === "") continue;
     if (!allowed.includes(String(body[k]))) { res.status(400).json({ error: "ערך לא מוכר" }); return null; }
@@ -114,9 +113,10 @@ async function handler(req, res, session) {
           open: list.filter((x) => x.status !== "התקיים" && x.status !== "בוטל").length,
           upcoming: list.filter((x) => x.from && x.from >= today && x.status !== "בוטל").length,
           sleeping: list.filter((x) => x.sleeping === "לנים" && x.status !== "בוטל").length,
-          /* מטלות פתוחות בשני קצות האירוח */
-          owed: list.filter((x) =>
-            x.status !== "בוטל" && (x.briefed !== "כן" || x.handback !== "כן")).length,
+          /* ⚠ "בתיאום" הוא המצב שדורש עבודה — אירוח שסוכם
+             אבל טרם אושר. הוא מחליף את שתי המטלות שהיו כאן
+             ולא נעשה בהן שימוש. */
+          pending: list.filter((x) => x.status === "בתיאום").length,
         },
         options: { status: STATUS, sleeping: SLEEP },
       });
