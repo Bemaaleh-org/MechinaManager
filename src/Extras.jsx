@@ -255,7 +255,7 @@ function AlumniForm({ initial, branches, cycles, canAddBranch, say, onDone, onCa
       </button>
       <div className="screen-title">{initial ? "עריכת בוגר" : "בוגר חדש"}</div>
 
-      <div className="card">
+      <div className="card lift">
         <Field label="שם"><input value={f.name} onChange={set("name")} disabled={busy} /></Field>
         <Pick label="מחזור" options={cycles && cycles.length ? cycles : ["מחזור א׳", "מחזור ב׳"]}
           value={f.cycle} onChange={(v) => setF({ ...f, cycle: v })} disabled={busy} />
@@ -569,7 +569,7 @@ function HostingForm({ initial, options, say, onDone, onCancel }) {
       </button>
       <div className="screen-title">{initial ? "עריכת אירוח" : "אירוח חדש"}</div>
 
-      <div className="card">
+      <div className="card lift">
         <Field label="כותרת" hint="למשל: בית ספר אמית · שכבת י׳">
           <input value={f.title} onChange={set("title")} disabled={busy} />
         </Field>
@@ -932,7 +932,7 @@ function LoanForm({ initial, directions, say, onDone, onCancel }) {
       </button>
       <div className="screen-title">{initial ? "עריכת השאלה" : "השאלה חדשה"}</div>
 
-      <div className="card">
+      <div className="card lift">
         <Field label="כותרת" hint="למשל: אוהלים לבית ספר שדות">
           <input value={f.title} onChange={set("title")} disabled={busy} />
         </Field>

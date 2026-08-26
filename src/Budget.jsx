@@ -97,7 +97,7 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
       </button>
       <div className="screen-title">יום {dowOf(day.date)}׳ · {dm(day.date)}</div>
 
-      <div className="card">
+      <div className="card lift">
         <div className="fld">
           <label>סוג היום</label>
           <div className="pick pick-wrap">
@@ -222,7 +222,7 @@ function OrderForm({ months, defaultMonth, today, say, onDone, onCancel }) {
       </button>
       <div className="screen-title">קנייה חדשה</div>
 
-      <div className="card">
+      <div className="card lift">
         <div className="fld">
           <label>סוג הקנייה</label>
           <div className="pick">

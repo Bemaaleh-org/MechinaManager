@@ -1385,7 +1385,7 @@ function ProfileCard({ studentId, say }) {
       </div>
 
       <div className="sec-label">שיחה אישית</div>
-      <div className="card">
+      <div className="card lift">
         {TALK_LABELS.map((label, i) => (
           <div className="fld" key={label}>
             <label>{label}</label>
@@ -1457,7 +1457,7 @@ function Incidents({ studentId, say }) {
       ))}
 
       {adding ? (
-        <div className="card">
+        <div className="card lift">
           <div className="fld">
             <label>סוג</label>
             <div className="pick">

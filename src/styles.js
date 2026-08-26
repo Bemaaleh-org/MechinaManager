@@ -1723,6 +1723,130 @@ html,body{margin:0;padding:0;background:#012E58}
 .kx .bell-btn.on{background:var(--accent-soft);color:var(--accent)}
 .bell-badge.hot{background:var(--clay)}
 
+/* ============================================================
+   שכבת ההרמה השנייה
+   ------------------------------------------------------------
+   ההשראה מ-busly/signup. מה שנלקח משם, ומה שלא:
+
+   ✓ פס גוון בקצה העליון של הכרטיס — הכרטיס מקבל זהות בלי
+     כותרת צבעונית ובלי מסגרת עבה.
+   ✓ כפתור ראשי עם שיפוע **וזוהר בצבעו** מתחתיו. הזוהר הוא מה
+     שמרים אותו מהדף; בלעדיו שיפוע הוא רק צבע.
+   ✓ שדות גבוהים יותר עם מילוי רך וטבעת מיקוד ברורה.
+   ✓ מסילת שלבים ממוספרת עם קו מקשר.
+   ✓ קשת מנוקדת עם נקודת אור — תנועה ברקע בלי אנימציה.
+
+   ✗ הפלטה הכהה. לאפליקציה יש זהות קרם־נייבי שעובדת, והחלפה
+     שלה בנייבי כהה הייתה עיצוב אחר ולא עיצוב טוב יותר.
+   ============================================================ */
+
+/* ---- כרטיס מורם ----
+   ⚠ הפס בקצה ולא מסגרת מסביב: מסגרת צבעונית סוגרת את הכרטיס
+     ומקטינה אותו, פס עליון פותח אותו כלפי מטה. */
+.kx .card{border-radius:var(--r-lg);box-shadow:var(--sh-1);
+  border-color:rgba(211,201,182,.55)}
+.kx .card.lift{position:relative;overflow:hidden;padding-top:19px;
+  box-shadow:var(--sh-2)}
+.kx .card.lift::before{content:"";position:absolute;top:0;right:0;left:0;height:4px;
+  background:linear-gradient(90deg,var(--accent) 0%,#0A4478 42%,var(--t1) 100%)}
+
+/* ---- כפתור ראשי ----
+   ⚠ הזוהר בצבע הכפתור ולא באפור. צל אפור מתחת לכפתור כחול
+     נראה כמו שכבה זרה; זוהר בצבעו נראה כמו שהכפתור מאיר. */
+.kx .btn-primary{
+  background:linear-gradient(100deg,#012E58 0%,#0A4478 55%,#0D5490 100%);
+  box-shadow:0 2px 4px rgba(0,36,84,.18),
+    0 12px 28px -10px rgba(10,68,120,.55),
+    inset 0 1px 0 rgba(255,255,255,.14);
+  letter-spacing:-.1px}
+.kx .btn-primary:active{transform:translateY(1.5px);
+  box-shadow:0 1px 2px rgba(0,36,84,.22),0 4px 12px -8px rgba(10,68,120,.5)}
+.kx .btn-primary:disabled{box-shadow:none;opacity:.5}
+/* החץ זז קדימה בלחיצה — תזוזה של 2px שמרגישים ולא רואים */
+.kx .btn-primary svg{transition:transform .14s var(--ease)}
+.kx .btn-primary:active svg{transform:translateX(-2px)}
+
+.kx .btn-ghost{background:var(--surface);border:1.5px solid var(--line);
+  box-shadow:0 1px 2px rgba(47,38,22,.04);transition:all .12s var(--ease)}
+.kx .btn-ghost:active{background:var(--bg);border-color:var(--line2);
+  transform:translateY(1px)}
+
+/* ---- שדות ----
+   ⚠ מילוי רך ולא לבן: שדה לבן על כרטיס לבן מסתמך על המסגרת
+     בלבד, ומסגרת דקה נעלמת בשמש. */
+.kx .fld input,.kx .fld select,.kx .fld textarea,.kx .search{
+  min-height:52px;background:var(--bg);border-color:transparent;
+  box-shadow:inset 0 0 0 1.5px var(--line);
+  padding-right:14px;padding-left:14px;font-weight:600}
+.kx .fld textarea{padding-top:13px;padding-bottom:13px;line-height:1.55}
+.kx .fld input::placeholder,.kx .fld textarea::placeholder{color:var(--faint);font-weight:500}
+.kx .fld input:focus,.kx .fld select:focus,.kx .fld textarea:focus,.kx .search:focus{
+  background:var(--surface);border-color:transparent;
+  box-shadow:inset 0 0 0 1.5px var(--accent),0 0 0 4px var(--accent-soft)}
+.kx .fld label{font-size:12px;font-weight:800;letter-spacing:.3px;
+  color:var(--muted);margin-bottom:6px}
+
+/* ---- מסילת שלבים ----
+   ⚠ המספר בעיגול והקו שמחבר ביניהם. הקו הוא מה שהופך שלוש
+     שורות לרצף אחד — בלעדיו זו רשימה, לא תהליך. */
+.steps{position:relative;padding:2px 0}
+.step-row{position:relative;display:flex;gap:12px;padding:0 0 16px}
+.step-row:last-child{padding-bottom:0}
+.step-n{position:relative;z-index:1;flex:0 0 30px;height:30px;border-radius:99px;
+  display:grid;place-items:center;font-size:13px;font-weight:900;
+  background:var(--surface);color:var(--faint);
+  box-shadow:inset 0 0 0 2px var(--line)}
+.step-row.on .step-n{background:var(--accent);color:#fff;box-shadow:none}
+.step-row.done .step-n{background:var(--ok);color:#fff;box-shadow:none}
+/* הקו — מהעיגול הזה לעיגול הבא */
+.step-row:not(:last-child)::before{content:"";position:absolute;top:30px;bottom:2px;
+  right:14px;width:2px;background:var(--line);border-radius:99px}
+.step-row.done::before{background:var(--ok);opacity:.45}
+.step-b{flex:1;min-width:0;padding-top:4px}
+.step-t{font-size:14.5px;font-weight:800;letter-spacing:-.2px;line-height:1.3}
+.step-s{font-size:12px;font-weight:600;color:var(--muted);margin-top:2px;line-height:1.5}
+
+/* ---- קשת הרקע ----
+   ⚠ SVG בתוך data-uri ולא תמונה: 300 בתים, לא בקשת רשת, ולא
+     קובץ שצריך לזכור לפרוס. */
+.band{isolation:isolate}
+.band::after{content:"";position:absolute;top:-40%;left:-12%;width:74%;height:180%;
+  pointer-events:none;opacity:.5;
+  background:
+    radial-gradient(closest-side,rgba(120,200,190,.5),transparent 70%) -6% 30%/34px 34px no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 120'%3E%3Cpath d='M-10 110 C 40 20, 150 10, 220 46' fill='none' stroke='%237ED0C4' stroke-width='2' stroke-dasharray='5 7' stroke-linecap='round' opacity='.55'/%3E%3C/svg%3E") center/contain no-repeat}
+
+/* ---- מפריד עם מילה ---- */
+.or{display:flex;align-items:center;gap:12px;margin:15px 0;
+  font-size:11.5px;font-weight:800;color:var(--faint)}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+
+/* ---- אריחים ----
+   ⚠ שיפוע עדין מלמעלה למטה ונגיעת אור פנימית בקצה העליון.
+     משטח שטוח נראה מודפס; שכבת אור דקה נותנת לו חומר. */
+.kx .nav-tile,.kx .stat-tile{
+  background:linear-gradient(180deg,#fff 0%,#FDFBF7 100%);
+  box-shadow:0 1px 2px rgba(47,38,22,.05),0 10px 24px -14px rgba(47,38,22,.24),
+    inset 0 1px 0 rgba(255,255,255,.9)}
+.kx .nav-tile:active,.kx .stat-tile:active{
+  box-shadow:0 1px 2px rgba(47,38,22,.07),0 4px 10px -8px rgba(47,38,22,.22)}
+.nav-ico{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--t,var(--accent)) 12%,transparent)}
+
+/* ---- שורות ורשימות ---- */
+.kx .rows{background:var(--surface)}
+.kx .st-row{position:relative}
+/* הפס בצד הופך גוון שקוף לסימן ברור */
+.kx .st-row[class*="tone-"]::after{content:"";position:absolute;top:10px;bottom:10px;
+  right:0;width:3px;border-radius:99px;background:var(--t,var(--accent));opacity:.5}
+
+/* ---- כותרת מסך ---- */
+.screen-title::after{height:4px;width:40px}
+
+/* ---- טבלאות ---- */
+.kx table{border-radius:var(--r-md);overflow:hidden}
+.kx thead th{background:var(--bg);font-size:11.5px;font-weight:900;
+  letter-spacing:.5px;color:var(--muted)}
+
 /* ⚠ מי שביקש פחות תנועה מקבל פחות תנועה. */
 @media (prefers-reduced-motion:reduce){
   .kx *{transition-duration:.01ms !important;animation-duration:.01ms !important}

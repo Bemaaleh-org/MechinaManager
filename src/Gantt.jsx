@@ -133,7 +133,7 @@ function EventForm({ event, defaultDate, say, onDone, onCancel }) {
       </button>
       <div className="screen-title">{editing ? "עריכת אירוע" : "אירוע חדש בלו״ז"}</div>
 
-      <div className="card">
+      <div className="card lift">
         <div className="fld">
           <label>שם האירוע</label>
           <input value={f.name} onChange={set("name")} disabled={busy} autoFocus={!editing}

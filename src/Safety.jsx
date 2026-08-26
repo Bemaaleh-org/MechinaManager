@@ -113,7 +113,7 @@ function IncidentForm({ initial, say, onDone, onCancel }) {
       </button>
       <div className="screen-title">{editing ? "עריכת דיווח" : "דיווח אירוע בטיחות"}</div>
 
-      <div className="card">
+      <div className="card lift">
         <div className="fld">
           <label>כותרת האירוע</label>
           <input value={f.title} onChange={setT("title")} disabled={busy} autoFocus={!editing}

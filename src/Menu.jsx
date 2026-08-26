@@ -342,7 +342,7 @@ function DishView({ dish, onBack }) {
         <MI.chev style={{ transform: "rotate(180deg)" }} />חזרה
       </button>
       <div className="screen-title">{dish.name}</div>
-      <div className="card">
+      <div className="card lift">
         <div className="sec-label" style={{ marginTop: 0 }}>מצרכים ל-{dish.baseHeads} סועדים</div>
         {items.map((it, i) => (
           <div className="ing" key={i}>
@@ -403,7 +403,7 @@ function DishForm({ initial, defaultBase, say, onDone, onCancel }) {
       </button>
       <div className="screen-title">{initial ? "עריכת מנה" : "מנה חדשה"}</div>
 
-      <div className="card">
+      <div className="card lift">
         <div className="fld">
           <label>שם המנה</label>
           <input value={f.name} onChange={set("name")} disabled={busy} placeholder="למשל: שניצל" />

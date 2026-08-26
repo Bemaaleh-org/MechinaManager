@@ -135,7 +135,7 @@ function FaultForm({ initial, say, onDone, onCancel }) {
       </button>
       <div className="screen-title">{editing ? "עריכת תקלה" : "תקלה חדשה"}</div>
 
-      <div className="card">
+      <div className="card lift">
         <div className="fld">
           <label>סוג הבעיה</label>
           <input value={f.title} onChange={setT("title")} disabled={busy} autoFocus={!editing}

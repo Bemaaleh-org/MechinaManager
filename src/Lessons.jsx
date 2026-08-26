@@ -130,7 +130,7 @@ function MonthlyReport({ onClose, say }) {
       </button>
       <div className="screen-title">דוח חודשי</div>
 
-      <div className="card">
+      <div className="card lift">
         <div className="fld">
           <label htmlFor="rp-month">חודש</label>
           <select id="rp-month" value={month} onChange={(e) => setMonth(e.target.value)}>
