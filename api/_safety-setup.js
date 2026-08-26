@@ -62,7 +62,11 @@ async function handler(req, res) {
      (api/_safety-setup.js). חייב להיכנס לקומיט.
    ============================================================ */
 
-export const SAFETY_BOARD = "${board}";
+/* ⚠ אובייקט ולא מחרוזת — כדי שהחלפת מחזור תוכל לעדכן
+   אותו בזמן ריצה. ראו api/_cycle.js. */
+export const SAFETY = { board: "${board}" };
+
+export const SAFETY_BOARD = SAFETY.board;
 
 export const SAFETY_COLS = {
   date: "${C.date}", place: "${C.place}", severity: "${C.severity}",

@@ -22,7 +22,7 @@ import { cached, invalidate } from "./_cache.js";
 import { setColumns, renameItem, createItem, deleteItem } from "./_items.js";
 import { israelToday } from "./_attendance-data.js";
 import {
-  FAULTS_BOARD, FAULTS_COLS as C, faultsReady, toStudentFault,
+  FAULTS, FAULTS_COLS as C, faultsReady, toStudentFault,
   FAULT_PLACE, FIXES, URGENCIES, STATUSES, FAULT_STATUS, FAULT_URGENCY,
 } from "../shared/faults-board.js";
 
@@ -34,7 +34,7 @@ export async function loadFaults({ force = false } = {}) {
   return cached("faults", async () => {
     /* ⚠ assets נשלף במפורש: לעמודת קובץ יש רק שם הקובץ ב-text,
        וכתובת להצגה מגיעה רק מכאן. */
-    const items = await allItems(FAULTS_BOARD, "assets { id public_url }");
+    const items = await allItems(FAULTS.board, "assets { id public_url }");
     return items
       .map((i) => {
         const cost = val(i, C.cost);
@@ -177,7 +177,7 @@ async function handler(req, res, session) {
       cols[C.reporter] = actorName(session).slice(0, 120);
       cols[C.reporterId] = String(session.itemId || "");
 
-      const id = await createItem(FAULTS_BOARD, title, cols);
+      const id = await createItem(FAULTS.board, title, cols);
 
       /* ⚠ התמונה עולה אחרי היצירה — עמודת קובץ אינה מקבלת ערך
          ב-create_item. כישלון בהעלאה אינו מבטל את הדיווח:
@@ -215,11 +215,11 @@ async function handler(req, res, session) {
 
       const cols = colsFrom(body, res);
       if (cols === null) return;
-      if (Object.keys(cols).length) await setColumns(FAULTS_BOARD, id, cols);
+      if (Object.keys(cols).length) await setColumns(FAULTS.board, id, cols);
       if (body.title !== undefined) {
         const title = String(body.title).trim().slice(0, 200);
         if (!title) return res.status(400).json({ error: "כותרת ריקה" });
-        await renameItem(FAULTS_BOARD, id, title);
+        await renameItem(FAULTS.board, id, title);
       }
       invalidate("faults");
       return res.status(200).json({ ok: true, id });

@@ -5,7 +5,13 @@
      (api/_faults-setup.js). חייב להיכנס לקומיט.
    ============================================================ */
 
-export const FAULTS_BOARD = "5102833573";
+/* ⚠ אובייקט ולא מחרוזת, כדי שהחלפת מחזור תוכל לעדכן אותו
+   בזמן ריצה. ראו api/_cycle.js. מחרוזת מיוצאת נקבעת פעם
+   אחת בטעינת המודול ואי אפשר להחליף אותה. */
+export const FAULTS = { board: "5102833573" };
+
+/** תאימות לאחור — ⚠ נקבע בטעינה ואינו מתחלף עם מחזור. */
+export const FAULTS_BOARD = FAULTS.board;
 
 export const FAULTS_COLS = {
   date: "date_mm6htkm2", place: "color_mm6hyxwh", fix: "color_mm6h5fdq", urgency: "color_mm6hg4rf", status: "color_mm6hkm26",

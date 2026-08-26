@@ -144,6 +144,13 @@ export const api = {
   getNotify: () => get("/api/auth?action=notify"),
   markNotifySeen: () => post("/api/auth?action=notify", {}),
 
+  /* ---------- מחזורים ----------
+     ⚠ ראש המכינה בלבד. פתיחת מחזור יוצרת 19 לוחות ב-monday. */
+  getCycles: () => get("/api/students?action=cycles"),
+  addCycle: (b) => post("/api/students?action=cycles", b),
+  editCycle: (b) => put("/api/students?action=cycles", b),
+  deleteCycle: (id) => del("/api/students?action=cycles", { id }),
+
   getAlumni: () => get("/api/students?action=alumni"),
   addAlumni: (b) => post("/api/students?action=alumni", b),
   editAlumni: (b) => put("/api/students?action=alumni", b),

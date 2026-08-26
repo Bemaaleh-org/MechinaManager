@@ -5,7 +5,13 @@
      (api/_safety-setup.js). חייב להיכנס לקומיט.
    ============================================================ */
 
-export const SAFETY_BOARD = "5102832891";
+/* ⚠ אובייקט ולא מחרוזת, כדי שהחלפת מחזור תוכל לעדכן אותו
+   בזמן ריצה. ראו api/_cycle.js. מחרוזת מיוצאת נקבעת פעם
+   אחת בטעינת המודול ואי אפשר להחליף אותה. */
+export const SAFETY = { board: "5102832891" };
+
+/** תאימות לאחור — ⚠ נקבע בטעינה ואינו מתחלף עם מחזור. */
+export const SAFETY_BOARD = SAFETY.board;
 
 export const SAFETY_COLS = {
   date: "date_mm6h41qk", place: "color_mm6h31a", severity: "color_mm6h1yyv",

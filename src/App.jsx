@@ -4,6 +4,7 @@ import { LOGO } from "./logo.js";
 import { api, setUnauthorizedHandler } from "./api.js";
 import Login from "./Login.jsx";
 import Setup from "./Setup.jsx";
+import { CyclesPage } from "./Cycles.jsx";
 import { MechinaApp, MechinaStaff, MechinaRolesPage } from "./Mechina.jsx";
 import { LessonsPage, LessonsBoard } from "./Lessons.jsx";
 import { AlumniPage, HostingPage, LoansPage } from "./Extras.jsx";
@@ -234,7 +235,8 @@ function Staff({ auth, onSignedOut }) {
         </header>
 
         <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)}
-          logo={LOGO} title="ניהול מכינת ניר עוז" subtitle="מכינת ניר עוז · מחזור ב׳"
+          logo={LOGO} title="ניהול מכינת ניר עוז"
+          subtitle={`מכינת ניר עוז${auth.cycle ? " · " + auth.cycle : ""}`}
           user={user}
           onLogout={() => api.logout().catch(() => {}).finally(onSignedOut)}
           groups={isMgr ? [
@@ -271,9 +273,12 @@ function Staff({ auth, onSignedOut }) {
             ] },
             /* ⚠ הבוגרים אינם בטיחות ואינם תחזוקה. הם קטגוריה
                בפני עצמה — מי שכבר סיים את המכינה. */
-            { label: "בוגרים", items: [
+            { label: "בוגרים ומחזורים", items: [
               { key: "alumni", label: "בוגרי המכינה", icon: <I.users />,
                 active: section === "alumni", onClick: () => setSection("alumni") },
+              /* ⚠ ראש המכינה בלבד. השרת אוכף; זו תצוגה. */
+              ...(auth.isHead ? [{ key: "cycles", label: "מחזורים", icon: <I.cal />,
+                active: section === "cycles", onClick: () => setSection("cycles") }] : []),
             ] },
             { label: "בטיחות ותחזוקה", items: [
               { key: "safety", label: "אירועי בטיחות", icon: <I.warn />, active: section === "safety",
@@ -323,7 +328,7 @@ function Staff({ auth, onSignedOut }) {
 
         <main className="wrap">
           {section === "dash" && isMgr && (
-            <ManagerDash pendingList={pendingList} goStaff={goStaff} goLessons={goLessons}
+            <ManagerDash pendingList={pendingList} cycle={auth.cycle} goStaff={goStaff} goLessons={goLessons}
               goKitchen={goKitchen} goContainer={goContainer}
               goPlacements={() => setSection("placements")}
               goSafety={() => setSection("safety")}
@@ -336,6 +341,7 @@ function Staff({ auth, onSignedOut }) {
           {section === "kitchen" && <KitchenPage say={say} area={kArea} />}
           {section === "menu" && <MenuPage say={say} />}
           {section === "alumni" && <AlumniPage say={say} />}
+          {section === "cycles" && auth.isHead && <CyclesPage say={say} />}
           {section === "hosting" && <HostingPage say={say} />}
           {section === "loans" && <LoansPage say={say} />}
 
@@ -378,7 +384,7 @@ function Staff({ auth, onSignedOut }) {
 
    ⚠ כל שליפה נכשלת בשקט ומורידה את הרכיב שלה בלבד — מסך
      הבית לעולם לא נופל בגלל תחום אחד (או תחום שטרם הוקם). */
-function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
+function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goContainer,
   goPlacements, goSafety, goFaults, goGantt, goBudget, goAgenda }) {
   /* ⚠ מה שממתין *לי*, מתוך כל מה שממתין. ראו ההערה למעלה. */
   const mineList = pendingList.filter((r) => r.canDecide);
@@ -517,7 +523,8 @@ function ManagerDash({ pendingList, goStaff, goLessons, goKitchen, goContainer,
       <div className="hero2">
         <img src="/photos/dash.jpg" alt="חניכי המכינה על הדשא" />
         <div className="h2-veil" />
-        <div className="h2-cap">מכינת ניר עוז · מחזור ב׳</div>
+        {/* ⚠ שם המחזור מהשרת ולא מהקוד — ראו api/_cycle.js. */}
+        <div className="h2-cap">מכינת ניר עוז{cycle ? ` · ${cycle}` : ""}</div>
         <div className="h2-txt">
           <div className="h2-greet">{greet()}</div>
           <div className="h2-date">{hebDate(new Date())}</div>

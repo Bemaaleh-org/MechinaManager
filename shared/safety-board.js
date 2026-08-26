@@ -9,11 +9,14 @@
      שנשמרת בלוח, ולא בהעלמת השורה.
    ============================================================ */
 
-import { SAFETY_BOARD, SAFETY_COLS } from "./safety-ids.js";
+import { SAFETY, SAFETY_BOARD, SAFETY_COLS } from "./safety-ids.js";
 
-export { SAFETY_BOARD, SAFETY_COLS };
+/* ⚠ SAFETY הוא אובייקט ({ board }) ולא מחרוזת, כדי שהחלפת
+   מחזור תוכל להחליף את המזהה בזמן ריצה — ראו api/_cycle.js.
+   SAFETY_BOARD נשאר לתאימות ואינו מתחלף. */
+export { SAFETY, SAFETY_BOARD, SAFETY_COLS };
 
-export const safetyReady = () => Boolean(SAFETY_BOARD);
+export const safetyReady = () => Boolean(SAFETY.board);
 
 /** איפה קרה האירוע */
 export const SAFETY_PLACE = [

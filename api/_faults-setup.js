@@ -54,7 +54,11 @@ async function handler(req, res) {
      (api/_faults-setup.js). חייב להיכנס לקומיט.
    ============================================================ */
 
-export const FAULTS_BOARD = "${board}";
+/* ⚠ אובייקט ולא מחרוזת — כדי שהחלפת מחזור תוכל לעדכן
+   אותו בזמן ריצה. ראו api/_cycle.js. */
+export const FAULTS = { board: "${board}" };
+
+export const FAULTS_BOARD = FAULTS.board;
 
 export const FAULTS_COLS = {
   date: "${C.date}", place: "${C.place}", fix: "${C.fix}", urgency: "${C.urgency}", status: "${C.status}",

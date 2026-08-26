@@ -9,11 +9,14 @@
    למחוק — כך נשארת היסטוריית תחזוקה.
    ============================================================ */
 
-import { FAULTS_BOARD, FAULTS_COLS } from "./faults-ids.js";
+import { FAULTS, FAULTS_BOARD, FAULTS_COLS } from "./faults-ids.js";
 
-export { FAULTS_BOARD, FAULTS_COLS };
+/* ⚠ FAULTS הוא אובייקט ({ board }) ולא מחרוזת, כדי שהחלפת
+   מחזור תוכל להחליף את המזהה בזמן ריצה — ראו api/_cycle.js.
+   FAULTS_BOARD נשאר לתאימות ואינו מתחלף. */
+export { FAULTS, FAULTS_BOARD, FAULTS_COLS };
 
-export const faultsReady = () => Boolean(FAULTS_BOARD);
+export const faultsReady = () => Boolean(FAULTS.board);
 
 /** איפה התקלה */
 export const FAULT_PLACE = [

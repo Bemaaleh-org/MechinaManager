@@ -21,6 +21,7 @@ import { gql } from "./_monday.js";
 import { AUTH_BOARD, AUTH_COLS, KIND, STAFF_ROLE } from "../shared/auth-board.js";
 import { cached } from "./_cache.js";
 import { studentRows } from "./_student-rows.js";
+import { ensureCycle } from "./_cycle.js";
 import { ROLE_CONTAINER, ROLE_KITCHEN, ROLE_SAFETY, ROLE_HOUSE } from "../shared/lessons-boards.js";
 import { leadersForDate } from "./_leader-weeks.js";
 import { parseTestDate } from "./_test-date.js";
@@ -258,6 +259,10 @@ export function withAuth(
   return async (req, res) => {
     let session;
     try {
+      /* ⚠ המחזור הפעיל נפתר לפני כל דבר אחר. הקריאה זולה
+         (מטמון של חמש דקות) ואינה זורקת — כישלון משאיר את
+         המערכת על המזהים שכבר נטענו. ראו api/_cycle.js. */
+      await ensureCycle();
       session = await requireAuth(req, res);
 
       /* ============================================================

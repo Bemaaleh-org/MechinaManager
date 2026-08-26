@@ -8,6 +8,7 @@
    ============================================================ */
 
 import { requireAuth, setSession, traineeRoster, AuthError } from "./_session.js";
+import { ensureCycle } from "./_cycle.js";
 
 export default async function handler(req, res) {
   try {
@@ -22,6 +23,9 @@ export default async function handler(req, res) {
            חסומות לסשן כזה (ראו withAuth), והמסך מציג במקומן
            את מסך ההקמה. */
         setup: Boolean(session.setup),
+        /* ⚠ שם המחזור הפעיל, לכותרת. הוא היה כתוב בקוד בשלושה
+           מקומות — ומחזור שהתחלף היה משאיר אותם על הישן. */
+        cycle: (await ensureCycle()).name || null,
         /* ⚠ תפקיד בתוך הצוות. חניך מקבל false תמיד — ראו _session.
            משמש את המסך כדי להסביר מי מכריע; ההרשאה עצמה נאכפת
            בשרת בכל הכרעה, לא כאן. */

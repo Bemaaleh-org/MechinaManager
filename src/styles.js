@@ -1887,6 +1887,35 @@ html,body{margin:0;padding:0;background:#012E58}
 .kx-login .link-btn{color:var(--accent)}
 .kx-login .fld-hint{color:var(--muted)}
 
+/* ---- מחזורים ---- */
+.cy-lead{font-size:13px;font-weight:600;color:var(--muted);line-height:1.65;
+  background:var(--surface);border:1px solid rgba(211,201,182,.55);
+  border-radius:var(--r-lg);padding:13px 15px;margin-bottom:14px;box-shadow:var(--sh-1)}
+.cy-lead b{color:var(--ink);font-weight:800}
+.tile.cy-on{background:var(--ok-soft);color:var(--ok)}
+.kx .step-mark{margin-top:7px;font-size:11.5px;font-weight:800;color:var(--accent);
+  background:var(--accent-soft);border-radius:8px;padding:5px 10px;min-height:0}
+.kx .step-mark:active{opacity:.7}
+.cy-boards{display:flex;flex-direction:column;gap:1px}
+.cy-b{display:flex;justify-content:space-between;gap:10px;padding:7px 0;
+  border-bottom:1px solid var(--line);font-size:12px}
+.cy-b:last-child{border-bottom:none}
+.cy-bp{font-weight:700;color:var(--muted)}
+.cy-bi{font-weight:800;color:var(--faint)}
+/* ⚠ ההבטחה ש"פתיחה אינה מחליפה כלום" — ירוקה, לא אדומה. */
+.cy-safe{font-size:12.5px;font-weight:600;color:var(--ok);line-height:1.6;
+  background:var(--ok-soft);border-radius:var(--r-md);padding:11px 13px;margin-bottom:14px}
+.cy-safe b{font-weight:900}
+.cy-warn{display:flex;gap:10px;align-items:flex-start;font-size:13px;font-weight:600;
+  color:var(--clay);line-height:1.6;background:var(--clay-soft);
+  border-radius:var(--r-md);padding:12px 13px;margin-bottom:13px}
+.cy-warn b{font-weight:900}
+.cy-warn svg{flex:0 0 auto;margin-top:2px}
+.cy-block{font-size:13px;font-weight:600;color:var(--amber);line-height:1.6;
+  background:var(--amber-soft);border-radius:var(--r-md);padding:12px 13px}
+.cy-note{font-size:11.5px;font-weight:600;color:var(--faint);margin-top:7px;
+  text-align:center;line-height:1.5}
+
 /* ⚠ מי שביקש פחות תנועה מקבל פחות תנועה. */
 @media (prefers-reduced-motion:reduce){
   .kx *{transition-duration:.01ms !important;animation-duration:.01ms !important}

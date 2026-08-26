@@ -14,7 +14,7 @@ import { gql, allItems } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
 import { setColumns, renameItem, createItem, deleteItem } from "./_items.js";
 import {
-  SAFETY_BOARD, SAFETY_COLS as C, safetyReady,
+  SAFETY, SAFETY_COLS as C, safetyReady,
   SAFETY_PLACE, SEVERITIES, SAFETY_SEVERITY, YES_NO,
 } from "../shared/safety-board.js";
 
@@ -23,7 +23,7 @@ const YN = [YES_NO.yes, YES_NO.no];
 
 export async function loadIncidents({ force = false } = {}) {
   return cached("safety-incidents", async () => {
-    const items = await allItems(SAFETY_BOARD);
+    const items = await allItems(SAFETY.board);
     return items
       .map((i) => ({
         id: String(i.id),
@@ -124,7 +124,7 @@ async function handler(req, res, session) {
          בעצמו הוא הצהרה, לא תיעוד — ובדיווח בטיחות זה חייב
          להיות תיעוד. */
       cols[C.by] = actorName(session).slice(0, 120);
-      const id = await createItem(SAFETY_BOARD, title, cols);
+      const id = await createItem(SAFETY.board, title, cols);
       invalidate("safety-incidents");
       return res.status(200).json({ ok: true, id });
     }
@@ -137,11 +137,11 @@ async function handler(req, res, session) {
 
       const cols = colsFrom(body, res);
       if (cols === null) return;
-      if (Object.keys(cols).length) await setColumns(SAFETY_BOARD, id, cols);
+      if (Object.keys(cols).length) await setColumns(SAFETY.board, id, cols);
       if (body.title !== undefined) {
         const title = String(body.title).trim().slice(0, 200);
         if (!title) return res.status(400).json({ error: "כותרת ריקה" });
-        await renameItem(SAFETY_BOARD, id, title);
+        await renameItem(SAFETY.board, id, title);
       }
       invalidate("safety-incidents");
       return res.status(200).json({ ok: true, id });
