@@ -455,8 +455,8 @@ async function handler(req, res, session) {
         [C.days.cost]: cost === null ? "" : String(cost),
         [C.days.note]: String(body.note || "").slice(0, 200),
       };
-      if (hit) await setCols(B.days, hit.id, cols);
-      else await createItem(B.days, date, cols);
+      if (hit) await setColsOpen(B.days, hit.id, cols);
+      else await createItemOpen(B.days, date, cols);
       invalidateBudget();
       return res.status(200).json({ ok: true, date });
     }
@@ -508,6 +508,13 @@ async function handler(req, res, session) {
     res.status(405).json({ error: "מתודה לא נתמכת" });
   } catch (e) {
     console.error("[kitchen-budget]", e);
+    /* ⚠ "פעולת התקציב נכשלה" לא אמר למשתמש כלום, והוא ניסה
+       שוב ושוב. תקלת תווית היא המקרה השכיח, ויש לה שם. */
+    if (/missingLabel|status label doesn't exist/i.test(String(e && e.message))) {
+      return res.status(502).json({
+        error: "סוג היום לא נשמר — עמודת הסוג בלוח אינה מכירה את השם הזה",
+      });
+    }
     res.status(502).json({ error: "פעולת התקציב נכשלה" });
   }
 }
@@ -518,6 +525,31 @@ const setCols = (board, id, v) => gql(
 
 const createItem = (board, name, v) => gql(
   `mutation($b:ID!,$n:String!,$v:JSON!){ create_item(board_id:$b,item_name:$n,column_values:$v,create_labels_if_missing:false){ id } }`,
+  { b: board, n: name, v: JSON.stringify(v) });
+
+/* ------------------------------------------------------------
+   ⚠ שני הכותבים האלה — ורק הם — מרשים יצירת תווית חדשה.
+
+   העיקרון במערכת הוא create_labels_if_missing:false, כדי
+   שתווית חסרה תיפול ברעש במקום שייווצרו כפילויות בשקט. הוא
+   נכון כשהתוויות הן נתון של הקוד.
+
+   כאן הן נתון של המכינה: סוגי היום חיים בלוח "סוגי יום",
+   והמכינה מוסיפה שם סוג חדש בלי דיפלוי. עמודת הסטטוס בלוח
+   הימים היא רשימה שנייה של אותם שמות, ואין שום דבר שמסנכרן
+   ביניהן — כך נוצר המצב שבו העמודה נשארה עם Working on it /
+   Done / Stuck, וכל ניסיון לכפות סוג יום נכשל ב-502.
+
+   ⚠ אין כאן סכנת זבל: הערך נבדק מול לוח סוגי היום לפני
+     הכתיבה (ראו "סוג יום לא מוכר"), ולכן היחיד שיכול להיווצר
+     הוא שם של סוג שקיים באמת.
+   ------------------------------------------------------------ */
+const setColsOpen = (board, id, v) => gql(
+  `mutation($b:ID!,$i:ID!,$v:JSON!){ change_multiple_column_values(board_id:$b,item_id:$i,column_values:$v,create_labels_if_missing:true){ id } }`,
+  { b: board, i: String(id), v: JSON.stringify(v) });
+
+const createItemOpen = (board, name, v) => gql(
+  `mutation($b:ID!,$n:String!,$v:JSON!){ create_item(board_id:$b,item_name:$n,column_values:$v,create_labels_if_missing:true){ id } }`,
   { b: board, n: name, v: JSON.stringify(v) });
 
 async function readJson(req) {
