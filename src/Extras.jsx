@@ -91,13 +91,17 @@ export function AlumniPage({ say }) {
   if (!data) return null;
 
   if (adding || edit) {
-    return <AlumniForm initial={edit} branches={data.branches} cycles={data.cycles} say={say}
+    return <AlumniForm initial={edit} branches={data.branches} cycles={data.cycles}
+      canAddBranch={data.canAddBranch} say={say}
       onDone={() => { setAdding(false); setEdit(null); reload(); }}
       onCancel={() => { setAdding(false); setEdit(null); }} />;
   }
 
   const list = data.alumni.filter((a) => !cycle || a.cycle === cycle);
   const maxBranch = Math.max(...data.byBranch.map((b) => b.n), 1);
+  /* ⚠ המחזורים שיש בהם בוגרים בפועל. רשימת כל המחזורים
+     האפשריים שייכת לטופס, לא למסנן. */
+  const usedCycles = data.byCycle.filter((c) => c.key !== "לא ידוע").map((c) => c.key);
 
   return (
     <>
@@ -121,6 +125,34 @@ export function AlumniPage({ say }) {
         </div>
       </div>
 
+      {/* ============================================================
+          פיקוד וקצונה
+          ------------------------------------------------------------
+          ⚠ האחוז מחושב מתוך מי שנשאל, ולידו כתוב מכמה. בוגר
+            שטרם נשאל אינו "לא יצא לקצונה", ושיוך שלו למכנה
+            היה מוריד את האחוז בכל פעם שנוסף בוגר ולא נשאל.
+          ============================================================ */}
+      <div className="two" style={{ marginBottom: 14 }}>
+        {[["פיקוד", data.command], ["קצונה", data.officer]].map(([t, d]) => (
+          <div className="dial" key={t}>
+            <div className="dial-h">יצאו ל{t}</div>
+            {d.asked === 0 ? (
+              <>
+                <div className="dial-n none">—</div>
+                <div className="dial-s">טרם נשאלו</div>
+              </>
+            ) : (
+              <>
+                <div className="dial-n num">{d.pct}<small>%</small></div>
+                <div className="dial-bar"><span style={{ width: `${d.pct}%` }} /></div>
+                <div className="dial-s num">{d.yes} מתוך {d.asked} שנשאלו</div>
+                {d.pending > 0 && <div className="dial-p">{d.pending} טרם סומנו</div>}
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+
       {/* ---------- פילוח לפי זרוע ----------
           ⚠ פס לכל זרוע ולא עוגה: השוואה בין אורכים מדויקת
             הרבה יותר מהשוואה בין זוויות. */}
@@ -137,10 +169,10 @@ export function AlumniPage({ say }) {
         ))}
       </div>
 
-      {data.cycles.length > 1 && (
+      {usedCycles.length > 1 && (
         <div className="seg">
           <button className={!cycle ? "on" : ""} onClick={() => setCycle(null)}>הכול</button>
-          {data.cycles.map((c) => (
+          {usedCycles.map((c) => (
             <button key={c} className={cycle === c ? "on" : ""} onClick={() => setCycle(c)}>{c}</button>
           ))}
         </div>
@@ -150,10 +182,11 @@ export function AlumniPage({ say }) {
         onClick={() => {
           downloadTable({
             file: "בוגרים", sheet: "בוגרים", title: "בוגרי מכינת ניר עוז",
-            header: ["שם", "מחזור", "תפקיד / יחידה", "זרוע", "תאריך גיוס", "מקום מגורים"],
+            header: ["שם", "מחזור", "תפקיד / יחידה", "זרוע", "פיקוד", "קצונה",
+              "תאריך גיוס", "מקום מגורים"],
             rows: list.map((a) => [a.name, a.cycle || "", a.unit || "", a.branch || "",
-              a.enlist ? dmy(a.enlist) : "", a.city || ""]),
-            widths: [20, 12, 28, 14, 13, 16],
+              a.command || "", a.officer || "", a.enlist ? dmy(a.enlist) : "", a.city || ""]),
+            widths: [20, 12, 28, 17, 8, 8, 13, 16],
           });
           say("הקובץ ירד");
         }}><XI.dl />הורדה לאקסל</button>
@@ -168,6 +201,8 @@ export function AlumniPage({ say }) {
                 {a.unit ? <span>{a.unit}</span> : <span className="pill p-new">טרם ידוע</span>}
                 {a.branch && <span>· {a.branch}</span>}
                 {a.enlist && <span className="num">· {dmy(a.enlist)}</span>}
+                {a.command === "כן" && <span className="pill p-ok">פיקוד</span>}
+                {a.officer === "כן" && <span className="pill p-mid">קצונה</span>}
               </div>
             </div>
             <XI.chev style={{ color: "var(--line2)", flex: "0 0 auto" }} />
@@ -185,14 +220,16 @@ export function AlumniPage({ say }) {
   );
 }
 
-function AlumniForm({ initial, branches, cycles, say, onDone, onCancel }) {
+function AlumniForm({ initial, branches, cycles, canAddBranch, say, onDone, onCancel }) {
   const [f, setF] = useState({
     name: initial?.name || "", cycle: initial?.cycle || "מחזור א׳",
     unit: initial?.unit || "", branch: initial?.branch || "",
+    command: initial?.command || "", officer: initial?.officer || "",
     enlist: initial?.enlist || "", birthday: initial?.birthday || "",
     city: initial?.city || "", note: initial?.note || "",
   });
   const [busy, setBusy] = useState(false);
+  const [adding, setAdding] = useState("");
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
   const save = () => {
@@ -204,8 +241,9 @@ function AlumniForm({ initial, branches, cycles, say, onDone, onCancel }) {
       .finally(() => setBusy(false));
   };
 
-  const ALL_BRANCHES = [...new Set([...(branches || []),
-    "חי״ר", "שריון", "תותחנים", "חיל האוויר", "חיל הים", "מודיעין", "רפואה", "חינוך", "אחר"])];
+  /* ⚠ הרשימה מגיעה מהלוח ולא מהקוד. רשימה שכתובה כאן הייתה
+     מתיישנת עם כל מחזור, ומי שלא נכנס אליה היה נדחף ל"אחר". */
+  const ALL_BRANCHES = [...new Set([...(branches || []), ...(f.branch ? [f.branch] : [])])];
 
   return (
     <>
@@ -216,13 +254,46 @@ function AlumniForm({ initial, branches, cycles, say, onDone, onCancel }) {
 
       <div className="card">
         <Field label="שם"><input value={f.name} onChange={set("name")} disabled={busy} /></Field>
-        <Pick label="מחזור" options={[...new Set([...(cycles || []), "מחזור א׳", "מחזור ב׳"])]}
+        <Pick label="מחזור" options={cycles && cycles.length ? cycles : ["מחזור א׳", "מחזור ב׳"]}
           value={f.cycle} onChange={(v) => setF({ ...f, cycle: v })} disabled={busy} />
         <Field label="תפקיד / יחידה" hint="ריק = טרם ידוע. עדיף ריק על ניחוש.">
           <input value={f.unit} onChange={set("unit")} disabled={busy} />
         </Field>
         <Pick label="זרוע" options={ALL_BRANCHES} value={f.branch}
           onChange={(v) => setF({ ...f, branch: v })} disabled={busy} />
+
+        {/* ---------- הוספת זרוע ----------
+            ⚠ שדה נפרד ומכוון ולא הקלדה חופשית בשדה הזרוע. מי
+              שכותב "סיירת גבעתי" במקום לבחור "סיירות חי״ר
+              וקומנדו" מפצל את הסטטיסטיקה לשתי שורות שנראות
+              שונות ואינן, והחיכוך כאן הוא בדיוק העניין. */}
+        {canAddBranch && (
+          <div className="qadd">
+            <label>הוספת סוג תפקיד</label>
+            <div className="qadd-row">
+              <input value={adding} disabled={busy} placeholder="למשל: מגן דוד אדום"
+                onChange={(e) => setAdding(e.target.value)} />
+              <button type="button" className="qa-plus"
+                disabled={busy || !adding.trim() || ALL_BRANCHES.includes(adding.trim())}
+                onClick={() => { setF({ ...f, branch: adding.trim() }); setAdding(""); }}>
+                הוספה
+              </button>
+            </div>
+            <div className="qadd-hint">
+              הסוג החדש נוסף לרשימה בשמירה, ויופיע מכאן ואילך לכולם.
+            </div>
+          </div>
+        )}
+
+        {/* ---------- פיקוד וקצונה ----------
+            ⚠ ריק הוא ערך בפני עצמו: "טרם נשאל" אינו "לא", והוא
+              מה שמפריד בין נתון חסר לנתון שלילי בסטטיסטיקה. */}
+        <div className="two">
+          <Pick label="יצא פיקוד" options={["כן", "לא"]} value={f.command}
+            onChange={(v) => setF({ ...f, command: f.command === v ? "" : v })} disabled={busy} />
+          <Pick label="יצא קצונה" options={["כן", "לא"]} value={f.officer}
+            onChange={(v) => setF({ ...f, officer: f.officer === v ? "" : v })} disabled={busy} />
+        </div>
         <div className="two">
           <Field label="תאריך גיוס">
             <input type="date" value={f.enlist} onChange={set("enlist")} disabled={busy} />
@@ -246,9 +317,12 @@ function AlumniForm({ initial, branches, cycles, say, onDone, onCancel }) {
 /* ============================================================
    אירוח קבוצות
    ============================================================ */
+const ils = (n) => "₪" + Number(n || 0).toLocaleString("he-IL");
+
 export function HostingPage({ say }) {
   const { data, err, busy, reload } = useLoad(() => api.getHosting(), []);
   const [form, setForm] = useState(null);
+  const [span, setSpan] = useState("month");
 
   if (busy && !data) return <><div className="screen-title">אירוח קבוצות</div><Wait /></>;
   if (err) return <><div className="screen-title">אירוח קבוצות</div><Fail err={err} onRetry={reload} /></>;
@@ -281,6 +355,70 @@ export function HostingPage({ say }) {
         </div>
       </div>
 
+      {/* ============================================================
+          הכנסות מאירוח
+          ------------------------------------------------------------
+          ⚠ "התקבל" ו"צפוי" בנפרד. אירוח שהתקיים הוא כסף שנכנס,
+            אירוח עתידי הוא הבטחה — ומספר אחד שמאחד אותם היה
+            מנפח את התמונה בדיוק כשמסתכלים עליה כדי להחליט.
+          ============================================================ */}
+      {(data.totals.paidGroups > 0 || data.totals.expected > 0) && (
+        <>
+          <div className="sec-label">הכנסות</div>
+          <div className="money">
+            <div className="money-top">
+              <div className="money-c">
+                <div className="money-n num">{ils(data.totals.earned)}</div>
+                <div className="money-l">התקבל</div>
+              </div>
+              <div className="money-sep" />
+              <div className="money-c">
+                <div className="money-n num soft">{ils(data.totals.expected)}</div>
+                <div className="money-l">צפוי</div>
+              </div>
+            </div>
+            <div className="money-f">
+              <span>{data.totals.paidGroups} בתשלום</span>
+              <span>{data.totals.freeGroups} ללא תשלום</span>
+              {/* ⚠ כמה עוד לא סומן — המספר שאומר כמה מהתמונה חסר */}
+              {data.totals.unmarked > 0 && (
+                <span className="warn">{data.totals.unmarked} טרם סומנו</span>
+              )}
+            </div>
+          </div>
+
+          <div className="seg">
+            {[["month", "לפי חודש"], ["quarter", "לפי רבעון"], ["year", "לפי שנה"]].map(([k, t]) => (
+              <button key={k} className={span === k ? "on" : ""} onClick={() => setSpan(k)}>{t}</button>
+            ))}
+          </div>
+
+          <div className="card" style={{ marginBottom: 14 }}>
+            {(data.periods[span] || []).length === 0 && (
+              <div className="led-empty">אין אירוחים עם תאריך</div>
+            )}
+            {(data.periods[span] || []).map((r) => (
+              <div className="per" key={r.key}>
+                <div className="per-l">
+                  <div className="per-t">{r.label}</div>
+                  <div className="per-s">
+                    {r.groups} קבוצות · {r.people} איש
+                    {r.nights > 0 && <> · {r.nights} עם לינה</>}
+                  </div>
+                </div>
+                <div className="per-r">
+                  <div className="per-n num">{ils(r.amount)}</div>
+                  {r.expected > 0 && r.earned > 0 && (
+                    <div className="per-x num">{ils(r.earned)} התקבל</div>
+                  )}
+                  {r.expected > 0 && r.earned === 0 && <div className="per-x">צפוי</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
       {data.hosting.length === 0 ? (
         <div className="empty tone-1">
           <div className="e-ico"><XI.home /></div>
@@ -302,6 +440,10 @@ export function HostingPage({ say }) {
                     {h.from && <span className="num">{dm(h.from)}{h.to && h.to !== h.from ? `–${dm(h.to)}` : ""}</span>}
                     {h.people != null && <span>· {h.people} איש</span>}
                     {h.sleeping && <span>· {h.sleeping}</span>}
+                    {h.paid === "בתשלום" && (
+                      <span className="pill p-ok num">{h.amount ? ils(h.amount) : "בתשלום"}</span>
+                    )}
+                    {h.paid === "ללא תשלום" && <span className="pill p-low">ללא תשלום</span>}
                   </div>
                 </div>
                 <XI.chev style={{ color: "var(--line2)", flex: "0 0 auto" }} />
@@ -330,6 +472,8 @@ function HostingForm({ initial, options, say, onDone, onCancel }) {
     sleeping: initial?.sleeping || "לא לנים",
     buildings: initial?.buildings || "", meals: initial?.meals || "",
     status: initial?.status || "בתיאום",
+    paid: initial?.paid || "",
+    amount: initial?.amount != null ? String(initial.amount) : "",
     note: initial?.note || "",
   });
   const [busy, setBusy] = useState(false);
@@ -392,6 +536,18 @@ function HostingForm({ initial, options, say, onDone, onCancel }) {
         <Pick label="סטטוס" options={options.status} value={f.status}
           onChange={(v) => setF({ ...f, status: v })} disabled={busy} />
 
+        {/* ---------- תשלום ----------
+            ⚠ שני שדות ולא אחד. אירוח בתשלום שהסכום בו טרם סוכם
+              הוא מצב רגיל, וסכום 0 היה נראה בדיוק כמו חינם. */}
+        <Pick label="תשלום" options={options.paid} value={f.paid}
+          onChange={(v) => setF({ ...f, paid: f.paid === v ? "" : v })} disabled={busy} />
+        {f.paid === "בתשלום" && (
+          <Field label="סכום" hint="ריק = טרם סוכם. ההכנסות מסוכמות לפי תאריך תחילת האירוח.">
+            <input value={f.amount} onChange={set("amount")} disabled={busy}
+              inputMode="numeric" placeholder="₪" />
+          </Field>
+        )}
+
         <Field label="הערות">
           <textarea value={f.note} onChange={set("note")} disabled={busy} rows={3} />
         </Field>
@@ -409,41 +565,135 @@ function HostingForm({ initial, options, say, onDone, onCancel }) {
   );
 }
 
+/* ============================================================
+   פריטי ההשאלה — קופסה לכל פריט
+   ------------------------------------------------------------
+   ⚠ עד כה כל הציוד נכתב לתיבת טקסט אחת. אי אפשר היה לענות
+     ממנה על השאלה היחידה שנשאלת אחרי השאלה — מה עוד לא חזר.
+     כל פריט הוא עכשיו קופסה עם כמות שיצאה וכמות שחזרה,
+     באותו דפוס של רשימת הציוד במכולה.
+
+   ⚠ החזרה חלקית מטבעה: הושאלו 20 כיסאות וחזרו 15 הוא המצב
+     הרגיל, לא החריג.
+   ============================================================ */
+function ItemBox({ it, onChange, onRemove, disabled }) {
+  const qty = Number(it.qty) || 1;
+  const back = Math.max(0, Math.min(Number(it.back) || 0, qty));
+  const done = back >= qty;
+  const pct = qty > 0 ? (back / qty) * 100 : 0;
+
+  const step = (k, d, max) => () =>
+    onChange({ ...it, [k]: Math.max(k === "qty" ? 1 : 0, Math.min(max, (Number(it[k]) || (k === "qty" ? 1 : 0)) + d)) });
+
+  return (
+    <div className={"li" + (done ? " li-done" : back > 0 ? " li-part" : "")}>
+      <div className="li-h">
+        <input className="li-n" value={it.name} disabled={disabled}
+          placeholder="שם הפריט"
+          onChange={(e) => onChange({ ...it, name: e.target.value })} />
+        <input className="li-u" value={it.unit || ""} disabled={disabled}
+          placeholder="יח׳" onChange={(e) => onChange({ ...it, unit: e.target.value })} />
+        <button type="button" className="li-x" disabled={disabled}
+          onClick={onRemove} aria-label="הסרת הפריט">×</button>
+      </div>
+
+      <div className="li-g">
+        <div className="li-f">
+          <span className="li-l">הושאל</span>
+          <div className="qstep li-step">
+            <button type="button" className="qs-btn" disabled={disabled || qty <= 1}
+              onClick={step("qty", -1, 9999)}>−</button>
+            <span className="qs-n num">{qty}</span>
+            <button type="button" className="qs-btn" disabled={disabled}
+              onClick={step("qty", 1, 9999)}>+</button>
+          </div>
+        </div>
+        <div className="li-f">
+          <span className="li-l">חזר</span>
+          <div className="qstep li-step">
+            <button type="button" className="qs-btn" disabled={disabled || back <= 0}
+              onClick={step("back", -1, qty)}>−</button>
+            <span className="qs-n num">{back}</span>
+            <button type="button" className="qs-btn" disabled={disabled || back >= qty}
+              onClick={step("back", 1, qty)}>+</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="li-bar"><span style={{ width: `${pct}%` }} /></div>
+      <div className="li-foot">
+        <span className={"li-s" + (done ? " ok" : back > 0 ? " part" : "")}>
+          {done ? "חזר במלואו" : back > 0 ? `נותרו ${qty - back} בחוץ` : "טרם חזר"}
+        </span>
+        {!done && (
+          <button type="button" className="li-all" disabled={disabled}
+            onClick={() => onChange({ ...it, back: qty })}>הכול חזר</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ---------- בחירת ציוד מהמכולה ----------
-   ⚠ בוחרים מהמלאי, אבל התוצאה נשארת טקסט חופשי וניתנת לעריכה.
-     השאלה כוללת לעיתים פריט שאינו בלוח ("שני שולחנות של
-     הקיבוץ"), ורשימה סגורה הייתה מונעת לרשום אותו. */
-function StockPicker({ value, onChange, disabled }) {
-  const { data } = useLoad(() => api.getContainer("מכולה"), []);
+   ⚠ בוחרים מהמלאי, ואפשר גם להוסיף פריט ידני. השאלה כוללת
+     לעיתים דבר שאינו בלוח ("שני שולחנות של הקיבוץ"), ורשימה
+     סגורה הייתה מונעת לרשום אותו. */
+function LoanItems({ items, onChange, disabled, fromStock }) {
+  const { data } = useLoad(() => (fromStock ? api.getContainer("מכולה") : Promise.resolve(null)), [fromStock]);
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
 
-  const lines = String(value || "").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
-  const has = (name) => lines.some((l) => l === name || l.startsWith(name + " "));
-
-  const toggle = (item) => {
-    const next = has(item.name)
-      ? lines.filter((l) => !(l === item.name || l.startsWith(item.name + " ")))
-      : [...lines, item.qty ? `${item.name} — יש ${item.qty}` : item.name];
-    onChange(next.join("\n"));
+  const has = (name) => items.some((x) => x.name === name);
+  const add = (name, unit) => {
+    if (has(name)) { onChange(items.filter((x) => x.name !== name)); return; }
+    onChange([...items, { name, qty: 1, unit: unit || "", back: 0 }]);
   };
+  const at = (i, next) => onChange(items.map((x, j) => (j === i ? next : x)));
 
   const list = (data ? data.equipment : [])
     .filter((x) => !q.trim() || x.name.includes(q.trim()));
 
+  const out = items.reduce((a, x) => a + (Number(x.qty) || 1), 0);
+  const backed = items.reduce((a, x) => a + Math.min(Number(x.back) || 0, Number(x.qty) || 1), 0);
+
   return (
-    <Field label="הציוד" hint="בוחרים מהמכולה, ואפשר גם להקליד ידנית">
-      <textarea value={value} onChange={(e) => onChange(e.target.value)}
-        disabled={disabled} rows={4} placeholder="שורה לכל פריט" />
+    <div className="fld">
+      <label>הציוד</label>
 
-      <button type="button" className="btn btn-ghost btn-sm"
-        style={{ width: "100%", marginTop: 8 }} disabled={disabled}
-        onClick={() => setOpen(!open)}>
-        {open ? "סגירת רשימת המכולה" : `בחירה מהמכולה${data ? ` (${data.equipment.length})` : ""}`}
-      </button>
+      {items.length === 0 && (
+        <div className="li-empty">אין פריטים. מוסיפים מהמכולה או ידנית.</div>
+      )}
 
-      {open && (
-        <div style={{ marginTop: 8 }}>
+      {items.map((it, i) => (
+        <ItemBox key={i} it={it} disabled={disabled}
+          onChange={(next) => at(i, next)}
+          onRemove={() => onChange(items.filter((_, j) => j !== i))} />
+      ))}
+
+      {items.length > 0 && (
+        <div className="li-tot">
+          <span>{items.length} פריטים · <b className="num">{out}</b> יחידות</span>
+          <span className={backed >= out ? "ok" : ""}>
+            חזרו <b className="num">{backed}</b> מתוך <b className="num">{out}</b>
+          </span>
+        </div>
+      )}
+
+      <div className="li-acts">
+        <button type="button" className="btn btn-ghost btn-sm" disabled={disabled}
+          onClick={() => onChange([...items, { name: "", qty: 1, unit: "", back: 0 }])}>
+          <XI.plus />פריט ידני
+        </button>
+        {fromStock && (
+          <button type="button" className="btn btn-ghost btn-sm" disabled={disabled}
+            onClick={() => setOpen(!open)}>
+            {open ? "סגירה" : `מהמכולה${data ? ` (${data.equipment.length})` : ""}`}
+          </button>
+        )}
+      </div>
+
+      {open && fromStock && (
+        <div style={{ marginTop: 9 }}>
           <input className="search" value={q} placeholder="חיפוש ציוד"
             onChange={(e) => setQ(e.target.value)} />
           <div className="rows scroll-y" style={{ marginTop: 8 }}>
@@ -451,7 +701,7 @@ function StockPicker({ value, onChange, disabled }) {
               const on = has(x.name);
               return (
                 <button type="button" className="st-row" key={x.id}
-                  disabled={disabled} onClick={() => toggle(x)}>
+                  disabled={disabled} onClick={() => add(x.name)}>
                   <div className={"tick" + (on ? " on" : "")}>
                     {on && <span style={{ color: "#fff", fontWeight: 900 }}>✓</span>}
                   </div>
@@ -468,7 +718,7 @@ function StockPicker({ value, onChange, disabled }) {
           </div>
         </div>
       )}
-    </Field>
+    </div>
   );
 }
 
@@ -502,15 +752,17 @@ export function LoansPage({ say }) {
         <div className="band-grid">
           <div className="band-c">
             <div className="band-n">{data.counts.open}</div>
-            <div className="band-l">פתוחות</div>
+            <div className="band-l">השאלות פתוחות</div>
+          </div>
+          <div className="band-c">
+            {/* ⚠ פריטים ולא השאלות — זה המספר שאומר כמה ציוד
+                באמת נמצא מחוץ למכינה. */}
+            <div className="band-n">{data.counts.itemsOut}</div>
+            <div className="band-l">פריטים בחוץ</div>
           </div>
           <div className="band-c">
             <div className={"band-n" + (data.counts.late ? " warn" : " ok")}>{data.counts.late}</div>
             <div className="band-l">באיחור</div>
-          </div>
-          <div className="band-c">
-            <div className="band-n">{data.counts.ours}</div>
-            <div className="band-l">הושאל מאיתנו</div>
           </div>
         </div>
       </div>
@@ -533,23 +785,33 @@ export function LoansPage({ say }) {
         </div>
       ) : (
         <div className="rows">
-          {shown.map((l) => (
-            <button className={"st-row " + (l.late ? "tone-8" : l.back ? "tone-1" : "tone-6")}
-              key={l.id} onClick={() => setForm(l)}>
-              <div className="tile sm"><XI.box /></div>
-              <div className="st-main">
-                <div className="st-n">{l.title}</div>
-                <div className="st-m">
-                  <span className="pill p-new">{l.direction || "—"}</span>
-                  {l.party && <span>· {l.party}</span>}
-                  {l.due && <span className="num">· להחזרה {dm(l.due)}</span>}
+          {shown.map((l) => {
+            const t = l.totals || { out: 0, back: 0, left: 0 };
+            return (
+              <button className={"st-row " + (l.late ? "tone-8" : l.back ? "tone-1" : "tone-6")}
+                key={l.id} onClick={() => setForm(l)}>
+                <div className="tile sm"><XI.box /></div>
+                <div className="st-main">
+                  <div className="st-n">{l.title}</div>
+                  <div className="st-m">
+                    <span className="pill p-new">{l.direction || "—"}</span>
+                    {l.party && <span>· {l.party}</span>}
+                    {l.due && <span className="num">· להחזרה {dm(l.due)}</span>}
+                  </div>
+                  {t.out > 0 && (
+                    <div className="st-m">
+                      <span className={"pill " + (l.state === "הוחזר" ? "p-ok"
+                        : l.state === "חזר חלקית" ? "p-mid" : "p-low")}>{l.state}</span>
+                      <span className="num">{t.back}/{t.out} פריטים</span>
+                    </div>
+                  )}
+                  {l.late && <div className="sf-pend">באיחור — טרם חזר</div>}
+                  {l.back && <div className="st-m"><span>חזר {dmy(l.back)}</span></div>}
                 </div>
-                {l.late && <div className="sf-pend">באיחור — טרם חזר</div>}
-                {l.back && <div className="st-m"><span>חזר {dmy(l.back)}</span></div>}
-              </div>
-              <XI.chev style={{ color: "var(--line2)", flex: "0 0 auto" }} />
-            </button>
-          ))}
+                <XI.chev style={{ color: "var(--line2)", flex: "0 0 auto" }} />
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -567,27 +829,35 @@ function LoanForm({ initial, directions, say, onDone, onCancel }) {
   const [f, setF] = useState({
     title: initial?.title || "", party: initial?.party || "",
     direction: initial?.direction || directions[0],
-    items: initial?.items || "", out: initial?.out || "",
-    due: initial?.due || "", back: initial?.back || "",
+    out: initial?.out || "", due: initial?.due || "",
     contact: initial?.contact || "", note: initial?.note || "",
   });
+  const [items, setItems] = useState(initial?.items || []);
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+
+  const clean = items.filter((x) => String(x.name || "").trim());
+  const out = clean.reduce((a, x) => a + (Number(x.qty) || 1), 0);
+  const backed = clean.reduce((a, x) => a + Math.min(Number(x.back) || 0, Number(x.qty) || 1), 0);
+  const allBack = out > 0 && backed >= out;
 
   const save = () => {
     if (busy || !f.title.trim()) return;
     setBusy(true);
-    const call = initial ? api.editLoan({ id: initial.id, ...f }) : api.addLoan(f);
+    const payload = { ...f, items: clean };
+    const call = initial ? api.editLoan({ id: initial.id, ...payload }) : api.addLoan(payload);
     call.then(() => { say(initial ? "עודכן" : "ההשאלה נרשמה"); onDone(); })
       .catch((e) => say(e.message))
       .finally(() => setBusy(false));
   };
 
-  /* ⚠ "חזר היום" הוא הפעולה השכיחה, ולכן כפתור ולא שדה תאריך
-     שצריך למלא. התאריך עדיין ניתן לעריכה למי שמדווח בדיעבד. */
-  const markBack = () => {
-    const today = new Date().toISOString().slice(0, 10);
-    setF((p) => ({ ...p, back: today }));
+  const remove = () => {
+    if (busy || !initial) return;
+    setBusy(true);
+    api.deleteLoan(initial.id)
+      .then(() => { say("ההשאלה נמחקה"); onDone(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
   };
 
   return (
@@ -607,33 +877,52 @@ function LoanForm({ initial, directions, say, onDone, onCancel }) {
           <Field label="הגוף"><input value={f.party} onChange={set("party")} disabled={busy} /></Field>
           <Field label="איש קשר"><input value={f.contact} onChange={set("contact")} disabled={busy} /></Field>
         </div>
-        {/* ---------- הציוד ----------
-            ⚠ בחירה מהמכולה רק כשמשאילים מאיתנו. ציוד ששאלנו
-              מגוף אחר אינו במלאי שלנו, ורשימה שתציע אותו הייתה
-              מבלבלת בין שני הכיוונים. */}
-        {f.direction === "הושאל מאיתנו"
-          ? <StockPicker value={f.items} onChange={(v) => setF((p2) => ({ ...p2, items: v }))} disabled={busy} />
-          : (
-            <Field label="הציוד" hint="שורה לכל פריט">
-              <textarea value={f.items} onChange={set("items")} disabled={busy} rows={4} />
-            </Field>
-          )}
+
+        {/* ⚠ בחירה מהמכולה רק כשמשאילים מאיתנו. ציוד ששאלנו
+            מגוף אחר אינו במלאי שלנו, ורשימה שתציע אותו הייתה
+            מבלבלת בין שני הכיוונים. */}
+        <LoanItems items={items} onChange={setItems} disabled={busy}
+          fromStock={f.direction === "הושאל מאיתנו"} />
+
+        {/* ⚠ שורות שנכתבו לפני הפיצול לפריטים. לקריאה בלבד —
+            מחיקה שלהן הייתה מוחקת מידע שאיש לא ביקש למחוק. */}
+        {initial?.legacy && (
+          <div className="li-legacy">
+            <div className="li-legacy-h">נרשם קודם כטקסט</div>
+            <div className="li-legacy-b">{initial.legacy}</div>
+          </div>
+        )}
+
         <div className="two">
           <Field label="תאריך יציאה"><input type="date" value={f.out} onChange={set("out")} disabled={busy} /></Field>
           <Field label="תאריך החזרה"><input type="date" value={f.due} onChange={set("due")} disabled={busy} /></Field>
         </div>
-        <Field label="חזר בפועל" hint="ריק = עדיין בחוץ">
-          <input type="date" value={f.back} onChange={set("back")} disabled={busy} />
-        </Field>
-        {!f.back && (
-          <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 13 }}
-            disabled={busy} onClick={markBack}>סימון שחזר היום</button>
+
+        {/* ⚠ תאריך הסגירה נקבע בשרת כשהפריט האחרון מסומן כחוזר,
+            ולכן אין כאן שדה תאריך שצריך למלא ביד. */}
+        {clean.length > 0 && (
+          <div className={"li-close" + (allBack ? " on" : "")}>
+            {allBack
+              ? <span>כל הציוד חזר — ההשאלה תיסגר בשמירה{initial?.back ? ` (נסגרה ${dmy(initial.back)})` : ""}.</span>
+              : <span>נותרו <b className="num">{out - backed}</b> פריטים בחוץ.</span>}
+            {!allBack && (
+              <button type="button" className="btn btn-ghost btn-sm" disabled={busy}
+                onClick={() => setItems(items.map((x) => ({ ...x, back: Number(x.qty) || 1 })))}>
+                סימון שהכול חזר
+              </button>
+            )}
+          </div>
         )}
+
         <Field label="הערות"><input value={f.note} onChange={set("note")} disabled={busy} /></Field>
 
         <button className="btn btn-primary" disabled={busy || !f.title.trim()} onClick={save}>
           {busy ? "שומר…" : "שמירה"}
         </button>
+        {initial && (
+          <button className="btn btn-ghost" style={{ marginTop: 8, color: "var(--clay)" }}
+            disabled={busy} onClick={remove}>מחיקת ההשאלה</button>
+        )}
       </div>
       <div style={{ height: 40 }} />
     </>

@@ -12,6 +12,8 @@ export const EXTRA = {
       "cycle": "color_mm6k70p6",
       "unit": "text_mm6kqq69",
       "branch": "color_mm6kc3ey",
+      "command": "color_mm6k985s",
+      "officer": "color_mm6kbz9w",
       "enlist": "date_mm6kep8v",
       "birthday": "date_mm6kwmyw",
       "city": "text_mm6k5dgp",
@@ -33,6 +35,8 @@ export const EXTRA = {
       "status": "color_mm6k7mqk",
       "briefed": "color_mm6kvsc0",
       "handback": "color_mm6kpvkx",
+      "paid": "color_mm6k7c1n",
+      "amount": "numeric_mm6k5f1a",
       "note": "long_text_mm6kjhsy",
       "by": "text_mm6kfczg"
     }
@@ -43,6 +47,7 @@ export const EXTRA = {
       "party": "text_mm6kqqy8",
       "direction": "color_mm6kzbd0",
       "items": "long_text_mm6kaywv",
+      "lines": "long_text_mm6kcjwn",
       "out": "date_mm6kw93n",
       "due": "date_mm6kj0n5",
       "back": "date_mm6kwyn0",

@@ -257,6 +257,7 @@ html,body{margin:0;padding:0;background:#012E58}
 .p-low{background:var(--clay-soft);color:var(--clay)}
 .p-ok{background:var(--ok-soft);color:var(--ok)}
 .p-new{background:var(--amber-soft);color:var(--amber)}
+.p-mid{background:var(--accent-soft);color:var(--accent)}
 
 /* stepper */
 .step{display:flex;align-items:center;gap:0;background:var(--bg);border:1px solid var(--line);border-radius:11px;flex:0 0 auto}
@@ -1484,6 +1485,109 @@ html,body{margin:0;padding:0;background:#012E58}
 .stat-grid>*:nth-child(4),.navgrid>*:nth-child(4){animation-delay:.09s}
 .stat-grid>*:nth-child(5),.navgrid>*:nth-child(5){animation-delay:.12s}
 .stat-grid>*:nth-child(n+6),.navgrid>*:nth-child(n+6){animation-delay:.15s}
+
+/* ============================================================
+   קופסת פריט בהשאלה
+   ------------------------------------------------------------
+   ⚠ קופסה לכל פריט ולא שורה בתיבת טקסט. הכמות שיצאה והכמות
+     שחזרה הן שני מדים נפרדים באותה קופסה, כי השאלה שנשאלת
+     היא ההפרש ביניהם.
+
+   ⚠ שלושה סימנים למצב ולא רק צבע: מילים ("נותרו 5 בחוץ"),
+     מילוי הפס, וגוון הקופסה. עיקרון 3 — צבע לבדו לעולם לא.
+   ============================================================ */
+.li{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r-md);
+  padding:10px 11px 11px;margin-bottom:9px;transition:border-color .16s var(--ease),
+  background .16s var(--ease)}
+.li-part{border-color:var(--amber);background:var(--amber-soft)}
+.li-done{border-color:var(--ok);background:var(--ok-soft)}
+.li-h{display:flex;gap:6px;align-items:center;margin-bottom:8px}
+.kx .li-n{flex:1;min-width:0;min-height:42px;font-weight:800;font-size:14.5px;
+  background:var(--bg);margin:0}
+.kx .li-u{flex:0 0 62px;min-width:0;min-height:42px;text-align:center;
+  font-size:12.5px;font-weight:700;background:var(--bg);margin:0}
+.kx .li-x{flex:0 0 auto;width:36px;height:42px;border-radius:11px;font-size:22px;
+  line-height:1;color:var(--faint);background:transparent}
+.kx .li-x:active{background:var(--clay-soft);color:var(--clay)}
+.li-g{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.li-f{background:var(--bg);border-radius:11px;padding:6px 2px 0}
+.li-l{display:block;text-align:center;font-size:10px;font-weight:900;
+  letter-spacing:.7px;color:var(--faint)}
+.li-step{padding:0 4px 5px;margin-top:0}
+.li-step .qs-n{font-size:16px;color:var(--ink)}
+.kx .li-step .qs-btn{width:30px;height:30px;font-size:17px;background:var(--surface)}
+.li-bar{height:6px;border-radius:99px;background:var(--line);overflow:hidden;margin:9px 0 6px}
+.li-bar>span{display:block;height:100%;border-radius:99px;background:var(--ok);
+  transition:width .35s var(--ease)}
+.li-foot{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.li-s{font-size:11.5px;font-weight:800;color:var(--muted)}
+.li-s.part{color:var(--amber)}
+.li-s.ok{color:var(--ok)}
+.kx .li-all{font-size:11.5px;font-weight:800;color:var(--accent);
+  background:transparent;padding:3px 7px;border-radius:8px;min-height:0}
+.kx .li-all:active{background:var(--accent-soft)}
+.li-empty{font-size:12.5px;font-weight:700;color:var(--faint);text-align:center;
+  padding:16px 10px;border:1.5px dashed var(--line2);border-radius:var(--r-md);
+  margin-bottom:9px}
+.li-tot{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;
+  font-weight:700;color:var(--muted);padding:2px 3px 9px}
+.li-tot .ok{color:var(--ok);font-weight:800}
+.li-acts{display:flex;gap:7px;margin-bottom:13px}
+.li-acts>*{flex:1}
+.li-close{display:flex;align-items:center;justify-content:space-between;gap:9px;
+  background:var(--bg);border-radius:var(--r-md);padding:10px 12px;margin-bottom:13px;
+  font-size:12.5px;font-weight:700;color:var(--muted)}
+.li-close.on{background:var(--ok-soft);color:var(--ok);font-weight:800}
+/* ⚠ הטקסט שנכתב לפני הפיצול לפריטים. לקריאה בלבד. */
+.li-legacy{background:var(--bg);border-radius:var(--r-md);padding:10px 12px;margin-bottom:13px}
+.li-legacy-h{font-size:10px;font-weight:900;letter-spacing:.8px;color:var(--faint);
+  margin-bottom:4px}
+.li-legacy-b{font-size:12.5px;font-weight:600;color:var(--muted);white-space:pre-wrap;
+  line-height:1.5}
+
+/* ---- הכנסות מאירוח ----
+   ⚠ "התקבל" גדול ו"צפוי" מעומעם לידו. שני המספרים גלויים תמיד,
+     כי ההפרש ביניהם הוא כל מה שמעניין. */
+.money{background:var(--surface);border:1px solid rgba(211,201,182,.55);
+  border-radius:var(--r-lg);padding:15px 16px 12px;margin-bottom:12px;box-shadow:var(--sh-1)}
+.money-top{display:flex;align-items:center;gap:14px}
+.money-c{flex:1;min-width:0}
+.money-sep{width:1px;align-self:stretch;background:var(--line)}
+.money-n{font-family:'Suez One',Heebo,serif;font-size:26px;line-height:1.1;
+  color:var(--ink);letter-spacing:-.5px}
+.money-n.soft{color:var(--faint);font-size:22px}
+.money-l{font-size:10.5px;font-weight:800;letter-spacing:.8px;color:var(--faint);margin-top:3px}
+.money-f{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;padding-top:10px;
+  border-top:1px solid var(--line);font-size:11.5px;font-weight:700;color:var(--muted)}
+.money-f .warn{color:var(--amber);font-weight:800}
+
+/* ---- שורת תקופה ---- */
+.per{display:flex;align-items:center;justify-content:space-between;gap:11px;
+  padding:10px 0;border-bottom:1px solid var(--line)}
+.per:last-child{border-bottom:none}
+.per-l{min-width:0}
+.per-t{font-size:14px;font-weight:800;letter-spacing:-.2px}
+.per-s{font-size:11.5px;font-weight:600;color:var(--muted);margin-top:2px}
+.per-r{text-align:left;flex:0 0 auto}
+.per-n{font-size:15.5px;font-weight:900;letter-spacing:-.3px}
+.per-x{font-size:10.5px;font-weight:700;color:var(--faint);margin-top:1px}
+
+/* ---- מד פיקוד וקצונה ----
+   ⚠ מתחת לאחוז כתוב תמיד מכמה הוא מחושב. אחוז ערום על שישה
+     בוגרים נראה בדיוק כמו אחוז על שישים. */
+.dial{background:var(--surface);border:1px solid rgba(211,201,182,.55);
+  border-radius:var(--r-md);padding:13px 14px;box-shadow:var(--sh-1)}
+.dial-h{font-size:10.5px;font-weight:900;letter-spacing:.9px;color:var(--faint);
+  margin-bottom:7px}
+.dial-n{font-family:'Suez One',Heebo,serif;font-size:30px;line-height:1;
+  color:var(--accent);letter-spacing:-1px}
+.dial-n small{font-size:15px;margin-right:1px}
+.dial-n.none{color:var(--line2)}
+.dial-bar{height:7px;border-radius:99px;background:var(--line);overflow:hidden;margin:8px 0 5px}
+.dial-bar>span{display:block;height:100%;border-radius:99px;background:var(--accent);
+  transition:width .5s var(--ease)}
+.dial-s{font-size:11px;font-weight:700;color:var(--muted)}
+.dial-p{font-size:10.5px;font-weight:700;color:var(--amber);margin-top:2px}
 
 /* ⚠ מי שביקש פחות תנועה מקבל פחות תנועה. */
 @media (prefers-reduced-motion:reduce){
