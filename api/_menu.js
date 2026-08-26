@@ -79,7 +79,14 @@ async function handler(req, res, session) {
   if (!D || !D.board) {
     return res.status(503).json({ error: "לוח המנות טרם הוקם", setupRequired: true });
   }
-  if (!session.isManager && !session.isKitchen) {
+  /* ⚠ קריאה פתוחה לכל מי שמחובר, כתיבה לאחראי המטבח בלבד.
+     התפריט הוא מידע שכל המכינה רוצה — מה אוכלים היום, ומה יש
+     במנה למי שיש לו אלרגיה. עריכתו היא עבודה של אחראי המטבח.
+
+     ⚠ ההפרדה כאן ולא ב-withAuth: withAuth שומר על "מחובר",
+       והבחנת הכתיבה תלויה בשיטה. */
+  const canWrite = session.isManager || session.isKitchen;
+  if (req.method !== "GET" && !canWrite) {
     return res.status(403).json({ error: "התפריט מנוהל על ידי אחראי המטבח" });
   }
 
@@ -133,6 +140,8 @@ async function handler(req, res, session) {
         dishes, menus,
         counts: { dishes: dishes.length, active: dishes.filter((d) => d.active).length },
         kinds: KINDS, meals: MEALS, defaultBase: DEFAULT_BASE,
+        /* תצוגה בלבד — ההרשאה נאכפת שוב בכל כתיבה */
+        canEdit: canWrite,
       });
     }
 
@@ -243,4 +252,7 @@ async function readJson(req) {
   return raw ? JSON.parse(raw) : {};
 }
 
-export default withAuth(handler, { kitchen: true });
+/* ⚠ student:true — בלי זה withAuth חוסם חניכים כברירת מחדל,
+   וזו בדיוק הקבוצה שהתפריט נועד לה. ההבחנה בין קריאה לכתיבה
+   נעשית בתוך ה-handler. */
+export default withAuth(handler, { student: true });

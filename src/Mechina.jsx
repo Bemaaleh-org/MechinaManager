@@ -16,6 +16,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { api } from "./api.js";
 import { testDate } from "./testDate.js";
 import { LessonsPage } from "./Lessons.jsx";
+import { MenuPage } from "./Menu.jsx";
 import { ROLE_INFO, LEADER_INFO } from "./roles-info.js";
 import { SafetyPage } from "./Safety.jsx";
 import { FaultsPage } from "./Faults.jsx";
@@ -2215,6 +2216,9 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
     { key: "n-place", tone: "tone-4", l: "השיבוצים שלי", icon: <MI.users />, go: () => go("placements") },
     { key: "n-agenda", tone: "tone-6", l: "הלו״ז שלי", icon: <MI.cal />, go: () => go("agenda") },
     { key: "n-gantt", tone: "tone-7", l: "גאנט שנתי", icon: <MI.cal />, go: () => go("gantt") },
+    /* ⚠ התפריט פתוח לכולם — מה אוכלים היום ומה יש במנה זה
+       מידע שכל המכינה רוצה, ובמיוחד מי שיש לו אלרגיה. */
+    { key: "n-menu", tone: "tone-3", l: "תפריט ארוחות", icon: <MI.book />, go: () => go("menu") },
     { key: "n-report", tone: "tone-8", l: "דיווח תקלה", icon: <MI.tool />, go: () => go("report") },
     { key: "n-new", tone: "tone-3", l: "בקשת יציאה חדשה", icon: <MI.plus />, go: () => go("new") },
   ];
@@ -2459,6 +2463,7 @@ export function MechinaApp({ auth, onSignedOut }) {
               active: tab === "requests", onClick: () => setTab("requests") },
             { key: "profile", label: "הפרופיל שלי", icon: <MI.users />, active: tab === "profile", onClick: () => setTab("profile") },
             { key: "placements", label: "השיבוצים שלי", icon: <MI.users />, active: tab === "placements", onClick: () => setTab("placements") },
+            { key: "menu", label: "תפריט ארוחות", icon: <MI.book />, active: tab === "menu", onClick: () => setTab("menu") },
             { key: "report", label: "דיווח תקלה", icon: <MI.tool />, active: tab === "report", onClick: () => setTab("report") },
             { key: "agenda", label: "הלו״ז שלי", icon: <MI.cal />, active: tab === "agenda", onClick: () => setTab("agenda") },
             { key: "gantt", label: "גאנט שנתי", icon: <MI.cal />, active: tab === "gantt", onClick: () => setTab("gantt") },
@@ -2585,6 +2590,7 @@ export function MechinaApp({ auth, onSignedOut }) {
           </>
         )}
 
+        {tab === "menu" && <MenuPage say={say} />}
         {tab === "report" && <FaultReportPage say={say} />}
 
         {tab === "agenda" && <AgendaPage />}

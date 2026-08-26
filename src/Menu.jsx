@@ -45,6 +45,7 @@ export function MenuPage({ say }) {
   const { data, err, busy, reload } = useLoad(() => api.getMenu(), []);
   const [sub, setSub] = useState("plan");
   const [editing, setEditing] = useState(null);
+  const [viewing, setViewing] = useState(null);
   const [picked, setPicked] = useState([]);
   const [heads, setHeads] = useState(String(DEFAULT_BASE));
 
@@ -69,6 +70,7 @@ export function MenuPage({ say }) {
       defaultBase={data.defaultBase} say={say}
       onDone={() => { setEditing(null); reload(); }} onCancel={() => setEditing(null)} />;
   }
+  if (viewing) return <DishView dish={viewing} onBack={() => setViewing(null)} />;
 
   const toggle = (id) =>
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
@@ -97,7 +99,10 @@ export function MenuPage({ say }) {
           ) : (
             <div className="rows">
               {data.dishes.map((d) => (
-                <button className="st-row" key={d.id} onClick={() => setEditing(d)}>
+                /* ⚠ מי שאינו רשאי לערוך עדיין רואה את המנה —
+                   הלחיצה פותחת אותה לקריאה. */
+                <button className="st-row" key={d.id}
+                  onClick={() => data.canEdit ? setEditing(d) : setViewing(d)}>
                   <div className="tile sm"><MI.dish /></div>
                   <div className="st-main">
                     <div className="st-n">{d.name}</div>
@@ -112,26 +117,30 @@ export function MenuPage({ say }) {
             </div>
           )}
 
-          <div className="sticky">
-            <button className="btn btn-primary" onClick={() => setEditing({})}>
-              <MI.plus />מנה חדשה
-            </button>
-          </div>
-          <div style={{ height: 60 }} />
+          {data.canEdit && (
+            <>
+              <div className="sticky">
+                <button className="btn btn-primary" onClick={() => setEditing({})}>
+                  <MI.plus />מנה חדשה
+                </button>
+              </div>
+              <div style={{ height: 60 }} />
+            </>
+          )}
         </>
       )}
 
       {sub === "plan" && (
         <Planner dishes={data.dishes} picked={picked} onToggle={toggle}
           heads={heads} setHeads={setHeads} meals={data.meals} say={say}
-          onReload={reload} />
+          canEdit={data.canEdit} onReload={reload} />
       )}
     </>
   );
 }
 
 /* ---------- תכנון ארוחה ---------- */
-function Planner({ dishes, picked, onToggle, heads, setHeads, meals, say, onReload }) {
+function Planner({ dishes, picked, onToggle, heads, setHeads, meals, say, canEdit, onReload }) {
   const [plan, setPlan] = useState(null);
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -297,9 +306,11 @@ function Planner({ dishes, picked, onToggle, heads, setHeads, meals, say, onRelo
             ))}
           </div>
 
-          <button className="btn btn-primary" disabled={busy} onClick={toShopping}>
-            <MI.cart />הוספת החסרים לרשימת הקניות
-          </button>
+          {canEdit && (
+            <button className="btn btn-primary" disabled={busy} onClick={toShopping}>
+              <MI.cart />הוספת החסרים לרשימת הקניות
+            </button>
+          )}
           <button className="btn btn-ghost" style={{ marginTop: 8 }}
             onClick={() => {
               downloadTable({
@@ -315,6 +326,38 @@ function Planner({ dishes, picked, onToggle, heads, setHeads, meals, say, onRelo
           <div style={{ height: 40 }} />
         </>
       )}
+    </>
+  );
+}
+
+/* ---------- מנה לקריאה ----------
+   ⚠ מי שאינו אחראי מטבח רואה את המנה במלואה ואינו יכול לשנות
+     אותה. חסימת הצפייה הייתה מסתירה בדיוק את מה שהתפריט נועד
+     לתת — מה יש במנה. */
+function DishView({ dish, onBack }) {
+  const items = parseItems(dish.items);
+  return (
+    <>
+      <button className="btn btn-ghost btn-sm" style={{ marginBottom: 14 }} onClick={onBack}>
+        <MI.chev style={{ transform: "rotate(180deg)" }} />חזרה
+      </button>
+      <div className="screen-title">{dish.name}</div>
+      <div className="card">
+        <div className="sec-label" style={{ marginTop: 0 }}>מצרכים ל-{dish.baseHeads} סועדים</div>
+        {items.map((it, i) => (
+          <div className="ing" key={i}>
+            <span className="ing-n">{it.name}</span>
+            <b className="num">{qty(it.qty)}{it.unit ? ` ${it.unit}` : ""}</b>
+          </div>
+        ))}
+        {dish.how && (
+          <>
+            <div className="sec-label">הוראות הכנה</div>
+            <div className="rl-desc">{dish.how}</div>
+          </>
+        )}
+      </div>
+      <div style={{ height: 40 }} />
     </>
   );
 }

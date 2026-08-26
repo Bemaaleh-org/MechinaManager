@@ -19,6 +19,7 @@ import { gql } from "./_monday.js";
 import { studentRows } from "./_student-rows.js";
 import { invalidate } from "./_cache.js";
 import { MECHINA_BOARDS, MECHINA_COLS } from "../shared/mechina-boards.js";
+import { guideMap, isGuideOf } from "./_guides.js";
 
 const C = MECHINA_COLS.roster;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -46,6 +47,8 @@ async function read(req, res, session) {
   try {
     const student = await resolveTarget(req, session, res);
     if (!student) return;
+    const guide = (await guideMap()).get(student.id) || null;
+    const talksEditable = isGuideOf(session, guide) || Boolean(session.isHead);
     res.status(200).json({
       id: student.id,
       name: student.name,
@@ -53,7 +56,11 @@ async function read(req, res, session) {
       tryouts: student.profile.tryouts,
       talks: student.profile.talks,
       canEditArmy: !session.isManager, // החניך ממלא
-      canEditTalks: session.isManager, // הצוות קובע
+      /* ⚠ המדריך של החניך בלבד, וראש המכינה. מנהל אחר יראה
+         את התאריכים ולא יוכל לשנותם — וחשוב שהמסך ידע את זה
+         מראש, אחרת הוא מציע עריכה שתיחסם ב-403. */
+      canEditTalks: talksEditable,
+      talksBy: guide ? (guide.short || guide.name) : null
     });
   } catch (e) {
     console.error("[student-profile:read]", e);
@@ -80,9 +87,23 @@ async function write(req, res, session) {
     }
 
     if (body.talks !== undefined) {
-      /* ⚠ תאריכי השיחה האישית — הצוות בלבד */
-      if (!session.isManager) {
-        return res.status(403).json({ error: "תאריכי השיחה נקבעים על ידי הצוות" });
+      /* ---------- השיחה האישית ----------
+         ⚠ המדריך של הקבוצה בלבד, ולא כל איש צוות. השיחה
+           האישית היא בין החניך למדריך שלו; מי שקובע לה תאריך
+           הוא מי שיושב בה.
+
+         ⚠ ראש המכינה אינו נחסם — אותו כלל כמו בבקשות היציאה.
+           חניך שאינו משובץ לקבוצה, או מדריך שיצא לחופשה, לא
+           יכולים להשאיר את השיחה תקועה בלי שאיש יוכל לקבוע לה
+           תאריך. */
+      const guide = (await guideMap()).get(student.id) || null;
+      const mine = isGuideOf(session, guide);
+      if (!mine && !session.isHead) {
+        return res.status(403).json({
+          error: guide
+            ? `תאריכי השיחה נקבעים על ידי ${guide.short || guide.name}`
+            : "תאריכי השיחה נקבעים על ידי המדריך של החניך",
+        });
       }
       if (!Array.isArray(body.talks) || body.talks.length !== 3) {
         return res.status(400).json({ error: "נדרשים שלושה תאריכים (או ריק)" });
