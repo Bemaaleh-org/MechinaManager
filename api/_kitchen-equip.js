@@ -2,7 +2,7 @@
    /api/kitchen?action=equip[&area=אוכל|חד״פ]
      GET     הציוד של התחום + רשימת הקניות שלו
      POST    { name, qty, kind, par?, area? }        פריט חדש
-     PUT     { itemId, name?, qty?, kind?, par? }     עריכה
+     PUT     { itemId, name?, qty?, delta?, kind?, par? }  עריכה
      DELETE  { itemId }                               מחיקה
 
    ⚠ צוות ותורנים. חניך נדחה — withAuth ללא דגלים חוסם סשן
@@ -21,6 +21,7 @@ import {
   loadKitchenEquipment, loadKitchenShopping, invalidateKitchen,
   setColumns, renameItem, createItem, deleteItem,
 } from "./_kitchen-data.js";
+import { qtyAdd } from "../shared/par.js";
 
 const E = KITCHEN_COLS.equipment;
 const KINDS = [KITCHEN_KIND.consumable, KITCHEN_KIND.permanent];
@@ -102,6 +103,23 @@ async function handler(req, res, session) {
 
       const cols = {};
       if (body.qty !== undefined) cols[E.qty] = String(body.qty).trim().slice(0, 60);
+      /* ---------- הוספה או הורדה ----------
+         ⚠ delta ולא qty: השולח אומר "נוספו 12", לא "עכשיו יש
+           52". שני אנשים שמכניסים סחורה באותה דקה — הראשון
+           שולח 12 והשני 8, והתוצאה 20. אילו כל אחד היה שולח
+           את הסך הכול, השני היה מוחק את הראשון.
+
+         ⚠ הטקסט התיאורי נשמר. הכמות היא טקסט חופשי
+           ("40 חבילות של 10"), ורק המספר הראשון זז. ראו
+           qtyAdd ב-shared/par.js. */
+      if (body.delta !== undefined) {
+        const d = Number(body.delta);
+        if (!Number.isFinite(d) || d === 0) {
+          return res.status(400).json({ error: "שינוי כמות לא תקין" });
+        }
+        cols[E.qty] = qtyAdd(item.qty, d).slice(0, 60);
+      }
+
       if (body.kind !== undefined) {
         if (!KINDS.includes(String(body.kind))) return res.status(400).json({ error: "סוג לא מוכר" });
         cols[E.kind] = { label: String(body.kind) };

@@ -29,6 +29,7 @@ const DOMAIN = {
   load: (area) => api.getKitchen(area),
   addEquip: (b) => api.addKitchenItem(b),
   editEquip: (b) => api.editKitchenItem(b),
+  addQty: (b) => api.addKitchenQty(b),
   deleteEquip: (id) => api.deleteKitchenItem(id),
   addShopping: (items, area) => api.addKitchenShopping(items, area),
   setShoppingStatus: (b) => api.setKitchenShoppingStatus(b),

@@ -66,15 +66,29 @@ export const SETTING_HEADCOUNT = "מספר סועדים";
  *          כולו לקניות: יום חריג הוא הוצאה נקודתית, לא
  *          שינוי בהסכם הקייטרינג.
  */
-export function dayCost(type, head, over = null) {
+export function dayCost(type, head, over = null, extra = null) {
   if (over != null) {
     return { catering: 0, purchases: over * head, total: over * head };
   }
-  if (!type) return { catering: 0, purchases: 0, total: 0 };
-  /* ⚠ מספר קבוע גובר על המצבה — הוא לא זז איתה לעולם */
-  const heads = Number(type.fixedHeads) > 0 ? Number(type.fixedHeads) : head;
-  const catering = (Number(type.catering) || 0) * heads;
-  const purchases = (Number(type.purchases) || 0) * head;
+  const one = (t) => {
+    if (!t) return { catering: 0, purchases: 0 };
+    /* ⚠ מספר קבוע גובר על המצבה — הוא לא זז איתה לעולם */
+    const heads = Number(t.fixedHeads) > 0 ? Number(t.fixedHeads) : head;
+    return {
+      catering: (Number(t.catering) || 0) * heads,
+      purchases: (Number(t.purchases) || 0) * head,
+    };
+  };
+  /* ⚠ שני סוגים מתחברים. יום יכול להיות "שגרה + אחר": שגרה
+     רגילה שקרה בה עוד משהו — סדרה קצרה, אירוע, ארוחה נוספת.
+     עד היום היה צריך לבחור אחד מהם או להזין מחיר ידני שדורס
+     את שניהם, ואז נעלמה הסיבה שבגללה היום יקר.
+
+     ⚠ המחיר הידני (over) עדיין דורס את שניהם — הוא נועד למקרה
+       שבו שום צירוף של סוגים אינו מתאר את היום. */
+  const a = one(type), b = one(extra);
+  const catering = a.catering + b.catering;
+  const purchases = a.purchases + b.purchases;
   return { catering, purchases, total: catering + purchases };
 }
 

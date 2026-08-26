@@ -47,25 +47,31 @@ function useLoad(fn, deps = []) {
 /* ---------- עריכת יום אחד ---------- */
 function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
   const [type, setType] = useState(day.type);
+  const [type2, setType2] = useState(day.type2 || null);
   const [cost, setCost] = useState("");
   const [note, setNote] = useState(day.note || "");
   const [busy, setBusy] = useState(false);
 
   const chosen = types.find((t) => t.name === type);
+  const chosen2 = types.find((t) => t.name === type2);
   const per = cost.trim() !== "" ? Number(cost) : null;
+  /* ⚠ אותה נוסחה שבשרת. שני הסוגים מתחברים, והמחיר הידני
+     דורס את שניהם — ראו dayCost ב-shared/budget-boards.js. */
+  const one = (t) => t
+    ? {
+        catering: (t.catering || 0) * (t.fixedHeads > 0 ? t.fixedHeads : headcount),
+        purchases: (t.purchases || 0) * headcount,
+      }
+    : { catering: 0, purchases: 0 };
+  const a = one(chosen), b = one(chosen2);
   const preview = per != null
     ? { catering: 0, purchases: per * headcount }
-    : chosen
-      ? {
-          catering: (chosen.catering || 0) * (chosen.fixedHeads > 0 ? chosen.fixedHeads : headcount),
-          purchases: (chosen.purchases || 0) * headcount,
-        }
-      : { catering: 0, purchases: 0 };
+    : { catering: a.catering + b.catering, purchases: a.purchases + b.purchases };
 
   const save = () => {
     if (busy) return;
     setBusy(true);
-    api.setBudgetDay({ date: day.date, type, cost: cost.trim(), note: note.trim() })
+    api.setBudgetDay({ date: day.date, type, type2, cost: cost.trim(), note: note.trim() })
       .then(() => { say("היום עודכן"); onDone(); })
       .catch((e) => say(e.message))
       .finally(() => setBusy(false));
@@ -74,7 +80,7 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
   const clear = () => {
     if (busy) return;
     setBusy(true);
-    api.setBudgetDay({ date: day.date, type: null, cost: "", note: "" })
+    api.setBudgetDay({ date: day.date, type: null, type2: null, cost: "", note: "" })
       .then(() => { say("היום חזר ללו״ז"); onDone(); })
       .catch((e) => say(e.message))
       .finally(() => setBusy(false));
@@ -98,12 +104,35 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
           </div>
         </div>
 
+        {/* ---------- סוג נוסף ----------
+            ⚠ "שגרה + אחר": יום שגרה שקרה בו עוד משהו. שני
+              הסוגים מתחברים, ולכן נשמר גם מה היום היה וגם מה
+              נוסף לו — במקום מחיר ידני שדורס את שניהם ומוחק
+              את הסיבה שבגללה היום יקר. */}
+        <div className="fld">
+          <label>ועוד — סוג נוסף (לא חובה)</label>
+          <div className="pick pick-wrap">
+            <button type="button" className={!type2 ? "on" : ""} disabled={busy}
+              onClick={() => setType2(null)}>בלי</button>
+            {types.filter((t) => t.name !== type).map((t) => (
+              <button type="button" key={t.name} className={type2 === t.name ? "on" : ""}
+                disabled={busy} onClick={() => setType2(t.name)}>{t.name}</button>
+            ))}
+          </div>
+          {chosen2 && (
+            <div className="bg-fixed" style={{ marginTop: 7 }}>
+              היום מחושב כ<b>{type}</b> ועוד <b>{type2}</b> — שני הסכומים מתחברים.
+            </div>
+          )}
+        </div>
+
         <div className="fld">
           <label>סכום מיוחד לאדם (לא חובה)</label>
           <input value={cost} onChange={(e) => setCost(e.target.value)} disabled={busy}
             inputMode="numeric" placeholder="ריק = לפי סוג היום" />
           <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 600, marginTop: 4 }}>
             סכום מיוחד נזקף כולו לקניות — הוא הוצאה נקודתית ולא שינוי בהסכם הקייטרינג.
+            {(chosen || chosen2) && " ⚠ הוא דורס את סוגי היום שנבחרו למעלה."}
           </div>
         </div>
 
@@ -447,7 +476,8 @@ export function BudgetPage({ say }) {
       title: `תקציב המטבח — ${monthLabel(data.month)} · ${data.headcount} סועדים`,
       header: ["תאריך", "יום", "סוג היום", "קייטרינג", "קניות", "סה״כ", "הערה"],
       rows: [
-        ...data.days.map((d) => [dm(d.date), dowOf(d.date), d.type,
+        ...data.days.map((d) => [dm(d.date), dowOf(d.date),
+          d.type + (d.type2 ? " + " + d.type2 : ""),
           Math.round(d.catering), Math.round(d.purchases), Math.round(d.total), d.note || ""]),
         [],
         ["תקציב קייטרינג", "", "", Math.round(data.catering), "", "", ""],
@@ -629,7 +659,11 @@ export function BudgetPage({ say }) {
                 <span>{dowOf(d.date)}׳</span>
               </div>
               <div className="st-main">
-                <div className="st-n" style={{ fontSize: 14.5 }}>{d.type}</div>
+                {/* ⚠ "שגרה + אחר" נכתב במפורש: מי שרואה יום יקר
+                    צריך לדעת מיד ממה הוא מורכב. */}
+                <div className="st-n" style={{ fontSize: 14.5 }}>
+                  {d.type}{d.type2 ? ` + ${d.type2}` : ""}
+                </div>
                 <div className="st-m">
                   {d.overridden && <span className="pill p-new">נקבע ידנית</span>}
                   {d.note && <span>{d.note}</span>}

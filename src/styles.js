@@ -1211,6 +1211,37 @@ html,body{margin:0;padding:0;background:#012E58}
 /* ---- מודאל ---- */
 .sheet{border-radius:24px 24px 0 0;box-shadow:0 -18px 50px -20px rgba(47,38,22,.5)}
 
+/* ---- מד כמות ----
+   ⚠ הכמות בטקסט חופשי ("40 חבילות של 10"), ולכן המד מציג את
+     הטקסט המלא ולא רק מספר. הוא נגזר לרוחב ולא נשבר לשתי
+     שורות — שורת ציוד חייבת להישאר בגובה אחיד. */
+.qstep{display:flex;align-items:center;gap:2px;padding:0 13px 11px;
+  margin-top:-4px}
+.kx .qs-btn{width:34px;height:34px;border-radius:11px;flex:0 0 auto;
+  background:var(--bg);border:1.5px solid var(--line);
+  font-size:19px;font-weight:800;line-height:1;color:var(--accent);
+  display:grid;place-items:center;transition:all .12s var(--ease)}
+.kx .qs-btn:active{transform:translateY(1px);background:var(--accent-soft)}
+.kx .qs-btn:disabled{opacity:.4}
+.qs-n{flex:1;min-width:0;text-align:center;font-size:13.5px;font-weight:800;
+  color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  padding:0 6px}
+
+/* ---- הוספה בעורך ---- */
+.qadd{background:var(--accent-soft);border-radius:var(--r-md);padding:11px 12px;
+  margin-bottom:13px}
+.qadd label{color:var(--accent);opacity:1}
+.qadd-row{display:flex;gap:6px}
+.kx .qadd-row input{flex:1;min-width:0;background:var(--surface)}
+.kx .qa-plus,.kx .qa-minus{flex:0 0 auto;min-height:48px;padding:0 15px;
+  border-radius:var(--r-md);font-size:14px;font-weight:800;
+  transition:all .12s var(--ease)}
+.kx .qa-plus{background:var(--accent);color:#fff}
+.kx .qa-minus{background:var(--surface);color:var(--clay);border:1.5px solid var(--line2)}
+.kx .qa-plus:active,.kx .qa-minus:active{transform:translateY(1px)}
+.kx .qa-plus:disabled,.kx .qa-minus:disabled{opacity:.42}
+.qadd-hint{font-size:11px;font-weight:700;color:var(--muted);margin-top:7px;line-height:1.5}
+
 /* ---- כניסה מדורגת, במסך הבית בלבד ----
    ⚠ רק על שתי הרשתות של מסך הבית ולא על כל כרטיס באפליקציה.
      רשימה של שלושים ימי תקציב שנכנסת בהנפשה נראית איטית, לא

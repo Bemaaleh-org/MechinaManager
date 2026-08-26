@@ -1,7 +1,7 @@
 /* ============================================================
    /api/kitchen?action=budget — תקציב המטבח
      GET    ?month=YYYY-MM   חודש אחד: ימים, סכומים והזמנות
-     PUT    { date, type?, cost?, note? }   כפיית סוג ליום
+     PUT    { date, type?, type2?, cost?, note? }  כפיית סוג ליום
      POST   { name, amount, kind, startMonth|date, note? }  קנייה
      DELETE { orderId }                     מחיקת קנייה
      PUT    { headcount, mode, from? }       מצבת הסועדים
@@ -57,6 +57,7 @@ async function loadOverrides({ force = false } = {}) {
         id: String(i.id),
         date: val(i, C.days.date),
         type: val(i, C.days.type) || null,
+        type2: val(i, C.days.type2) || null,
         cost: num(i, C.days.cost),
         note: val(i, C.days.note) || null,
       }))
@@ -219,15 +220,18 @@ function buildMonth(month, { types, overrides, calendar, gantt, heads }) {
     const typeName = (ov && ov.type) || derivedType(date, byDate, evByDate);
     const type = byName.get(typeName) || null;
     const over = ov && ov.cost != null ? ov.cost : null;
+    /* ⚠ הסוג הנוסף הוא חריגה בלבד — הוא לא נגזר מהגאנט. */
+    const extra = ov && ov.type2 ? byName.get(ov.type2) || null : null;
     /* ⚠ המצבה נלקחת לפי היום עצמו ולא לפי היום: שינוי במצבה
        אינו רטרואקטיבי, ולכן ספטמבר ממשיך להיות מחושב במצבה
        שהייתה בספטמבר. */
     const head = headcountAt(heads, date);
-    const cost = dayCost(type, head, over);
+    const cost = dayCost(type, head, over, extra);
     return {
       date,
       kind: (byDate.get(date) || {}).kind || null,
       type: typeName,
+      type2: ov ? ov.type2 : null,
       headcount: head,
       perPerson: over != null ? over : perPersonOf(type),
       catering: cost.catering,
@@ -428,8 +432,12 @@ async function handler(req, res, session) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: "תאריך לא תקין" });
 
       const types = await loadDayTypes();
-      if (body.type !== undefined && body.type !== null && !types.some((t) => t.name === body.type)) {
-        return res.status(400).json({ error: "סוג יום לא מוכר" });
+      const known = (v) => v === undefined || v === null || v === "" || types.some((t) => t.name === v);
+      if (!known(body.type)) return res.status(400).json({ error: "סוג יום לא מוכר" });
+      if (!known(body.type2)) return res.status(400).json({ error: "הסוג הנוסף אינו מוכר" });
+      /* ⚠ אותו סוג פעמיים הוא הכפלה שקטה של אותו יום. */
+      if (body.type && body.type2 && body.type === body.type2) {
+        return res.status(400).json({ error: "הסוג הנוסף זהה לסוג היום" });
       }
       let cost = null;
       if (body.cost !== undefined && String(body.cost).trim() !== "") {
@@ -442,6 +450,7 @@ async function handler(req, res, session) {
 
       /* ריקון מלא = חזרה לגזירה מהלו״ז, כלומר מחיקת החריגה */
       const empty = (body.type === null || body.type === undefined || body.type === "")
+        && (body.type2 === null || body.type2 === undefined || body.type2 === "")
         && cost === null && !String(body.note || "").trim();
       if (empty) {
         if (hit) { await gql(`mutation{ delete_item(item_id:${Number(hit.id)}){ id } }`); }
@@ -452,6 +461,8 @@ async function handler(req, res, session) {
       const cols = {
         [C.days.date]: { date },
         ...(body.type ? { [C.days.type]: { label: String(body.type) } } : {}),
+        /* ריק מנקה את הסוג הנוסף ומשאיר את הראשי */
+        [C.days.type2]: body.type2 ? { label: String(body.type2) } : { label: "" },
         [C.days.cost]: cost === null ? "" : String(cost),
         [C.days.note]: String(body.note || "").slice(0, 200),
       };

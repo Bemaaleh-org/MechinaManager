@@ -95,6 +95,10 @@ export const api = {
     post("/api/kitchen?action=equip", { name, qty, kind, par, area }),
 
   /** עריכת פריט. שדה שלא נשלח אינו משתנה. */
+  /** ⚠ delta מוסיף לכמות הקיימת; qty דורס אותה. לא לשלוח שניהם. */
+  addKitchenQty: ({ itemId, delta }) =>
+    put("/api/kitchen?action=equip", { itemId, delta }),
+
   editKitchenItem: ({ itemId, name, qty, kind, par }) =>
     put("/api/kitchen?action=equip", { itemId, name, qty, kind, par }),
 
@@ -112,8 +116,9 @@ export const api = {
   /** סיכום שנתי — חודש־חודש ובסוף הסך הכול */
   getBudgetYear: () => get("/api/kitchen?action=budget&view=year"),
   /** כפיית סוג או מחיר ליום. הכול ריק = חזרה לגזירה מהלו״ז. */
-  setBudgetDay: ({ date, type, cost, note }) =>
-    put("/api/kitchen?action=budget", { date, type, cost, note }),
+  /** ⚠ type2 הוא סוג נוסף שמתחבר לראשון ("שגרה + אחר"), לא מחליף אותו. */
+  setBudgetDay: ({ date, type, type2, cost, note }) =>
+    put("/api/kitchen?action=budget", { date, type, type2, cost, note }),
   /** מצבת סועדים. ⚠ mode:"forward" משנה קדימה בלבד; "retro" מתקן את כל השנה. */
   setHeadcount: ({ headcount, mode, from }) =>
     put("/api/kitchen?action=budget", { headcount, mode, from }),
@@ -189,6 +194,10 @@ export const api = {
     get("/api/container?action=equip" + (area ? "&area=" + encodeURIComponent(area) : "")),
   addEquip: ({ name, qty, kind, par, area }) =>
     post("/api/container?action=equip", { name, qty, kind, par, area }),
+  /** ⚠ delta מוסיף לכמות הקיימת; qty דורס אותה. לא לשלוח שניהם. */
+  addEquipQty: ({ itemId, delta }) =>
+    put("/api/container?action=equip", { itemId, delta }),
+
   editEquip: ({ itemId, name, qty, kind, par }) =>
     put("/api/container?action=equip", { itemId, name, qty, kind, par }),
   deleteEquip: (itemId) => del("/api/container?action=equip", { itemId }),

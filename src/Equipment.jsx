@@ -103,7 +103,31 @@ function EquipRow({ item, say, onChanged }) {
   });
   const [busy, setBusy] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
+  const [add, setAdd] = useState("");
+  const [stepping, setStepping] = useState(false);
   const missing = missingFor(item);
+
+  /* ⚠ שולח כמה נוסף, לא כמה יש. שני אנשים שמכניסים סחורה
+     באותה דקה מקבלים סכום ולא דריסה זה של זה. */
+  const bump = (delta) => {
+    if (stepping) return;
+    setStepping(true);
+    d.addQty({ itemId: item.id, delta })
+      .then(() => onChanged())
+      .catch((e) => say(e.message))
+      .finally(() => setStepping(false));
+  };
+
+  const applyAdd = (sign) => {
+    const n = Number(add);
+    if (!Number.isFinite(n) || n === 0) { say("הזינו כמה נוסף"); return; }
+    if (stepping) return;
+    setStepping(true);
+    d.addQty({ itemId: item.id, delta: n * sign })
+      .then(() => { setAdd(""); say(sign > 0 ? "נוסף למלאי" : "ירד מהמלאי"); onChanged(); })
+      .catch((e) => say(e.message))
+      .finally(() => setStepping(false));
+  };
 
   const save = () => {
     if (busy || !f.name.trim()) return;
@@ -142,14 +166,44 @@ function EquipRow({ item, say, onChanged }) {
             </div>
           )}
         </div>
-        <b className="num" style={{ fontSize: 15, fontWeight: 800, flex: "0 0 auto" }}>
-          {item.qty || "—"}
-        </b>
         <CI.chev style={{ transform: open ? "rotate(-90deg)" : "none", color: "var(--line2)" }} />
       </button>
 
+      {/* ⚠ המד יושב מחוץ לכפתור הפתיחה ולא בתוכו. כפתור בתוך
+          כפתור אינו חוקי, והלחיצה על פלוס הייתה פותחת גם את
+          העריכה. */}
+      {/* ⚠ הפלוס מימין והמינוס משמאל, גם בממשק עברי. הסימנים
+          האלה מתמטיים ולא טקסטואליים — משתמש מצפה שהמינוס יהיה
+          בצד שבו מספרים קטנים, ובכל מקום בעולם זה השמאל.
+          בסדר ה-DOM זה אומר שהפלוס ראשון. */}
+      <div className="qstep">
+        <button className="qs-btn" disabled={stepping} aria-label="הוספה"
+          onClick={() => bump(1)}>+</button>
+        <span className="qs-n num">{item.qty || "—"}</span>
+        <button className="qs-btn" disabled={stepping} aria-label="הורדה"
+          onClick={() => bump(-1)}>−</button>
+      </div>
+
       {open && (
         <div style={{ padding: "0 13px 13px" }}>
+          {/* ---------- כמה נוסף ----------
+              ⚠ זה השדה שמשמש ביום-יום: מגיעה סחורה, רושמים כמה
+                הגיעה. השדות למטה הם לתיקון ולעריכה, לא לקבלה. */}
+          <div className="fld qadd">
+            <label>כמה נוסף או ירד</label>
+            <div className="qadd-row">
+              <input value={add} disabled={stepping} inputMode="decimal" placeholder="0"
+                onChange={(e) => setAdd(e.target.value)} />
+              <button className="qa-plus" disabled={stepping || !add}
+                onClick={() => applyAdd(1)}>הוספה</button>
+              <button className="qa-minus" disabled={stepping || !add}
+                onClick={() => applyAdd(-1)}>הורדה</button>
+            </div>
+            <div className="qadd-hint">
+              המלאי כרגע <b>{item.qty || "—"}</b> · המספר כאן מתווסף אליו ולא מחליף אותו
+            </div>
+          </div>
+
           <div className="two">
             <div className="fld">
               <label>שם</label>
@@ -157,7 +211,7 @@ function EquipRow({ item, say, onChanged }) {
                 onChange={(e) => setF({ ...f, name: e.target.value })} />
             </div>
             <div className="fld">
-              <label>כמות</label>
+              <label>תיקון כמות (דורס)</label>
               <input value={f.qty} disabled={busy}
                 onChange={(e) => setF({ ...f, qty: e.target.value })} />
             </div>
