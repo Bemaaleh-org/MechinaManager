@@ -1006,10 +1006,13 @@ export function LessonsBoard({ say, onOpenSheet, compact = false }) {
   if (err) return <LoadFail msg={err} onRetry={reload} />;
   if (!data) return null;
 
-  const Row = ({ m, late }) => (
-    <button className={"st-row " + (late ? "tone-8" : "tone-1")}
+  /* ⚠ ההתנגשות מוצגת כטקסט ולא רק כגוון: "הגאנט אומר: יום
+     כיפור" אומר גם מה קרה וגם למה, ומאפשר לראות מיד אם
+     הגאנט הוא זה שצריך תיקון. */
+  const Row = ({ m, late, clash }) => (
+    <button className={"st-row " + (clash ? "tone-3" : late ? "tone-8" : "tone-1")}
       onClick={() => onOpenSheet && onOpenSheet(m.sheetId)}>
-      <div className="tile sm">{late ? <LI.warn /> : <LI.book />}</div>
+      <div className="tile sm">{late || clash ? <LI.warn /> : <LI.book />}</div>
       <div className="st-main">
         <div className="st-n">{m.subject}</div>
         <div className="st-m">
@@ -1018,6 +1021,9 @@ export function LessonsBoard({ say, onOpenSheet, compact = false }) {
           {m.lecturer && <span>· {m.lecturer}</span>}
           {m.guestLecturer && <span className="pill p-new">אורח</span>}
         </div>
+        {m.conflict && m.conflict.blocked && (
+          <div className="clash">הגאנט אומר: {m.conflict.reason}</div>
+        )}
       </div>
       <LI.chev style={{ color: "var(--line2)", flex: "0 0 auto" }} />
     </button>
@@ -1042,8 +1048,10 @@ export function LessonsBoard({ say, onOpenSheet, compact = false }) {
               <div className="band-l">טרם דווחו</div>
             </div>
             <div className="band-c">
-              <div className="band-n">{both}</div>
-              <div className="band-l">בסך הכול</div>
+              <div className={"band-n" + (data.counts.clashing ? " warn" : "")}>
+                {data.counts.clashing || 0}
+              </div>
+              <div className="band-l">מתנגשים עם הגאנט</div>
             </div>
           </div>
         </div>
@@ -1070,6 +1078,27 @@ export function LessonsBoard({ say, onOpenSheet, compact = false }) {
         <div className="rows">
           {data.upcoming.map((m) => <Row key={m.id} m={m} />)}
         </div>
+      )}
+
+      {/* ============================================================
+          מתנגש עם הלו״ז השנתי
+          ------------------------------------------------------------
+          ⚠ מוצג ולא נמחק. השיעור מופיע בגיליון והגאנט אומר שאין
+            באותו יום לימודים — אחד מהשניים טועה, ומי שרואה את
+            שניהם יודע מיד מי. הסתרה שקטה הייתה מסתירה גם את
+            הטעות בגאנט.
+          ============================================================ */}
+      {(data.clashing || []).length > 0 && (
+        <>
+          <div className="sec-label">מתנגש עם הלו״ז השנתי</div>
+          <div className="clash-note">
+            {data.clashing.length} מפגשים נופלים על ימים שהגאנט מסמן כחג, כסופ״ש
+            בית או כיציאה מהמכינה. הם אינם נספרים ב״שיעורים הקרובים״.
+          </div>
+          <div className="rows">
+            {data.clashing.map((m) => <Row key={m.id} m={m} clash />)}
+          </div>
+        </>
       )}
     </>
   );

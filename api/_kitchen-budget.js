@@ -24,10 +24,9 @@ import {
   dayCost, perPersonOf, sortTypes, orderShareFor, monthsOf,
   headcountAt, ORDER_KIND, ORDER_KINDS,
 } from "../shared/budget-boards.js";
-
-const dow = (iso) => new Date(iso + "T12:00:00Z").getUTCDay();
-const isFriday = (iso) => dow(iso) === 5;
-const isSaturday = (iso) => dow(iso) === 6;
+import {
+  eventsByDate, prevDay, dow, isFriday, isSaturday, HOME_RE, SERIES_RE,
+} from "../shared/gantt-days.js";
 
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
 const num = (i, c) => { const t = val(i, c); return t === "" ? null : Number(t); };
@@ -136,29 +135,10 @@ const T = {
      לימים שאין עליהם אירוע.
    ------------------------------------------------------------ */
 
-const HOME_RE = /סופ״ש בית|סופ"ש בית|^בית$|יום בית/;
-const SERIES_RE = /סדרה|סדרת|מסע/;
-
-/** תאריך → אירועי הגאנט שחלים עליו */
-function eventsByDate(gantt) {
-  const map = new Map();
-  for (const e of gantt) {
-    const from = e.start, to = e.end || e.start;
-    if (!from) continue;
-    for (let d = new Date(from + "T12:00:00Z"); d.toISOString().slice(0, 10) <= to; d.setUTCDate(d.getUTCDate() + 1)) {
-      const iso = d.toISOString().slice(0, 10);
-      (map.get(iso) || map.set(iso, []).get(iso)).push(e);
-    }
-  }
-  return map;
-}
-
-const prevDay = (iso) => {
-  const d = new Date(iso + "T12:00:00Z");
-  d.setUTCDate(d.getUTCDate() - 1);
-  return d.toISOString().slice(0, 10);
-};
-
+/* ⚠ הכללים עברו ל-shared/gantt-days.js. תקציב המטבח ולוח
+   השיעורים שואלים את אותה שאלה — "מה יש בגאנט ביום הזה" —
+   ושני עותקים של הכללים כבר גרמו לכך שהשיעורים לא ידעו על
+   חגים שהתקציב כן ידע עליהם. */
 const anyMatch = (events, re) => (events || []).some((e) => re.test(e.name || ""));
 
 /**

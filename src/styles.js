@@ -1622,6 +1622,13 @@ html,body{margin:0;padding:0;background:#012E58}
 .inc-key .k-exp{background:repeating-linear-gradient(135deg,
   var(--accent-soft) 0 3px, transparent 3px 6px);border:1.5px dashed var(--line2)}
 
+/* ---- התנגשות עם הגאנט ----
+   ⚠ טקסט ולא רק גוון: הסיבה היא כל העניין. */
+.clash{font-size:11.5px;font-weight:800;color:var(--amber);margin-top:3px}
+.clash-note{font-size:12px;font-weight:600;color:var(--muted);line-height:1.55;
+  background:var(--amber-soft);border-radius:var(--r-md);padding:10px 12px;
+  margin-bottom:10px}
+
 /* ⚠ מי שביקש פחות תנועה מקבל פחות תנועה. */
 @media (prefers-reduced-motion:reduce){
   .kx *{transition-duration:.01ms !important;animation-duration:.01ms !important}

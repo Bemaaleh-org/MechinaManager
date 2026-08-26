@@ -12,11 +12,23 @@
      מפגש שלא התקיים, וזו בדיוק הרשימה שהמסך הזה קיים בשבילה.
      ראו HAPPENED ב-shared/lessons-boards.js.
 
+   ⚠ הגאנט מכריע. מפגש שנופל על חג, על סופ״ש בית או על סמינר
+     מחוץ למכינה אינו נספר ב"מה בא" — הוא עובר לרשימה נפרדת
+     עם הסיבה. עד כה הלוח הזה לא שאל את הגאנט בכלל, ו-138
+     מפגשים הוצגו כמתקיימים בימים שהגאנט אומר עליהם יום
+     כיפור, ראש השנה או בית.
+
+     ⚠ מוצג ולא נמחק. הגאנט עשוי להיות זה שטועה, ומפגש שנעלם
+       בלי הסבר נראה כמו תקלה. מי שרואה "הגאנט אומר: יום
+       כיפור" יודע מיד מי מהשניים צריך תיקון.
+
    ⚠ צוות או אחראי לו״ז — אותה הרשאה כמו הגאנט.
    ============================================================ */
 
 import { withAuth } from "./_session.js";
 import { loadSheets, loadMeetings } from "./_lessons-data.js";
+import { loadGantt } from "./_lessons-gantt.js";
+import { eventsByDate, lessonBlock } from "../shared/gantt-days.js";
 import { israelToday } from "./_attendance-data.js";
 import { parseTestDate } from "./_test-date.js";
 
@@ -38,7 +50,9 @@ async function handler(req, res) {
         }).format(test)
       : israelToday();
 
-    const [sheets, meetings] = await Promise.all([loadSheets(), loadMeetings()]);
+    const [sheets, meetings, gantt] = await Promise.all([
+      loadSheets(), loadMeetings(), loadGantt()]);
+    const evIndex = eventsByDate(gantt);
     const byId = new Map(sheets.map((s) => [s.id, s]));
 
     const from = shift(today, -DAYS);
@@ -61,6 +75,9 @@ async function handler(req, res) {
         happened: m.happened,
         reason: m.reason,
         note: m.note,
+        /* ⚠ נגזר מהגאנט בכל שליפה ואינו נשמר: הזזת אירוע
+           בגאנט משנה אותו מיד, ושדה שמור היה מתיישן. */
+        conflict: lessonBlock(evIndex, m.date),
       };
     };
 
@@ -71,10 +88,14 @@ async function handler(req, res) {
       return sh && sh.active && m.date;
     });
 
-    const upcoming = live
+    const ahead = live
       .filter((m) => m.date >= today && m.date <= to)
       .sort((a, b) => a.date.localeCompare(b.date))
       .map(dress);
+
+    const upcoming = ahead.filter((m) => !m.conflict.blocked);
+    /* ⚠ רשימה נפרדת ולא הסתרה. ראו ההערה בראש הקובץ. */
+    const clashing = ahead.filter((m) => m.conflict.blocked);
 
     /* ⚠ רק מה שטרם דווח. מפגש שדווח — בין אם התקיים ובין אם
        לא — כבר טופל, ואין מה לעשות איתו. */
@@ -82,12 +103,22 @@ async function handler(req, res) {
       .filter((m) => m.date >= from && m.date < today && !m.happened)
       .sort((a, b) => b.date.localeCompare(a.date))
       .map(dress);
+      /* ⚠ כאן **לא** מסננים. "האם השיעור התקיים" היא שאלה
+         פתוחה גם ביום שהגאנט חוסם: "חג ומועד" בגאנט מכסה גם
+         את צום גדליה ואת אסרו חג, שבהם המכינה עובדת. סינון
+         היה מוחק מטלה אמיתית בשקט. הסימון מוצג, וההכרעה
+         נשארת אצל אחראי הלו״ז. */
 
     res.status(200).json({
       today, from, to, days: DAYS,
       upcoming,
+      clashing,
       unreported,
-      counts: { upcoming: upcoming.length, unreported: unreported.length },
+      counts: {
+        upcoming: upcoming.length,
+        unreported: unreported.length,
+        clashing: clashing.length,
+      },
     });
   } catch (e) {
     console.error("[lessons-board]", e);

@@ -24,6 +24,7 @@ import { ContainerPage } from "./Container.jsx";
 import { FaultReportPage } from "./Faults.jsx";
 import { BudgetPage } from "./Budget.jsx";
 import { KitchenPage } from "./Kitchen.jsx";
+import { HostingPage, LoansPage } from "./Extras.jsx";
 import { GanttPage } from "./Gantt.jsx";
 import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
@@ -2474,15 +2475,23 @@ export function MechinaApp({ auth, onSignedOut }) {
                 active: tab === "mark", onClick: () => setTab("mark") }] : []),
               ...(auth.isScheduler || auth.isLeader ? [{ key: "lessons", label: "שיעורים במכינה", icon: <MI.book />,
                 active: tab === "lessons", onClick: () => setTab("lessons") }] : []),
+              /* ⚠ אותם מסכים בדיוק כמו אצל המנהל, ובאותו סדר.
+                 חניך שנושא תפקיד עושה את אותה עבודה, ומסך
+                 מקוצץ רק גורם לו לבקש מהמנהל לעשות בשבילו
+                 את מה שהתפקיד שלו. ההרשאה נאכפת בשרת ממילא. */
               ...(auth.isContainer ? [
-                { key: "container", label: "ציוד מכולה", icon: <MI.box />,
+                { key: "container", label: "מכולה", icon: <MI.box />,
                   active: tab === "container", onClick: () => setTab("container") },
                 { key: "cleaning", label: "ציוד ניקיון", icon: <MI.box />,
                   active: tab === "cleaning", onClick: () => setTab("cleaning") },
+                { key: "loans", label: "השאלת ציוד", icon: <MI.box />,
+                  active: tab === "loans", onClick: () => setTab("loans") },
               ] : []),
               ...(auth.isSafety ? [
                 { key: "safety", label: "אירועי בטיחות", icon: <MI.note />,
                   active: tab === "safety", onClick: () => setTab("safety") },
+                { key: "hosting", label: "אירוח קבוצות", icon: <MI.home />,
+                  active: tab === "hosting", onClick: () => setTab("hosting") },
               ] : []),
               ...(auth.isHouse ? [
                 { key: "faults", label: "תקלות ובעיות", icon: <MI.box />,
@@ -2491,10 +2500,12 @@ export function MechinaApp({ auth, onSignedOut }) {
               /* ⚠ הקוד המשותף לתורנים נגנז; אחראי המטבח הוא
                  הדרך שבה חניך מגיע למסכי המטבח. */
               ...(auth.isKitchen ? [
-                { key: "k-food", label: "ציוד אוכל", icon: <MI.box />,
-                  active: tab === "k-food", onClick: () => setTab("k-food") },
-                { key: "k-disp", label: "ציוד חד״פ", icon: <MI.box />,
-                  active: tab === "k-disp", onClick: () => setTab("k-disp") },
+                /* ⚠ פריט אחד ולא שניים, בדיוק כמו אצל המנהל.
+                   אוכל וחד״פ חולקים לוח אחד ורשימת קניות אחת,
+                   וההפרדה למסכים אילצה לעבור ביניהם באמצע
+                   ספירת מלאי. */
+                { key: "k-all", label: "אוכל וחד״פ", icon: <MI.box />,
+                  active: tab === "k-all", onClick: () => setTab("k-all") },
                 { key: "budget", label: "תקציב המטבח", icon: <MI.tick />,
                   active: tab === "budget", onClick: () => setTab("budget") },
               ] : []),
@@ -2597,13 +2608,15 @@ export function MechinaApp({ auth, onSignedOut }) {
 
         {tab === "gantt" && <GanttPage say={say} />}
 
-        {tab === "k-food" && auth.isKitchen && <KitchenPage say={say} area="אוכל" />}
-        {tab === "k-disp" && auth.isKitchen && <KitchenPage say={say} area="חד״פ" />}
+        {/* ⚠ area={null} — התצוגה המאוחדת, אותה אחת של המנהל. */}
+        {tab === "k-all" && auth.isKitchen && <KitchenPage say={say} area={null} />}
         {tab === "budget" && auth.isKitchen && <BudgetPage say={say} />}
 
         {tab === "container" && auth.isContainer && <ContainerPage say={say} area="מכולה" />}
         {tab === "cleaning" && auth.isContainer && <ContainerPage say={say} area="ניקיון" />}
+        {tab === "loans" && auth.isContainer && <LoansPage say={say} />}
         {tab === "safety" && auth.isSafety && <SafetyPage say={say} />}
+        {tab === "hosting" && auth.isSafety && <HostingPage say={say} />}
         {tab === "faults" && auth.isHouse && <FaultsPage say={say} />}
 
         {tab === "mark" && auth.isLeader && <MarkDay say={say} />}
