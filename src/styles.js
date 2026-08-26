@@ -1589,6 +1589,39 @@ html,body{margin:0;padding:0;background:#012E58}
 .dial-s{font-size:11px;font-weight:700;color:var(--muted)}
 .dial-p{font-size:10.5px;font-weight:700;color:var(--amber);margin-top:2px}
 
+/* ---- גרף הכנסות ----
+   ⚠ ציר אחד. הפספוס מבדיל בין "התקבל" ל"צפוי" גם למי שאינו
+     מבחין בין הגוונים — עיקרון 3. */
+.inc{background:var(--surface);border:1px solid rgba(211,201,182,.55);
+  border-radius:var(--r-lg);padding:14px 14px 11px;margin-bottom:12px;box-shadow:var(--sh-1)}
+.inc-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+  font-size:10.5px;font-weight:900;letter-spacing:.9px;color:var(--faint);margin-bottom:12px}
+.inc-max{font-weight:800;letter-spacing:0}
+.inc-plot{display:grid;gap:6px;direction:rtl;overflow-x:auto;padding-bottom:2px;
+  scrollbar-width:none}
+.inc-plot::-webkit-scrollbar{display:none}
+.inc-col{min-width:0;display:flex;flex-direction:column;align-items:center}
+.inc-v{font-size:10px;font-weight:800;color:var(--muted);height:13px;
+  white-space:nowrap;overflow:hidden}
+.inc-track{width:100%;height:104px;display:flex;align-items:flex-end;
+  border-bottom:1.5px solid var(--line2);margin-bottom:5px}
+.inc-bar{width:100%;border-radius:6px 6px 0 0;overflow:hidden;display:flex;
+  flex-direction:column;min-height:2px;transition:height .45s var(--ease)}
+.inc-got{background:var(--accent);width:100%}
+/* ⚠ פספוס ולא רק גוון בהיר יותר. */
+.inc-exp{width:100%;background:repeating-linear-gradient(135deg,
+  var(--accent-soft) 0 4px, transparent 4px 8px);
+  border:1.5px dashed var(--line2);border-bottom:none;box-sizing:border-box}
+.inc-x{font-size:10px;font-weight:700;color:var(--faint);text-align:center;
+  line-height:1.25;word-break:break-word}
+.inc-key{display:flex;gap:14px;margin-top:9px;padding-top:9px;
+  border-top:1px solid var(--line);font-size:11px;font-weight:700;color:var(--muted)}
+.inc-key span{display:flex;align-items:center;gap:5px}
+.inc-key i{width:11px;height:11px;border-radius:3px;flex:0 0 auto}
+.inc-key .k-got{background:var(--accent)}
+.inc-key .k-exp{background:repeating-linear-gradient(135deg,
+  var(--accent-soft) 0 3px, transparent 3px 6px);border:1.5px dashed var(--line2)}
+
 /* ⚠ מי שביקש פחות תנועה מקבל פחות תנועה. */
 @media (prefers-reduced-motion:reduce){
   .kx *{transition-duration:.01ms !important;animation-duration:.01ms !important}

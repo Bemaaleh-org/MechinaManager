@@ -318,6 +318,66 @@ function AlumniForm({ initial, branches, cycles, canAddBranch, say, onDone, onCa
    אירוח קבוצות
    ============================================================ */
 const ils = (n) => "₪" + Number(n || 0).toLocaleString("he-IL");
+/* ⚠ 12,400 -> "12.4אלף". על ציר עמודות אין מקום למספר מלא,
+   ומספר קטוע ("12,4") גרוע מקיצור מוצהר. */
+const shortIls = (n) => {
+  const v = Number(n || 0);
+  if (v >= 1000) return (Math.round(v / 100) / 10).toLocaleString("he-IL") + "אלף";
+  return String(Math.round(v));
+};
+
+/* ============================================================
+   גרף ההכנסות מאירוח
+   ------------------------------------------------------------
+   ⚠ ציר אחד — שקלים. הגובה הוא הכמות, ואין ציר שני שמתחרה בו.
+
+   ⚠ החלק שהתקבל מלא, והחלק הצפוי מפוספס **ומסומן גם במקרא
+     וגם בטקסט**. צבע לבדו לעולם אינו נושא את המידע: מי שאינו
+     מבחין בין הגוונים רואה את ההבדל בפספוס.
+
+   ⚠ העמודות נקראות מימין לשמאל כמו הטקסט, והתקופה האחרונה
+     היא הימנית — אותו כיוון שבו קוראים את הרשימה שמתחתיה.
+   ============================================================ */
+function IncomeChart({ rows }) {
+  const list = (rows || []).slice(0, 12);
+  if (!list.length) return null;
+  const max = Math.max(...list.map((r) => r.amount), 1);
+  const any = list.some((r) => r.expected > 0);
+
+  return (
+    <div className="inc">
+      <div className="inc-h">
+        <span>הכנסות מאירוח</span>
+        <span className="inc-max num">שיא {ils(max)}</span>
+      </div>
+
+      <div className="inc-plot" style={{ gridTemplateColumns: `repeat(${list.length}, minmax(38px, 1fr))` }}>
+        {list.map((r) => {
+          const h = (r.amount / max) * 100;
+          const paidH = r.amount > 0 ? (r.earned / r.amount) * 100 : 0;
+          return (
+            <div className="inc-col" key={r.key}>
+              <div className="inc-v num">{r.amount ? shortIls(r.amount) : ""}</div>
+              <div className="inc-track">
+                <div className="inc-bar" style={{ height: `${h}%` }}
+                  title={`${r.label}: ${ils(r.earned)} התקבל, ${ils(r.expected)} צפוי`}>
+                  <div className="inc-exp" style={{ height: `${100 - paidH}%` }} />
+                  <div className="inc-got" style={{ height: `${paidH}%` }} />
+                </div>
+              </div>
+              <div className="inc-x">{r.label.replace(/ \d{4}$/, "").replace("רבעון ", "ר")}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="inc-key">
+        <span><i className="k-got" />התקבל</span>
+        {any && <span><i className="k-exp" />צפוי</span>}
+      </div>
+    </div>
+  );
+}
 
 export function HostingPage({ say }) {
   const { data, err, busy, reload } = useLoad(() => api.getHosting(), []);
@@ -392,6 +452,8 @@ export function HostingPage({ say }) {
               <button key={k} className={span === k ? "on" : ""} onClick={() => setSpan(k)}>{t}</button>
             ))}
           </div>
+
+          <IncomeChart rows={data.periods[span]} />
 
           <div className="card" style={{ marginBottom: 14 }}>
             {(data.periods[span] || []).length === 0 && (
