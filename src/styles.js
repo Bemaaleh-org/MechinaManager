@@ -1847,6 +1847,46 @@ html,body{margin:0;padding:0;background:#012E58}
 .kx thead th{background:var(--bg);font-size:11.5px;font-weight:900;
   letter-spacing:.5px;color:var(--muted)}
 
+/* ---- שדות זהות ---- */
+.pw{position:relative}
+.kx .pw input{padding-left:46px}
+.kx .pw-eye{position:absolute;top:50%;left:6px;transform:translateY(-50%);
+  width:36px;height:36px;border-radius:10px;display:grid;place-items:center;
+  color:var(--faint);transition:all .12s var(--ease)}
+.kx .pw-eye:active{background:var(--accent-soft);color:var(--accent)}
+.fld-hint{font-size:11.5px;font-weight:600;color:var(--faint);margin-top:5px;line-height:1.45}
+.fld-bad{font-size:11.5px;font-weight:800;color:var(--clay);margin-top:5px}
+
+/* מד חוזק — ⚠ מילה ולא רק פס צבעוני. */
+.pwm{display:flex;align-items:center;gap:9px;margin-top:7px}
+.pwm-bar{flex:1;height:5px;border-radius:99px;background:var(--line);overflow:hidden}
+.pwm-bar>i{display:block;height:100%;border-radius:99px;
+  transition:width .25s var(--ease),background .25s var(--ease)}
+.pwm-t{font-size:11px;font-weight:800;white-space:nowrap}
+.pwm.weak .pwm-bar>i{background:var(--clay)} .pwm.weak .pwm-t{color:var(--clay)}
+.pwm.mid  .pwm-bar>i{background:var(--amber)} .pwm.mid .pwm-t{color:var(--amber)}
+.pwm.good .pwm-bar>i{background:var(--ok)}   .pwm.good .pwm-t{color:var(--ok)}
+
+.kx .link-btn{display:block;width:100%;min-height:44px;margin-top:9px;
+  font-size:13.5px;font-weight:800;color:var(--accent);border-radius:var(--r-md)}
+.kx .link-btn:active{background:var(--accent-soft)}
+.login-note{font-size:12px;font-weight:700;color:var(--muted);text-align:center;
+  background:var(--bg);border-radius:var(--r-md);padding:9px 11px;
+  margin:-4px 0 13px;line-height:1.5}
+.login-lead{font-size:13.5px;font-weight:600;color:var(--muted);
+  line-height:1.6;margin-bottom:15px}
+.login-done{text-align:center;padding:8px 4px 18px}
+.ld-mark{width:48px;height:48px;margin:0 auto 11px;border-radius:99px;
+  display:grid;place-items:center;font-size:23px;font-weight:900;
+  background:var(--ok-soft);color:var(--ok)}
+.login-done b{display:block;font-size:16px;font-weight:800}
+.login-done span{display:block;font-size:13px;color:var(--muted);
+  font-weight:600;margin-top:6px;line-height:1.6}
+.kx .login-alt{display:block;width:100%;min-height:44px;margin-top:14px;
+  font-size:12.5px;font-weight:700;color:rgba(255,255,255,.72)}
+.kx-login .link-btn{color:var(--accent)}
+.kx-login .fld-hint{color:var(--muted)}
+
 /* ⚠ מי שביקש פחות תנועה מקבל פחות תנועה. */
 @media (prefers-reduced-motion:reduce){
   .kx *{transition-duration:.01ms !important;animation-duration:.01ms !important}

@@ -131,6 +131,16 @@ export const api = {
   /* ---------- בוגרים · אירוח · השאלות · תפריט ---------- */
   /* ---------- התראות ----------
      ⚠ נגזרות בשרת מהמצב הנוכחי ואינן תור שמור. ראו api/_notify.js. */
+  /* ---------- זהות ----------
+     ⚠ הסיסמה נשלחת בגוף הבקשה ולעולם לא ב-URL: כתובות נשמרות
+        בהיסטוריה, בלוגים של שרתים ובכותרת Referer. */
+  signin: (user, password) => post("/api/auth?action=signin", { user, password }),
+  getAccount: () => get("/api/auth?action=account"),
+  saveAccount: (b) => post("/api/auth?action=account", b),
+  forgot: (user) => post("/api/auth?action=recover", { user }),
+  checkReset: (token) => get("/api/auth?action=recover&token=" + encodeURIComponent(token)),
+  resetPassword: (token, password) => post("/api/auth?action=recover", { token, password }),
+
   getNotify: () => get("/api/auth?action=notify"),
   markNotifySeen: () => post("/api/auth?action=notify", {}),
 

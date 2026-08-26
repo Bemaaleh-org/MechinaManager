@@ -3,6 +3,7 @@ import { CSS } from "./styles.js";
 import { LOGO } from "./logo.js";
 import { api, setUnauthorizedHandler } from "./api.js";
 import Login from "./Login.jsx";
+import Setup from "./Setup.jsx";
 import { MechinaApp, MechinaStaff, MechinaRolesPage } from "./Mechina.jsx";
 import { LessonsPage, LessonsBoard } from "./Lessons.jsx";
 import { AlumniPage, HostingPage, LoansPage } from "./Extras.jsx";
@@ -105,6 +106,20 @@ export default function App() {
      ההודעות במסך הכניסה שמורות למה שקרה בלי שביקש: הקוד הוחלף,
      תוקף פג, הרשאה כובתה. */
   const signedOut = () => { setAuth(null); setNotice(null); };
+
+  /* ============================================================
+     ⚠ כניסה ראשונה — לפני כל דבר אחר.
+       השרת חוסם ממילא כל נקודת קצה לסשן במצב setup (ראו
+       withAuth), ולכן המסך הזה אינו "הצעה" אלא ההשתקפות של
+       מה שכבר נאכף. בלעדיו המשתמש היה רואה מסך שכל נתון בו
+       נכשל ב-403 בלי להבין למה.
+     ============================================================ */
+  if (auth.setup) {
+    return (<><style>{CSS}</style>
+      <Setup name={auth.name} onDone={check}
+        onSignOut={() => api.logout().catch(() => {}).finally(() => setAuth(null))} />
+    </>);
+  }
 
   /* ⚠ חניך מקבל שלד משלו. השרת דוחה סשן חניך מנקודות הקצה של
      המטבח, ולכן טאב מטבח אצלו היה מוביל למסך שגיאה בלבד. */

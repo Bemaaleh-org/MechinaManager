@@ -166,6 +166,9 @@ export async function requireAuth(req, res) {
       kind: "student",
       itemId: row.id,
       name: row.name, // ⚠ מאומת מול הלוח, לא מוצהר כמו אצל תורן
+      /* ⚠ נכנס עם ת"ז וטרם בחר שם וסיסמה. withAuth חוסם לו
+         כל נקודת קצה חוץ ממסך ההקמה. */
+      setup: Boolean(payload.setup),
       isManager: false,
       isStudent: true,
       isLeader: scheduled || row.leader,
@@ -197,6 +200,7 @@ export async function requireAuth(req, res) {
 
   return {
     kind: payload.kind, // "manager" | "trainee"
+    setup: Boolean(payload.setup),
     itemId: payload.itemId,
     name: payload.name || null, // אצל תורן: השם שבחר. מוצהר, לא מאומת.
     isManager: payload.kind === "manager",
@@ -249,12 +253,22 @@ export async function requireManager(req, res) {
  */
 export function withAuth(
   handler,
-  { manager = false, marker = false, student = false, scheduler = false, container = false, safety = false, house = false, kitchen = false } = {}
+  { manager = false, marker = false, student = false, scheduler = false, container = false, safety = false, house = false, kitchen = false, setup = false } = {}
 ) {
   return async (req, res) => {
     let session;
     try {
       session = await requireAuth(req, res);
+
+      /* ============================================================
+         ⚠ סשן שטרם קבע שם וסיסמה חסום בכל מקום חוץ ממסך ההקמה.
+           החסימה כאן ולא במסך: מסך שמונע ניווט הוא הצעה, ושרת
+           שחוסם הוא הבטחה. מי שנכנס עם תעודת זהות לא אמור
+           להישאר בפנים עם תעודת זהות.
+         ============================================================ */
+      if (session.setup && !setup) {
+        throw new AuthError("יש לבחור שם משתמש וסיסמה לפני הכניסה למערכת", 403);
+      }
 
       if (manager && !session.isManager) {
         throw new AuthError("הפעולה מותרת למנהל בלבד", 403);

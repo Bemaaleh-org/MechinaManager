@@ -18,6 +18,10 @@ export default async function handler(req, res) {
         kind: session.kind,
         name: session.name,
         isManager: session.isManager,
+        /* ⚠ טרם נבחרו שם משתמש וסיסמה. כל שאר נקודות הקצה
+           חסומות לסשן כזה (ראו withAuth), והמסך מציג במקומן
+           את מסך ההקמה. */
+        setup: Boolean(session.setup),
         /* ⚠ תפקיד בתוך הצוות. חניך מקבל false תמיד — ראו _session.
            משמש את המסך כדי להסביר מי מכריע; ההרשאה עצמה נאכפת
            בשרת בכל הכרעה, לא כאן. */
