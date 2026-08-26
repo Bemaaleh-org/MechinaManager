@@ -1284,6 +1284,69 @@ html,body{margin:0;padding:0;background:#012E58}
 .ag-day-h span{background:var(--accent-soft);color:var(--accent);border-radius:99px;
   padding:2px 9px;font-size:11px}
 
+/* ---- ניצול תקציב ----
+   ⚠ --u הוא צבע המצב, ונקבע ברכיב לפי האחוז. הוא צובע את
+     המספר, את הפס ואת התגית ביחד — כדי שלא ייווצר מצב שבו
+     הפס אדום והמספר ירוק. */
+.util{background:var(--surface);border:1px solid rgba(211,201,182,.5);
+  border-radius:var(--r-lg);box-shadow:var(--sh-1);padding:15px 17px 14px;margin-bottom:14px}
+.util-h{font-size:10.5px;font-weight:900;letter-spacing:1.1px;color:var(--faint);
+  margin-bottom:10px}
+.util-top{display:flex;align-items:baseline;gap:11px;margin-bottom:11px}
+.util-pct{font-family:'Suez One',Heebo,serif;font-size:40px;line-height:1;
+  color:var(--u);font-variant-numeric:tabular-nums}
+.util-side{display:flex;flex-direction:column;gap:2px;min-width:0}
+/* ⚠ המילה היא חלק מהמידע ולא קישוט: מי שאינו מבחין בין ירוק
+   לאדום קורא אותה במקום את הצבע. */
+.util-tag{font-size:12.5px;font-weight:900;color:var(--u)}
+.util-sub{font-size:11px;font-weight:700;color:var(--faint)}
+
+.util-bar{position:relative;height:10px;border-radius:99px;background:var(--line);
+  overflow:hidden;margin-bottom:12px}
+.util-fill{position:absolute;inset:0 auto 0 0;right:0;border-radius:99px;
+  background:var(--u);transition:width .5s var(--ease)}
+/* ⚠ החריגה היא פס אלכסוני בקצה ולא פס ארוך יותר: מסלול שגולש
+   מעצמו אינו קריא, וטקסטורה נקראת גם בהדפסה ובעיוורון צבעים. */
+.util-over{position:absolute;top:0;bottom:0;left:0;width:26%;
+  background:repeating-linear-gradient(135deg,var(--u) 0 4px,rgba(255,255,255,.55) 4px 8px)}
+.util-legs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.util-legs>div{min-width:0}
+.util-legs b{display:block;font-size:14px;font-weight:800;letter-spacing:-.3px}
+.util-legs span{display:block;font-size:10.5px;font-weight:700;color:var(--faint);margin-top:1px}
+
+/* ---- גרף חודשי ---- */
+.chart{background:var(--surface);border:1px solid rgba(211,201,182,.5);
+  border-radius:var(--r-lg);box-shadow:var(--sh-1);padding:13px 12px 10px;margin-bottom:14px}
+.chart-legend{display:flex;gap:14px;justify-content:flex-end;margin-bottom:11px;
+  font-size:11px;font-weight:700;color:var(--muted)}
+.chart-legend span{display:flex;align-items:center;gap:5px}
+.chart-legend i{width:10px;height:10px;border-radius:3px;display:block}
+.lg-track{background:var(--line)}
+.lg-fill{background:var(--accent)}
+
+/* ⚠ העמודות דקות ובעלות קצה מעוגל, ומעוגנות לבסיס. הרווח
+   ביניהן הוא רקע ולא קו — שני מילוי צמודים נקראים כמילוי אחד. */
+.chart-plot{display:flex;align-items:flex-end;gap:2px;height:132px;
+  direction:rtl}
+.kx .cbar{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;
+  align-items:center;justify-content:flex-end;gap:4px;padding:0;background:none;
+  position:relative;transition:opacity .12s var(--ease)}
+.kx .cbar:active{opacity:.7}
+.cbar-track{width:100%;max-width:26px;background:var(--line);border-radius:4px 4px 0 0;
+  display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;
+  transition:height .5s var(--ease)}
+.cbar-fill{width:100%;background:var(--u,var(--accent));border-radius:4px 4px 0 0;
+  transition:height .5s var(--ease)}
+.cbar.hot .cbar-track{box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--u,var(--accent))}
+.cbar-over{position:absolute;top:-2px;font-size:11px;font-weight:900;color:var(--u)}
+.cbar-x{font-size:9.5px;font-weight:700;color:var(--faint);white-space:nowrap}
+
+.chart-tip{margin-top:10px;background:var(--bg);border-radius:var(--r-md);
+  padding:9px 11px;display:flex;flex-direction:column;gap:2px}
+.chart-tip b{font-size:13px;font-weight:800}
+.chart-tip span{font-size:11.5px;font-weight:700;color:var(--muted)}
+.chart-tip-p{color:var(--u) !important;font-weight:900 !important}
+
 /* ---- כניסה מדורגת, במסך הבית בלבד ----
    ⚠ רק על שתי הרשתות של מסך הבית ולא על כל כרטיס באפליקציה.
      רשימה של שלושים ימי תקציב שנכנסת בהנפשה נראית איטית, לא

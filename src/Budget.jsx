@@ -344,6 +344,121 @@ function PriceTab({ types, headcount, say, onChanged }) {
 }
 
 /* ---------- סיכום שנתי ---------- */
+/* ============================================================
+   ניצול תקציב הקניות
+   ------------------------------------------------------------
+   ⚠ הניצול נמדד מול הקניות ולא מול הסך הכול. הקייטרינג הוא
+     חוזה — הוא לא "מנוצל", הוא פשוט עולה. תקציב הקניות הוא
+     הסכום שיש מולו שיקול דעת, והוא היחיד שאפשר לחרוג ממנו.
+
+   ⚠ צבע לעולם לא לבדו. לכל מצב יש גם מילה — "בתקציב", "קרוב
+     לתקרה", "חריגה" — כדי שמי שאינו מבחין בין ירוק לאדום עדיין
+     יידע מה קורה.
+
+   ⚠ שלושת הצבעים נבדקו בוולידטור מול שני הרקעים של האפליקציה.
+     הענבר והחימר הישנים (#8A5A1E ו-#9E3626) נכשלו: הפרש של
+     2.6 בלבד בעיוורון צבעים, ו-9.0 אפילו בראייה מלאה — שני
+     מצבים שונים שנראים אותו דבר.
+   ------------------------------------------------------------ */
+const UTIL = {
+  ok:   { c: "#177A45", label: "בתקציב" },
+  warn: { c: "#B08400", label: "קרוב לתקרה" },
+  over: { c: "#B02A1F", label: "חריגה" },
+};
+const utilOf = (spent, budget) => {
+  if (!budget) return { pct: 0, ...UTIL.ok, none: true };
+  const pct = (spent / budget) * 100;
+  const t = pct > 100 ? UTIL.over : pct >= 85 ? UTIL.warn : UTIL.ok;
+  return { pct, ...t };
+};
+
+function UtilBlock({ spent, budget, title }) {
+  const u = utilOf(spent, budget);
+  const left = budget - spent;
+  return (
+    <div className="util" style={{ "--u": u.c }}>
+      <div className="util-h">{title}</div>
+      <div className="util-top">
+        <div className="util-pct num">{Math.round(u.pct)}%</div>
+        <div className="util-side">
+          <span className="util-tag">{u.label}</span>
+          <span className="util-sub">מתקציב הקניות</span>
+        </div>
+      </div>
+
+      {/* ⚠ הפס נעצר ב-100% והחריגה מסומנת בנפרד. פס שגולש
+          מחוץ למסלול שלו אינו קריא, והחריגה חשובה מכדי להיות
+          רק "פס ארוך יותר". */}
+      <div className="util-bar">
+        <span className="util-fill" style={{ width: Math.min(100, u.pct) + "%" }} />
+        {u.pct > 100 && <span className="util-over" />}
+      </div>
+
+      <div className="util-legs">
+        <div><b className="num">{shekel(spent)} ₪</b><span>נקנה</span></div>
+        <div><b className="num">{shekel(budget)} ₪</b><span>תקציב</span></div>
+        <div>
+          <b className="num" style={{ color: left < 0 ? UTIL.over.c : undefined }}>
+            {shekel(Math.abs(left))} ₪
+          </b>
+          <span>{left < 0 ? "מעל התקציב" : "נותר"}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- גרף חודשי ----------
+   ⚠ ציר אחד. שני הערכים באותה יחידה (₪) ולכן הם על אותו סולם,
+     והנקנה מצויר בתוך מסלול התקציב — לא לצידו ולא על ציר שני.
+   ⚠ מקרא תמיד, כי יש שתי סדרות; ובנוסף טולטיפ בלחיצה. הטבלה
+     שמתחת לגרף היא תצוגת הטבלה הנדרשת. */
+function YearChart({ rows }) {
+  const [hot, setHot] = useState(null);
+  const max = Math.max(...rows.map((r) => Math.max(r.purchases, r.spent)), 1);
+  return (
+    <div className="chart">
+      <div className="chart-legend">
+        <span><i className="lg-track" />תקציב קניות</span>
+        <span><i className="lg-fill" />נקנה בפועל</span>
+      </div>
+
+      <div className="chart-plot">
+        {rows.map((r) => {
+          const u = utilOf(r.spent, r.purchases);
+          const th = (r.purchases / max) * 100;
+          const fh = (Math.min(r.spent, r.purchases) / max) * 100;
+          return (
+            <button className={"cbar" + (hot === r.month ? " hot" : "")} key={r.month}
+              style={{ "--u": u.c }}
+              onClick={() => setHot(hot === r.month ? null : r.month)}
+              aria-label={`${monthLabel(r.month)}: נקנה ${shekel(r.spent)} מתוך ${shekel(r.purchases)}`}>
+              <span className="cbar-track" style={{ height: Math.max(2, th) + "%" }}>
+                <span className="cbar-fill" style={{ height: (th ? (fh / th) * 100 : 0) + "%" }} />
+              </span>
+              {/* ⚠ סימון החריגה הוא צורה ולא רק צבע */}
+              {u.pct > 100 && <span className="cbar-over">!</span>}
+              <span className="cbar-x">{monthLabel(r.month).slice(0, 3)}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {hot && (() => {
+        const r = rows.find((x) => x.month === hot);
+        const u = utilOf(r.spent, r.purchases);
+        return (
+          <div className="chart-tip" style={{ "--u": u.c }}>
+            <b>{monthLabel(r.month)}</b>
+            <span>נקנה {shekel(r.spent)} ₪ מתוך {shekel(r.purchases)} ₪</span>
+            <span className="chart-tip-p">{Math.round(u.pct)}% · {u.label}</span>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
 function YearView({ say, onMonth }) {
   const { data, err, busy } = useLoad(() => api.getBudgetYear(), []);
   if (busy && !data) return <div className="empty" style={{ paddingTop: 40 }}><div className="e1">טוען…</div></div>;
@@ -380,13 +495,10 @@ function YearView({ say, onMonth }) {
         </div>
       </div>
 
-      {data.spent > 0 && (
-        <div className={"bg-spend " + (data.left < 0 ? "over" : "")}>
-          <div><b className="num">{shekel(data.spent)} ₪</b><span>נקנה בפועל</span></div>
-          <div><b className="num">{shekel(Math.abs(data.left))} ₪</b>
-            <span>{data.left < 0 ? "חריגה" : "נותר בקניות"}</span></div>
-        </div>
-      )}
+      <UtilBlock spent={data.spent} budget={data.purchases} title="ניצול התקציב השנתי" />
+
+      <div className="sec-label">ניצול חודשי · לחיצה למספרים</div>
+      <YearChart rows={data.rows} />
 
       <div className="sec-label">חודש אחר חודש · לחיצה לפירוט</div>
       <div className="rows">
@@ -533,12 +645,8 @@ export function BudgetPage({ say }) {
         </div>
 
         {/* ---------- הקניות מול תקציב הקניות ---------- */}
-        <div className={"bg-spend " + (data.left < 0 ? "over" : "")}>
-          <div><b className="num">{shekel(data.purchases)}</b><span>תקציב קניות</span></div>
-          <div><b className="num">{shekel(data.spent)}</b><span>נקנה בפועל</span></div>
-          <div><b className="num">{shekel(Math.abs(data.left))}</b>
-            <span>{data.left < 0 ? "חריגה" : "נותר"}</span></div>
-        </div>
+        <UtilBlock spent={data.spent} budget={data.purchases}
+          title={`ניצול תקציב הקניות · ${monthLabel(data.month)}`} />
 
         {headEdit ? (
           <div className="card" style={{ marginBottom: 14 }}>
