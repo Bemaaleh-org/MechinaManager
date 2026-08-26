@@ -25,6 +25,7 @@ import { FaultReportPage } from "./Faults.jsx";
 import { BudgetPage } from "./Budget.jsx";
 import { KitchenPage } from "./Kitchen.jsx";
 import { HostingPage, LoansPage } from "./Extras.jsx";
+import { useNotify, NotifyBell, NotifyPanel } from "./Notify.jsx";
 import { GanttPage } from "./Gantt.jsx";
 import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
@@ -2418,18 +2419,14 @@ export function MechinaApp({ auth, onSignedOut }) {
 
   const [notifOpen, setNotifOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  /* ⚠ אותו מנגנון של המנהל. חניך בעל תפקיד מקבל בדיוק את
+     ההתראות של התפקיד שלו — ראו api/_notify.js. */
+  const notify = useNotify(true);
 
-  /* הסימון "נראה" קורה בסגירת הפאנל, לא בפתיחתו — אחרת תג
-     "חדש" היה נעלם באותו רגע שהפאנל נפתח. */
-  const markSeen = () => {
-    try { localStorage.setItem(seenKey, JSON.stringify(decided.map((r) => r.id))); } catch { /* לא קריטי */ }
-  };
-  const openBell = () => {
-    if (notifOpen) markSeen();
-    setNotifOpen((v) => !v);
-  };
-  const closeBell = () => { markSeen(); setNotifOpen(false); };
-  const goRequests = () => { markSeen(); setNotifOpen(false); setTab("requests"); };
+  /* ⚠ `unseen` נשאר לתג שעל "בקשות יציאה" בתפריט ובאריח
+     במסך הבית — הוא נספר מ-localStorage ולא מהשרת, כי הוא
+     אומר "אתה עוד לא פתחת את זה" ולא "יש כאן משהו".
+     ההתראות עצמן עברו ל-useNotify. */
 
   /* רענון תקופתי — כדי שהחלטה שהתקבלה תופיע בלי לצאת ולהיכנס */
   useEffect(() => {
@@ -2451,10 +2448,8 @@ export function MechinaApp({ auth, onSignedOut }) {
             <div className="sub">מכינת ניר עוז · מחזור ב׳</div>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <button className="bell-btn" onClick={openBell} aria-label="התראות">
-              <MI.bell />
-              {unseen > 0 && <span className="bell-badge num">{unseen}</span>}
-            </button>
+            <NotifyBell notify={notify} open={notifOpen}
+              onToggle={() => setNotifOpen((v) => !v)} />
             <button className="who" onClick={signOut}>
               <span className="dot" />יציאה
             </button>
@@ -2532,29 +2527,8 @@ export function MechinaApp({ auth, onSignedOut }) {
 
       {/* תצוגה מקדימה של ההתראות — הבקשות שהוכרעו */}
       {notifOpen && (
-        <div className="notif-panel">
-          <div className="notif-h">
-            <b>עדכונים על הבקשות שלך</b>
-            <button onClick={closeBell}>סגירה</button>
-          </div>
-          {decided.length === 0 ? (
-            <div className="notif-empty">אין עדכונים — בקשה שתוכרע תופיע כאן</div>
-          ) : decided.slice(0, 8).map((r) => (
-            <button className="notif-item" key={r.id} onClick={goRequests}>
-              <div className="ni-t">
-                {r.type} · {r.status === "מאושר" ? "אושרה ✓" : "נדחתה"}
-                {!seenIds.has(r.id) && <span className="pill p-new" style={{ marginRight: 6 }}>חדש</span>}
-              </div>
-              <div className="ni-s">
-                {r.endDate && r.endDate !== r.date ? `${dm(r.date)} – ${dm(r.endDate)}` : dm(r.date)}
-                {r.decidedBy ? " · " + r.decidedBy : ""}
-              </div>
-            </button>
-          ))}
-          {decided.length > 0 && (
-            <button className="notif-all" onClick={goRequests}>לכל הבקשות</button>
-          )}
-        </div>
+        <NotifyPanel notify={notify} onClose={() => setNotifOpen(false)}
+          onGo={(t) => setTab(t)} />
       )}
 
       <main className="wrap">

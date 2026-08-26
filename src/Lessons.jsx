@@ -1009,10 +1009,13 @@ export function LessonsBoard({ say, onOpenSheet, compact = false }) {
   /* ⚠ ההתנגשות מוצגת כטקסט ולא רק כגוון: "הגאנט אומר: יום
      כיפור" אומר גם מה קרה וגם למה, ומאפשר לראות מיד אם
      הגאנט הוא זה שצריך תיקון. */
-  const Row = ({ m, late, clash }) => (
-    <button className={"st-row " + (clash ? "tone-3" : late ? "tone-8" : "tone-1")}
+  const Row = ({ m, late, off }) => (
+    <button className={"st-row " + (off ? "st-off"
+      : m.conflict && m.conflict.blocked ? "tone-3" : late ? "tone-8" : "tone-1")}
       onClick={() => onOpenSheet && onOpenSheet(m.sheetId)}>
-      <div className="tile sm">{late || clash ? <LI.warn /> : <LI.book />}</div>
+      <div className="tile sm">
+        {late || (m.conflict && m.conflict.blocked) ? <LI.warn /> : <LI.book />}
+      </div>
       <div className="st-main">
         <div className="st-n">{m.subject}</div>
         <div className="st-m">
@@ -1024,7 +1027,13 @@ export function LessonsBoard({ say, onOpenSheet, compact = false }) {
           {m.lecturer && <span>· {m.lecturer}</span>}
           {m.guestLecturer && <span className="pill p-new">אורח</span>}
         </div>
-        {m.offDay && (
+        {/* ⚠ הסיבה שנכתבה בגיליון היא כל מה שצריך לדעת. */}
+        {off && (
+          <div className="st-why">
+            לא מתקיים{m.reason ? ` · ${m.reason}` : ""}
+          </div>
+        )}
+        {m.offDay && !off && (
           <div className="clash">
             בגיליון: {m.dayTime} — המפגש ביום אחר
           </div>
@@ -1059,7 +1068,7 @@ export function LessonsBoard({ say, onOpenSheet, compact = false }) {
               <div className={"band-n" + (data.counts.clashing ? " warn" : "")}>
                 {data.counts.clashing || 0}
               </div>
-              <div className="band-l">מתנגשים עם הגאנט</div>
+              <div className="band-l">דורשים בדיקה</div>
             </div>
           </div>
         </div>
@@ -1076,6 +1085,16 @@ export function LessonsBoard({ say, onOpenSheet, compact = false }) {
       )}
 
       <div className="sec-label">השיעורים הקרובים</div>
+      {/* ⚠ אזהרה ולא סינון: הגיליון אומר שהם מתקיימים והגאנט
+          חולק. השיעור נשאר ברשימה — הצהרה מפורשת של אחראי
+          הלו״ז גוברת על אירוע כללי בגאנט — וההתנגשות מסומנת
+          על השורה עצמה. */}
+      {data.counts.clashing > 0 && (
+        <div className="clash-note">
+          {data.counts.clashing} מהם נופלים על יום שבגאנט מסומן כחג או כבית.
+          הם מוצגים כרגיל — הגיליון מכריע — ומסומנים בשורה.
+        </div>
+      )}
       {data.upcoming.length === 0 ? (
         <div className="empty tone-1">
           <div className="e-ico"><LI.book /></div>
@@ -1096,15 +1115,14 @@ export function LessonsBoard({ say, onOpenSheet, compact = false }) {
             שניהם יודע מיד מי. הסתרה שקטה הייתה מסתירה גם את
             הטעות בגאנט.
           ============================================================ */}
-      {(data.clashing || []).length > 0 && (
+      {/* ⚠ מבוטלים בגיליון — מוצגים מכווצים ובלי צבע. הם אינם
+          מטלה ואינם בעיה; הם המידע ש"אין שיעור השבוע", וזה
+          מידע שמחפשים. */}
+      {(data.cancelled || []).length > 0 && !compact && (
         <>
-          <div className="sec-label">מתנגש עם הלו״ז השנתי</div>
-          <div className="clash-note">
-            {data.clashing.length} מפגשים נופלים על ימים שהגאנט מסמן כחג, כסופ״ש
-            בית או כיציאה מהמכינה. הם אינם נספרים ב״שיעורים הקרובים״.
-          </div>
+          <div className="sec-label">לא מתקיימים בטווח הזה</div>
           <div className="rows">
-            {data.clashing.map((m) => <Row key={m.id} m={m} clash />)}
+            {data.cancelled.map((m) => <Row key={m.id} m={m} off />)}
           </div>
         </>
       )}

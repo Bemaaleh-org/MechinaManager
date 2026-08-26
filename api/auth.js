@@ -4,6 +4,12 @@
      ?action=logout   POST   ניקוי העוגייה
      ?action=me       GET    מי מחובר
      ?action=me       POST   חניך בוחר או מחליף שם
+     ?action=notify   GET    ההתראות של מי שמחובר
+     ?action=notify   POST   סימון שנקראו
+
+   ⚠ ההתראות יושבות כאן ולא בקובץ משלהן בגלל מגבלת 12
+     הפונקציות של Vercel — וגם כי הן שאלה על **מי שמחובר**,
+     בדיוק כמו me.
 
    ⚠ login ו-logout אינם דורשים סשן, ו-me כן. לכן הקובץ הזה
      אינו נעטף ב-withAuth — כל מודול מביא את ההגנה שלו.
@@ -15,5 +21,6 @@ import { router } from "./_router.js";
 import login from "./_login.js";
 import logout from "./_logout.js";
 import me from "./_me.js";
+import notify from "./_notify.js";
 
-export default router({ login, logout, me });
+export default router({ login, logout, me, notify });

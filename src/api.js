@@ -129,6 +129,11 @@ export const api = {
   deletePurchase: (orderId) => del("/api/kitchen?action=budget", { orderId }),
 
   /* ---------- בוגרים · אירוח · השאלות · תפריט ---------- */
+  /* ---------- התראות ----------
+     ⚠ נגזרות בשרת מהמצב הנוכחי ואינן תור שמור. ראו api/_notify.js. */
+  getNotify: () => get("/api/auth?action=notify"),
+  markNotifySeen: () => post("/api/auth?action=notify", {}),
+
   getAlumni: () => get("/api/students?action=alumni"),
   addAlumni: (b) => post("/api/students?action=alumni", b),
   editAlumni: (b) => put("/api/students?action=alumni", b),

@@ -12,15 +12,22 @@
      מפגש שלא התקיים, וזו בדיוק הרשימה שהמסך הזה קיים בשבילה.
      ראו HAPPENED ב-shared/lessons-boards.js.
 
-   ⚠ הגאנט מכריע. מפגש שנופל על חג, על סופ״ש בית או על סמינר
-     מחוץ למכינה אינו נספר ב"מה בא" — הוא עובר לרשימה נפרדת
-     עם הסיבה. עד כה הלוח הזה לא שאל את הגאנט בכלל, ו-138
-     מפגשים הוצגו כמתקיימים בימים שהגאנט אומר עליהם יום
-     כיפור, ראש השנה או בית.
+   ⚠ **"מתוכנן" בגיליון מכריע, לפני הכול.** אחראי הלו״ז כבר
+     סימן לכל מפגש אם הוא מתקיים, וכתב סיבה כשלא — "שבוע
+     קליטה", "יום כיפור", "סדרת ניווטים". 269 מתוך 688
+     המפגשים מסומנים "לא", והלוח הציג את כולם כאילו הם
+     מתקיימים. זו הייתה התלונה: "מסע בתרבות היהודית" הוצג
+     ב-7/9 כשהגיליון אומר במפורש שהוא מתחיל ב-14/9.
 
-     ⚠ מוצג ולא נמחק. הגאנט עשוי להיות זה שטועה, ומפגש שנעלם
-       בלי הסבר נראה כמו תקלה. מי שרואה "הגאנט אומר: יום
-       כיפור" יודע מיד מי מהשניים צריך תיקון.
+   ⚠ הגאנט הוא **רשת שנייה ולא ראשונה**. הוא תפס 80 מתוך
+     אותם 269 — פחות משליש — כי הוא יודע על חגים ולא על
+     "יום מיון" או "לתאם מחדש". מה שהוא כן מוסיף: 62 מפגשים
+     שהגיליון אומר עליהם שהם מתקיימים והגאנט אומר שזה חג.
+     שם באמת צריך מישהו להסתכל.
+
+     ⚠ אלה מוצגים ולא נמחקים. הגאנט עשוי להיות זה שטועה, ומי
+       שרואה "הגאנט אומר: יום כיפור" יודע מיד מי מהשניים
+       צריך תיקון.
 
    ⚠ המיון הוא לפי תאריך **ואז לפי שעה**. בלי זה אימונים של
      7:00 הופיעו אחרי מליאה של 20:00, והלוח לא נראה כמו
@@ -35,7 +42,9 @@
 import { withAuth } from "./_session.js";
 import { loadSheets, loadMeetings } from "./_lessons-data.js";
 import { loadGantt } from "./_lessons-gantt.js";
-import { timeOf, dayOf, minutesOf, hebDayOf } from "../shared/lessons-boards.js";
+import {
+  timeOf, dayOf, minutesOf, hebDayOf, PLANNED,
+} from "../shared/lessons-boards.js";
 import { eventsByDate, lessonBlock } from "../shared/gantt-days.js";
 import { israelToday } from "./_attendance-data.js";
 import { parseTestDate } from "./_test-date.js";
@@ -109,19 +118,36 @@ async function handler(req, res) {
       || minutesOf(a.dayTime) - minutesOf(b.dayTime)
       || a.subject.localeCompare(b.subject, "he");
 
+    /* ⚠ "מתוכנן: לא" הוא הצהרה מפורשת של אחראי הלו״ז, ולא
+       ניחוש. ריק נחשב מתוכנן — מפגש שאיש לא נגע בו אמור
+       להתקיים, וזו ברירת המחדל של הגיליון. */
+    const off = (m) => m.planned === PLANNED.no;
+
     const ahead = live
       .filter((m) => m.date >= today && m.date <= to)
       .map(dress)
       .sort(byDateThenTime);
 
-    const upcoming = ahead.filter((m) => !m.conflict.blocked);
-    /* ⚠ רשימה נפרדת ולא הסתרה. ראו ההערה בראש הקובץ. */
-    const clashing = ahead.filter((m) => m.conflict.blocked);
+    /* ⚠ מה שהגיליון אומר שמתקיים — **כולל** מה שהגאנט חולק
+       עליו. הגיליון הוא הצהרה מפורשת של אחראי הלו״ז לגבי
+       המפגש הזה; הגאנט הוא אירוע כללי על היום. שיעור בצום
+       גדליה שסומן "מתוכנן: כן" באמת מתקיים, והדחיקה שלו
+       מהרשימה הסתירה שיעור אמיתי.
+
+       ההתנגשות מסומנת על השורה ונספרת — אבל אינה מכריעה. */
+    const upcoming = ahead.filter((m) => !off(m));
+    /* ⚠ מבוטל בגיליון — לא נעלם, אבל גם לא "שיעור קרוב".
+       הסיבה שנכתבה בגיליון היא כל מה שצריך לדעת עליו. */
+    const cancelled = ahead.filter(off);
 
     /* ⚠ רק מה שטרם דווח. מפגש שדווח — בין אם התקיים ובין אם
        לא — כבר טופל, ואין מה לעשות איתו. */
     const unreported = live
-      .filter((m) => m.date >= from && m.date < today && !m.happened)
+      /* ⚠ מפגש שסומן "לא מתוכנן" אינו "טרם דווח" — אין עליו
+         מה לדווח. זו הצהרה של אחראי הלו״ז עצמו, ולא גזירה
+         שלנו מהגאנט (ראו ההערה על הגאנט בראש הקובץ). */
+      .filter((m) => m.date >= from && m.date < today && !m.happened
+        && m.planned !== PLANNED.no)
       .map(dress)
       /* ⚠ הפוך: האחרון ראשון. מה שקרה אתמול נזכר טוב יותר
          ממה שקרה לפני שבועיים, וקל יותר לדווח עליו. */
@@ -135,13 +161,16 @@ async function handler(req, res) {
     res.status(200).json({
       today, from, to, days: DAYS,
       upcoming,
-      clashing,
+      cancelled,
       unreported,
       counts: {
         upcoming: upcoming.length,
         unreported: unreported.length,
-        clashing: clashing.length,
-        offDay: ahead.filter((m) => m.offDay).length,
+        cancelled: cancelled.length,
+        /* ⚠ אזהרה ולא סינון: כמה מהמתוכננים נופלים על יום
+           שהגאנט מסמן כחג או כבית. */
+        clashing: upcoming.filter((m) => m.conflict.blocked).length,
+        offDay: upcoming.filter((m) => m.offDay).length,
       },
     });
   } catch (e) {

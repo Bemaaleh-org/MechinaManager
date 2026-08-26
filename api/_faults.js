@@ -30,7 +30,7 @@ const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || ""
 
 const STATUS_ORDER = { [FAULT_STATUS.open]: 0, [FAULT_STATUS.working]: 1, [FAULT_STATUS.done]: 2 };
 
-async function loadFaults({ force = false } = {}) {
+export async function loadFaults({ force = false } = {}) {
   return cached("faults", async () => {
     /* ⚠ assets נשלף במפורש: לעמודת קובץ יש רק שם הקובץ ב-text,
        וכתובת להצגה מגיעה רק מכאן. */

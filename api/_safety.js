@@ -21,7 +21,7 @@ import {
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
 const YN = [YES_NO.yes, YES_NO.no];
 
-async function loadIncidents({ force = false } = {}) {
+export async function loadIncidents({ force = false } = {}) {
   return cached("safety-incidents", async () => {
     const items = await allItems(SAFETY_BOARD);
     return items

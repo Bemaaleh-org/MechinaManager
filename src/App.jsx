@@ -15,6 +15,7 @@ import { PlacementsPage } from "./Placements.jsx";
 import { SafetyPage } from "./Safety.jsx";
 import { FaultsPage } from "./Faults.jsx";
 import { KitchenPage } from "./Kitchen.jsx";
+import { useNotify, NotifyBell, NotifyPanel } from "./Notify.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
 import { testDate } from "./testDate.js";
 
@@ -131,6 +132,8 @@ function Staff({ auth, onSignedOut }) {
      ניקיון בציוד המכינה. שני מצבים נפרדים, אחרת מעבר בין
      התחומים היה גורר את התחום של המסך השני. */
   /* ⚠ null = אוכל וחד״פ יחד, וזו ברירת המחדל. */
+  /* ⚠ ההתראות נטענות גם כשהפעמון סגור — התג הוא כל התכלית. */
+  const notify = useNotify(true);
   const [kArea, setKArea] = useState(null);
   const [cArea, setCArea] = useState("מכולה");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -204,13 +207,8 @@ function Staff({ auth, onSignedOut }) {
               <h1>ניהול מכינת ניר עוז</h1>
               <div className="sub">{hebDate(new Date())}</div>
             </div>
-            {isMgr && (
-              <button className="bell-btn" aria-label="התראות"
-                onClick={() => setNotifOpen((v) => !v)}>
-                <I.bell />
-                {mineList.length > 0 && <span className="bell-badge num">{mineList.length}</span>}
-              </button>
-            )}
+            <NotifyBell notify={notify} open={notifOpen}
+              onToggle={() => setNotifOpen((v) => !v)} />
             <div className="brand-coin" aria-label="במעלה הדרך">
               <img src={LOGO} alt="לוגו במעלה הדרך" />
             </div>
@@ -287,34 +285,25 @@ function Staff({ auth, onSignedOut }) {
             { label: "המטבח", items: kitchenItems },
           ]} />
 
+        {/* ⚠ פאנל אחד לכל התחומים, ולא רק לבקשות היציאה.
+            ראו api/_notify.js: מה שדורש טיפול נגזר מהמצב. */}
         {notifOpen && (
-          <div className="notif-panel">
-            <div className="notif-h">
-              <b>בקשות שממתינות להחלטתך</b>
-              <button onClick={() => setNotifOpen(false)}>סגירה</button>
-            </div>
-            {mineList.length === 0 ? (
-              /* ⚠ "אין בקשות" ו"אין בקשות שלך" הם שני מצבים שונים */
-              <div className="notif-empty">
-                {pendingList.length
-                  ? `${pendingList.length} בקשות בתהליך — אף אחת אינה ממתינה להחלטתך`
-                  : "אין בקשות שממתינות להחלטה"}
-              </div>
-            ) : mineList.slice(0, 8).map((r) => (
-              <button className="notif-item" key={r.id} onClick={openRequests}>
-                <div className="ni-t">{r.student ? r.student.name : ""} · {r.type}</div>
-                <div className="ni-s">
-                  {r.endDate && r.endDate !== r.date
-                    ? `${r.date.split("-").reverse().join("/")} – ${r.endDate.split("-").reverse().join("/")}`
-                    : r.date.split("-").reverse().join("/")}
-                  {r.detail ? " · " + r.detail.slice(0, 40) : ""}
-                </div>
-              </button>
-            ))}
-            {pendingList.length > 0 && (
-              <button className="notif-all" onClick={openRequests}>לכל הבקשות</button>
-            )}
-          </div>
+          <NotifyPanel notify={notify} onClose={() => setNotifOpen(false)}
+            onGo={(tab) => {
+              const go = {
+                requests: () => goStaff("requests"),
+                faults: () => setSection("faults"),
+                safety: () => setSection("safety"),
+                hosting: () => setSection("hosting"),
+                loans: () => setSection("loans"),
+                lessons: () => goLessons("board"),
+                evals: () => goLessons("evals"),
+                "k-all": () => goKitchen(null),
+                container: () => goContainer("מכולה"),
+                cleaning: () => goContainer("ניקיון"),
+              }[tab];
+              if (go) go();
+            }} />
         )}
 
         <main className="wrap">

@@ -1625,6 +1625,11 @@ html,body{margin:0;padding:0;background:#012E58}
 /* ---- התנגשות עם הגאנט ----
    ⚠ טקסט ולא רק גוון: הסיבה היא כל העניין. */
 .clash{font-size:11.5px;font-weight:800;color:var(--amber);margin-top:3px}
+/* ⚠ מבוטל בגיליון: מעומעם, לא אדום. זו אינה בעיה — זה מידע. */
+.kx .st-row.st-off{background:var(--bg);border-color:var(--line);opacity:.72}
+.kx .st-row.st-off .st-n{font-weight:700;text-decoration:line-through;
+  text-decoration-color:var(--line2);text-decoration-thickness:1.5px}
+.st-why{font-size:11.5px;font-weight:700;color:var(--faint);margin-top:3px}
 /* ⚠ השעה בולטת מיתר המטא: היא מה שמסדר את היום. */
 .st-m .hh{background:var(--accent-soft);color:var(--accent);font-weight:800;
   padding:1px 6px;border-radius:6px;font-size:11.5px}
@@ -1654,6 +1659,69 @@ html,body{margin:0;padding:0;background:#012E58}
   font-size:12px;font-weight:900;line-height:1;
   transition:width .14s var(--ease)}
 .kx .pick.pick-chips button.on::before{content:"¹3";width:11px}
+
+/* ============================================================
+   פאנל ההתראות
+   ------------------------------------------------------------
+   ⚠ הצבע מסמן תחום ולעולם אינו נושא את המידע לבדו: לכל שורה
+     יש גם תווית תחום כתובה וגם סימן. עיקרון 3.
+   ============================================================ */
+.notif-panel{position:sticky;top:0;z-index:39;background:var(--surface);
+  border-bottom:1px solid var(--line);
+  box-shadow:0 14px 34px -18px rgba(47,38,22,.42);
+  max-height:66vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  animation:ndrop .22s var(--ease)}
+@keyframes ndrop{from{opacity:0;transform:translateY(-8px)}}
+.notif-h{display:flex;justify-content:space-between;align-items:center;
+  padding:13px 15px;border-bottom:1px solid var(--line);
+  position:sticky;top:0;background:var(--surface);z-index:2}
+.nh-l{display:flex;align-items:baseline;gap:8px}
+.notif-h b{font-size:15px;font-weight:800;letter-spacing:-.3px}
+.nh-c{font-size:11.5px;font-weight:800;color:var(--faint);
+  background:var(--bg);border-radius:99px;padding:2px 8px}
+.kx .notif-h button{min-height:34px;width:34px;border-radius:10px;
+  color:var(--faint);display:grid;place-items:center}
+.kx .notif-h button:active{background:var(--bg)}
+
+.kx .notif-item{display:flex;align-items:flex-start;gap:11px;width:100%;
+  text-align:right;padding:12px 15px;border-bottom:1px solid var(--line);
+  position:relative;transition:background .12s var(--ease)}
+.kx .notif-item:last-child{border-bottom:none}
+.kx .notif-item:active{background:var(--bg)}
+/* הפס בצד — סימן התחום */
+.notif-item::before{content:"";position:absolute;top:0;bottom:0;right:0;width:3px;
+  background:var(--nt,var(--accent));opacity:.85}
+.notif-item.n-accent{--nt:var(--accent)}
+.notif-item.n-clay{--nt:var(--clay)}
+.notif-item.n-amber{--nt:var(--amber)}
+.notif-item.n-green{--nt:var(--ok)}
+.ni-dot{flex:0 0 auto;width:30px;height:30px;border-radius:10px;
+  display:grid;place-items:center;font-size:13px;line-height:1;
+  background:color-mix(in srgb,var(--nt) 13%,transparent);color:var(--nt)}
+.ni-main{flex:1;min-width:0;display:block}
+.ni-k{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:900;
+  letter-spacing:.8px;color:var(--nt);margin-bottom:2px}
+.ni-hot{font-size:9.5px;font-weight:900;letter-spacing:.6px;color:#fff;
+  background:var(--clay);border-radius:4px;padding:1px 5px}
+.ni-t{display:block;font-size:14px;font-weight:800;letter-spacing:-.2px;
+  line-height:1.35;color:var(--ink)}
+.ni-s{display:block;font-size:12px;color:var(--muted);font-weight:600;
+  margin-top:2px;line-height:1.45;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.ni-go{flex:0 0 auto;color:var(--line2);margin-top:9px}
+/* ⚠ "חדש" — נקודה ולא רק רקע, כדי שתיראה גם בלי צבע */
+.notif-item.fresh .ni-t::after{content:"";display:inline-block;width:6px;height:6px;
+  border-radius:99px;background:var(--nt);margin-right:6px;vertical-align:middle}
+
+.notif-empty{padding:22px 15px;text-align:center;font-size:13px;
+  color:var(--muted);font-weight:600}
+.notif-calm{padding:24px 18px;text-align:center}
+.notif-calm b{display:block;font-size:15px;font-weight:800;color:var(--ok)}
+.notif-calm span{display:block;font-size:12.5px;color:var(--muted);
+  font-weight:600;margin-top:4px;line-height:1.5}
+
+.kx .bell-btn.on{background:var(--accent-soft);color:var(--accent)}
+.bell-badge.hot{background:var(--clay)}
 
 /* ⚠ מי שביקש פחות תנועה מקבל פחות תנועה. */
 @media (prefers-reduced-motion:reduce){
