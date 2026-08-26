@@ -986,8 +986,10 @@ const GNT_CLASS = { "שבת": "shabbat", "חג ומועד": "holiday" };
 /* ============================================================
    הדף המלא
    ============================================================ */
-export function LessonsPage({ say, sub0 }) {
+export function LessonsPage({ say, sub0, onSub }) {
   const [sub, setSub] = useState(sub0 || "sheets");
+  /* ⚠ מדווח החוצה כדי שהתפריט יסמן את הדף שנמצאים בו. */
+  React.useEffect(() => { if (onSub) onSub(sub); }, [sub, onSub]);
   const [sheet, setSheet] = useState(null);
   const [creating, setCreating] = useState(false);
   const [reporting, setReporting] = useState(false);

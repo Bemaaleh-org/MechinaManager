@@ -1029,13 +1029,56 @@ function StudentDetail({ student, onBack, say }) {
       <button className="btn btn-ghost btn-sm" style={{ marginBottom: 14 }} onClick={onBack}>
         <MI.chev style={{ transform: "rotate(180deg)" }} />חזרה לרשימה
       </button>
-      <div className="screen-title">{student.name}</div>
+
+      {/* ---------- כותרת החניך ----------
+          ⚠ שם על שורה אפורה לא נראה כמו כרטיס של אדם. ראשי
+            תיבות בעיגול, השם בגדול, ומתחתיו מה שמזהה אותו
+            במכינה — הקבוצה והענף. */}
+      <div className="sd-head">
+        <div className="sd-av">{initials(student.name)}</div>
+        <div className="sd-who">
+          <b>{student.name}</b>
+          <span>{student.leader ? "מוביל שבוע · " : ""}מכינת ניר עוז · מחזור ב׳</span>
+        </div>
+      </div>
 
       {busy && !data && <Loading what="טוען נוכחות" />}
       {err && <LoadFail msg={err} onRetry={reload} />}
 
       {data && (
         <>
+          {/* ⚠ שלושת המספרים שעונים על "מה מצבו" לפני הפירוט */}
+          <div className="band">
+            <div className="band-h">התמונה השנתית</div>
+            <div className="band-grid">
+              <div className="band-c">
+                <div className="band-n">
+                  {data.summary.schoolDays >= 5
+                    ? Math.round((data.summary.present / data.summary.schoolDays) * 100) + "%"
+                    : `${data.summary.present}/${data.summary.schoolDays}`}
+                </div>
+                <div className="band-l">נוכחות</div>
+              </div>
+              <div className="band-c">
+                {(() => {
+                  const left = data.summary.quota.reduce((a, q) => a + q.left, 0);
+                  return (
+                    <>
+                      <div className={"band-n" + (left === 0 ? " warn" : " ok")}>{left}</div>
+                      <div className="band-l">ימי חופש שנותרו</div>
+                    </>
+                  );
+                })()}
+              </div>
+              <div className="band-c">
+                <div className={"band-n" + (data.summary.absent ? " warn" : "")}>
+                  {data.summary.absent}
+                </div>
+                <div className="band-l">ימי היעדרות</div>
+              </div>
+            </div>
+          </div>
+
           <Summary s={data.summary} />
           <div className="sec-label">ימי חופש</div>
           <Quota quota={data.summary.quota} />
@@ -1580,21 +1623,27 @@ export function RoleHolders({ say }) {
    ⚠ מנהל בלבד. תורן רואה את המטבח בלבד, והשרת אוכף את זה
      בכל נקודת קצה כאן.
    ============================================================ */
-export function MechinaStaff({ say, sub0 }) {
-  const [sub, setSub] = useState(sub0 || "mark");
+export function MechinaStaff({ say, sub0, onSub }) {
+  /* ⚠ החניכים הם ברירת המחדל ולא הסימון היומי. המסך הזה נקרא
+     פעם "נוכחות", והסימון פתח אותו — אבל מי שנכנס לכאן מחפש
+     בדרך כלל חניך, לא את הטופס של היום. */
+  const [sub, setSub] = useState(sub0 || "students");
   const [student, setStudent] = useState(null);
 
-  /* ⚠ מובילי שבוע ובעלי תפקידים עברו לדף נפרד — MechinaRolesPage.
-     הנוכחות נשארה נוכחות. */
+  /* ⚠ המסך מדווח החוצה על הלשונית, כדי שהתפריט יסמן את הדף
+     שנמצאים בו. בלי זה המגירה לא ידעה שאנחנו כאן. */
+  React.useEffect(() => { if (onSub) onSub(sub); }, [sub, onSub]);
+
+  /* ⚠ מובילי שבוע ובעלי תפקידים עברו לדף נפרד — MechinaRolesPage. */
   const tabs = [
-    ["mark", "סימון יומי"],
     ["students", "חניכים"],
+    ["mark", "סימון יומי"],
     ["requests", "בקשות יציאה"],
   ];
 
   return (
     <>
-      <div className="screen-title">נוכחות</div>
+      <div className="screen-title">חניכים</div>
 
       {!student && (
         <div className="seg">

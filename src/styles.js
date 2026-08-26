@@ -1037,9 +1037,12 @@ html,body{margin:0;padding:0;background:#012E58}
    עליו. התוצאה: התמונה נעלמה והמסך נשאר קרם ריק. */
 .kx:not(.kx-login){
   background:
-    radial-gradient(46% 32% at 88% 4%, rgba(0,36,84,.055), transparent 70%),
-    radial-gradient(42% 30% at 4% 24%, rgba(158,54,38,.042), transparent 70%),
-    radial-gradient(52% 34% at 62% 94%, rgba(31,107,69,.04), transparent 72%),
+    /* ⚠ שלוש תחנות ולא שתיים. מעבר ישיר מצבע לשקוף על שטח
+       גדול יוצר טבעות גלויות — הבהוב של פסים שנראה כמו תקלה
+       ולא כמו תאורה. תחנת ביניים מרככת את הנפילה. */
+    radial-gradient(46% 32% at 88% 4%, rgba(0,36,84,.05), rgba(0,36,84,.018) 45%, transparent 72%),
+    radial-gradient(42% 30% at 4% 24%, rgba(158,54,38,.038), rgba(158,54,38,.014) 45%, transparent 72%),
+    radial-gradient(52% 34% at 62% 94%, rgba(31,107,69,.036), rgba(31,107,69,.013) 45%, transparent 74%),
     var(--bg);
   background-attachment:fixed;
 }
@@ -1241,6 +1244,45 @@ html,body{margin:0;padding:0;background:#012E58}
 .kx .qa-plus:active,.kx .qa-minus:active{transform:translateY(1px)}
 .kx .qa-plus:disabled,.kx .qa-minus:disabled{opacity:.42}
 .qadd-hint{font-size:11px;font-weight:700;color:var(--muted);margin-top:7px;line-height:1.5}
+
+/* ---- כותרת פרופיל חניך ---- */
+.sd-head{display:flex;align-items:center;gap:13px;margin:2px 2px 15px}
+.sd-av{width:56px;height:56px;border-radius:19px;flex:0 0 auto;display:grid;place-items:center;
+  background:linear-gradient(145deg,#012E58,#0A4478);color:#fff;
+  font-family:'Suez One',Heebo,serif;font-size:21px;line-height:1;
+  box-shadow:0 10px 24px -12px rgba(0,36,84,.8)}
+.sd-who{min-width:0}
+.sd-who b{display:block;font-family:'Suez One',Heebo,serif;font-size:24px;font-weight:400;
+  line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sd-who span{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-top:3px}
+
+/* ---- לו״ז יומי ----
+   ⚠ קו זמן ולא רשימה. שעה, נקודה על ציר, ואירוע — כך רואים
+     מיד מה קרוב ומה רחוק, ולא רק מה בא אחרי מה. */
+.ag-ev{position:relative;padding:9px 0 9px 0;gap:13px}
+.ag-ev+.ag-ev{border-top:none}
+.ag-time{flex:0 0 46px;align-items:flex-end;text-align:left}
+.ag-time b{font-size:14px;color:var(--ink)}
+/* הציר: קו דק שעובר בין הנקודות */
+.ag-body{position:relative;padding-right:17px}
+.ag-body::before{content:"";position:absolute;top:6px;right:0;width:9px;height:9px;
+  border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.ag-ev:not(:last-child) .ag-body::after{content:"";position:absolute;top:18px;bottom:-18px;
+  right:4px;width:1.5px;background:var(--line)}
+.ag-name{font-size:14.5px;font-weight:800;letter-spacing:-.2px}
+.ag-allday{background:var(--amber-soft);color:var(--amber);border-radius:99px;
+  padding:2px 8px;white-space:nowrap}
+/* ⚠ האירוע שקורה עכשיו מסומן. זה המידע היחיד שמשתנה תוך כדי
+   שמסתכלים על המסך. */
+.ag-ev.now .ag-body::before{background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}
+.ag-ev.now .ag-name{color:var(--ok)}
+.kx .ag-day{border-radius:var(--r-lg);border:1px solid rgba(211,201,182,.5);
+  box-shadow:var(--sh-1);padding:14px 16px}
+.kx .ag-day.today{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft),var(--sh-1)}
+.ag-day-h{padding-bottom:9px;margin-bottom:4px;border-bottom:1px solid rgba(211,201,182,.45)}
+.ag-day-h b{font-size:15px;font-weight:800}
+.ag-day-h span{background:var(--accent-soft);color:var(--accent);border-radius:99px;
+  padding:2px 9px;font-size:11px}
 
 /* ---- כניסה מדורגת, במסך הבית בלבד ----
    ⚠ רק על שתי הרשתות של מסך הבית ולא על כל כרטיס באפליקציה.

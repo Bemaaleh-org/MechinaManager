@@ -148,6 +148,11 @@ function Staff({ auth, onSignedOut }) {
   /* ניווט פנימי מהמגירה ומהפעמון: לאיזה תת-מסך לפתוח את התחום */
   const [staffNav, setStaffNav] = useState({ sub: null, n: 0 });
   const [lessonsNav, setLessonsNav] = useState({ sub: null, n: 0 });
+  /* ⚠ באיזו לשונית אנחנו בפועל, לא לאיזו ניווטנו. חמישה
+     פריטים בתפריט נשאו active:false קבוע, ולכן המגירה לא סימנה
+     את הדף שנמצאים בו — הסימון היה קיים בעיצוב ולא בנתונים. */
+  const [staffSub, setStaffSub] = useState("students");
+  const [lessonsSub, setLessonsSub] = useState("sheets");
   const [rolesNav, setRolesNav] = useState({ sub: null, n: 0 });
 
   useEffect(() => {
@@ -219,11 +224,14 @@ function Staff({ auth, onSignedOut }) {
                 onClick: () => setSection("dash") },
             ] },
             { label: "מטבח", items: kitchenItems },
-            { label: "נוכחות", items: [
-              { key: "a-mark", label: "סימון יומי", icon: <I.check />, active: false, onClick: () => goStaff("mark") },
-              { key: "a-students", label: "חניכים", icon: <I.users />, active: false, onClick: () => goStaff("students") },
+            { label: "חניכים ונוכחות", items: [
+              { key: "a-students", label: "חניכים", icon: <I.users />,
+                active: section === "mechina" && staffSub === "students", onClick: () => goStaff("students") },
+              { key: "a-mark", label: "סימון יומי", icon: <I.check />,
+                active: section === "mechina" && staffSub === "mark", onClick: () => goStaff("mark") },
               { key: "a-requests", label: "בקשות יציאה", icon: <I.note />, badge: mineList.length,
-                active: false, onClick: () => goStaff("requests") },
+                active: section === "mechina" && staffSub === "requests",
+                onClick: () => goStaff("requests") },
             ] },
             { label: "תפקידים ושיבוצים", items: [
               { key: "a-leaders", label: "מובילי שבוע", icon: <I.day />, active: section === "roles", onClick: () => goRoles("weeks") },
@@ -237,8 +245,10 @@ function Staff({ auth, onSignedOut }) {
                 active: section === "gantt", onClick: () => setSection("gantt") },
             ] },
             { label: "שיעורים", items: [
-              { key: "l-sheets", label: "גיליונות מרצים", icon: <I.book />, active: false, onClick: () => goLessons("sheets") },
-              { key: "l-evals", label: "חוות דעת", icon: <I.star />, active: false, onClick: () => goLessons("evals") },
+              { key: "l-sheets", label: "גיליונות מרצים", icon: <I.book />,
+                active: section === "lessons" && lessonsSub === "sheets", onClick: () => goLessons("sheets") },
+              { key: "l-evals", label: "חוות דעת", icon: <I.star />,
+                active: section === "lessons" && lessonsSub === "evals", onClick: () => goLessons("evals") },
             ] },
             { label: "בטיחות ותחזוקה", items: [
               { key: "safety", label: "אירועי בטיחות", icon: <I.warn />, active: section === "safety",
@@ -302,10 +312,12 @@ function Staff({ auth, onSignedOut }) {
 
           {/* ⚠ ההרשאה נאכפת בשרת; הבדיקה כאן היא תצוגה בלבד. */}
           {section === "mechina" && isMgr && (
-            <MechinaStaff say={say} key={staffNav.n} sub0={staffNav.sub || undefined} />
+            <MechinaStaff say={say} key={staffNav.n} sub0={staffNav.sub || undefined}
+              onSub={setStaffSub} />
           )}
           {section === "lessons" && isMgr && (
-            <LessonsPage say={say} key={lessonsNav.n} sub0={lessonsNav.sub || undefined} />
+            <LessonsPage say={say} key={lessonsNav.n} sub0={lessonsNav.sub || undefined}
+              onSub={setLessonsSub} />
           )}
           {section === "roles" && isMgr && (
             <MechinaRolesPage say={say} key={rolesNav.n} sub0={rolesNav.sub || undefined} />

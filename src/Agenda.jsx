@@ -38,10 +38,30 @@ function useLoad(fn, deps = []) {
   return { data, err, busy, reload: run };
 }
 
-/* ---------- שורת אירוע ---------- */
-function EventRow({ e }) {
+/* ⚠ "עכשיו" נקבע בשעון המכשיר ולא בשרת: הלו״ז מוצג לאדם
+   שעומד במכינה, והשעה שרלוונטית לו היא זו שעל הטלפון.
+   אירוע "כל היום" אינו מסומן — הוא נכון לכל שעה, והסימון לא
+   היה אומר דבר. */
+function isNow(e) {
+  if (!e || e.allDay || !e.time) return false;
+  const hm = (t) => {
+    const m = String(t).match(/(\d{1,2}):(\d{2})/);
+    return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+  };
+  const d = new Date();
+  const cur = d.getHours() * 60 + d.getMinutes();
+  const a = hm(e.time);
+  if (a == null) return false;
+  const b = hm(e.endTime);
+  return cur >= a && cur < (b == null ? a + 60 : b);
+}
+
+/* ---------- שורת אירוע ----------
+   ⚠ now מסמן את מה שקורה ברגע זה — המידע היחיד במסך שמשתנה
+     תוך כדי שמסתכלים עליו, וזו הסיבה שפותחים את הלו״ז. */
+function EventRow({ e, now = false }) {
   return (
-    <div className="ag-ev">
+    <div className={"ag-ev" + (now ? " now" : "")}>
       <div className="ag-time num">
         {e.allDay ? <span className="ag-allday">כל היום</span> : (
           <>
@@ -71,7 +91,7 @@ export function TodayAgenda({ onOpen, max = 4 }) {
     <>
       <div className="sec-label">הלו״ז של היום</div>
       <button className="card ag-card" onClick={onOpen}>
-        {list.slice(0, max).map((e, i) => <EventRow key={i} e={e} />)}
+        {list.slice(0, max).map((e, i) => <EventRow key={i} e={e} now={isNow(e)} />)}
         {list.length > max && (
           <div className="ag-more">ועוד {list.length - max} בהמשך היום</div>
         )}
@@ -130,7 +150,7 @@ export function AgendaPage() {
         </div>
         {today.events.length === 0 ? (
           <div className="ag-empty">אין פעילות ביומן להיום</div>
-        ) : today.events.map((e, i) => <EventRow key={i} e={e} />)}
+        ) : today.events.map((e, i) => <EventRow key={i} e={e} now={isNow(e)} />)}
       </div>
 
       <div className="sec-label">השבועיים הקרובים</div>
