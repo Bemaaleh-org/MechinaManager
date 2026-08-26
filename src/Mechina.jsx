@@ -16,6 +16,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { api } from "./api.js";
 import { testDate } from "./testDate.js";
 import { LessonsPage } from "./Lessons.jsx";
+import { ROLE_INFO, LEADER_INFO } from "./roles-info.js";
 import { SafetyPage } from "./Safety.jsx";
 import { FaultsPage } from "./Faults.jsx";
 import { ContainerPage } from "./Container.jsx";
@@ -1560,98 +1561,142 @@ function RateLessons({ say }) {
 export function RoleHolders({ say }) {
   useExcel();
   const { data, err, busy, reload } = useLoad(() => api.getStudents(), []);
-  const [busyId, setBusyId] = useState(null);
   const [patch, setPatch] = useState({});
+  const [open, setOpen] = useState(null);   // התפקיד הפתוח לעריכה
   const [q, setQ] = useState("");
+  const [busyRole, setBusyRole] = useState(null);
 
-  if (busy && !data) return <Loading what="טוען חניכים" />;
+  if (busy && !data) return <Loading what="טוען תפקידים" />;
   if (err) return <LoadFail msg={err} onRetry={reload} />;
   if (!data) return null;
 
+  /* ⚠ רשימת התפקידים נקראת מהלוח ולא מהקוד — תפקיד חדש יופיע
+     כאן מעצמו. התיאור מגיע מ-roles-info לפי השם; תפקיד בלי
+     תיאור מוצג בלי תיאור, ולא נעלם. */
   const roles = data.roles || [];
-  const rolesOf = (s) => (s.id in patch ? patch[s.id] : (s.roles || []));
+  const rolesOf = (s2) => (s2.id in patch ? patch[s2.id] : (s2.roles || []));
+  const holders = (role) => data.students.filter((s2) => rolesOf(s2).includes(role));
 
-  const toggle = (s, role) => {
-    const cur = rolesOf(s);
+  /* ⚠ אופטימי, כמו ברשימת הקניות: הסימון מוצג מיד והבקשה
+     נשלחת ברקע. בכישלון חוזרים אחורה ואומרים. */
+  const toggle = (s2, role) => {
+    const cur = rolesOf(s2);
     const next = cur.includes(role) ? cur.filter((r) => r !== role) : [...cur, role];
-    setBusyId(s.id);
-    setPatch((p) => ({ ...p, [s.id]: next })); // מיד על המסך
-    api.setRoles({ studentId: s.id, roles: next })
-      .then(() => say(next.length ? `${s.name} — ${next.join(" · ")}` : `${s.name} — ללא תפקיד`))
-      .catch((e) => { setPatch((p) => ({ ...p, [s.id]: cur })); say(e.message); })
-      .finally(() => setBusyId(null));
+    const before = cur;
+    setPatch((p2) => ({ ...p2, [s2.id]: next }));
+    setBusyRole(role);
+    api.setRoles({ studentId: s2.id, roles: next })
+      .catch((e) => {
+        say(e.message);
+        setPatch((p2) => ({ ...p2, [s2.id]: before }));
+      })
+      .finally(() => setBusyRole(null));
   };
 
-  const holders = (role) => data.students.filter((s) => rolesOf(s).includes(role));
-  const list = data.students.filter((s) => !q.trim() || s.name.includes(q.trim()));
+  const list = data.students.filter((s2) => !q.trim() || s2.name.includes(q.trim()));
 
   return (
     <>
-      <div className="card" style={{ marginBottom: 12 }}>
-        {roles.map((role) => {
-          const h = holders(role);
-          return (
-            <div key={role} style={{ display: "flex", justifyContent: "space-between",
-                                     gap: 10, padding: "6px 0", fontSize: 13.5 }}>
-              <b style={{ fontWeight: 800 }}>{role}</b>
-              <span style={{ color: h.length ? "var(--ink)" : "var(--faint)", fontWeight: 600,
-                             textAlign: "left", minWidth: 0 }}>
-                {h.length ? h.map((s) => s.name).join(" · ") : "לא הוגדר"}
-              </span>
-            </div>
-          );
-        })}
-        <div style={{ fontSize: 12, color: "var(--muted)", fontWeight: 600,
-                      lineHeight: 1.6, marginTop: 8, paddingTop: 8,
-                      borderTop: "1px solid var(--line)" }}>
-          אחראי הלו״ז מקבל גישה למסך השיעורים באופן אוטומטי. שאר התפקידים נשמרים לתיעוד בלבד.
-        </div>
-      </div>
+      {roles.map((role) => {
+        const info = ROLE_INFO[role] || null;
+        const h = holders(role);
+        const isOpen = open === role;
+        return (
+          <div className={`card rl-card ${roleTone(role)}`} key={role}>
+            <button className="rl-head" onClick={() => setOpen(isOpen ? null : role)}>
+              <div className="tile">{roleIcon(role)}</div>
+              <div className="rl-nm">
+                <b>{role}</b>
+                <span>{info ? info.who : "תפקיד"}</span>
+              </div>
+              <b className="rl-n">{h.length}</b>
+              <MI.chev style={{ transform: isOpen ? "rotate(-90deg)" : "none",
+                                color: "var(--line2)", flex: "0 0 auto" }} />
+            </button>
 
-      <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 10 }}
+            {/* ⚠ בעלי התפקיד מוצגים תמיד, גם כשסגור: זו השאלה
+                הראשונה ששואלים על תפקיד. */}
+            <div className="rl-who">
+              {h.length
+                ? h.map((s2) => <span className="rl-chip" key={s2.id}>{s2.name}</span>)
+                : <span className="rl-none">לא הוגדר</span>}
+            </div>
+
+            {isOpen && (
+              <div className="rl-body">
+                {info && (
+                  <>
+                    <div className="rl-k">תיאור התפקיד</div>
+                    <div className="rl-desc">{info.desc}</div>
+                    <div className="rl-k">מה התפקיד פותח במערכת</div>
+                    <ul className="rl-perms">
+                      {info.perms.map((x, i) => <li key={i}>{x}</li>)}
+                    </ul>
+                  </>
+                )}
+
+                <div className="rl-k">בחירת חניכים</div>
+                <input className="search" value={q} placeholder="חיפוש חניך"
+                  onChange={(e) => setQ(e.target.value)} />
+                {/* ⚠ גלילה בתוך הכרטיס, כמו במובילי שבוע: 33
+                    חניכים בלי גלילה הופכים כל תפקיד לדף שלם. */}
+                <div className="rows rl-pick">
+                  {list.map((s2) => {
+                    const on = rolesOf(s2).includes(role);
+                    return (
+                      <button className="st-row" key={s2.id}
+                        disabled={busyRole === role}
+                        onClick={() => toggle(s2, role)}>
+                        <div className={"tick" + (on ? " on" : "")}>
+                          {on && <span style={{ color: "#fff", fontWeight: 900 }}>✓</span>}
+                        </div>
+                        <div className="st-main"><div className="st-n">{s2.name}</div></div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      <button className="btn btn-ghost btn-sm" style={{ width: "100%", margin: "12px 0" }}
         onClick={() => {
           downloadTable({
             file: "בעלי-תפקידים",
             sheet: "בעלי תפקידים",
             title: "בעלי תפקידים — מכינת ניר עוז",
-            header: ["חניך", "תפקידים"],
-            rows: data.students.map((s) => {
-              const r = rolesOf(s);
-              return [s.name, r.length ? r.join(" · ") : ""];
-            }),
-            widths: [22, 34],
+            header: ["תפקיד", "מי", "תיאור"],
+            rows: roles.map((role) => [
+              role,
+              holders(role).map((s2) => s2.name).join(" · "),
+              (ROLE_INFO[role] && ROLE_INFO[role].desc.replace(/\n+/g, " ")) || "",
+            ]),
+            widths: [18, 26, 70],
           });
           say("הקובץ ירד");
         }}><MI.dl />הורדה לאקסל</button>
-
-      <input className="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="חיפוש חניך" />
-
-      <div className="rows">
-        {list.map((s) => {
-          const mine = rolesOf(s);
-          return (
-            <div key={s.id}>
-              <div className="st-row" style={{ borderBottom: "none", paddingBottom: 4 }}>
-                <div className={"st-av" + (mine.length ? "" : " ")}>{initials(s.name)}</div>
-                <div className="st-main">
-                  <div className="st-n">{s.name}</div>
-                  <div className="st-m">{mine.length ? mine.join(" · ") : "ללא תפקיד"}</div>
-                </div>
-              </div>
-              <div className="abs-pick">
-                {roles.map((role) => (
-                  <button key={role} disabled={busyId === s.id}
-                    className={mine.includes(role) ? "on" : ""}
-                    onClick={() => toggle(s, role)}>{role}</button>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <div style={{ height: 20 }} />
     </>
   );
 }
+
+/* ⚠ גוון ואייקון לפי שם התפקיד. תפקיד חדש שיתווסף בלוח מקבל
+   גוון מעצמו (אותו גיבוב כמו בשיבוצים) ואייקון ברירת מחדל. */
+const roleTone = (name) => {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return "tone-" + (h % 8 + 1);
+};
+const ROLE_ICON = {
+  "אחראי לו״ז": <MI.cal />,
+  "אחראי מטבח": <MI.box />,
+  "אחראי מכולה": <MI.box />,
+  "אב בית": <MI.tool />,
+  "אחראי בטיחות": <MI.warn />,
+};
+const roleIcon = (name) => ROLE_ICON[name] || <MI.users />;
 
 /* ============================================================
    טאב המכינה אצל הצוות — הכול במקום אחד
@@ -1716,6 +1761,7 @@ const weekDateInp = {
 };
 
 function WeekLeaders({ say }) {
+  const [info, setInfo] = useState(false);
   useExcel();
   const td = testDate();
   const { data, err, busy, reload } = useLoad(() => api.getLeaderWeeks(td), [td]);
@@ -1804,6 +1850,31 @@ function WeekLeaders({ say }) {
     <>
       <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 10 }}
         onClick={exportWeeks}><MI.dl />הורדת השיבוץ לאקסל</button>
+
+      {/* ---------- מהות התפקיד ----------
+          ⚠ סגור כברירת מחדל. הטקסט ארוך ומי שנכנס לשבץ אינו
+            רוצה לגלול אותו בכל פעם — אבל הוא צריך להיות זמין
+            במקום שבו מדברים על התפקיד. */}
+      <div className="card rl-card tone-2" style={{ marginBottom: 12 }}>
+        <button className="rl-head" onClick={() => setInfo(!info)}>
+          <div className="tile"><MI.users /></div>
+          <div className="rl-nm">
+            <b>{LEADER_INFO.title}</b>
+            <span>מהות התפקיד ומשימותיו</span>
+          </div>
+          <MI.chev style={{ transform: info ? "rotate(-90deg)" : "none",
+                            color: "var(--line2)", flex: "0 0 auto" }} />
+        </button>
+        {info && (
+          <div className="rl-body">
+            <div className="ld-info">{LEADER_INFO.purpose}</div>
+            <div className="rl-k">משימות התפקיד</div>
+            <ul className="ld-tasks">
+              {LEADER_INFO.tasks.map((t, i) => <li key={i}>{t}</li>)}
+            </ul>
+          </div>
+        )}
+      </div>
 
       {hidden > 0 && !past && (
         <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 10 }}

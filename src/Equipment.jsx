@@ -35,6 +35,7 @@ const useDomain = () => useContext(DomainCtx);
 
 const CI = {
   box: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 8l9-5 9 5v8l-9 5-9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>,
+  check: (p) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M4 12.5 9.5 18 20 6.5"/></svg>,
   cart: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 4h2.2l2.3 11.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.5L21 8H6"/><circle cx="10" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/></svg>,
   plus: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" {...p}><path d="M12 5v14M5 12h14"/></svg>,
   chev: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
@@ -455,6 +456,8 @@ function EquipmentScreen({ say, domain: d, area }) {
   const [kindFilter, setKindFilter] = useState(null);
   /* ⚠ רק במצב המאוחד. ראו ההערה ליד הבורר. */
   const [areaFilter, setAreaFilter] = useState(null);
+  /* מזהה → סטטוס, עד לטעינה הבאה. ראו setStatus. */
+  const [patch, setPatch] = useState({});
   const [q, setQ] = useState("");
   const [adding, setAdding] = useState(false);
   const [building, setBuilding] = useState(null); // null | "manual" | "missing"
@@ -507,13 +510,44 @@ function EquipmentScreen({ say, domain: d, area }) {
     .filter((x) => !areaFilter || x.area === areaFilter)
     .filter((x) => !kindFilter || x.kind === kindFilter)
     .filter((x) => !q.trim() || x.name.includes(q.trim()));
-  const open = data.shopping.filter((x) => x.status === "פתוח");
-  const bought = data.shopping.filter((x) => x.status !== "פתוח");
+  /* ⚠ ה-patch גובר על מה שהגיע מהשרת, עד לטעינה הבאה. */
+  const shopping = data.shopping
+    .filter((x) => !areaFilter || x.area === areaFilter)
+    .map((x) => (patch[x.id] ? { ...x, status: patch[x.id] } : x));
+  const open = shopping.filter((x) => x.status === "פתוח");
+  const bought = shopping.filter((x) => x.status !== "פתוח");
 
+  /* ---------- סימון קנייה ----------
+     ⚠ אופטימי. הסימון מוצג מיד, והבקשה נשלחת ברקע — לחיצה
+       שממתינה לתשובת monday ואז טוענת מחדש את כל הרשימה לקחה
+       שנייה וחצי, וזה מרגיש כאילו הלחיצה לא נקלטה.
+
+     ⚠ ובכישלון חוזרים אחורה ואומרים את זה. סימון אופטימי
+       שנשאר על המסך אחרי שהשרת דחה אותו הוא שקר, לא נוחות. */
   const setStatus = (item, status) => {
+    setPatch((p2) => ({ ...p2, [item.id]: status }));
     d.setShoppingStatus({ itemId: item.id, status })
-      .then(() => reload())
-      .catch((e) => say(e.message));
+      .catch((e) => {
+        say(e.message);
+        setPatch((p2) => { const n = { ...p2 }; delete n[item.id]; return n; });
+      });
+  };
+
+  /* ⚠ כולם בבת אחת ובמקביל. ברשימה של ארבעים פריטים, ארבעים
+     לחיצות אחת-אחרי-השנייה הן הסיבה שאיש לא סימן. */
+  const markAll = (items, status) => {
+    if (!items.length) return;
+    setPatch((p2) => {
+      const n = { ...p2 };
+      for (const x of items) n[x.id] = status;
+      return n;
+    });
+    Promise.allSettled(items.map((x) => d.setShoppingStatus({ itemId: x.id, status })))
+      .then((rs) => {
+        const bad = rs.filter((r) => r.status === "rejected").length;
+        if (bad) { say(`${bad} פריטים לא נשמרו`); reload(); }
+        else say(status === "נקנה" ? "הכול סומן כנקנה" : "הכול הוחזר לרשימה");
+      });
   };
 
   return (
@@ -713,6 +747,10 @@ function EquipmentScreen({ say, domain: d, area }) {
                     say("הקובץ ירד");
                   }}><CI.dl />אקסל</button>
               </div>
+              <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 10 }}
+                onClick={() => markAll(open, "נקנה")}>
+                <CI.check />סימון הכול כנקנה ({open.length})
+              </button>
               <div className="grp-h"><span>{open.length} פריטים לקנייה</span><span>לחיצה = נקנה</span></div>
               <div className="rows">
                 {open.map((x) => (

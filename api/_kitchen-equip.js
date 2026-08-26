@@ -27,9 +27,23 @@ const E = KITCHEN_COLS.equipment;
 const KINDS = [KITCHEN_KIND.consumable, KITCHEN_KIND.permanent];
 
 /** התחום המבוקש. ברירת המחדל היא אוכל — הגדול מבין השניים. */
+/* ⚠ שלוש תשובות ולא שתיים:
+     שם תחום — התחום הזה
+     ""       — ALL, כל התחומים יחד
+     אחר      — null, תחום לא מוכר
+
+   ⚠ ריק החזיר פעם "אוכל" בשקט, וזה נשאר נכון כל עוד המסך
+     תמיד ביקש תחום מפורש. ברגע שנוסף המסך המאוחד, שקורא בלי
+     area, ההתנהגות הזו הסתירה את כל 16 פריטי החד״פ — הם היו
+     בלוח כל הזמן ופשוט לא הוחזרו.
+
+   ⚠ ברירת מחדל שקטה על קלט ריק היא בדיוק הסוג של התנהגות
+     שנראית נוחה ומתגלה כבאג כשמגיע קורא חדש. */
+const ALL = Symbol("all");
+
 function areaOf(raw) {
   const a = String(raw || "").trim();
-  if (!a) return KITCHEN_AREA.food;
+  if (!a) return ALL;
   return KITCHEN_AREAS.includes(a) ? a : null;
 }
 
@@ -52,11 +66,15 @@ async function handler(req, res, session) {
       const [allEquip, allShop] = await Promise.all([
         loadKitchenEquipment(), loadKitchenShopping(),
       ]);
-      const equipment = allEquip.filter((x) => x.area === area);
-      const shopping = allShop.filter((x) => x.area === area);
+      const mine = (x) => area === ALL || x.area === area;
+      const equipment = allEquip.filter(mine);
+      const shopping = allShop.filter(mine);
 
       return res.status(200).json({
-        area, equipment, shopping,
+        /* ⚠ null ולא מחרוזת: המסך מבדיל בין "כל התחומים" לבין
+           תחום מסוים, ומחרוזת ריקה הייתה נקראת כתחום. */
+        area: area === ALL ? null : area,
+        equipment, shopping,
         counts: {
           total: equipment.length,
           consumable: equipment.filter((x) => x.kind === KITCHEN_KIND.consumable).length,

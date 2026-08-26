@@ -1359,6 +1359,47 @@ html,body{margin:0;padding:0;background:#012E58}
 .tr-legs b{display:block;font-size:16px;font-weight:800}
 .tr-legs span{display:block;font-size:10.5px;font-weight:700;color:var(--faint);margin-top:1px}
 
+/* ---- מסך התפקידים ----
+   ⚠ התפקיד הוא הכרטיס, לא החניך. השאלה שנשאלת כאן היא "מי
+     אחראי על X", ולא "אילו תפקידים יש ל-Y" — ולכן הרשימה
+     מסודרת לפי תפקידים ובחירת החניכים יושבת בתוך כל אחד. */
+.kx .rl-card{padding:0;overflow:hidden;position:relative;margin-bottom:11px}
+.kx .rl-card::before{content:"";position:absolute;top:0;bottom:0;right:0;width:4px;
+  background:var(--t,var(--accent))}
+.kx .rl-head{width:100%;text-align:right;display:flex;align-items:center;gap:12px;
+  padding:14px 17px 11px}
+.rl-nm{flex:1;min-width:0}
+.rl-nm b{display:block;font-size:16px;font-weight:800;letter-spacing:-.3px}
+.rl-nm span{display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin-top:2px}
+.rl-n{font-size:19px;font-weight:900;color:var(--t,var(--accent));flex:0 0 auto;
+  font-variant-numeric:tabular-nums}
+.rl-who{display:flex;flex-wrap:wrap;gap:6px;padding:0 17px 13px}
+.rl-chip{font-size:12px;font-weight:800;background:var(--t-s,var(--accent-soft));
+  color:var(--t,var(--accent));border-radius:99px;padding:4px 11px}
+.rl-none{font-size:12px;font-weight:700;color:var(--faint)}
+.rl-body{padding:0 17px 15px;border-top:1px solid rgba(211,201,182,.45);padding-top:13px}
+.rl-k{font-size:10.5px;font-weight:900;letter-spacing:1px;color:var(--faint);
+  margin:14px 0 6px}
+.rl-k:first-child{margin-top:0}
+/* ⚠ pre-line: הטקסט של המכינה מכיל שורות ריקות שמפרידות בין
+   חלקי התפקיד, והן חלק מהמשמעות. */
+.rl-desc{font-size:13px;font-weight:600;line-height:1.7;color:var(--ink);
+  white-space:pre-line}
+.rl-perms{list-style:none;display:flex;flex-direction:column;gap:6px}
+.rl-perms li{font-size:12.5px;font-weight:700;color:var(--muted);line-height:1.5;
+  padding-right:18px;position:relative}
+.rl-perms li::before{content:"";position:absolute;right:5px;top:7px;width:6px;height:6px;
+  border-radius:50%;background:var(--t,var(--accent))}
+.rl-pick{max-height:44vh;overflow-y:auto;margin-top:8px}
+
+/* ---- תיאור המוביל״ש ---- */
+.ld-info{white-space:pre-line;font-size:13px;font-weight:600;line-height:1.7}
+.ld-tasks{list-style:none;display:flex;flex-direction:column;gap:9px;margin-top:10px}
+.ld-tasks li{font-size:12.5px;font-weight:600;line-height:1.6;color:var(--muted);
+  padding-right:18px;position:relative}
+.ld-tasks li::before{content:"";position:absolute;right:5px;top:7px;width:6px;height:6px;
+  border-radius:50%;background:var(--accent)}
+
 /* ---- כניסה מדורגת, במסך הבית בלבד ----
    ⚠ רק על שתי הרשתות של מסך הבית ולא על כל כרטיס באפליקציה.
      רשימה של שלושים ימי תקציב שנכנסת בהנפשה נראית איטית, לא
