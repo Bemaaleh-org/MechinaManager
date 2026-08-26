@@ -117,8 +117,8 @@ export const api = {
   getBudgetYear: () => get("/api/kitchen?action=budget&view=year"),
   /** כפיית סוג או מחיר ליום. הכול ריק = חזרה לגזירה מהלו״ז. */
   /** ⚠ type2 הוא סוג נוסף שמתחבר לראשון ("שגרה + אחר"), לא מחליף אותו. */
-  setBudgetDay: ({ date, type, type2, cost, note }) =>
-    put("/api/kitchen?action=budget", { date, type, type2, cost, note }),
+  setBudgetDay: ({ date, type, type2, cost, flat, note }) =>
+    put("/api/kitchen?action=budget", { date, type, type2, cost, flat, note }),
   /** מצבת סועדים. ⚠ mode:"forward" משנה קדימה בלבד; "retro" מתקן את כל השנה. */
   setHeadcount: ({ headcount, mode, from }) =>
     put("/api/kitchen?action=budget", { headcount, mode, from }),

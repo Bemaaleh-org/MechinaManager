@@ -1,7 +1,7 @@
 /* ============================================================
    /api/kitchen?action=budget — תקציב המטבח
      GET    ?month=YYYY-MM   חודש אחד: ימים, סכומים והזמנות
-     PUT    { date, type?, type2?, cost?, note? }  כפיית סוג ליום
+     PUT    { date, type?, type2?, cost?, flat?, note? }  כפיית סוג ליום
      POST   { name, amount, kind, startMonth|date, note? }  קנייה
      DELETE { orderId }                     מחיקת קנייה
      PUT    { headcount, mode, from? }       מצבת הסועדים
@@ -43,6 +43,7 @@ async function loadDayTypes({ force = false } = {}) {
         catering: num(i, C.dayTypes.catering) || 0,
         fixedHeads: num(i, C.dayTypes.fixedHeads) || 0,
         purchases: num(i, C.dayTypes.purchases) || 0,
+        dining: num(i, C.dayTypes.dining) || 0,
       }))
       .filter((x) => x.name);
   }, { force });
@@ -59,6 +60,7 @@ async function loadOverrides({ force = false } = {}) {
         type: val(i, C.days.type) || null,
         type2: val(i, C.days.type2) || null,
         cost: num(i, C.days.cost),
+        flat: num(i, C.days.flat),
         note: val(i, C.days.note) || null,
       }))
       .filter((x) => x.date);
@@ -226,7 +228,7 @@ function buildMonth(month, { types, overrides, calendar, gantt, heads }) {
        אינו רטרואקטיבי, ולכן ספטמבר ממשיך להיות מחושב במצבה
        שהייתה בספטמבר. */
     const head = headcountAt(heads, date);
-    const cost = dayCost(type, head, over, extra);
+    const cost = dayCost(type, head, over, extra, ov && ov.flat != null ? ov.flat : null);
     return {
       date,
       kind: (byDate.get(date) || {}).kind || null,
@@ -235,6 +237,7 @@ function buildMonth(month, { types, overrides, calendar, gantt, heads }) {
       headcount: head,
       perPerson: over != null ? over : perPersonOf(type),
       catering: cost.catering,
+      dining: cost.dining,
       purchases: cost.purchases,
       total: cost.total,
       overridden: Boolean(ov),
@@ -246,6 +249,7 @@ function buildMonth(month, { types, overrides, calendar, gantt, heads }) {
   return {
     days,
     catering: days.reduce((a, d) => a + d.catering, 0),
+    dining: days.reduce((a, d) => a + d.dining, 0),
     purchases: days.reduce((a, d) => a + d.purchases, 0),
     foodTotal: days.reduce((a, d) => a + d.total, 0),
   };
@@ -283,7 +287,7 @@ async function handler(req, res, session) {
           const spent = orders.reduce((a, o) => a + orderShareFor(o, m), 0);
           return {
             month: m, days: b.days.length,
-            catering: b.catering, purchases: b.purchases, total: b.foodTotal,
+            catering: b.catering, dining: b.dining, purchases: b.purchases, total: b.foodTotal,
             spent, left: b.purchases - spent,
           };
         });
@@ -294,6 +298,7 @@ async function handler(req, res, session) {
           headcount: headcountAt(settings, months[months.length - 1] + "-28"),
           headcounts: settings,
           catering: sum("catering"),
+          dining: sum("dining"),
           purchases: sum("purchases"),
           total: sum("total"),
           spent: sum("spent"),
@@ -321,8 +326,9 @@ async function handler(req, res, session) {
       const byType = {};
       for (const d of b.days) {
         const e = byType[d.type]
-          || (byType[d.type] = { type: d.type, days: 0, catering: 0, purchases: 0, total: 0 });
-        e.days++; e.catering += d.catering; e.purchases += d.purchases; e.total += d.total;
+          || (byType[d.type] = { type: d.type, days: 0, catering: 0, dining: 0, purchases: 0, total: 0 });
+        e.days++; e.catering += d.catering; e.dining += d.dining;
+        e.purchases += d.purchases; e.total += d.total;
       }
 
       return res.status(200).json({
@@ -331,6 +337,7 @@ async function handler(req, res, session) {
         headcount: headcountAt(settings, b.days[b.days.length - 1].date),
         headcounts: settings,
         catering: b.catering,
+        dining: b.dining,
         purchases: b.purchases,
         total: b.foodTotal,
         spent,
@@ -357,10 +364,12 @@ async function handler(req, res, session) {
         /* ⚠ שדה שלא נשלח אינו משתנה: המסך שולח רכיב אחד בכל
            פעם, ושליחת השאר כאפס הייתה מאפסת אותם בשקט. */
         const cols = {};
+        /* ⚠ חד"א ניתן לעריכה כמו כל תעריף אחר */
         for (const [key, col] of [
           ["catering", C.dayTypes.catering],
           ["fixedHeads", C.dayTypes.fixedHeads],
           ["purchases", C.dayTypes.purchases],
+          ["dining", C.dayTypes.dining],
         ]) {
           if (body[key] === undefined) continue;
           const n = Number(body[key]);
@@ -444,6 +453,16 @@ async function handler(req, res, session) {
         cost = Number(body.cost);
         if (!Number.isFinite(cost) || cost < 0) return res.status(400).json({ error: "מחיר לא תקין" });
       }
+      /* ⚠ flat הוא סכום היום, לא סכום לאדם, והוא מתווסף ואינו
+         דורס. cost דורס. שניהם יכולים לחיות יחד: "כל אדם 20 ₪
+         ועוד 300 ₪ להסעה". */
+      let flat = null;
+      if (body.flat !== undefined && String(body.flat).trim() !== "") {
+        flat = Number(body.flat);
+        if (!Number.isFinite(flat) || flat < 0) {
+          return res.status(400).json({ error: "סכום מדויק לא תקין" });
+        }
+      }
 
       const overrides = await loadOverrides({ force: true });
       const hit = overrides.find((o) => o.date === date);
@@ -451,7 +470,7 @@ async function handler(req, res, session) {
       /* ריקון מלא = חזרה לגזירה מהלו״ז, כלומר מחיקת החריגה */
       const empty = (body.type === null || body.type === undefined || body.type === "")
         && (body.type2 === null || body.type2 === undefined || body.type2 === "")
-        && cost === null && !String(body.note || "").trim();
+        && cost === null && flat === null && !String(body.note || "").trim();
       if (empty) {
         if (hit) { await gql(`mutation{ delete_item(item_id:${Number(hit.id)}){ id } }`); }
         invalidateBudget();
@@ -464,6 +483,7 @@ async function handler(req, res, session) {
         /* ריק מנקה את הסוג הנוסף ומשאיר את הראשי */
         [C.days.type2]: body.type2 ? { label: String(body.type2) } : { label: "" },
         [C.days.cost]: cost === null ? "" : String(cost),
+        [C.days.flat]: flat === null ? "" : String(flat),
         [C.days.note]: String(body.note || "").slice(0, 200),
       };
       if (hit) await setColsOpen(B.days, hit.id, cols);

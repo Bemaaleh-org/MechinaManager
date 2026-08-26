@@ -49,6 +49,7 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
   const [type, setType] = useState(day.type);
   const [type2, setType2] = useState(day.type2 || null);
   const [cost, setCost] = useState("");
+  const [flat, setFlat] = useState(day.flat != null ? String(day.flat) : "");
   const [note, setNote] = useState(day.note || "");
   const [busy, setBusy] = useState(false);
 
@@ -60,18 +61,21 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
   const one = (t) => t
     ? {
         catering: (t.catering || 0) * (t.fixedHeads > 0 ? t.fixedHeads : headcount),
+        dining: t.dining || 0,
         purchases: (t.purchases || 0) * headcount,
       }
-    : { catering: 0, purchases: 0 };
+    : { catering: 0, dining: 0, purchases: 0 };
   const a = one(chosen), b = one(chosen2);
+  const flatN = flat.trim() !== "" ? Number(flat) || 0 : 0;
   const preview = per != null
-    ? { catering: 0, purchases: per * headcount }
-    : { catering: a.catering + b.catering, purchases: a.purchases + b.purchases };
+    ? { catering: 0, dining: 0, purchases: per * headcount, flat: flatN }
+    : { catering: a.catering + b.catering, dining: a.dining + b.dining,
+        purchases: a.purchases + b.purchases, flat: flatN };
 
   const save = () => {
     if (busy) return;
     setBusy(true);
-    api.setBudgetDay({ date: day.date, type, type2, cost: cost.trim(), note: note.trim() })
+    api.setBudgetDay({ date: day.date, type, type2, cost: cost.trim(), flat: flat.trim(), note: note.trim() })
       .then(() => { say("היום עודכן"); onDone(); })
       .catch((e) => say(e.message))
       .finally(() => setBusy(false));
@@ -80,7 +84,7 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
   const clear = () => {
     if (busy) return;
     setBusy(true);
-    api.setBudgetDay({ date: day.date, type: null, type2: null, cost: "", note: "" })
+    api.setBudgetDay({ date: day.date, type: null, type2: null, cost: "", flat: "", note: "" })
       .then(() => { say("היום חזר ללו״ז"); onDone(); })
       .catch((e) => say(e.message))
       .finally(() => setBusy(false));
@@ -110,14 +114,15 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
               נוסף לו — במקום מחיר ידני שדורס את שניהם ומוחק
               את הסיבה שבגללה היום יקר. */}
         <div className="fld">
-          <label>ועוד — סוג נוסף (לא חובה)</label>
-          <div className="pick pick-wrap">
+          <label>ועוד — "אחר" (לא חובה)</label>
+          {/* ⚠ רק "אחר". סוג שני שהוא סדרה או שגרה פירושו לחשב
+              יום שלם פעמיים, וזה כמעט תמיד טעות. "אחר" הוא
+              הסל שנועד בדיוק לזה: משהו שקרה ביום ואין לו שם. */}
+          <div className="pick">
             <button type="button" className={!type2 ? "on" : ""} disabled={busy}
               onClick={() => setType2(null)}>בלי</button>
-            {types.filter((t) => t.name !== type).map((t) => (
-              <button type="button" key={t.name} className={type2 === t.name ? "on" : ""}
-                disabled={busy} onClick={() => setType2(t.name)}>{t.name}</button>
-            ))}
+            <button type="button" className={type2 === "אחר" ? "on" : ""} disabled={busy || type === "אחר"}
+              onClick={() => setType2("אחר")}>אחר</button>
           </div>
           {chosen2 && (
             <div className="bg-fixed" style={{ marginTop: 7 }}>
@@ -136,6 +141,20 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
           </div>
         </div>
 
+        {/* ⚠ שני סוגי סכום, ושונים במהות:
+              לאדם  — מוכפל במצבה, ודורס את סוגי היום
+              מדויק — סכום היום עצמו, ומתווסף למה שכבר יש
+            הסעה של 300 ₪ אינה 300 ₪ לאדם, ואינה מבטלת את
+            הארוחות של אותו יום. */}
+        <div className="fld">
+          <label>סכום מדויק ליום (לא חובה)</label>
+          <input value={flat} onChange={(e) => setFlat(e.target.value)} disabled={busy}
+            inputMode="numeric" placeholder="ריק = אין" />
+          <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 600, marginTop: 4 }}>
+            סכום של היום כולו, לא לאדם — <b>מתווסף</b> ואינו מחליף.
+          </div>
+        </div>
+
         <div className="fld">
           <label>הערה</label>
           <input value={note} onChange={(e) => setNote(e.target.value)} disabled={busy}
@@ -143,8 +162,15 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
         </div>
 
         <div className="bg-calc">
-          <span>קייטרינג {shekel(preview.catering)} · קניות {shekel(preview.purchases)}</span>
-          <b className="num">{shekel(preview.catering + preview.purchases)} ₪</b>
+          <span>
+            קייטרינג {shekel(preview.catering)}
+            {preview.dining > 0 ? ` · חד״א ${shekel(preview.dining)}` : ""}
+            {" · קניות "}{shekel(preview.purchases)}
+            {preview.flat > 0 ? ` · מדויק ${shekel(preview.flat)}` : ""}
+          </span>
+          <b className="num">
+            {shekel(preview.catering + preview.dining + preview.purchases + preview.flat)} ₪
+          </b>
         </div>
 
         <button className="btn btn-primary" disabled={busy} onClick={save}>
@@ -409,35 +435,47 @@ function UtilBlock({ spent, budget, title }) {
 }
 
 /* ---------- גרף חודשי ----------
-   ⚠ ציר אחד. שני הערכים באותה יחידה (₪) ולכן הם על אותו סולם,
-     והנקנה מצויר בתוך מסלול התקציב — לא לצידו ולא על ציר שני.
-   ⚠ מקרא תמיד, כי יש שתי סדרות; ובנוסף טולטיפ בלחיצה. הטבלה
-     שמתחת לגרף היא תצוגת הטבלה הנדרשת. */
+   ⚠ ציר אחד. שלושת הרכיבים באותה יחידה (₪) ולכן הם נערמים
+     באותה עמודה, ולא על שני סולמות.
+
+   ⚠ הפלטה נבדקה בוולידטור מול שני הרקעים. הפער הקשה ביותר הוא
+     ירוק↔ענבר (ΔE 9.4 בפרוטאנופיה) — בטווח שמחייב קידוד משני,
+     ולכן יש מקרא, רווח של 2px בין הפלחים, וטבלה מלאה מתחת
+     לגרף. הצבע לבדו אינו נושא את המידע. */
+const PARTS = [
+  { k: "catering",  c: "#2A62A8", label: "קייטרינג" },
+  { k: "dining",    c: "#B08400", label: 'חד"א של הקיבוץ' },
+  { k: "purchases", c: "#177A45", label: "קניות" },
+];
+
 function YearChart({ rows }) {
   const [hot, setHot] = useState(null);
-  const max = Math.max(...rows.map((r) => Math.max(r.purchases, r.spent)), 1);
+  const max = Math.max(...rows.map((r) => r.total), 1);
   return (
     <div className="chart">
       <div className="chart-legend">
-        <span><i className="lg-track" />תקציב קניות</span>
-        <span><i className="lg-fill" />נקנה בפועל</span>
+        {PARTS.map((p2) => (
+          <span key={p2.k}><i style={{ background: p2.c }} />{p2.label}</span>
+        ))}
       </div>
 
       <div className="chart-plot">
         {rows.map((r) => {
-          const u = utilOf(r.spent, r.purchases);
-          const th = (r.purchases / max) * 100;
-          const fh = (Math.min(r.spent, r.purchases) / max) * 100;
+          const over = r.spent > r.purchases;
           return (
             <button className={"cbar" + (hot === r.month ? " hot" : "")} key={r.month}
-              style={{ "--u": u.c }}
               onClick={() => setHot(hot === r.month ? null : r.month)}
-              aria-label={`${monthLabel(r.month)}: נקנה ${shekel(r.spent)} מתוך ${shekel(r.purchases)}`}>
-              <span className="cbar-track" style={{ height: Math.max(2, th) + "%" }}>
-                <span className="cbar-fill" style={{ height: (th ? (fh / th) * 100 : 0) + "%" }} />
+              aria-label={`${monthLabel(r.month)}: סך ${shekel(r.total)} ₪`}>
+              <span className="cbar-stack" style={{ height: Math.max(2, (r.total / max) * 100) + "%" }}>
+                {PARTS.map((p2) => {
+                  const v = r[p2.k] || 0;
+                  if (!v) return null;
+                  return <span key={p2.k} className="cseg"
+                    style={{ height: (v / r.total) * 100 + "%", background: p2.c }} />;
+                })}
               </span>
-              {/* ⚠ סימון החריגה הוא צורה ולא רק צבע */}
-              {u.pct > 100 && <span className="cbar-over">!</span>}
+              {/* ⚠ חריגה בקניות מסומנת בצורה, לא בצבע */}
+              {over && <span className="cbar-over">!</span>}
               <span className="cbar-x">{monthLabel(r.month).slice(0, 3)}</span>
             </button>
           );
@@ -446,12 +484,19 @@ function YearChart({ rows }) {
 
       {hot && (() => {
         const r = rows.find((x) => x.month === hot);
-        const u = utilOf(r.spent, r.purchases);
         return (
-          <div className="chart-tip" style={{ "--u": u.c }}>
-            <b>{monthLabel(r.month)}</b>
-            <span>נקנה {shekel(r.spent)} ₪ מתוך {shekel(r.purchases)} ₪</span>
-            <span className="chart-tip-p">{Math.round(u.pct)}% · {u.label}</span>
+          <div className="chart-tip">
+            <b>{monthLabel(r.month)} · {shekel(r.total)} ₪</b>
+            {PARTS.map((p2) => (r[p2.k] ? (
+              <span key={p2.k}>
+                <i style={{ background: p2.c }} />{p2.label} {shekel(r[p2.k])} ₪
+              </span>
+            ) : null))}
+            {r.spent > 0 && (
+              <span className={r.spent > r.purchases ? "tip-over" : ""}>
+                נקנה בפועל {shekel(r.spent)} ₪ מתוך תקציב קניות {shekel(r.purchases)} ₪
+              </span>
+            )}
           </div>
         );
       })()}
@@ -471,14 +516,16 @@ function YearView({ say, onMonth }) {
       file: "תקציב-מטבח-שנתי",
       sheet: "סיכום שנתי",
       title: `תקציב המטבח — סיכום שנתי · ${data.headcount} סועדים`,
-      header: ["חודש", "ימים", "קייטרינג", "תקציב קניות", "נקנה בפועל", "יתרה", "סה״כ תקציב"],
+      header: ["חודש", "ימים", "קייטרינג", "חד״א", "תקציב קניות", "נקנה בפועל", "יתרה", "סה״כ תקציב"],
       rows: [
         ...data.rows.map((r) => [monthLabel(r.month), r.days, Math.round(r.catering),
-          Math.round(r.purchases), Math.round(r.spent), Math.round(r.left), Math.round(r.total)]),
-        [], ["סה״כ השנה", "", Math.round(data.catering), Math.round(data.purchases),
-          Math.round(data.spent), Math.round(data.left), Math.round(data.total)],
+          Math.round(r.dining || 0), Math.round(r.purchases), Math.round(r.spent),
+          Math.round(r.left), Math.round(r.total)]),
+        [], ["סה״כ השנה", "", Math.round(data.catering), Math.round(data.dining || 0),
+          Math.round(data.purchases), Math.round(data.spent), Math.round(data.left),
+          Math.round(data.total)],
       ],
-      widths: [16, 7, 12, 13, 12, 11, 13],
+      widths: [16, 7, 12, 10, 13, 12, 11, 13],
     });
     say("הקובץ ירד");
   };
@@ -491,7 +538,9 @@ function YearView({ say, onMonth }) {
         <div className="bg-total-k">סך התקציב לשנה</div>
         <div className="bg-total-v num">{shekel(data.total)} ₪</div>
         <div className="bg-total-s">
-          קייטרינג {shekel(data.catering)} · קניות {shekel(data.purchases)} · {data.headcount} סועדים
+          קייטרינג {shekel(data.catering)}
+          {data.dining > 0 ? ` · חד״א ${shekel(data.dining)}` : ""}
+          {" · קניות "}{shekel(data.purchases)} · {data.headcount} סועדים
         </div>
       </div>
 
@@ -508,6 +557,7 @@ function YearView({ say, onMonth }) {
               <div className="st-n">{monthLabel(r.month)}</div>
               <div className="st-m">
                 <span className="num">קייטרינג {shekel(r.catering)}</span>
+                {r.dining > 0 && <span className="num">· חד״א {shekel(r.dining)}</span>}
                 <span className="num">· קניות {shekel(r.purchases)}</span>
                 {r.left < 0 && <span className="pill p-low">חריגה</span>}
               </div>
@@ -640,7 +690,9 @@ export function BudgetPage({ say }) {
           <div className="bg-total-k">סך התקציב לחודש</div>
           <div className="bg-total-v num">{shekel(data.total)} ₪</div>
           <div className="bg-total-s">
-            קייטרינג {shekel(data.catering)} · קניות {shekel(data.purchases)}
+            קייטרינג {shekel(data.catering)}
+            {data.dining > 0 ? ` · חד״א ${shekel(data.dining)}` : ""}
+            {" · קניות "}{shekel(data.purchases)}
           </div>
         </div>
 

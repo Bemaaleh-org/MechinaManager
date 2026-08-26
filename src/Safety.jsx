@@ -77,6 +77,7 @@ function IncidentForm({ initial, say, onDone, onCancel }) {
     lessons: initial?.lessons || "",
     reportMod: initial?.reportMod || "",
     reportCouncil: initial?.reportCouncil || "",
+    parents: initial?.parents || "",
   }));
   const [busy, setBusy] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
@@ -168,6 +169,9 @@ function IncidentForm({ initial, say, onDone, onCancel }) {
         </div>
 
         <div className="two">
+          {/* ⚠ ההורים ראשונים בסדר: הדיווח אליהם קודם בזמן
+              לדיווח לגורמים החיצוניים, ולעיתים הוא הדחוף מכולם. */}
+          <Pick label="דווח להורים" options={[YES_NO.yes, YES_NO.no]} value={f.parents} onChange={set("parents")} disabled={busy} />
           <Pick label="דיווח למשרד הביטחון" options={[YES_NO.yes, YES_NO.no]} value={f.reportMod} onChange={set("reportMod")} disabled={busy} />
           <Pick label="דיווח למועצת המכינות" options={[YES_NO.yes, YES_NO.no]} value={f.reportCouncil} onChange={set("reportCouncil")} disabled={busy} />
         </div>
@@ -193,6 +197,8 @@ function IncidentForm({ initial, say, onDone, onCancel }) {
 function IncidentCard({ x, onOpen }) {
   const injury = x.severity === SAFETY_SEVERITY.injury;
   const pending = [
+    /* ⚠ ההורים ראשונים גם כאן, באותו סדר שבו מדווחים בפועל. */
+    x.parents !== "כן" && "הורים",
     x.reportMod !== "כן" && "משרד הביטחון",
     x.reportCouncil !== "כן" && "מועצת המכינות",
   ].filter(Boolean);
@@ -208,6 +214,8 @@ function IncidentCard({ x, onOpen }) {
           <span className={"pill " + (injury ? "p-low" : "p-new")}>{x.severity || "—"}</span>
           {x.place && <span>{x.place}</span>}
           <span className="num">{heDate(x.date)}</span>
+          {/* ⚠ נרשם מהסשן — ראו _safety.js */}
+          {x.by && <span>· {x.by}</span>}
         </div>
         {/* ⚠ דיווח לגורם חיצוני שטרם נשלח הוא מטלה פתוחה, לא
             עוד תגית בשורה. הוא מקבל שורה משלו ובצבע. */}
@@ -279,7 +287,7 @@ export function SafetyPage({ say }) {
   const isInjury = (x) => x.severity === SAFETY_SEVERITY.injury;
   /* ⚠ "ממתין לדיווח" = לפחות אחד משני הגורמים החיצוניים טרם
      קיבל דיווח. זו המטלה הפתוחה היחידה במסך הזה. */
-  const isOwed = (x) => x.reportMod !== "כן" || x.reportCouncil !== "כן";
+  const isOwed = (x) => x.parents !== "כן" || x.reportMod !== "כן" || x.reportCouncil !== "כן";
   const injuries = list.filter(isInjury).length;
   const owed = list.filter(isOwed).length;
   const shown = filter === "injury" ? list.filter(isInjury)

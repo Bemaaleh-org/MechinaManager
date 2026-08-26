@@ -1320,9 +1320,8 @@ html,body{margin:0;padding:0;background:#012E58}
 .chart-legend{display:flex;gap:14px;justify-content:flex-end;margin-bottom:11px;
   font-size:11px;font-weight:700;color:var(--muted)}
 .chart-legend span{display:flex;align-items:center;gap:5px}
-.chart-legend i{width:10px;height:10px;border-radius:3px;display:block}
-.lg-track{background:var(--line)}
-.lg-fill{background:var(--accent)}
+.chart-legend{flex-wrap:wrap;gap:10px 13px}
+.chart-legend i{width:10px;height:10px;border-radius:3px;display:block;flex:0 0 auto}
 
 /* ⚠ העמודות דקות ובעלות קצה מעוגל, ומעוגנות לבסיס. הרווח
    ביניהן הוא רקע ולא קו — שני מילוי צמודים נקראים כמילוי אחד. */
@@ -1332,20 +1331,23 @@ html,body{margin:0;padding:0;background:#012E58}
   align-items:center;justify-content:flex-end;gap:4px;padding:0;background:none;
   position:relative;transition:opacity .12s var(--ease)}
 .kx .cbar:active{opacity:.7}
-.cbar-track{width:100%;max-width:26px;background:var(--line);border-radius:4px 4px 0 0;
-  display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;
-  transition:height .5s var(--ease)}
-.cbar-fill{width:100%;background:var(--u,var(--accent));border-radius:4px 4px 0 0;
-  transition:height .5s var(--ease)}
-.cbar.hot .cbar-track{box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--u,var(--accent))}
-.cbar-over{position:absolute;top:-2px;font-size:11px;font-weight:900;color:var(--u)}
+/* ⚠ הפלחים נערמים מלמטה למעלה, עם רווח של 2px ביניהם. שני
+   מילויים צמודים נקראים כמילוי אחד — הרווח הוא מה שהופך אותם
+   לשלושה. הקצה העליון מעוגל, השאר ישר. */
+.cbar-stack{width:100%;max-width:26px;display:flex;flex-direction:column-reverse;
+  gap:2px;overflow:hidden;border-radius:4px 4px 0 0;transition:height .5s var(--ease)}
+.cseg{width:100%;display:block;transition:height .5s var(--ease)}
+.cbar.hot .cbar-stack{box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--accent)}
+.cbar-over{position:absolute;top:-2px;font-size:11px;font-weight:900;color:#B02A1F}
 .cbar-x{font-size:9.5px;font-weight:700;color:var(--faint);white-space:nowrap}
 
 .chart-tip{margin-top:10px;background:var(--bg);border-radius:var(--r-md);
   padding:9px 11px;display:flex;flex-direction:column;gap:2px}
 .chart-tip b{font-size:13px;font-weight:800}
-.chart-tip span{font-size:11.5px;font-weight:700;color:var(--muted)}
-.chart-tip-p{color:var(--u) !important;font-weight:900 !important}
+.chart-tip span{font-size:11.5px;font-weight:700;color:var(--muted);
+  display:flex;align-items:center;gap:6px}
+.chart-tip i{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
+.tip-over{color:#B02A1F !important;font-weight:900}
 
 /* ---- כניסה מדורגת, במסך הבית בלבד ----
    ⚠ רק על שתי הרשתות של מסך הבית ולא על כל כרטיס באפליקציה.

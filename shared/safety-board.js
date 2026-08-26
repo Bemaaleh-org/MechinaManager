@@ -16,7 +16,10 @@ export { SAFETY_BOARD, SAFETY_COLS };
 export const safetyReady = () => Boolean(SAFETY_BOARD);
 
 /** איפה קרה האירוע */
-export const SAFETY_PLACE = ["שגרה", "סדרה", "טיול", "התנדבות בענפים"];
+export const SAFETY_PLACE = [
+  "שגרה", "סדרה", "טיול", "התנדבות בענפים",
+  "משרדים", "מכולה", "אחר",
+];
 
 /** חומרת האירוע. "פגיעה" פותחת את שדות הנזק לגוף ולרכוש. */
 export const SAFETY_SEVERITY = { injury: "פגיעה", nearMiss: "כמעט ונפגע" };

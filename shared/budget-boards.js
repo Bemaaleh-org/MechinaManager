@@ -36,7 +36,8 @@ export const DAY_TYPE_SEED = [
   { name: "שגרה", catering: 34, fixedHeads: 0, purchases: 10 },
   { name: "סדרה", catering: 0, fixedHeads: 0, purchases: 35 },
   /* 45 × 20, קבוע — ראו ההערה למעלה */
-  { name: "עשייה קהילתית", catering: 45, fixedHeads: 20, purchases: 8 },
+  /* ⚠ 750 ₪ ליום לחדר האוכל של הקיבוץ, קבוע ובלתי תלוי במצבה */
+  { name: "עשייה קהילתית", catering: 0, fixedHeads: 0, dining: 750, purchases: 8 },
   { name: "שישי מכינה", catering: 34, fixedHeads: 0, purchases: 25 },
   { name: "שבת מכינה", catering: 34, fixedHeads: 0, purchases: 10 },
   { name: "חזרה מהבית", catering: 0, fixedHeads: 0, purchases: 15 },
@@ -66,16 +67,29 @@ export const SETTING_HEADCOUNT = "מספר סועדים";
  *          כולו לקניות: יום חריג הוא הוצאה נקודתית, לא
  *          שינוי בהסכם הקייטרינג.
  */
-export function dayCost(type, head, over = null, extra = null) {
+export function dayCost(type, head, over = null, extra = null, flat = null) {
+  /* ⚠ שלושה דליים ולא שניים:
+       catering  קייטרינג — לפי מספר הסועדים
+       dining    חד"א של הקיבוץ — סכום קבוע ליום
+       purchases קניות — לפי מספר הסועדים
+
+     החד"א נולד מיום העשייה הקהילתית, שבו אוכלים בחדר האוכל של
+     הקיבוץ. קודם הוא היה מחופש לקייטרינג של 45×20, וזה הסתיר
+     את מה שהוא באמת: תשלום קבוע לקיבוץ שאינו קשור לחוזה
+     הקייטרינג ואינו זז עם המצבה. */
+  const add = (r) => (flat != null ? { ...r, total: r.total + flat } : r);
+
   if (over != null) {
-    return { catering: 0, purchases: over * head, total: over * head };
+    return add({ catering: 0, dining: 0, purchases: over * head, total: over * head });
   }
   const one = (t) => {
-    if (!t) return { catering: 0, purchases: 0 };
+    if (!t) return { catering: 0, dining: 0, purchases: 0 };
     /* ⚠ מספר קבוע גובר על המצבה — הוא לא זז איתה לעולם */
     const heads = Number(t.fixedHeads) > 0 ? Number(t.fixedHeads) : head;
     return {
       catering: (Number(t.catering) || 0) * heads,
+      /* ⚠ לא מוכפל בכלום. זה סכום היום, לא סכום לאדם. */
+      dining: Number(t.dining) || 0,
       purchases: (Number(t.purchases) || 0) * head,
     };
   };
@@ -88,8 +102,12 @@ export function dayCost(type, head, over = null, extra = null) {
        שבו שום צירוף של סוגים אינו מתאר את היום. */
   const a = one(type), b = one(extra);
   const catering = a.catering + b.catering;
+  const dining = a.dining + b.dining;
   const purchases = a.purchases + b.purchases;
-  return { catering, purchases, total: catering + purchases };
+  /* ⚠ flat מוסיף ואינו דורס — בניגוד ל-over. "שגרה + אחר של
+     300 ₪" הוא יום שגרה רגיל שקרה בו משהו ב-300 ₪, ולא יום
+     שכל עלותו 300. */
+  return add({ catering, dining, purchases, total: catering + dining + purchases });
 }
 
 /** מה שמוצג כ"לאדם" */

@@ -18,7 +18,10 @@ import { israelToday } from "./_attendance-data.js";
 import { MECHINA_BOARDS, MECHINA_COLS } from "../shared/mechina-boards.js";
 
 const I = MECHINA_COLS.incidents;
-const KINDS = ["שיחת משמעת", "השעיה", "אחר"];
+/* ⚠ "אחר" נשאר אחרון — הוא סל ולא סוג, ורשימה שנגמרת בו
+   נקראת נכון. פציעה נפרדת מ"אחר" בכוונה: היא מחייבת גם דיווח
+   בטיחות, וסוג משלה הוא מה שמאפשר למצוא אותה אחר כך. */
+const KINDS = ["שיחת משמעת", "השעיה", "פציעה", "אחר"];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";

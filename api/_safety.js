@@ -9,7 +9,7 @@
    ⚠ המחיקה בלתי הפיכה. המסך דורש אישור כפול לפניה.
    ============================================================ */
 
-import { withAuth } from "./_session.js";
+import { withAuth, actorName } from "./_session.js";
 import { gql, allItems } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
 import { setColumns, renameItem, createItem, deleteItem } from "./_items.js";
@@ -40,6 +40,8 @@ async function loadIncidents({ force = false } = {}) {
         lessons: val(i, C.lessons),
         reportMod: val(i, C.reportMod),
         reportCouncil: val(i, C.reportCouncil),
+        parents: val(i, C.parents),
+        by: val(i, C.by) || null,
       }))
       .filter((x) => x.title)
       .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
@@ -84,6 +86,7 @@ function colsFrom(body, res) {
   for (const [key, col] of [
     ["evac", C.evac], ["medical", C.medical],
     ["reportMod", C.reportMod], ["reportCouncil", C.reportCouncil],
+    ["parents", C.parents],
   ]) {
     if (body[key] !== undefined) {
       if (!YN.includes(body[key])) return badEnum("שדה כן/לא");
@@ -117,6 +120,10 @@ async function handler(req, res, session) {
 
       const cols = colsFrom(body, res);
       if (cols === null) return; // השגיאה כבר נכתבה
+      /* ⚠ מי דיווח נלקח מהסשן ולא מהגוף. שדה שהמדווח ממלא
+         בעצמו הוא הצהרה, לא תיעוד — ובדיווח בטיחות זה חייב
+         להיות תיעוד. */
+      cols[C.by] = actorName(session).slice(0, 120);
       const id = await createItem(SAFETY_BOARD, title, cols);
       invalidate("safety-incidents");
       return res.status(200).json({ ok: true, id });
