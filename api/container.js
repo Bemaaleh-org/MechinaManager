@@ -10,5 +10,6 @@
 import { router } from "./_router.js";
 import equip from "./_container-equip.js";
 import shop from "./_container-shop.js";
+import loans from "./_loans.js";
 
-export default router({ equip, shop });
+export default router({ equip, shop, loans });

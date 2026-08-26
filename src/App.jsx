@@ -5,6 +5,8 @@ import { api, setUnauthorizedHandler } from "./api.js";
 import Login from "./Login.jsx";
 import { MechinaApp, MechinaStaff, MechinaRolesPage } from "./Mechina.jsx";
 import { LessonsPage, LessonsBoard } from "./Lessons.jsx";
+import { AlumniPage, HostingPage, LoansPage } from "./Extras.jsx";
+import { MenuPage } from "./Menu.jsx";
 import { ContainerPage } from "./Container.jsx";
 import { BudgetPage } from "./Budget.jsx";
 import { GanttPage } from "./Gantt.jsx";
@@ -185,6 +187,8 @@ function Staff({ auth, onSignedOut }) {
     { key: "k-all", label: "אוכל וחד״פ", icon: <I.cart />,
       active: section === "kitchen", onClick: () => goKitchen(null) },
     /* ⚠ תקציב הוא נתון כספי — מנהל בלבד, והשרת אוכף */
+    { key: "k-menu", label: "תפריט ארוחות", icon: <I.book />,
+      active: section === "menu", onClick: () => setSection("menu") },
     ...(isMgr ? [{ key: "k-budget", label: "תקציב המטבח", icon: <I.count />,
       active: section === "budget", onClick: () => setSection("budget") }] : []),
   ];
@@ -255,6 +259,12 @@ function Staff({ auth, onSignedOut }) {
             { label: "בטיחות ותחזוקה", items: [
               { key: "safety", label: "אירועי בטיחות", icon: <I.warn />, active: section === "safety",
                 onClick: () => setSection("safety") },
+              { key: "hosting", label: "אירוח קבוצות", icon: <I.home />,
+                active: section === "hosting", onClick: () => setSection("hosting") },
+              { key: "loans", label: "השאלת ציוד", icon: <I.box />,
+                active: section === "loans", onClick: () => setSection("loans") },
+              { key: "alumni", label: "בוגרים", icon: <I.users />,
+                active: section === "alumni", onClick: () => setSection("alumni") },
               { key: "faults", label: "תקלות ובעיות", icon: <I.gear />, active: section === "faults",
                 onClick: () => setSection("faults") },
             ] },
@@ -311,6 +321,10 @@ function Staff({ auth, onSignedOut }) {
           )}
 
           {section === "kitchen" && <KitchenPage say={say} area={kArea} />}
+          {section === "menu" && <MenuPage say={say} />}
+          {section === "alumni" && <AlumniPage say={say} />}
+          {section === "hosting" && <HostingPage say={say} />}
+          {section === "loans" && <LoansPage say={say} />}
 
           {/* ⚠ ההרשאה נאכפת בשרת; הבדיקה כאן היא תצוגה בלבד. */}
           {section === "mechina" && isMgr && (

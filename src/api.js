@@ -128,6 +128,30 @@ export const api = {
   addPurchase: (body) => post("/api/kitchen?action=budget", body),
   deletePurchase: (orderId) => del("/api/kitchen?action=budget", { orderId }),
 
+  /* ---------- בוגרים · אירוח · השאלות · תפריט ---------- */
+  getAlumni: () => get("/api/students?action=alumni"),
+  addAlumni: (b) => post("/api/students?action=alumni", b),
+  editAlumni: (b) => put("/api/students?action=alumni", b),
+
+  getHosting: () => get("/api/students?action=hosting"),
+  addHosting: (b) => post("/api/students?action=hosting", b),
+  editHosting: (b) => put("/api/students?action=hosting", b),
+  deleteHosting: (id) => del("/api/students?action=hosting", { id }),
+
+  getLoans: () => get("/api/container?action=loans"),
+  addLoan: (b) => post("/api/container?action=loans", b),
+  editLoan: (b) => put("/api/container?action=loans", b),
+  deleteLoan: (id) => del("/api/container?action=loans", { id }),
+
+  getMenu: () => get("/api/kitchen?action=menu"),
+  /** ⚠ תכנון: אילו מנות ולכמה אנשים. מחזיר מצרכים מול המלאי. */
+  planMenu: ({ dishIds, heads }) =>
+    get(`/api/kitchen?action=menu&plan=${encodeURIComponent(dishIds.join(","))}&heads=${encodeURIComponent(heads)}`),
+  addDish: (b) => post("/api/kitchen?action=menu", b),
+  editDish: (b) => put("/api/kitchen?action=menu", b),
+  deleteDish: (dishId) => del("/api/kitchen?action=menu", { dishId }),
+  saveMenu: (b) => post("/api/kitchen?action=menu", { menu: true, ...b }),
+
   loginStudent: (tz) => post("/api/students?action=login", { tz }),
 
   /** רשימת החניכים וסיכומיהם. מנהל בלבד — השרת אוכף. */

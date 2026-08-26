@@ -21,5 +21,6 @@ import shop from "./_kitchen-shop.js";
 import doctor from "./_kitchen-doctor.js";
 import parImport from "./_kitchen-par.js";
 import budget from "./_kitchen-budget.js";
+import menu from "./_menu.js";
 
-export default router({ equip, shop, doctor, "par-import": parImport, budget });
+export default router({ equip, shop, doctor, "par-import": parImport, budget, menu });

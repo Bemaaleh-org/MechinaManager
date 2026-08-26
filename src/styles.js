@@ -1400,6 +1400,32 @@ html,body{margin:0;padding:0;background:#012E58}
 .ld-tasks li::before{content:"";position:absolute;right:5px;top:7px;width:6px;height:6px;
   border-radius:50%;background:var(--accent)}
 
+/* ---- פילוח בוגרים ---- */
+.brw{display:flex;align-items:center;gap:10px;padding:5px 0}
+.brw-k{flex:0 0 86px;font-size:12.5px;font-weight:700;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.brw-bar{flex:1;height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+.brw-bar>span{display:block;height:100%;background:var(--accent);border-radius:99px;
+  transition:width .5s var(--ease)}
+.brw b{flex:0 0 auto;font-size:13px;font-weight:800;min-width:20px;text-align:left}
+
+/* ---- מצרכים ----
+   ⚠ שלושה מצבים לשורת מצרך: יש · חסר · לא נמצא במלאי.
+     "לא נמצא" אינו "חסר" — ייתכן שהוא במלאי בשם אחר. */
+.ing{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:8px 0;border-bottom:1px solid rgba(211,201,182,.45)}
+.ing:last-child{border-bottom:none}
+.ing-n{flex:1;min-width:0;font-size:13.5px;font-weight:700;display:flex;
+  align-items:center;gap:7px;flex-wrap:wrap}
+.ing b{flex:0 0 auto;font-size:13.5px;font-weight:800}
+.ing-have{font-size:11px;font-weight:700;color:var(--faint)}
+.ing.short .ing-n{color:var(--clay)}
+.ing.unk .ing-n{color:var(--amber)}
+.ing-prev{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ing-prev span{font-size:11px;font-weight:700;background:var(--bg);border-radius:99px;
+  padding:3px 9px;color:var(--muted)}
+.ing-prev b{font-weight:900;color:var(--ink)}
+
 /* ---- כניסה מדורגת, במסך הבית בלבד ----
    ⚠ רק על שתי הרשתות של מסך הבית ולא על כל כרטיס באפליקציה.
      רשימה של שלושים ימי תקציב שנכנסת בהנפשה נראית איטית, לא
