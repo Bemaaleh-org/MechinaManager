@@ -7,19 +7,24 @@
    רשימת הקניות של המכולה. שורות "פתוח" הן הרשימה הפעילה;
    "נקנה" נשאר כהיסטוריה.
 
-   ⚠ מנהל או אחראי מכולה.
+   ⚠ ההרשאה לפי תחום, כמו בציוד עצמו: המכולה לאחראי המכולה,
+     הניקיון לאב הבית. ראו mayArea ב-shared/container-boards.js.
    ============================================================ */
 
 import { withAuth, actorName } from "./_session.js";
 import { israelToday } from "./_attendance-data.js";
 import {
-  CONTAINER_BOARDS, CONTAINER_COLS, SHOP_STATUS, AREA, AREAS,
+  CONTAINER_BOARDS, CONTAINER_COLS, SHOP_STATUS, AREA, AREAS, mayArea,
 } from "../shared/container-boards.js";
 import {
   loadShopping, invalidateContainer, setColumns, createItem, deleteItem,
 } from "./_container-data.js";
 
 const S = CONTAINER_COLS.shopping;
+
+const OWNER = { "ניקיון": "אב הבית", "מכולה": "אחראי המכולה" };
+const deny = (res, area) =>
+  res.status(403).json({ error: `רשימת הקניות של ה${area} מנוהלת על ידי ${OWNER[area] || "האחראי"}` });
 
 async function handler(req, res, session) {
   try {
@@ -31,6 +36,7 @@ async function handler(req, res, session) {
       if (items.length > 60) return res.status(400).json({ error: "עד 60 פריטים ברשימה" });
       const area = String(body?.area || "").trim() || AREA.container;
       if (!AREAS.includes(area)) return res.status(400).json({ error: "תחום לא מוכר" });
+      if (!mayArea(session, area)) return deny(res, area);
 
       const today = israelToday();
       const by = actorName(session).slice(0, 120);
@@ -60,7 +66,10 @@ async function handler(req, res, session) {
         return res.status(400).json({ error: "סטטוס לא מוכר" });
       }
       const rows = await loadShopping();
-      if (!rows.some((x) => x.id === itemId)) return res.status(404).json({ error: "השורה אינה נמצאת" });
+      const row = rows.find((x) => x.id === itemId);
+      if (!row) return res.status(404).json({ error: "השורה אינה נמצאת" });
+      /* ⚠ התחום מהשורה עצמה ולא מהבקשה */
+      if (!mayArea(session, row.area)) return deny(res, row.area);
       await setColumns(CONTAINER_BOARDS.shopping, itemId, { [S.status]: { label: status } });
       invalidateContainer();
       return res.status(200).json({ ok: true, id: itemId, status });
@@ -69,6 +78,9 @@ async function handler(req, res, session) {
     if (req.method === "DELETE") {
       const itemId = String(body?.itemId || "").trim();
       if (!itemId) return res.status(400).json({ error: "לא צוינה שורה" });
+      const row = (await loadShopping()).find((x) => x.id === itemId);
+      if (!row) return res.status(404).json({ error: "השורה אינה נמצאת" });
+      if (!mayArea(session, row.area)) return deny(res, row.area);
       await deleteItem(itemId);
       invalidateContainer();
       return res.status(200).json({ ok: true, id: itemId });
@@ -88,4 +100,4 @@ async function readJson(req) {
   return raw ? JSON.parse(raw) : {};
 }
 
-export default withAuth(handler, { container: true });
+export default withAuth(handler, { student: true });

@@ -5,7 +5,10 @@
      PUT     { itemId, name?, qty?, delta?, kind?, par? }  עריכה
      DELETE  { itemId }                                  מחיקה
 
-   ⚠ מנהל או אחראי מכולה — {container:true}, נאכף בשרת.
+   ⚠ ההרשאה לפי **תחום** ולא לפי המסלול: המכולה שייכת לאחראי
+     המכולה, וציוד הניקיון לאב הבית. withAuth אינו יכול לבטא
+     "או-או" בין שני תפקידים, ולכן השער כאן פתוח למחוברים
+     והבדיקה האמיתית היא mayArea בכל פעולה. ראו CLAUDE.md.
 
    ⚠ הסינון לפי תחום נעשה כאן ולא בדפדפן: מסך הניקיון לא
      אמור לקבל את 95 פריטי המכולה ולהסתיר אותם.
@@ -13,7 +16,7 @@
 
 import { withAuth } from "./_session.js";
 import {
-  CONTAINER_BOARDS, CONTAINER_COLS, EQUIP_KIND, AREA, AREAS, missingFor,
+  CONTAINER_BOARDS, CONTAINER_COLS, EQUIP_KIND, AREA, AREAS, missingFor, mayArea,
 } from "../shared/container-boards.js";
 import {
   loadEquipment, loadShopping, invalidateContainer,
@@ -31,11 +34,18 @@ function areaOf(raw) {
   return AREAS.includes(a) ? a : null;
 }
 
+/* ⚠ הודעה שאומרת של מי התחום, ולא "אין הרשאה". מי שרואה
+   "ציוד הניקיון באחריות אב הבית" יודע למי לפנות. */
+const OWNER = { "ניקיון": "אב הבית", "מכולה": "אחראי המכולה" };
+const deny = (res, area) =>
+  res.status(403).json({ error: `ציוד ה${area} מנוהל על ידי ${OWNER[area] || "האחראי"}` });
+
 async function handler(req, res, session) {
   try {
     if (req.method === "GET") {
       const area = areaOf(req.query?.area);
       if (!area) return res.status(400).json({ error: "תחום לא מוכר" });
+      if (!mayArea(session, area)) return deny(res, area);
 
       const [allEquip, allShop] = await Promise.all([loadEquipment(), loadShopping()]);
       const equipment = allEquip.filter((x) => x.area === area);
@@ -65,6 +75,7 @@ async function handler(req, res, session) {
       if (!name) return res.status(400).json({ error: "לא הוזן שם ציוד" });
       if (!KINDS.includes(kind)) return res.status(400).json({ error: "סוג לא מוכר" });
       if (!area) return res.status(400).json({ error: "תחום לא מוכר" });
+      if (!mayArea(session, area)) return deny(res, area);
       const par = parPatch(body?.par);
       if (par === false) return res.status(400).json({ error: "מפתח חייב להיות מספר" });
 
@@ -86,6 +97,9 @@ async function handler(req, res, session) {
       const equipment = await loadEquipment();
       const item = equipment.find((x) => x.id === itemId);
       if (!item) return res.status(404).json({ error: "הפריט אינו נמצא" });
+      /* ⚠ התחום נלקח מהפריט עצמו ולא מהבקשה: אחרת אפשר היה
+         לערוך פריט מכולה בכך שכותבים "ניקיון" בגוף הבקשה. */
+      if (!mayArea(session, item.area)) return deny(res, item.area);
 
       const cols = {};
       if (body.qty !== undefined) cols[E.qty] = String(body.qty).trim().slice(0, 60);
@@ -129,6 +143,9 @@ async function handler(req, res, session) {
     if (req.method === "DELETE") {
       const itemId = String(body?.itemId || "").trim();
       if (!itemId) return res.status(400).json({ error: "לא צוין פריט" });
+      const gone = (await loadEquipment()).find((x) => x.id === itemId);
+      if (!gone) return res.status(404).json({ error: "הפריט אינו נמצא" });
+      if (!mayArea(session, gone.area)) return deny(res, gone.area);
       await deleteItem(itemId);
       invalidateContainer();
       return res.status(200).json({ ok: true, id: itemId });
@@ -160,4 +177,4 @@ async function readJson(req) {
   return raw ? JSON.parse(raw) : {};
 }
 
-export default withAuth(handler, { container: true });
+export default withAuth(handler, { student: true });

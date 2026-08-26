@@ -15,7 +15,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { api } from "./api.js";
 import { testDate } from "./testDate.js";
-import { LessonsPage } from "./Lessons.jsx";
+import { LessonsPage, LessonsBoard } from "./Lessons.jsx";
 import { MenuPage } from "./Menu.jsx";
 import { ROLE_INFO, LEADER_INFO } from "./roles-info.js";
 import { SafetyPage } from "./Safety.jsx";
@@ -2240,6 +2240,21 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
 
       <TodayAgenda onOpen={() => go("agenda")} />
 
+      {/* ============================================================
+          לוח השיעורים — לאחראי הלו״ז
+          ------------------------------------------------------------
+          ⚠ אותו רכיב בדיוק שיושב במסך הבית של המנהל. אחראי
+            הלו״ז נכנס למסך הבית כדי לדעת מה עליו היום, ומה
+            שטרם דווח נשכח בדיוק כשלא רואים אותו.
+          ============================================================ */}
+      {auth.isScheduler && (
+        <>
+          <div className="sec-label">לוח השיעורים</div>
+          <LessonsBoard compact onOpenSheet={() => go("lessons")} />
+          <div style={{ height: 6 }} />
+        </>
+      )}
+
       {/* ---------- השיבוצים שלי — ראש המסך ----------
           ⚠ אותם כרטיסים בדיוק כמו במסך השיבוצים. */}
       {places && places.length > 0 && (
@@ -2482,8 +2497,6 @@ export function MechinaApp({ auth, onSignedOut }) {
               ...(auth.isContainer ? [
                 { key: "container", label: "מכולה", icon: <MI.box />,
                   active: tab === "container", onClick: () => setTab("container") },
-                { key: "cleaning", label: "ציוד ניקיון", icon: <MI.box />,
-                  active: tab === "cleaning", onClick: () => setTab("cleaning") },
                 { key: "loans", label: "השאלת ציוד", icon: <MI.box />,
                   active: tab === "loans", onClick: () => setTab("loans") },
               ] : []),
@@ -2496,6 +2509,10 @@ export function MechinaApp({ auth, onSignedOut }) {
               ...(auth.isHouse ? [
                 { key: "faults", label: "תקלות ובעיות", icon: <MI.box />,
                   active: tab === "faults", onClick: () => setTab("faults") },
+                /* ⚠ ציוד הניקיון הוא של אב הבית ולא של אחראי
+                   המכולה. השרת אוכף לפי תחום — ראו mayArea. */
+                { key: "cleaning", label: "ציוד ניקיון", icon: <MI.box />,
+                  active: tab === "cleaning", onClick: () => setTab("cleaning") },
               ] : []),
               /* ⚠ הקוד המשותף לתורנים נגנז; אחראי המטבח הוא
                  הדרך שבה חניך מגיע למסכי המטבח. */
@@ -2613,7 +2630,7 @@ export function MechinaApp({ auth, onSignedOut }) {
         {tab === "budget" && auth.isKitchen && <BudgetPage say={say} />}
 
         {tab === "container" && auth.isContainer && <ContainerPage say={say} area="מכולה" />}
-        {tab === "cleaning" && auth.isContainer && <ContainerPage say={say} area="ניקיון" />}
+        {tab === "cleaning" && auth.isHouse && <ContainerPage say={say} area="ניקיון" />}
         {tab === "loans" && auth.isContainer && <LoansPage say={say} />}
         {tab === "safety" && auth.isSafety && <SafetyPage say={say} />}
         {tab === "hosting" && auth.isSafety && <HostingPage say={say} />}

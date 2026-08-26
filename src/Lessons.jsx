@@ -1018,9 +1018,17 @@ export function LessonsBoard({ say, onOpenSheet, compact = false }) {
         <div className="st-m">
           <span className="num">{dm(m.date)}</span>
           <span>· {m.day}</span>
+          {/* ⚠ השעה מהגיליון. בלעדיה אי אפשר להשוות את הלוח
+              לגיליון, וזו בדיוק הייתה התלונה. */}
+          {m.time && <span className="hh num">{m.time}</span>}
           {m.lecturer && <span>· {m.lecturer}</span>}
           {m.guestLecturer && <span className="pill p-new">אורח</span>}
         </div>
+        {m.offDay && (
+          <div className="clash">
+            בגיליון: {m.dayTime} — המפגש ביום אחר
+          </div>
+        )}
         {m.conflict && m.conflict.blocked && (
           <div className="clash">הגאנט אומר: {m.conflict.reason}</div>
         )}

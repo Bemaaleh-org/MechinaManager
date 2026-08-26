@@ -22,12 +22,20 @@
        בלי הסבר נראה כמו תקלה. מי שרואה "הגאנט אומר: יום
        כיפור" יודע מיד מי מהשניים צריך תיקון.
 
+   ⚠ המיון הוא לפי תאריך **ואז לפי שעה**. בלי זה אימונים של
+     7:00 הופיעו אחרי מליאה של 20:00, והלוח לא נראה כמו
+     הגיליון שממנו הוא נבנה.
+
+   ⚠ מפגש שנופל ביום אחר מזה שכתוב בגיליון מסומן (offDay).
+     זה קורה באמת — שיעור השלמה שהוזז — ולכן מסומן ולא מתוקן.
+
    ⚠ צוות או אחראי לו״ז — אותה הרשאה כמו הגאנט.
    ============================================================ */
 
 import { withAuth } from "./_session.js";
 import { loadSheets, loadMeetings } from "./_lessons-data.js";
 import { loadGantt } from "./_lessons-gantt.js";
+import { timeOf, dayOf, minutesOf, hebDayOf } from "../shared/lessons-boards.js";
 import { eventsByDate, lessonBlock } from "../shared/gantt-days.js";
 import { israelToday } from "./_attendance-data.js";
 import { parseTestDate } from "./_test-date.js";
@@ -70,6 +78,12 @@ async function handler(req, res) {
            נושא מרצה משלו. */
         lecturer: m.lecturer || (sh ? sh.lecturer : null),
         dayTime: sh ? sh.dayTime : null,
+        /* השעה מנותחת מהגיליון — היא הדבר שמסדר את היום */
+        time: sh ? timeOf(sh.dayTime) : null,
+        /* ⚠ המפגש ביום אחר מזה שכתוב בגיליון. קורה בהשלמות
+           ובשיעורים שהוזזו, ולכן מסומן ולא "מתוקן". */
+        offDay: Boolean(sh && dayOf(sh.dayTime) && hebDayOf(m.date)
+          && dayOf(sh.dayTime) !== hebDayOf(m.date)),
         guestLecturer: sh ? sh.guestLecturer : false,
         planned: m.planned,
         happened: m.happened,
@@ -88,10 +102,17 @@ async function handler(req, res) {
       return sh && sh.active && m.date;
     });
 
+    /* ⚠ תאריך, ואז שעה. שיעור בלי שעה בגיליון יורד לסוף היום
+       ולא נדחף לראשו. */
+    const byDateThenTime = (a, b) =>
+      a.date.localeCompare(b.date)
+      || minutesOf(a.dayTime) - minutesOf(b.dayTime)
+      || a.subject.localeCompare(b.subject, "he");
+
     const ahead = live
       .filter((m) => m.date >= today && m.date <= to)
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .map(dress);
+      .map(dress)
+      .sort(byDateThenTime);
 
     const upcoming = ahead.filter((m) => !m.conflict.blocked);
     /* ⚠ רשימה נפרדת ולא הסתרה. ראו ההערה בראש הקובץ. */
@@ -101,8 +122,10 @@ async function handler(req, res) {
        לא — כבר טופל, ואין מה לעשות איתו. */
     const unreported = live
       .filter((m) => m.date >= from && m.date < today && !m.happened)
-      .sort((a, b) => b.date.localeCompare(a.date))
-      .map(dress);
+      .map(dress)
+      /* ⚠ הפוך: האחרון ראשון. מה שקרה אתמול נזכר טוב יותר
+         ממה שקרה לפני שבועיים, וקל יותר לדווח עליו. */
+      .sort((a, b) => -byDateThenTime(a, b));
       /* ⚠ כאן **לא** מסננים. "האם השיעור התקיים" היא שאלה
          פתוחה גם ביום שהגאנט חוסם: "חג ומועד" בגאנט מכסה גם
          את צום גדליה ואת אסרו חג, שבהם המכינה עובדת. סינון
@@ -118,6 +141,7 @@ async function handler(req, res) {
         upcoming: upcoming.length,
         unreported: unreported.length,
         clashing: clashing.length,
+        offDay: ahead.filter((m) => m.offDay).length,
       },
     });
   } catch (e) {

@@ -61,9 +61,12 @@ const Field = ({ label, children, hint }) => (
   </div>
 );
 
-const Pick = ({ label, options, value, onChange, disabled }) => (
+/* ⚠ chips לרשימות ארוכות: צ׳יפ נמדד לפי הטקסט שבו. רשימה של
+   ארבע־עשרה זרועות בכפתורים ברוחב שווה היא קיר שאי אפשר
+   לסרוק. לרשימות של שניים־שלושה, הכפתור הרחב עדיין נוח יותר. */
+const Pick = ({ label, options, value, onChange, disabled, chips }) => (
   <Field label={label}>
-    <div className="pick pick-wrap">
+    <div className={"pick " + (chips || options.length > 4 ? "pick-chips" : "pick-wrap")}>
       {options.map((o) => (
         <button type="button" key={o} disabled={disabled}
           className={value === o ? "on" : ""} onClick={() => onChange(o)}>{o}</button>
@@ -259,7 +262,7 @@ function AlumniForm({ initial, branches, cycles, canAddBranch, say, onDone, onCa
         <Field label="תפקיד / יחידה" hint="ריק = טרם ידוע. עדיף ריק על ניחוש.">
           <input value={f.unit} onChange={set("unit")} disabled={busy} />
         </Field>
-        <Pick label="זרוע" options={ALL_BRANCHES} value={f.branch}
+        <Pick label="זרוע" options={ALL_BRANCHES} value={f.branch} chips
           onChange={(v) => setF({ ...f, branch: v })} disabled={busy} />
 
         {/* ---------- הוספת זרוע ----------

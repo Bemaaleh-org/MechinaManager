@@ -269,14 +269,17 @@ function Staff({ auth, onSignedOut }) {
                 active: section === "hosting", onClick: () => setSection("hosting") },
               { key: "faults", label: "תקלות ובעיות", icon: <I.gear />, active: section === "faults",
                 onClick: () => setSection("faults") },
+              /* ⚠ ציוד הניקיון עבר לכאן מקבוצת המכולה. הוא
+                 באחריות אב הבית, בדיוק כמו התקלות — ולא של
+                 אחראי המכולה. */
+              { key: "c-clean", label: "ציוד ניקיון", icon: <I.box />,
+                active: section === "container" && cArea === "ניקיון", onClick: () => goContainer("ניקיון") },
             ] },
             /* ⚠ ההשאלות יושבות עם המכולה: הציוד שיוצא ונכנס
                הוא אותו ציוד שבמכולה, ואותו אדם אחראי עליו. */
             { label: "מכולה והשאלת ציוד", items: [
               { key: "c-container", label: "מכולה", icon: <I.box />,
                 active: section === "container" && cArea === "מכולה", onClick: () => goContainer("מכולה") },
-              { key: "c-clean", label: "ציוד ניקיון", icon: <I.box />,
-                active: section === "container" && cArea === "ניקיון", onClick: () => goContainer("ניקיון") },
               { key: "loans", label: "השאלת ציוד", icon: <I.box />,
                 active: section === "loans", onClick: () => setSection("loans") },
             ] },

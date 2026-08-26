@@ -137,3 +137,44 @@ export const ROLE_HOUSE = "אב בית";
 
 /** התפקידים שהוגדרו בהקמה. אינם רשימה סגורה. */
 export const KNOWN_ROLES = [ROLE_SCHEDULE, ROLE_KITCHEN, ROLE_CONTAINER, ROLE_HOUSE, ROLE_SAFETY];
+
+/* ============================================================
+   "יום ושעה" שבגיליון
+   ------------------------------------------------------------
+   הגיליון נושא מחרוזת חופשית: "שני 10:00", "שלישי כל היום",
+   "ראשון 15:30/14:30". היא נכתבת ביד ואינה עמודה מובנית,
+   ולכן היא מנותחת ולא נסמכים עליה לחישוב.
+
+   ⚠ נולד מתלונה: לוח השיעורים הציג את מפגשי היום בסדר שרירותי
+     — אימונים של 7:00 הופיעו אחרי מליאה של 20:00 — ולא הציג
+     שעה בכלל. מסך שאומר "יש היום חמישה שיעורים" בלי לומר מתי
+     ובאיזה סדר אינו נראה כמו הגיליון שממנו הוא נבנה.
+   ============================================================ */
+
+export const HEB_DAYS = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+
+/** "שני 10:00" → "10:00" · "שלישי כל היום" → null */
+export function timeOf(dayTime) {
+  const m = String(dayTime || "").match(/(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  const h = Number(m[1]);
+  if (h > 23) return null;
+  return `${String(h).padStart(2, "0")}:${m[2]}`;
+}
+
+/** "שני 10:00" → "שני" · מחרוזת בלי יום מוכר → null */
+export function dayOf(dayTime) {
+  const t = String(dayTime || "").trim();
+  return HEB_DAYS.find((d) => t.startsWith(d)) || null;
+}
+
+/** דקות מתחילת היום, למיון. בלי שעה — בסוף. */
+export const minutesOf = (dayTime) => {
+  const t = timeOf(dayTime);
+  if (!t) return 24 * 60 + 1;
+  return Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+};
+
+/** יום בשבוע בעברית מתוך תאריך ISO */
+export const hebDayOf = (iso) =>
+  HEB_DAYS[new Date(iso + "T12:00:00Z").getUTCDay()] || null;

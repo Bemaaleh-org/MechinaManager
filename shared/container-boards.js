@@ -46,5 +46,29 @@ export const SHOP_STATUS = { open: "פתוח", bought: "נקנה" };
 export const AREA = { container: "מכולה", cleaning: "ניקיון" };
 export const AREAS = [AREA.container, AREA.cleaning];
 
+/* ============================================================
+   מי אחראי על איזה תחום
+   ------------------------------------------------------------
+   ⚠ שני התחומים חולקים לוח אחד וקוד אחד, אבל **לא** אותו
+     אחראי: המכולה היא של אחראי המכולה, וציוד הניקיון הוא של
+     אב הבית. עד כה שניהם היו תחת אחראי המכולה — וזה פשוט לא
+     תיאור נכון של מי עושה מה במכינה.
+
+   ⚠ הפונקציה כאן ולא בשרת בלבד, כדי שהמסך יסתיר בדיוק את מה
+     שהשרת יחסום. שני עותקים של הכלל היו נפרדים זה מזה ברגע
+     שיתווסף תחום שלישי.
+
+   ⚠ מנהל רואה הכול. הוא רואה הכול בכל מקום אחר במערכת.
+   ============================================================ */
+export function mayArea(session, area) {
+  if (!session) return false;
+  if (session.isManager) return true;
+  if (area === AREA.cleaning) return Boolean(session.isHouse);
+  return Boolean(session.isContainer);
+}
+
+/** התחומים שמשתמש זה רשאי לראות */
+export const areasFor = (session) => AREAS.filter((a) => mayArea(session, a));
+
 /* חישוב המפתח משותף לשני תחומי הציוד — ראו shared/par.js */
 export { qtyNumber, missingFor } from "./par.js";

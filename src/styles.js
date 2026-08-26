@@ -1625,9 +1625,35 @@ html,body{margin:0;padding:0;background:#012E58}
 /* ---- התנגשות עם הגאנט ----
    ⚠ טקסט ולא רק גוון: הסיבה היא כל העניין. */
 .clash{font-size:11.5px;font-weight:800;color:var(--amber);margin-top:3px}
+/* ⚠ השעה בולטת מיתר המטא: היא מה שמסדר את היום. */
+.st-m .hh{background:var(--accent-soft);color:var(--accent);font-weight:800;
+  padding:1px 6px;border-radius:6px;font-size:11.5px}
 .clash-note{font-size:12px;font-weight:600;color:var(--muted);line-height:1.55;
   background:var(--amber-soft);border-radius:var(--r-md);padding:10px 12px;
   margin-bottom:10px}
+
+/* ---- שבבי בחירה ----
+   ⚠ הצ׳יפים נמדדים לפי הטקסט ולא נמתחים לרוחב שווה. ארבע־עשרה
+     זרועות ב-flex:1 יצרו קיר של ריבועים באותו גודל שאי אפשר
+     לסרוק בעין — "חי״ר" ו"סיירות חי״ר וקומנדו" אינם באותו
+     אורך, ואין סיבה שייראו כך.
+
+   ⚠ הנבחר מסומן גם בווי ולא רק במילוי — עיקרון 3. */
+.pick.pick-chips{flex-wrap:wrap;gap:7px}
+.kx .pick.pick-chips button{flex:0 1 auto;min-height:40px;padding:0 13px;
+  border-radius:99px;font-size:13.5px;font-weight:700;
+  background:var(--surface);border:1.5px solid var(--line);color:var(--muted);
+  display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+  transition:background .14s var(--ease),border-color .14s var(--ease),
+    color .14s var(--ease),transform .1s var(--ease),box-shadow .14s var(--ease)}
+.kx .pick.pick-chips button:active{transform:translateY(1px)}
+.kx .pick.pick-chips button.on{background:var(--accent);border-color:var(--accent);
+  color:#fff;font-weight:800;box-shadow:0 2px 8px -2px rgba(47,38,22,.32)}
+/* הווי — נכנס רק כשנבחר, ולא תופס מקום כשלא */
+.kx .pick.pick-chips button::before{content:"";width:0;overflow:hidden;
+  font-size:12px;font-weight:900;line-height:1;
+  transition:width .14s var(--ease)}
+.kx .pick.pick-chips button.on::before{content:"¹3";width:11px}
 
 /* ⚠ מי שביקש פחות תנועה מקבל פחות תנועה. */
 @media (prefers-reduced-motion:reduce){
