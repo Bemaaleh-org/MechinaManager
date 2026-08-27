@@ -14,7 +14,8 @@
 
    ⚠ **אותה הודעה לכל כישלון.** "שם משתמש לא קיים" ו"סיסמה
      שגויה" הם שני מסלולים שמלמדים תוקף אילו שמות רשומים.
-     ההודעה אחת: "שם משתמש או סיסמה שגויים".
+     ההודעה אחת, והיא זהה גם כשהזיהוי נעשה לפי אימייל — אחרת
+     הטופס היה הופך למנוע בדיקה של אילו כתובות רשומות במכינה.
 
    ⚠ **"אינו פעיל" כן מקבל הודעה נפרדת.** זו תקלה תפעולית
      שהמשתמש צריך לדעת לפנות איתה לצוות, ולא שאלה של סוד —
@@ -27,11 +28,11 @@ import {
   setSession, fingerprint, codeMatches,
   attemptKey, checkThrottle, penalize, clearAttempts, AuthError,
 } from "./_session.js";
-import { identities, byUser, isFresh } from "./_identity.js";
+import { identities, byUser, byEmail, isFresh } from "./_identity.js";
 import { verifyPassword, normalizeUser } from "./_credentials.js";
 import { traineeRoster } from "./_session.js";
 
-const BAD = "שם משתמש או סיסמה שגויים";
+const BAD = "שם משתמש, אימייל או סיסמה שגויים";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -51,8 +52,22 @@ export default async function handler(req, res) {
 
     const all = await identities();
 
-    /* ---------- מי זה ---------- */
-    let row = byUser(all, rawUser);
+    /* ============================================================
+       מי זה — שם משתמש **או** אימייל
+       ------------------------------------------------------------
+       ⚠ שדה אחד לשניהם, ולא בורר. אדם שזה עתה איפס סיסמה דרך
+         המייל שלו מנסה להיכנס עם אותה כתובת, כי זה מה שהיה
+         מול העיניים שלו לפני שנייה. דרישה שיזכור דווקא את שם
+         המשתמש היא בדיוק הרגע שבו הוא נתקע שוב.
+
+       ⚠ אין התנגשות אפשרית: שם משתמש אינו יכול להכיל @
+         (ראו USER_RE ב-_credentials.js), ואימייל חייב להכיל
+         אותו. שני מרחבי השמות זרים זה לזה.
+
+       ⚠ ואימייל ייחודי לחשבון — _account.js דוחה כתובת שכבר
+         רשומה למישהו אחר.
+       ============================================================ */
+    let row = byUser(all, rawUser) || byEmail(all, rawUser);
     let viaTz = false;
 
     /* ⚠ טרם נקבעה זהות: מזוהה לפי תעודת הזהות, ורק אם הסיסמה

@@ -136,7 +136,7 @@ export default function Login({ notice, onDone }) {
         {view === "signin" && (
           <form className="card lift" onSubmit={doSignin}>
             <div className="fld">
-              <label htmlFor="u">שם משתמש</label>
+              <label htmlFor="u">שם משתמש או אימייל</label>
               <input id="u" type="text" autoComplete="username" autoFocus
                 value={user} disabled={busy}
                 onChange={(e) => setUser(e.target.value)} />
