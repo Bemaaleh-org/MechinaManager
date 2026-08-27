@@ -108,6 +108,13 @@ export const api = {
   /** ⚠ מחיקה — בלתי הפיך, השורה נמחקת מהלוח */
   deleteKitchenItem: (itemId) => del("/api/kitchen?action=equip", { itemId }),
 
+  /* ---------- טבלת ההמרה ----------
+     ⚠ צוות ואחראי מטבח. הלוח גובר על ברירת המחדל שבקוד. */
+  getProduce: () => get("/api/kitchen?action=produce"),
+  addProduce: ({ name, kg }) => post("/api/kitchen?action=produce", { name, kg }),
+  editProduce: ({ id, name, kg }) => put("/api/kitchen?action=produce", { id, name, kg }),
+  deleteProduce: (id) => del("/api/kitchen?action=produce", { id }),
+
   addKitchenShopping: (items, area) => post("/api/kitchen?action=shop", { items, area }),
   setKitchenShoppingStatus: ({ itemId, status }) =>
     put("/api/kitchen?action=shop", { itemId, status }),

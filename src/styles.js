@@ -1880,9 +1880,15 @@ html,body{margin:0;padding:0;background:#012E58}
 .kx .link-btn{display:block;width:100%;min-height:44px;margin-top:9px;
   font-size:13.5px;font-weight:800;color:var(--accent);border-radius:var(--r-md)}
 .kx .link-btn:active{background:var(--accent-soft)}
+/* ⚠ ההסבר על הכניסה הראשונה — שלוש שורות ולא אחת. חניך וצוות
+   מקלידים דברים שונים, ושורה אחת שמנסה לכסות את שניהם לא
+   קוראת לאף אחד מהם. */
 .login-note{font-size:12px;font-weight:700;color:var(--muted);text-align:center;
-  background:var(--bg);border-radius:var(--r-md);padding:9px 11px;
-  margin:-4px 0 13px;line-height:1.5}
+  background:var(--bg);border-radius:var(--r-md);padding:10px 11px;
+  margin:-4px 0 13px;line-height:1.55;
+  display:flex;flex-direction:column;gap:1px}
+.login-note b{color:var(--ink2);font-size:12.5px;margin-bottom:2px}
+.login-note .dim{color:var(--faint);font-weight:600;margin-top:4px;font-size:11.5px}
 .login-lead{font-size:13.5px;font-weight:600;color:var(--muted);
   line-height:1.6;margin-bottom:15px}
 .login-done{text-align:center;padding:8px 4px 18px}
@@ -2006,6 +2012,35 @@ html,body{margin:0;padding:0;background:#012E58}
 .imp-acts>*{flex:1}
 
 /* ---- הפרופיל שלי ---- */
+/* ---------- סימון קנייה ----------
+   ⚠ ה-✓ **חייב אלמנט שנשאר במקומו** כדי לפעול. שורה שעוברת
+     מיד לרשימת "נקנו" מתפרקת ונבנית מחדש, ואלמנט חדש אינו
+     מבצע מעבר — הלחיצה נראתה כאילו לא נקלטה. ראו setStatus
+     ב-Equipment.jsx, שמשהה את המעבר ב-FLASH_MS. */
+@keyframes tick-pop{
+  0%   {transform:scale(.55);}
+  55%  {transform:scale(1.18);}
+  100% {transform:scale(1);}
+}
+@keyframes tick-draw{
+  from {opacity:0;transform:scale(.4) rotate(-12deg);}
+  to   {opacity:1;transform:scale(1) rotate(0);}
+}
+.tick.pop{animation:tick-pop .34s var(--ease) both}
+.tick.pop svg{animation:tick-draw .3s .06s var(--ease) both;
+  stroke-dasharray:24;stroke-dashoffset:0}
+
+/* השורה עצמה נסוגה החוצה אחרי הסימון */
+.st-row.leaving{opacity:.5;transform:translateX(-6px);
+  transition:opacity .3s var(--ease) .1s,transform .3s var(--ease) .1s}
+.st-row.leaving .st-n{text-decoration:line-through;color:var(--faint)}
+
+/* ⚠ מי שביקש "פחות תנועה" במערכת ההפעלה מקבל את הצבע בלי
+   הקפיצה. הסימון עדיין נראה — רק לא זז. */
+@media (prefers-reduced-motion:reduce){
+  .tick.pop,.tick.pop svg,.st-row.leaving{animation:none;transition:none}
+}
+
 /* ---------- שווי מלאי ----------
    ⚠ פס ולא כרטיס: זו שורת הקשר לרשימה שמתחתיה, ולא נתון
      שעומד בפני עצמו. */
@@ -2024,6 +2059,17 @@ html,body{margin:0;padding:0;background:#012E58}
 .conv .num{font-variant-numeric:tabular-nums;white-space:nowrap}
 .conv-grp{font-size:12px;font-weight:700;color:var(--ink3);
   background:var(--sand);padding:6px 10px}
+.conv tr.conv-on td{background:var(--sand)}
+/* ⚠ תג "נערך" מבדיל בין ערך מובנה לערך שנקבע ידנית. בלעדיו
+   כפתור "איפוס" נראה כמו מחיקה של הפריט. */
+.conv-tag{margin-inline-start:6px;font-size:10.5px;font-weight:700;
+  color:var(--ink3);background:var(--line);border-radius:5px;padding:1px 5px}
+.conv-in{width:78px;padding:5px 7px;border-radius:8px;border:1.5px solid var(--navy);
+  font-size:14px;text-align:center;font-variant-numeric:tabular-nums}
+.conv-edit{font-size:12.5px;font-weight:700;color:var(--navy);padding:3px 6px}
+.conv-act{display:inline-flex;gap:8px}
+.conv-act button{font-size:12.5px;font-weight:700;color:var(--navy);padding:3px 4px}
+.conv-act button.bad{color:var(--clay)}
 
 .pf-head{display:flex;align-items:center;gap:13px;margin-bottom:16px}
 .pf-av{width:52px;height:52px;border-radius:17px;flex:0 0 auto;display:grid;

@@ -3,16 +3,19 @@
    ------------------------------------------------------------
    שם משתמש וסיסמה — מסלול אחד לכולם.
 
-   ⚠ **כניסה ראשונה של חניך**: שם המשתמש והסיסמה הם שניהם
-     תעודת הזהות, ומיד אחריה הוא בוחר שם וסיסמה קבועים. הדלת
-     נפתחת פעם אחת עם משהו שאינו סוד, ונסגרת מיד.
+   ⚠ **דלת אחת בלבד.** קודם היה לצוות מסך נפרד מאחורי קישור
+     "כניסת צוות עם קוד", וזו הייתה טעות אמיתית: מי שנכנס פעם
+     אחת עם קוד לא ידע מה להקליד בפעם הבאה, כי המסך שראה
+     בכניסה הראשונה לא היה המסך הרגיל. מסך כניסה שמלמד דבר
+     אחד ודורש דבר אחר הוא מסך שבור.
+
+   ⚠ **כניסה ראשונה — הסוד שבלוח בשני השדות.** חניך מקליד את
+     תעודת הזהות פעמיים; איש צוות מקליד את הקוד פעמיים. מיד
+     אחריה נבחרים שם משתמש, סיסמה ואימייל קבועים. הדלת נפתחת
+     פעם אחת עם משהו שאינו סוד, ונסגרת מיד.
 
    ⚠ הסיסמה נשלחת בגוף הבקשה ואינה נשמרת בשום מקום בדפדפן.
      השרת מחזיר עוגייה חתומה (HttpOnly) שגם JavaScript לא קורא.
-
-   ⚠ מסלול הקוד של הצוות **נשאר**. המכינה עוברת לשמות משתמש
-     בהדרגה, ומי שטרם קיבל אחד לא אמור להיתקע בחוץ. הוא מוסתר
-     מאחורי קישור ולא מוצג כאפשרות שווה — ראו את ההערה למטה.
    ============================================================ */
 
 import React, { useState, useEffect } from "react";
@@ -48,7 +51,7 @@ function Secret({ id, label, value, onChange, disabled, hint, autoFocus, autoCom
 }
 
 export default function Login({ notice, onDone }) {
-  /* signin · forgot · enter · reset · code */
+  /* signin · forgot · enter · reset */
   const [view, setView] = useState("signin");
   const [user, setUser] = useState("");
   const [password, setPassword] = useState("");
@@ -103,12 +106,6 @@ export default function Login({ notice, onDone }) {
     });
   };
 
-  const doCode = (e) => {
-    e.preventDefault();
-    if (busy || !code.trim()) return;
-    run(api.login(code.trim()), () => { setCode(""); onDone(); });
-  };
-
   return (
     <div className="kx kx-login">
       <main className="wrap">
@@ -146,10 +143,17 @@ export default function Login({ notice, onDone }) {
               disabled={busy} />
 
             {/* ⚠ ההסבר על הכניסה הראשונה כאן ולא בהודעת שגיאה:
-                חניך שנכנס בפעם הראשונה לא אמור לגלות את הכלל
-                אחרי שנכשל. שורה אחת, לא אחת מתחת לכל שדה. */}
+                מי שנכנס בפעם הראשונה לא אמור לגלות את הכלל
+                אחרי שנכשל.
+
+                ⚠ ושתי השורות מפורשות. "הקוד בשני השדות" לבדו
+                  לא אומר לאיש צוות שזו כניסה חד-פעמית, ואחר
+                  כך הוא מחפש איפה מקלידים קוד שוב. */}
             <div className="login-note">
-              כניסה ראשונה של חניך — תעודת הזהות בשני השדות
+              <b>כניסה ראשונה?</b>
+              <span>חניך — תעודת הזהות בשני השדות</span>
+              <span>צוות — קוד הכניסה בשני השדות</span>
+              <span className="dim">מיד אחר כך בוחרים שם משתמש, סיסמה ואימייל קבועים.</span>
             </div>
 
             <button className="btn btn-primary" type="submit"
@@ -234,29 +238,6 @@ export default function Login({ notice, onDone }) {
           </form>
         )}
 
-        {/* ============ קוד צוות ============
-            ⚠ נשאר לתקופת המעבר. מוסתר מאחורי קישור ולא מוצג
-              כאפשרות שווה, כדי שמי שכבר יש לו שם משתמש לא
-              יחזור לקוד מתוך הרגל. */}
-        {view === "code" && (
-          <form className="card lift" onSubmit={doCode}>
-            <div className="login-lead">
-              כניסה עם הקוד הישן של הצוות, עד שיינתן שם משתמש.
-            </div>
-            <Secret id="c" label="קוד כניסה" value={code} onChange={setCode}
-              disabled={busy} autoFocus autoComplete="one-time-code" />
-            <button className="btn btn-primary" type="submit" disabled={busy || !code.trim()}>
-              {busy ? "בודק…" : "כניסה"}
-            </button>
-            <button type="button" className="link-btn" disabled={busy}
-              onClick={() => go("signin")}>חזרה לכניסה</button>
-          </form>
-        )}
-
-        {view === "signin" && (
-          <button type="button" className="login-alt" disabled={busy}
-            onClick={() => go("code")}>כניסת צוות עם קוד</button>
-        )}
       </main>
       <div className="login-foot">במעלה הדרך · מכינת ניר עוז</div>
     </div>

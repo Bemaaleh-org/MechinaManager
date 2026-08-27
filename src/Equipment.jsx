@@ -22,7 +22,11 @@
 import React, { useState, useEffect, useCallback, useContext, createContext } from "react";
 import { useExcel, downloadTable, shareText } from "./excel.js";
 import { missingFor } from "../shared/par.js";
-import { produceList, kgPerUnit, unitsToKg, kgToUnits } from "../shared/produce.js";
+/* ⚠ הטבלה עצמה מגיעה מהשרת (api.getProduce). מכאן מיובאות רק
+   פונקציות החישוב, שמקבלות את הטבלה כפרמטר — כך המסך והשרת
+   מחשבים בדיוק אותו דבר. */
+import { kgPerUnit, unitsToKg, kgToUnits } from "../shared/produce.js";
+import { api } from "./api.js";
 
 /* ============================================================
    הקשר התחום — הניסוחים וקריאות השרת של המכולה או של המטבח.
@@ -44,6 +48,9 @@ const useDomain = () => useContext(DomainCtx);
  *   עגבניית השרי מ-0.012 ל-0.01 — שגיאה של 20% — והשורה
  *   סתרה את עצמה: "0.01 ק״ג ליחידה" מול "83 יחידות בק״ג".
  */
+/** כמה זמן ה-✓ נשאר במקומו לפני שהשורה עוברת ל"נקנו" */
+const FLASH_MS = 420;
+
 const fmt = (n) => {
   const v = Number(n);
   if (!Number.isFinite(v)) return "—";
@@ -308,7 +315,7 @@ function EquipRow({ item, say, onChanged }) {
 }
 
 /* ============================================================
-   טבלת המרה — כמות ↔ ק״ג
+   טבלת המרה — כמות ↔ ק״ג, נערכת מהמסך
    ------------------------------------------------------------
    ⚠ **הערכה מוצהרת.** עגבנייה שוקלת בין 80 ל-180 גרם, וכל
      מספר כאן הוא ממוצע. לכן ≈ בכל מקום ומשפט פתיחה שאומר
@@ -318,21 +325,84 @@ function EquipRow({ item, say, onChanged }) {
    ⚠ ההמרה עובדת **לשני הכיוונים**, כי שתי השאלות אמיתיות:
      "כמה ק״ג זה 12 מלפפונים" בבוקר של קניות, ו"כמה עגבניות
      יוצאות מ-5 ק״ג" כשמחלקים עבודה למטבח.
+
+   ⚠ **הנתונים מהשרת ולא מהקוד.** אחראי המטבח והמנהלים עורכים
+     את הטבלה, ומה שהם קובעים גובר על ברירת המחדל המובנית.
+     ייבוא סטטי כאן היה מציג ערכים שאיש כבר לא משתמש בהם.
+
+   ⚠ **עריכת שורה מובנית יוצרת שורה בלוח**, ולא משנה את הקוד.
+     לכן ל"מחיקה" שלה יש שם אחר — "איפוס" — והיא מחזירה את
+     הערך המקורי במקום להעלים את הפריט.
    ============================================================ */
-function ProduceTable() {
+function ProduceTable({ say }) {
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState(null);
   const [q, setQ] = useState("");
   const [pick, setPick] = useState("");
   const [amount, setAmount] = useState("");
   const [dir, setDir] = useState("toKg");   /* toKg | toUnits */
 
-  const rows = produceList();
-  const shown = q.trim()
-    ? rows.filter((x) => x.name.includes(q.trim()) || kgPerUnit(q.trim()) === x.kg)
-    : rows;
+  const [edit, setEdit] = useState(null);   /* שם השורה שבעריכה */
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [nf, setNf] = useState({ name: "", kg: "" });
 
-  const per = pick ? kgPerUnit(pick) : null;
+  const load = () => api.getProduce()
+    .then((d) => { setData(d); setErr(null); })
+    .catch((e) => setErr(e.message));
+  useEffect(() => { load(); }, []); // eslint-disable-line
+
+  if (err) return <LoadFail msg={err} onRetry={() => { setErr(null); load(); }} />;
+  if (!data) return <Loading what="טוען את טבלת ההמרה" />;
+
+  const rows = data.rows;
+  /* ⚠ המחשבון משתמש באותה פונקציה ובאותה טבלה כמו השרת. חיפוש
+     נפרד בדפדפן היה נותן תשובה אחרת מזו שנרשמת על הפריט. */
+  const table = Object.fromEntries(rows.map((r) => [r.name, r.kg]));
+
+  const shown = q.trim() ? rows.filter((x) => x.name.includes(q.trim())) : rows;
+  const per = pick ? kgPerUnit(pick, table) : null;
   const out = !pick || !amount.trim() ? null
-    : dir === "toKg" ? unitsToKg(amount, pick) : kgToUnits(amount, pick);
+    : dir === "toKg" ? unitsToKg(amount, pick, null, table)
+      : kgToUnits(amount, pick, null, table);
+
+  const saveKg = (row) => {
+    const kg = Number(draft);
+    if (!Number.isFinite(kg) || kg <= 0) { say("משקל חייב להיות מספר גדול מאפס"); return; }
+    if (busy) return;
+    setBusy(true);
+    /* ⚠ שורה מובנית אין לה מזהה, ולכן עריכה שלה היא יצירה. */
+    const p = row.id ? api.editProduce({ id: row.id, kg }) : api.addProduce({ name: row.name, kg });
+    p.then(() => { say("נשמר"); setEdit(null); setDraft(""); return load(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  const remove = (row) => {
+    if (busy || !row.id) return;
+    setBusy(true);
+    api.deleteProduce(row.id)
+      .then((r) => {
+        say(r.fallback != null ? `אופס לערך המובנה — ${r.fallback} ק״ג` : "הוסר מהטבלה");
+        setEdit(null);
+        return load();
+      })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  const addNew = () => {
+    const name = nf.name.trim(), kg = Number(nf.kg);
+    if (!name) { say("לא הוזן שם"); return; }
+    if (!Number.isFinite(kg) || kg <= 0) { say("משקל חייב להיות מספר גדול מאפס"); return; }
+    if (busy) return;
+    setBusy(true);
+    api.addProduce({ name, kg })
+      .then(() => { say("נוסף"); setAdding(false); setNf({ name: "", kg: "" }); return load(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
 
   return (
     <>
@@ -343,7 +413,8 @@ function ProduceTable() {
           <div className="ttl">המספרים כאן הם ממוצעים</div>
           <div className="bd">
             עגבנייה שוקלת בין 80 ל-180 גרם. הטבלה עונה על "כמה ק״ג להזמין",
-            ולא מתאימה לחישוב עלות מדויק. פריט שהוזן לו ק״ג ליחידה בציוד — הערך שלו גובר.
+            ולא מתאימה לחישוב עלות מדויק. אפשר לערוך כל שורה — מה שנקבע כאן
+            גובר, ו"ק״ג ליחידה" של פריט מסוים בציוד גובר גם על זה.
           </div>
         </div>
       </div>
@@ -356,7 +427,7 @@ function ProduceTable() {
           <input value={pick} placeholder="עגבניות, מלפפונים, תפוחים…"
             onChange={(e) => setPick(e.target.value)} />
           {pick.trim() && per == null
-            ? <div className="fld-bad">הפריט אינו בטבלה. אפשר להזין לו ק״ג ליחידה במסך הציוד.</div>
+            ? <div className="fld-bad">הפריט אינו בטבלה. אפשר להוסיף אותו למטה.</div>
             : per != null && <div className="fld-hint">יחידה אחת ≈ {fmt(per)} ק״ג</div>}
         </div>
         <div className="seg" style={{ marginBottom: 12 }}>
@@ -385,9 +456,36 @@ function ProduceTable() {
       </div>
 
       {/* ---------- הטבלה ---------- */}
-      <div className="sec-label">הטבלה המלאה</div>
+      <div className="sec-label">הטבלה המלאה ({rows.length})</div>
       <input className="search" value={q} onChange={(e) => setQ(e.target.value)}
         placeholder="חיפוש בטבלה" />
+
+      {adding ? (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="two">
+            <div className="fld">
+              <label>שם הפריט</label>
+              <input value={nf.name} autoFocus disabled={busy}
+                onChange={(e) => setNf({ ...nf, name: e.target.value })} />
+            </div>
+            <div className="fld">
+              <label>ק״ג ליחידה</label>
+              <input value={nf.kg} inputMode="decimal" disabled={busy} placeholder="0.12"
+                onChange={(e) => setNf({ ...nf, kg: e.target.value })} />
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button className="btn btn-primary btn-sm" style={{ flex: 1 }}
+              disabled={busy} onClick={addNew}>{busy ? "…" : "הוספה"}</button>
+            <button className="btn btn-ghost btn-sm" style={{ flex: 1 }}
+              disabled={busy} onClick={() => setAdding(false)}>ביטול</button>
+          </div>
+        </div>
+      ) : (
+        <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 10 }}
+          onClick={() => setAdding(true)}><CI.plus />הוספת פריט לטבלה</button>
+      )}
+
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <table className="conv">
           <thead>
@@ -398,23 +496,53 @@ function ProduceTable() {
                   היא השאלה שנשאלת בקנייה, ובלעדיה כל שורה
                   דורשת חילוק בראש. */}
               <th className="num">יחידות בק״ג</th>
+              <th />
             </tr>
           </thead>
           <tbody>
             {shown.map((x) => (
-              <tr key={x.name}>
-                <td>{x.name}</td>
-                <td className="num">≈ {fmt(x.kg)}</td>
+              <tr key={x.name} className={edit === x.name ? "conv-on" : ""}>
+                <td>
+                  {x.name}
+                  {/* ⚠ מסמן מה נערך ידנית. בלי זה, "מחיקה" נראית
+                      הרסנית גם כשהיא רק ביטול דריסה. */}
+                  {x.source === "board" && x.fallback != null && (
+                    <span className="conv-tag">נערך</span>
+                  )}
+                </td>
+                <td className="num">
+                  {edit === x.name ? (
+                    <input className="conv-in" value={draft} autoFocus inputMode="decimal"
+                      disabled={busy}
+                      onChange={(e) => setDraft(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") saveKg(x); }} />
+                  ) : `≈ ${fmt(x.kg)}`}
+                </td>
                 {/* ⚠ "0.2 אבטיחים בק״ג" הוא נכון וחסר תועלת.
                     פריט ששוקל יותר מק״ג נמדד ביחידות ולא בק״ג,
                     והעמודה הראשונה כבר עונה עליו. */}
+                <td className="num">{x.perKg < 1 ? "—" : "≈ " + Math.round(x.perKg)}</td>
                 <td className="num">
-                  {x.perKg < 1 ? "—" : "≈ " + Math.round(x.perKg)}
+                  {edit === x.name ? (
+                    <span className="conv-act">
+                      <button disabled={busy} onClick={() => saveKg(x)}>שמירה</button>
+                      <button disabled={busy}
+                        onClick={() => { setEdit(null); setDraft(""); }}>ביטול</button>
+                      {x.id && (
+                        <button className="bad" disabled={busy} onClick={() => remove(x)}>
+                          {x.fallback != null ? "איפוס" : "מחיקה"}
+                        </button>
+                      )}
+                    </span>
+                  ) : (
+                    <button className="conv-edit" disabled={busy}
+                      onClick={() => { setEdit(x.name); setDraft(String(x.kg)); }}>עריכה</button>
+                  )}
                 </td>
               </tr>
             ))}
             {!shown.length && (
-              <tr><td colSpan={3} style={{ color: "var(--ink3)" }}>אין התאמה</td></tr>
+              <tr><td colSpan={4} style={{ color: "var(--ink3)" }}>אין התאמה</td></tr>
             )}
           </tbody>
         </table>
@@ -630,6 +758,9 @@ function EquipmentScreen({ say, domain: d, area }) {
   const [areaFilter, setAreaFilter] = useState(null);
   /* מזהה → סטטוס, עד לטעינה הבאה. ראו setStatus. */
   const [patch, setPatch] = useState({});
+  /* ⚠ שורות שסומנו זה עתה ועדיין מוצגות במקומן, כדי שה-✓
+     יספיק להצטייר. ראו setStatus. */
+  const [flash, setFlash] = useState({});
   const [q, setQ] = useState("");
   const [adding, setAdding] = useState(false);
   const [building, setBuilding] = useState(null); // null | "manual" | "missing"
@@ -697,11 +828,31 @@ function EquipmentScreen({ say, domain: d, area }) {
 
      ⚠ ובכישלון חוזרים אחורה ואומרים את זה. סימון אופטימי
        שנשאר על המסך אחרי שהשרת דחה אותו הוא שקר, לא נוחות. */
+  /* ⚠ **הסימון נשאר במקומו כדי שה-✓ ייראה.** קודם השורה עברה
+     מיד לרשימת "נקנו", כלומר האלמנט התפרק ונבנה מחדש כשהוא
+     כבר מסומן — ואלמנט חדש אינו מבצע מעבר. הלחיצה נראתה כאילו
+     לא נקלטה בכלל.
+
+     עכשיו השורה נשארת ברשימה הפתוחה ל-flash אחת: ה-✓ נצבע
+     ומצטייר, ורק אז היא עוברת. הבקשה לשרת יוצאת מיד ואינה
+     מחכה לאנימציה — זו תצוגה, לא עיכוב אמיתי. */
   const setStatus = (item, status) => {
-    setPatch((p2) => ({ ...p2, [item.id]: status }));
+    const move = () => setPatch((p2) => ({ ...p2, [item.id]: status }));
+
+    if (status === "נקנה") {
+      setFlash((f) => ({ ...f, [item.id]: true }));
+      setTimeout(() => {
+        move();
+        setFlash((f) => { const n = { ...f }; delete n[item.id]; return n; });
+      }, FLASH_MS);
+    } else {
+      move();
+    }
+
     d.setShoppingStatus({ itemId: item.id, status })
       .catch((e) => {
         say(e.message);
+        setFlash((f) => { const n = { ...f }; delete n[item.id]; return n; });
         setPatch((p2) => { const n = { ...p2 }; delete n[item.id]; return n; });
       });
   };
@@ -710,11 +861,22 @@ function EquipmentScreen({ say, domain: d, area }) {
      לחיצות אחת-אחרי-השנייה הן הסיבה שאיש לא סימן. */
   const markAll = (items, status) => {
     if (!items.length) return;
-    setPatch((p2) => {
+    const move = () => setPatch((p2) => {
       const n = { ...p2 };
       for (const x of items) n[x.id] = status;
       return n;
     });
+    if (status === "נקנה") {
+      /* ⚠ אותה השהיה כמו בלחיצה בודדת. בלעדיה ארבעים שורות
+         נעלמות בבת אחת ואי אפשר לראות מה קרה. */
+      setFlash((f) => { const n = { ...f }; for (const x of items) n[x.id] = true; return n; });
+      setTimeout(() => {
+        move();
+        setFlash((f) => { const n = { ...f }; for (const x of items) delete n[x.id]; return n; });
+      }, FLASH_MS);
+    } else {
+      move();
+    }
     Promise.allSettled(items.map((x) => d.setShoppingStatus({ itemId: x.id, status })))
       .then((rs) => {
         const bad = rs.filter((r) => r.status === "rejected").length;
@@ -752,7 +914,7 @@ function EquipmentScreen({ say, domain: d, area }) {
         )}
       </div>
 
-      {sub === "conv" && <ProduceTable />}
+      {sub === "conv" && <ProduceTable say={say} />}
 
       {sub === "equip" && (
         <>
@@ -954,9 +1116,11 @@ function EquipmentScreen({ say, domain: d, area }) {
                       file: look.shopFile,
                       sheet: "רשימת קניות",
                       title: `רשימת קניות — ${area}`,
-                      header: ["פריט", "כמות", "ביקש"],
-                      rows: open.map((x) => [x.name, x.qty || "", x.by || ""]),
-                      widths: [26, 12, 16],
+                      header: ["פריט", "כמות", "ביקש",
+                        ...(d.money ? ["מחיר ליחידה", "שווי מוערך"] : [])],
+                      rows: open.map((x) => [x.name, x.qty || "", x.by || "",
+                        ...(d.money ? [x.price ?? "", x.cost ?? ""] : [])]),
+                      widths: [26, 12, 16, ...(d.money ? [12, 12] : [])],
                     });
                     say("הקובץ ירד");
                   }}><CI.dl />אקסל</button>
@@ -965,14 +1129,36 @@ function EquipmentScreen({ say, domain: d, area }) {
                 onClick={() => markAll(open, "נקנה")}>
                 <CI.check />סימון הכול כנקנה ({open.length})
               </button>
+              {/* ⚠ שווי הקנייה, לא שווי המלאי. מוצג רק כשיש
+                  מחירים בכלל, ותמיד עם כמה פריטים לא נספרו —
+                  סכום חלקי שנראה שלם הוא הטעות היקרה כאן. */}
+              {d.money && data.openValue && data.openValue.counted > 0 && (
+                <div className="valbar">
+                  <div>
+                    <span className="val-n">≈ ₪{fmt(data.openValue.total)}</span>
+                    <span className="val-l">שווי מוערך של הקנייה</span>
+                  </div>
+                  {data.openValue.unpriced > 0 && (
+                    <span className="pill p-new">{data.openValue.unpriced} בלי מחיר</span>
+                  )}
+                </div>
+              )}
               <div className="grp-h"><span>{open.length} פריטים לקנייה</span><span>לחיצה = נקנה</span></div>
               <div className="rows">
                 {open.map((x) => (
-                  <button className="st-row" key={x.id} onClick={() => setStatus(x, "נקנה")}>
-                    <div className="tick" />
+                  <button className={"st-row" + (flash[x.id] ? " leaving" : "")} key={x.id}
+                    disabled={Boolean(flash[x.id])}
+                    onClick={() => setStatus(x, "נקנה")}>
+                    <div className={"tick" + (flash[x.id] ? " on pop" : "")}>
+                      {flash[x.id] && <CI.check style={{ width: 16, height: 16, color: "#fff" }} />}
+                    </div>
                     <div className="st-main">
                       <div className="st-n">{x.name}</div>
-                      <div className="st-m"><span>{x.qty || ""}</span>{x.by && <span>· {x.by}</span>}</div>
+                      <div className="st-m">
+                        <span>{x.qty || ""}</span>
+                        {x.by && <span>· {x.by}</span>}
+                        {x.cost != null && <span>≈ ₪{fmt(x.cost)}</span>}
+                      </div>
                     </div>
                   </button>
                 ))}
@@ -986,12 +1172,17 @@ function EquipmentScreen({ say, domain: d, area }) {
               <div className="rows">
                 {bought.slice(0, 20).map((x) => (
                   <button className="st-row" key={x.id} onClick={() => setStatus(x, "פתוח")}>
-                    <div className="tick on"><span style={{ color: "#fff", fontWeight: 900 }}>✓</span></div>
+                    <div className="tick on">
+                      <CI.check style={{ width: 16, height: 16, color: "#fff" }} />
+                    </div>
                     <div className="st-main">
                       <div className="st-n" style={{ color: "var(--faint)", textDecoration: "line-through" }}>
                         {x.name}
                       </div>
-                      <div className="st-m"><span>{x.qty || ""}</span></div>
+                      <div className="st-m">
+                        <span>{x.qty || ""}</span>
+                        {x.cost != null && <span>≈ ₪{fmt(x.cost)}</span>}
+                      </div>
                     </div>
                   </button>
                 ))}

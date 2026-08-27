@@ -92,6 +92,15 @@ const equipBoard = await createBoard("מטבח – ציוד");
 ok(`ציוד מטבח: ${equipBoard}`);
 const shopBoard = await createBoard("מטבח – קניות");
 ok(`קניות מטבח: ${shopBoard}`);
+/* ⚠ לוח ההמרות נוצר **ריק בכוונה**. הוא מחזיק דריסות בלבד:
+   ברירת המחדל של 46 הפריטים יושבת ב-shared/produce.js, וכל
+   שורה כאן היא החלטה מפורשת של אחראי המטבח.
+
+   הזרעה של כל 46 השורות נוסתה ובוטלה — כשהכול "מהלוח", התג
+   "נערך" מופיע על כל הטבלה ומאבד את משמעותו, ואי אפשר לדעת
+   מה באמת שונה. */
+const prodBoard = await createBoard("מטבח – המרות");
+ok(`המרות מטבח: ${prodBoard}`);
 
 /* ---------- 3. העמודות ---------- */
 step("3. יצירת העמודות");
@@ -119,6 +128,9 @@ const S = {
 };
 ok(`קניות — ${Object.keys(S).length} עמודות`);
 
+const P = { kg: await createColumn(prodBoard, "ק״ג ליחידה", "numbers") };
+ok("המרות — עמודה אחת");
+
 /* ---------- 4. כתיבת המזהים ---------- */
 /* ⚠ נכתב לפני הזריעה ולא אחריה. אם הזריעה תיפול באמצע, הלוחות
    כבר קיימים — ובלי המזהים בקובץ הם היו הופכים ליתומים. */
@@ -135,10 +147,17 @@ const idsFile = `/* ============================================================
 export const KITCHEN_BOARDS = {
   equipment: "${equipBoard}",
   shopping: "${shopBoard}",
+  /* ⚠ טבלת ההמרה — נערכת מהמסך על ידי אחראי המטבח והמנהלים.
+     ברירת המחדל יושבת ב-shared/produce.js, והלוח גובר עליה. */
+  produce: "${prodBoard}",
 };
 
 export const KITCHEN_COLS = {
-  equipment: { qty: "${E.qty}", kind: "${E.kind}", area: "${E.area}", par: "${E.par}" },
+  equipment: {
+    qty: "${E.qty}", kind: "${E.kind}", area: "${E.area}", par: "${E.par}",
+    price: "${E.price}", kgPer: "${E.kgPer}",
+  },
+  produce: { kg: "${P.kg}" },
   shopping: { qty: "${S.qty}", date: "${S.date}", status: "${S.status}", by: "${S.by}", area: "${S.area}" },
 };
 `;

@@ -8,10 +8,17 @@
      לכן כל מספר במסך מוצג עם **≈** ועם המילה "בערך". טבלה
      שנראית מדויקת ואינה, גרועה מטבלה שמצהירה על עצמה.
 
-   ⚠ הטבלה כאן היא **ברירת מחדל בלבד**. פריט בלוח יכול לשאת
-     משקל משלו בעמודה "ק״ג ליחידה", והוא גובר — עיקרון 1:
-     מה שאפשר להגדיר בלוח, מוגדר בלוח. הטבלה קיימת כדי שלא
-     יצטרכו למלא 60 שורות ביד.
+   ⚠ הטבלה כאן היא **ברירת מחדל בלבד**, וקיימות שתי דרכים
+     לגבור עליה — עיקרון 1, מה שאפשר להגדיר בלוח מוגדר בלוח:
+
+     1. **לוח ההמרות** ("מטבח – המרות") — אחראי המטבח והמנהלים
+        עורכים אותו מהמסך: משנים משקל, מוסיפים פריט, מוחקים.
+        רשומה שם גוברת על הטבלה כאן.
+     2. **עמודת "ק״ג ליחידה" של הפריט עצמו** בלוח הציוד —
+        גוברת על שתיהן, כי היא הכי ספציפית.
+
+     הטבלה כאן קיימת כדי שלוח ההמרות לא יתחיל ריק ושלא יצטרכו
+     למלא 46 שורות ביד. היא **אינה** מקור אמת.
 
    ⚠ ההתאמה לפי שם היא **חלקית ובשני הכיוונים**, כמו במצרכי
      המנות. "עגבניות שרי" תמצא את "עגבניות שרי" ולא את
@@ -115,44 +122,75 @@ const stems = (t) => String(t || "").trim().split(/\s+/).map(stem).filter(Boolea
    הכלל: מפתח מתאים אם **כל** מילותיו נמצאות בשאילתה. "עגבניות
    שרי" דורש גם "שר", ולכן אינו נתפס על ידי "עגבניות" לבדה.
    ============================================================ */
-const KEYS = Object.keys(PRODUCE_KG)
-  .map((k) => ({ k, w: stems(k) }))
-  .sort((a, b) => b.w.length - a.w.length
-    || b.w.join("").length - a.w.join("").length);
+function indexOf(table) {
+  return Object.keys(table)
+    .map((k) => ({ k, w: stems(k) }))
+    .sort((a, b) => b.w.length - a.w.length
+      || b.w.join("").length - a.w.join("").length);
+}
+
+/* ⚠ המיון והשורשים מחושבים פעם אחת לכל טבלה ולא בכל קריאה.
+   `kgPerUnit` נקראת פעם לכל פריט ברשימה של 105, וחישוב מחדש
+   בכל קריאה הפך את המסך לאיטי במידה מורגשת. */
+const INDEX = new WeakMap();
+const indexFor = (table) => {
+  if (table === PRODUCE_KG) return DEFAULT_INDEX;
+  let ix = INDEX.get(table);
+  if (!ix) { ix = indexOf(table); INDEX.set(table, ix); }
+  return ix;
+};
+const DEFAULT_INDEX = indexOf(PRODUCE_KG);
+
+/**
+ * מיזוג לוח ההמרות עם ברירת המחדל.
+ * ⚠ הלוח **גובר**, כולל מחיקה: פריט שהוסר מהלוח חוזר לברירת
+ *   המחדל אם יש לו כזו, ופריט שנוסף בלוח מצטרף. זה מה שהופך
+ *   את הטבלה לדינמית בלי לשנות קוד.
+ */
+export function buildTable(rows) {
+  const t = { ...PRODUCE_KG };
+  for (const r of rows || []) {
+    const n = String(r?.name || "").trim();
+    const kg = Number(r?.kg);
+    if (!n) continue;
+    if (Number.isFinite(kg) && kg > 0) t[n] = kg;
+  }
+  return t;
+}
 
 /**
  * שם פריט → ק״ג ליחידה, או null.
  * ⚠ null פירושו "לא ידוע" ולא אפס. פריט שאינו ברשימה אינו
  *   שוקל כלום — הוא פשוט לא נמדד ביחידות.
  */
-export function kgPerUnit(name) {
+export function kgPerUnit(name, table = PRODUCE_KG) {
   const raw = String(name || "").trim();
   if (!raw) return null;
-  if (PRODUCE_KG[raw] != null) return PRODUCE_KG[raw];
+  if (table[raw] != null) return table[raw];
   const q = stems(raw);
   if (!q.length) return null;
-  const hit = KEYS.find((x) => x.w.every((kw) => q.some((qw) => qw === kw)));
-  return hit ? PRODUCE_KG[hit.k] : null;
+  const hit = indexFor(table).find((x) => x.w.every((kw) => q.some((qw) => qw === kw)));
+  return hit ? table[hit.k] : null;
 }
 
 /** האם הפריט הוא ירק או פרי שאנחנו יודעים לשקול */
-export const isProduce = (name) => kgPerUnit(name) != null;
+export const isProduce = (name, table) => kgPerUnit(name, table) != null;
 
 /**
  * כמות ביחידות → ק״ג בערך.
  * ⚠ עיגול לשתי ספרות. 12 עגבניות הן 1.44 ק״ג, לא 1.4 —
  *   ובכמויות של מכינה ההפרש מצטבר.
  */
-export function unitsToKg(units, name, override) {
-  const per = override != null && override > 0 ? Number(override) : kgPerUnit(name);
+export function unitsToKg(units, name, override, table) {
+  const per = override != null && override > 0 ? Number(override) : kgPerUnit(name, table);
   const n = Number(units);
   if (!per || !Number.isFinite(n) || n <= 0) return null;
   return Math.round(n * per * 100) / 100;
 }
 
 /** ק״ג → כמה יחידות, בערך */
-export function kgToUnits(kg, name, override) {
-  const per = override != null && override > 0 ? Number(override) : kgPerUnit(name);
+export function kgToUnits(kg, name, override, table) {
+  const per = override != null && override > 0 ? Number(override) : kgPerUnit(name, table);
   const n = Number(kg);
   if (!per || !Number.isFinite(n) || n <= 0) return null;
   return Math.round(n / per);
@@ -173,7 +211,7 @@ export function lineCost(price, qty) {
 }
 
 /** הרשימה לתצוגה במסך ההמרה, ממוינת בעברית */
-export const produceList = () =>
-  Object.entries(PRODUCE_KG)
+export const produceList = (table = PRODUCE_KG) =>
+  Object.entries(table)
     .map(([name, kg]) => ({ name, kg, perKg: Math.round(1 / kg * 10) / 10 }))
     .sort((a, b) => a.name.localeCompare(b.name, "he"));

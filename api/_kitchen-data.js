@@ -69,7 +69,36 @@ export async function loadKitchenShopping({ force = false } = {}) {
   }, { force });
 }
 
+/* ============================================================
+   טבלת ההמרה
+   ------------------------------------------------------------
+   ⚠ **אינה חלק מ-boardsReady.** לוח שלא הוקם מחזיר רשימה ריקה,
+     והמערכת נופלת חזרה לברירת המחדל שב-shared/produce.js.
+     גם כאן זו החלטה: המרה חסרה מורידה דיוק, ואילו 503 היה
+     מוריד את כל מסך המטבח בגלל טבלת עזר.
+   ============================================================ */
+export async function loadProduce({ force = false } = {}) {
+  if (!KITCHEN_BOARDS.produce) return [];
+  return cached("kitchen-produce", async () => {
+    const items = await allItems(KITCHEN_BOARDS.produce);
+    return items
+      .map((i) => {
+        const t = val(i, KITCHEN_COLS.produce.kg).trim();
+        const kg = t === "" ? null : Number(t);
+        return {
+          id: String(i.id),
+          name: String(i.name || "").trim(),
+          kg: Number.isFinite(kg) && kg > 0 ? kg : null,
+        };
+      })
+      .filter((x) => x.name && x.kg != null)
+      .sort((a, b) => a.name.localeCompare(b.name, "he"));
+  }, { force });
+}
+
 export function invalidateKitchen() {
   invalidate("kitchen-equipment");
   invalidate("kitchen-shopping");
 }
+
+export const invalidateProduce = () => invalidate("kitchen-produce");

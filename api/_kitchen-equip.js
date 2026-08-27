@@ -18,11 +18,11 @@ import {
   KITCHEN_AREA, KITCHEN_AREAS, boardsReady, missingFor,
 } from "../shared/kitchen-boards.js";
 import {
-  loadKitchenEquipment, loadKitchenShopping, invalidateKitchen,
+  loadKitchenEquipment, loadKitchenShopping, loadProduce, invalidateKitchen,
   setColumns, renameItem, createItem, deleteItem,
 } from "./_kitchen-data.js";
 import { qtyAdd, qtyNumber } from "../shared/par.js";
-import { kgPerUnit, lineCost } from "../shared/produce.js";
+import { kgPerUnit, lineCost, buildTable } from "../shared/produce.js";
 
 const E = KITCHEN_COLS.equipment;
 const KINDS = [KITCHEN_KIND.consumable, KITCHEN_KIND.permanent];
@@ -64,12 +64,15 @@ async function handler(req, res, session) {
       const area = areaOf(req.query?.area);
       if (!area) return res.status(400).json({ error: "תחום לא מוכר" });
 
-      const [allEquip, allShop] = await Promise.all([
-        loadKitchenEquipment(), loadKitchenShopping(),
+      const [allEquip, allShop, produceRows] = await Promise.all([
+        loadKitchenEquipment(), loadKitchenShopping(), loadProduce(),
       ]);
+      /* ⚠ טבלת ההמרה נבנית פעם אחת לבקשה ומועברת פנימה, ולא
+         נקראת מחדש לכל פריט. */
+      const table = buildTable(produceRows);
       const mine = (x) => area === ALL || x.area === area;
-      const equipment = allEquip.filter(mine).map(enrich);
-      const shopping = allShop.filter(mine);
+      const equipment = allEquip.filter(mine).map((x) => enrich(x, table));
+      const shopping = allShop.filter(mine).map((x) => withCost(x, allEquip));
 
       return res.status(200).json({
         /* ⚠ null ולא מחרוזת: המסך מבדיל בין "כל התחומים" לבין
@@ -90,6 +93,10 @@ async function handler(req, res, session) {
            מסך החד״פ והמסך המאוחד יראו את אותו מספר. חישוב
            בצד הלקוח היה מתפצל ברגע שמסך אחד מסנן אחרת. */
         value: totalValue(equipment),
+        /* ⚠ שווי הקנייה הפתוחה בנפרד משווי המלאי. אלה שתי
+           שאלות שונות — "כמה שווה מה שיש" ו"כמה תעלה
+           ההזמנה" — ומספר אחד לשתיהן היה מטעה בשתיהן. */
+        openValue: totalValue(shopping.filter((x) => x.status === "פתוח")),
       });
     }
 
@@ -201,8 +208,8 @@ async function handler(req, res, session) {
    ⚠ `kgSource` נשלח כדי שהמסך יוכל לומר "לפי הטבלה, בערך"
      מול "לפי מה שהוזן". מספר בלי מקור נראה מדויק גם כשאינו.
    ============================================================ */
-function enrich(x) {
-  const auto = kgPerUnit(x.name);
+function enrich(x, table) {
+  const auto = kgPerUnit(x.name, table);
   const kg = x.kgPer != null && x.kgPer > 0 ? x.kgPer : auto;
   const units = qtyNumber(x.qty);
   return {
@@ -213,6 +220,25 @@ function enrich(x) {
     kgTotal: kg != null && units ? Math.round(units * kg * 100) / 100 : null,
     cost: lineCost(x.price, units),
   };
+}
+
+/* ============================================================
+   שורת קנייה → עלות מוערכת
+   ------------------------------------------------------------
+   ⚠ ההתאמה היא **לפי שם מדויק ובאותו תחום**. שורת הקנייה
+     נוצרה מהפריט עצמו, ולכן השם זהה. התאמה חלקית הייתה
+     מדביקה מחיר של פריט אחר על שורה שהוקלדה ביד, וזה בדיוק
+     המקום שבו מספר שגוי נראה סביר.
+
+   ⚠ הכמות ברשימת הקניות היא טקסט חופשי ("3 ארגזים"), ולכן
+     נלקח ממנה המספר הראשון — אותו כלל כמו במלאי.
+
+   ⚠ פריט בלי מחיר מקבל cost: null ולא 0, ונספר בנפרד.
+   ============================================================ */
+function withCost(row, allEquip) {
+  const src = allEquip.find((e) => e.name === row.name && e.area === row.area);
+  const price = src ? src.price : null;
+  return { ...row, price, cost: lineCost(price, qtyNumber(row.qty)) };
 }
 
 /** סכום העלויות. ⚠ מדווח גם כמה פריטים **לא** נספרו. */
