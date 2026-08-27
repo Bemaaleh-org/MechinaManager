@@ -34,6 +34,7 @@ const KIND = {
   "אירוח": { tone: "n-green", ico: "▦" },
   "שיעורים": { tone: "n-green", ico: "▥" },
   "בקשה": { tone: "n-amber", ico: "▤" },
+  "סיסמה": { tone: "n-clay", ico: "▣" },
 };
 
 /**

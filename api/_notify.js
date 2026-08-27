@@ -49,6 +49,7 @@ import { mayArea, AREA } from "../shared/container-boards.js";
 import { PLANNED, minutesOf } from "../shared/lessons-boards.js";
 import { requestStage, REQ_STAGE, REQ_STATUS } from "../shared/mechina-boards.js";
 import { guideMap, isGuideOf } from "./_guides.js";
+import { identities } from "./_identity.js";
 
 /** כמה ימים קדימה נחשבים "קרוב" */
 const SOON = 7;
@@ -278,6 +279,42 @@ async function requestNotes(session, today) {
 }
 
 /* ============================================================
+   בקשות איפוס סיסמה שממתינות למסירה
+   ------------------------------------------------------------
+   ⚠ הקוד מוצג כאן במפורש, וזו כל התכלית: הוא נועד להימסר בעל
+     פה למי שמזוהה בעיניים. בלי המסך הזה המנהל היה צריך לפתוח
+     את monday ולפענח שורה — וזה מה שגרם לאיפוס להיראות שבור.
+
+   ⚠ מוצג לצוות בלבד. הקוד הוא מפתח לחשבון של אדם אחר, והוא
+     ממילא קריא בלוח לכל מי שיש לו גישה אליו.
+
+   ⚠ רק קודים שנמסרים ביד (`hand:`). אסימון שנשלח במייל אינו
+     מוצג לאיש — הוא בדרך לתיבה של הבעלים ואין למנהל מה לעשות
+     איתו.
+   ============================================================ */
+async function resetNotes(today) {
+  const all = await identities();
+  const now = new Date();
+  const out = [];
+  for (const r of all) {
+    if (!r.reset || !r.reset.startsWith("hand:")) continue;
+    const [, rest] = r.reset.split(":");
+    const code = String(rest || "").split("|")[0];
+    const exp = String(r.reset).split("|").pop();
+    /* ⚠ קוד שפג אינו מוצג. הוא כבר לא עובד, והצגתו הייתה
+       שולחת את המנהל למסור מפתח מת. */
+    if (!code || !exp || new Date(exp) < now) continue;
+    out.push(note({
+      id: `reset:${r.id}:${code}`, kind: "סיסמה", level: "גבוה",
+      title: `${r.name} — קוד איפוס ${code}`,
+      body: `נמסר בעל פה. תקף עד ${exp.slice(11, 16)}, לשימוש אחד.`,
+      tab: "students",
+    }));
+  }
+  return out;
+}
+
+/* ============================================================
    חניך — רק מה שנוגע לו
    ============================================================ */
 async function studentNotes(session, today) {
@@ -358,6 +395,8 @@ async function handler(req, res, session) {
       jobs.push(studentNotes(session, today));
     } else {
       jobs.push(requestNotes(session, today));
+      /* ⚠ כל הצוות. מי ששואל "איך נכנסים" תופס את מי שנמצא. */
+      jobs.push(resetNotes(today));
     }
 
     /* ⚠ מנהל מקבל את הכול. זה מה שהתבקש, וזה גם נכון: הוא

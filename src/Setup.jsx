@@ -8,8 +8,9 @@
    ⚠ שלושה שלבים במסילה אחת ולא טופס אחד ארוך. הכניסה הראשונה
      היא הרגע שבו הכי קל לוותר, והמסילה אומרת כמה נשאר.
 
-   ⚠ האימייל **אופציונלי**. הוא נשמר רק אם הוקלד כאן, ומשמש
-     דבר אחד בלבד — לשלוח קישור למי ששכח סיסמה.
+   ⚠ האימייל **חובה**. בלעדיו איפוס סיסמה דורש שאיש צוות יהיה
+     זמין למסור קוד ביד — וזה בדיוק הרגע שבו אף אחד לא זמין.
+     כתובת אחת בהתחלה חוסכת את זה לכל השנה.
    ============================================================ */
 
 import React, { useState } from "react";
@@ -38,6 +39,10 @@ export default function Setup({ name, onDone, onSignOut }) {
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
   const [email, setEmail] = useState("");
+  /* ⚠ ולידציה מקלה בכוונה. השרת בודק אותו דבר, וטופס שדוחה
+     כתובת תקינה בגלל תבנית קפדנית מדי גרוע מטופס שמקבל
+     כתובת שגויה — את השנייה אפשר לתקן. */
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -64,7 +69,7 @@ export default function Setup({ name, onDone, onSignOut }) {
   const STEPS = [
     { t: "שם משתמש", s: "בשם הזה נכנסים מכאן והלאה" },
     { t: "סיסמה", s: "לפחות שמונה תווים" },
-    { t: "אימייל", s: "לא חובה — לשחזור סיסמה" },
+    { t: "אימייל", s: "לשחזור סיסמה אם תשכחו אותה" },
   ];
 
   return (
@@ -150,14 +155,15 @@ export default function Setup({ name, onDone, onSignOut }) {
               <div className="fld">
                 <label htmlFor="se">אימייל</label>
                 <input id="se" type="email" autoFocus value={email} disabled={busy}
-                  autoComplete="email" placeholder="לא חובה"
+                  autoComplete="email" placeholder="you@example.com"
                   onChange={(e) => setEmail(e.target.value)} />
-                <div className="fld-hint">
-                  משמש דבר אחד בלבד — לשלוח קישור אם תשכחו את הסיסמה.
-                  בלעדיו אפשר לקבל קוד מהצוות.
-                </div>
+                {email.trim() && !emailOk
+                  ? <div className="fld-bad">הכתובת אינה נראית תקינה</div>
+                  : <div className="fld-hint">
+                      לכאן יישלח קישור אם תשכחו את הסיסמה. זה השימוש היחיד שלו.
+                    </div>}
               </div>
-              <button className="btn btn-primary" disabled={busy} onClick={save}>
+              <button className="btn btn-primary" disabled={busy || !emailOk} onClick={save}>
                 {busy ? "שומר…" : "סיום"}
               </button>
               <button className="link-btn" disabled={busy}

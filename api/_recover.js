@@ -111,11 +111,26 @@ export default async function handler(req, res) {
        את זמן התשובה לאינדיקציה שהמשתמש קיים. */
     if (!row || !row.active) return res.status(200).json(SAME);
 
-    const token = newResetToken();
-    const canMail = mailerReady() && row.email;
+    /* ============================================================
+       השליחה — ותמיד עם רשת מתחת
+       ------------------------------------------------------------
+       ⚠ באג שהיה כאן: כשהמייל נכשל, האסימון נשאר אסימון־מייל.
+         המשתמש לא קיבל דבר, ולמנהל לא היה קוד למסור — האיפוס
+         הפך לדלת ללא מפתח, והמסך הציג "הבקשה נקלטה".
 
-    if (canMail) {
-      await writeIdentity(row, { reset: packReset(token) });
+         מייל אינו ערוץ אמין: דומיין שאינו מאומת, מכסה שנגמרה,
+         תיבה מלאה, ספאם. **כל אחד מהם חייב לנחות באותו מקום**
+         — קוד בן שש ספרות שהמנהל רואה ומוסר.
+
+       ⚠ הסדר: כותבים קוד ידני **קודם**, ורק אם המייל באמת יצא
+         מחליפים אותו באסימון הקישור. כך גם קריסה באמצע משאירה
+         דרך פתוחה ולא דלת נעולה.
+       ============================================================ */
+    const code = newHandCode();
+    await writeIdentity(row, { reset: `hand:${code}|${packReset(code)}` });
+
+    if (mailerReady() && row.email) {
+      const token = newResetToken();
       const origin = originOf(req);
       const { subject, text } = resetLetter({
         name: row.name,
@@ -123,13 +138,15 @@ export default async function handler(req, res) {
         minutes: RESET_MINUTES,
       });
       const out = await sendMail({ to: row.email, subject, text });
-      /* ⚠ כישלון שליחה אינו נחשף למי שביקש — הוא זהה לכל מצב
-         אחר. הוא כן נרשם ללוג, ויש דרך חלופית. */
-      if (!out.sent) console.error("[recover] שליחה נכשלה:", out.reason);
-    } else {
-      /* ⚠ קוד למסירה ביד. נשמר בלוח ואינו חוזר בתשובה. */
-      const code = newHandCode();
-      await writeIdentity(row, { reset: `hand:${code}|${packReset(code)}` });
+      if (out.sent) {
+        /* ⚠ המייל יצא — הקישור מחליף את הקוד. אסימון אחד בכל
+           רגע, אחרת היו שני מפתחות פתוחים לאותו חשבון. */
+        await writeIdentity(row, { reset: packReset(token) });
+      } else {
+        /* ⚠ נרשם ללוג ואינו נחשף למי שביקש. הקוד הידני נשאר
+           במקומו, והמנהל רואה אותו במסך ההתראות. */
+        console.error("[recover] שליחה נכשלה:", out.reason);
+      }
     }
 
     return res.status(200).json(SAME);
