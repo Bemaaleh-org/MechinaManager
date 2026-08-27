@@ -1928,6 +1928,9 @@ html,body{margin:0;padding:0;background:#012E58}
 .mc-l{flex:1;font-weight:800;font-family:ui-monospace,monospace;font-size:12px}
 .mc-v{font-weight:700;color:var(--muted);font-size:12.5px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:52%}
+.mc-via{font-size:13px;font-weight:900;color:var(--accent);
+  background:var(--accent-soft);border-radius:var(--r-md);
+  padding:9px 12px;margin-bottom:11px;text-align:center}
 .mc-note{font-size:12px;font-weight:600;color:var(--amber);line-height:1.6;
   background:var(--amber-soft);border-radius:var(--r-md);padding:10px 12px;margin-top:11px}
 /* השגיאה כלשונה — במונוספייס, כדי שאפשר יהיה להשוות תו-תו */

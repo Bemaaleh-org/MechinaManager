@@ -25,9 +25,36 @@ import { sendMail, mailerStatus } from "./_mailer.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-/** תרגום השגיאות הנפוצות של Resend למה שצריך לעשות */
-function advise(status, reason) {
+/** תרגום השגיאות הנפוצות למה שצריך לעשות בפועל */
+function advise(status, reason, via) {
   const r = String(reason || "");
+
+  /* ---------- גוגל ---------- */
+  if (via === "smtp") {
+    if (/username and password not accepted|invalid login|535/i.test(r)) {
+      return "גוגל דחתה את הסיסמה. ⚠ צריך **סיסמת אפליקציה** (16 תווים) "
+        + "ולא הסיסמה הרגילה של החשבון, ו-2-Step Verification חייב להיות מופעל.";
+    }
+    if (/application-specific password required/i.test(r)) {
+      return "החשבון דורש סיסמת אפליקציה. יש ליצור אחת ב-"
+        + "myaccount.google.com/apppasswords ולהכניס אותה ל-SMTP_PASS.";
+    }
+    if (/not enabled|disabled|admin/i.test(r)) {
+      return "מנהל ה-Workspace חסם סיסמאות אפליקציה או גישת SMTP. "
+        + "צריך לפתוח את זה בקונסולת הניהול של גוגל.";
+    }
+    if (/from address|sender|5\.7\.\d/i.test(r)) {
+      return "כתובת השולח אינה מורשית לחשבון הזה. MAIL_FROM חייב להיות "
+        + "אותה כתובת של SMTP_USER, או כינוי מאושר שלה.";
+    }
+    if (/timeout|ETIMEDOUT|ECONNREFUSED/i.test(r)) {
+      return "החיבור לשרת של גוגל לא נענה. אם זה חוזר — לנסות SMTP_PORT=587.";
+    }
+    if (/limit|quota|rate/i.test(r)) return "נגמרה מכסת השליחה היומית של החשבון.";
+    return null;
+  }
+
+  /* ---------- Resend ---------- */
   if (status === 401 || /api key|unauthor/i.test(r)) {
     return "המפתח שגוי או שאינו קיים. יש ליצור מפתח חדש ב-Resend ולהחליף את RESEND_API_KEY.";
   }
@@ -53,11 +80,20 @@ async function handler(req, res, session) {
     return res.status(200).json({
       ...st,
       /* ⚠ אבחון שאומר מה חסר, ולא "לא מוגדר". */
-      problems: [
-        !st.hasKey && "לא הוגדר RESEND_API_KEY",
-        st.hasKey && !st.keyLooksRight && "RESEND_API_KEY אינו נראה כמו מפתח של Resend (מתחיל ב-re_)",
-        !st.from && "לא הוגדר MAIL_FROM",
-      ].filter(Boolean),
+      /* ⚠ מה חסר **במסלול שנבחר**, ולא רשימה של הכול. משתמש
+         שהגדיר SMTP לא אמור לראות "חסר RESEND_API_KEY". */
+      problems: (st.via === "smtp" ? [
+        !st.smtpUser && "לא הוגדר SMTP_USER",
+        st.hasSmtpPass && !st.smtpPassLooksRight
+          && `SMTP_PASS באורך ${st.smtpPassLen} — סיסמת אפליקציה של גוגל היא 16 תווים`,
+        !st.from && "לא הוגדר MAIL_FROM — תשמש כתובת ה-SMTP_USER",
+      ] : st.via === "resend" ? [
+        st.hasKey && !st.keyLooksRight && "RESEND_API_KEY אינו נראה כמו מפתח של Resend",
+      ] : [
+        "לא הוגדר שום שירות דואר",
+        "לגוגל Workspace: SMTP_USER ו-SMTP_PASS",
+        "ל-Resend: RESEND_API_KEY ו-MAIL_FROM",
+      ]).filter(Boolean),
     });
   }
 
@@ -77,7 +113,8 @@ async function handler(req, res, session) {
       return res.status(200).json({
         sent: false, ...st,
         reason: "שירות הדואר אינו מוגדר",
-        advice: "יש להגדיר RESEND_API_KEY ו-MAIL_FROM ב-Vercel, ואז Redeploy.",
+        advice: "המכינה על Google Workspace — יש להגדיר SMTP_USER ו-SMTP_PASS "
+          + "ב-Vercel, ואז Redeploy.",
       });
     }
 
@@ -97,7 +134,7 @@ async function handler(req, res, session) {
 
     return res.status(200).json({
       ...out, ...st,
-      advice: out.sent ? null : advise(out.status, out.reason),
+      advice: out.sent ? null : advise(out.status, out.reason, st.via),
     });
   } catch (e) {
     const status = e instanceof AuthError ? e.status : 502;

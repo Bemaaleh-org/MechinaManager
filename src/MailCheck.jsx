@@ -58,15 +58,38 @@ export function MailCheckPage({ say }) {
         <>
           <div className="sec-label">מה מוגדר ב-Vercel</div>
           <div className="card" style={{ marginBottom: 14 }}>
-            <Row ok={st.hasKey} label="RESEND_API_KEY"
-              value={st.hasKey ? (st.keyLooksRight ? "תקין" : "לא נראה תקין") : "חסר"} />
-            <Row ok={Boolean(st.from)} label="MAIL_FROM" value={st.from || "חסר"} />
-            {/* ⚠ המידע שהכי מבלבל: onboarding@resend.dev שולח רק
-                לכתובת שאיתה נפתח החשבון. */}
-            {st.isTestFrom && (
+            {/* ⚠ המסלול שנבחר בפועל. שני מסלולים מוגדרים = SMTP
+                גובר, ועדיף שזה ייכתב מאשר שינוחש. */}
+            <div className="mc-via">
+              {st.via === "smtp" ? "נשלח דרך Google Workspace"
+                : st.via === "resend" ? "נשלח דרך Resend"
+                : "לא מוגדר שירות דואר"}
+            </div>
+            {st.via === "smtp" ? (
+              <>
+                <Row ok={Boolean(st.smtpUser)} label="SMTP_USER" value={st.smtpUser || "חסר"} />
+                <Row ok={st.smtpPassLooksRight} label="SMTP_PASS"
+                  value={st.hasSmtpPass
+                    ? (st.smtpPassLooksRight ? "16 תווים · תקין" : `${st.smtpPassLen} תווים`)
+                    : "חסר"} />
+                <Row ok={Boolean(st.from)} label="MAIL_FROM" value={st.from || "חסר"} />
+              </>
+            ) : (
+              <>
+                <Row ok={st.hasKey} label="RESEND_API_KEY"
+                  value={st.hasKey ? (st.keyLooksRight ? "תקין" : "לא נראה תקין") : "חסר"} />
+                <Row ok={Boolean(st.from)} label="MAIL_FROM" value={st.from || "חסר"} />
+              </>
+            )}
+            {st.via === "smtp" && !st.smtpPassLooksRight && st.hasSmtpPass && (
+              <div className="mc-note">
+                סיסמת אפליקציה של גוגל היא <b>16 תווים</b>. אם העתקת אותה עם
+                רווחים — זה בסדר, הם מוסרים אוטומטית.
+              </div>
+            )}
+            {st.via === "resend" && st.isTestFrom && (
               <div className="mc-note">
                 כתובת הבדיקה של Resend שולחת <b>רק לכתובת שאיתה נפתח חשבון Resend</b>.
-                לשליחה לחניכים צריך לאמת דומיין.
               </div>
             )}
           </div>
@@ -88,8 +111,9 @@ export function MailCheckPage({ say }) {
                 placeholder="you@example.com"
                 onChange={(e) => setTo(e.target.value)} />
               <div className="fld-hint">
-                אם MAIL_FROM הוא onboarding@resend.dev — יש להזין כאן את הכתובת
-                שאיתה נפתח חשבון Resend, אחרת השליחה תידחה.
+                {st.via === "smtp"
+                  ? "כל כתובת. השליחה יוצאת מהחשבון של המכינה בגוגל."
+                  : "אם MAIL_FROM הוא onboarding@resend.dev — יש להזין כאן את הכתובת שאיתה נפתח חשבון Resend."}
               </div>
             </div>
             <button className="btn btn-primary" disabled={busy || !to.trim()} onClick={test}>
