@@ -1916,6 +1916,26 @@ html,body{margin:0;padding:0;background:#012E58}
 .cy-note{font-size:11.5px;font-weight:600;color:var(--faint);margin-top:7px;
   text-align:center;line-height:1.5}
 
+/* ---- בדיקת מייל ----
+   ⚠ סימן ומילה ולא רק צבע. */
+.mc-row{display:flex;align-items:center;gap:10px;padding:9px 0;
+  border-bottom:1px solid var(--line);font-size:13px}
+.mc-row:last-child{border-bottom:none}
+.mc-mark{flex:0 0 22px;height:22px;border-radius:99px;display:grid;place-items:center;
+  font-size:12px;font-weight:900}
+.mc-row.ok .mc-mark{background:var(--ok-soft);color:var(--ok)}
+.mc-row.bad .mc-mark{background:var(--clay-soft);color:var(--clay)}
+.mc-l{flex:1;font-weight:800;font-family:ui-monospace,monospace;font-size:12px}
+.mc-v{font-weight:700;color:var(--muted);font-size:12.5px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:52%}
+.mc-note{font-size:12px;font-weight:600;color:var(--amber);line-height:1.6;
+  background:var(--amber-soft);border-radius:var(--r-md);padding:10px 12px;margin-top:11px}
+/* השגיאה כלשונה — במונוספייס, כדי שאפשר יהיה להשוות תו-תו */
+.mc-err{font-family:ui-monospace,monospace;font-size:11.5px;direction:ltr;
+  text-align:left;background:rgba(0,0,0,.05);border-radius:8px;padding:8px 10px;
+  margin-top:6px;line-height:1.5;word-break:break-word}
+.mc-fix{font-weight:800;margin-top:8px;line-height:1.6}
+
 /* ⚠ מי שביקש פחות תנועה מקבל פחות תנועה. */
 @media (prefers-reduced-motion:reduce){
   .kx *{transition-duration:.01ms !important;animation-duration:.01ms !important}

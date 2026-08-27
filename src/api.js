@@ -141,6 +141,11 @@ export const api = {
   checkReset: (token) => get("/api/auth?action=recover&token=" + encodeURIComponent(token)),
   resetPassword: (token, password) => post("/api/auth?action=recover", { token, password }),
 
+  /* ⚠ אבחון הדואר — מנהל בלבד. מחזיר את שגיאת Resend כלשונה,
+     כי בלעדיה "השליחה נכשלה" הוא כל מה שיש. */
+  getMailStatus: () => get("/api/auth?action=mailtest"),
+  sendTestMail: (to) => post("/api/auth?action=mailtest", { to }),
+
   getNotify: () => get("/api/auth?action=notify"),
   markNotifySeen: () => post("/api/auth?action=notify", {}),
 

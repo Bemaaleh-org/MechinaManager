@@ -23,6 +23,24 @@ const FROM = () => process.env.MAIL_FROM || "";
 export const mailerReady = () => Boolean(KEY() && FROM());
 
 /**
+ * מצב ההגדרה, לאבחון.
+ * ⚠ לעולם לא המפתח עצמו — רק אם הוא קיים ומה אורכו. כתובת
+ *   השולח אינה סוד ומוחזרת במלואה, כי היא בדיוק מה שצריך
+ *   לבדוק מול הדומיין המאומת ב-Resend.
+ */
+export const mailerStatus = () => {
+  const k = KEY(), f = FROM();
+  return {
+    ready: Boolean(k && f),
+    hasKey: Boolean(k),
+    keyLooksRight: /^re_[A-Za-z0-9_-]{10,}$/.test(k),
+    from: f || null,
+    /* ⚠ Resend מסרבת לכל דומיין שאינו מאומת, חוץ מזה. */
+    isTestFrom: f === "onboarding@resend.dev" || f.endsWith("@resend.dev"),
+  };
+};
+
+/**
  * שליחה. מחזיר { sent, reason } ולעולם אינו זורק.
  * ⚠ כישלון בשליחה אינו מפיל את מסלול האיפוס. האסימון כבר
  *   נשמר, והמשתמש יקבל את הדרך החלופית.
@@ -42,14 +60,24 @@ export async function sendMail({ to, subject, text, html }) {
       }),
     });
     if (!r.ok) {
-      /* ⚠ גוף התשובה אינו נרשם ללוג: הוא עשוי להכיל את הכתובת. */
-      console.error("[mailer] סטטוס", r.status);
-      return { sent: false, reason: "השליחה נכשלה" };
+      /* ⚠ ההודעה של Resend נחוצה לאבחון — בלעדיה "השליחה
+         נכשלה" הוא כל מה שיש, ואי אפשר לדעת אם הדומיין אינו
+         מאומת, המפתח שגוי או המכסה נגמרה.
+
+         ⚠ נקראת מהשדה message בלבד ולא מכל הגוף, ונחתכת —
+         כדי שכתובת או פרט אחר לא ייכנסו ללוג בשלמותם. */
+      let detail = "";
+      try {
+        const j = await r.json();
+        detail = String(j?.message || j?.error?.message || "").slice(0, 200);
+      } catch { /* גוף שאינו JSON — נשארים עם הסטטוס */ }
+      console.error("[mailer] סטטוס", r.status, detail);
+      return { sent: false, status: r.status, reason: detail || `סטטוס ${r.status}` };
     }
     return { sent: true };
   } catch (e) {
     console.error("[mailer]", e && e.message);
-    return { sent: false, reason: "השליחה נכשלה" };
+    return { sent: false, reason: String(e && e.message || "השליחה נכשלה").slice(0, 200) };
   }
 }
 
