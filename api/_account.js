@@ -32,6 +32,7 @@ import {
   hashPassword, verifyPassword, normalizeUser, userProblem, passwordProblem,
 } from "./_credentials.js";
 import { mailerReady } from "./_mailer.js";
+import { studentRows } from "./_student-rows.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -42,10 +43,22 @@ async function handler(req, res, session) {
     if (!me) return res.status(404).json({ error: "החשבון אינו נמצא" });
 
     if (req.method === "GET") {
+      /* ⚠ תעודת זהות ומגדר **של המשתמש עצמו בלבד**, ורק לחניך
+         (לצוות אין שורה במצבה). זה המידע שלו על עצמו, והוא
+         לעולם אינו מגיע דרך כאן על אף אחד אחר — הבדיקה היא
+         על session.itemId ולא על פרמטר כלשהו. */
+      let tz = null, gender = null;
+      if (session.isStudent) {
+        const row = (await studentRows()).find((r) => r.id === String(session.itemId));
+        if (row) { tz = row.tz || null; gender = row.gender || null; }
+      }
+
       return res.status(200).json({
         name: me.name,
+        kind: me.kind,
         user: me.user || null,
         email: me.email || null,
+        tz, gender,
         /* ⚠ לעולם לא הגיבוב עצמו — רק אם קיים. */
         hasPassword: Boolean(me.hash),
         setup: Boolean(session.setup) || isFresh(me),

@@ -6,12 +6,22 @@
 
    ⚠ הקוד לא חוזר לדפדפן ולא נשמר בעוגייה — רק טביעת אצבע שלו.
    ⚠ רשומה שאינה פעילה נדחית, גם אם הקוד נכון.
+
+   ⚠ **הקוד הוא מסלול הרשמה, לא מסלול כניסה קבוע.** איש צוות
+     שנכנס עם קוד וטרם קבע שם משתמש וסיסמה מסומן `setup`,
+     ו-withAuth חוסם לו כל נקודת קצה חוץ ממסך ההקמה — בדיוק
+     כמו חניך שנכנס עם תעודת זהות.
+
+     הקוד נשאר תקף גם אחר כך: הוא מה שמאפשר לראש המכינה לתת
+     גישה למי שאיבד את הכול, בלי לגעת בסיסמאות. אבל מרגע
+     שנקבעו שם וסיסמה, הם הדרך הרגילה.
    ============================================================ */
 
 import {
   authRows, traineeRoster, setSession, fingerprint, codeMatches,
   attemptKey, checkThrottle, penalize, clearAttempts, AuthError, KIND,
 } from "./_session.js";
+import { identities, isFresh } from "./_identity.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -44,11 +54,27 @@ export default async function handler(req, res) {
     clearAttempts(key);
 
     const isManager = match.kind === KIND.manager;
+
+    /* ⚠ איש צוות שטרם נרשם — הקוד פותח את ההרשמה ולא את
+       המערכת. הקוד המשותף של התורנים אינו אדם ואינו נרשם. */
+    let setup = false;
+    if (isManager) {
+      try {
+        const me = (await identities()).find((r) => r.id === String(match.id));
+        setup = Boolean(me && isFresh(me));
+      } catch (e) {
+        /* ⚠ כשל בקריאת הזהויות לא נועל את הצוות בחוץ. הוא
+           נכנס כרגיל, וייתבקש להירשם בפעם הבאה. */
+        console.error("[login] קריאת זהות נכשלה:", e && e.message);
+      }
+    }
+
     setSession(res, {
       kind: isManager ? "manager" : "trainee",
       itemId: match.id,
       name: isManager ? match.name : null, // חניך יבחר שם בשלב הבא
       cfp: fingerprint(match.code),
+      ...(setup ? { setup: true } : {}),
     });
 
     res.status(200).json({
@@ -56,6 +82,7 @@ export default async function handler(req, res) {
       kind: isManager ? "manager" : "trainee",
       name: isManager ? match.name : null,
       needsName: !isManager,
+      setup,
       roster: isManager ? [] : await traineeRoster(),
     });
   } catch (e) {

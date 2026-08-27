@@ -19,19 +19,31 @@ const S = KITCHEN_COLS.shopping;
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
 const areaOf = (i, c) => val(i, c) || KITCHEN_AREA.food;
 
+/** עמודת מספר → מספר או null. ⚠ ריק אינו אפס. */
+function num(i, c) {
+  const t = val(i, c).trim();
+  if (t === "") return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
+
 export async function loadKitchenEquipment({ force = false } = {}) {
   return cached("kitchen-equipment", async () => {
     const items = await allItems(KITCHEN_BOARDS.equipment);
     return items
       .map((i) => {
-        const par = val(i, E.par);
+        /* ⚠ שלוש עמודות מספר, ולכולן אותו כלל: ריק הוא null
+           ולא אפס. מחיר 0 פירושו "בחינם", ומחיר חסר פירושו
+           "לא יודעים" — והמסך מציג אותם אחרת. */
         return {
           id: String(i.id),
           name: String(i.name || "").trim(),
           qty: val(i, E.qty),
           kind: val(i, E.kind) || KITCHEN_KIND.consumable,
           area: areaOf(i, E.area),
-          par: par === "" ? null : Number(par),
+          par: num(i, E.par),
+          price: num(i, E.price),
+          kgPer: num(i, E.kgPer),
         };
       })
       .filter((x) => x.name)

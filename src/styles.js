@@ -2005,6 +2005,43 @@ html,body{margin:0;padding:0;background:#012E58}
 .imp-acts{display:flex;gap:7px}
 .imp-acts>*{flex:1}
 
+/* ---- הפרופיל שלי ---- */
+/* ---------- שווי מלאי ----------
+   ⚠ פס ולא כרטיס: זו שורת הקשר לרשימה שמתחתיה, ולא נתון
+     שעומד בפני עצמו. */
+.valbar{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:12px 15px;margin-bottom:12px;border-radius:14px;
+  background:var(--sand);border:1px solid var(--line)}
+.val-n{display:block;font-size:19px;font-weight:800;letter-spacing:-.02em}
+.val-l{display:block;font-size:12px;color:var(--ink3);margin-top:2px}
+
+/* ---------- טבלת המרה ---------- */
+.conv{width:100%;border-collapse:collapse;font-size:14px}
+.conv th{text-align:right;font-size:12px;font-weight:700;color:var(--ink3);
+  padding:8px 10px;border-bottom:1px solid var(--line2)}
+.conv td{padding:9px 10px;border-bottom:1px solid var(--line)}
+.conv tr:last-child td{border-bottom:none}
+.conv .num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.conv-grp{font-size:12px;font-weight:700;color:var(--ink3);
+  background:var(--sand);padding:6px 10px}
+
+.pf-head{display:flex;align-items:center;gap:13px;margin-bottom:16px}
+.pf-av{width:52px;height:52px;border-radius:17px;flex:0 0 auto;display:grid;
+  place-items:center;background:var(--accent-soft);color:var(--accent)}
+.pf-name{font-family:'Suez One',Heebo,serif;font-size:19px;line-height:1.2;
+  letter-spacing:-.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pf-kind{font-size:11.5px;font-weight:800;letter-spacing:.6px;color:var(--faint);
+  margin-top:3px}
+.pf-row{display:flex;align-items:baseline;gap:10px;padding:9px 0;
+  border-bottom:1px solid var(--line)}
+.pf-row:last-of-type{border-bottom:none}
+.pf-l{flex:0 0 88px;font-size:12.5px;font-weight:800;color:var(--muted)}
+.pf-v{flex:1;font-size:15px;font-weight:800;letter-spacing:.3px}
+.pf-n{font-size:11px;font-weight:700;color:var(--faint)}
+/* ⚠ אומר למי לפנות, ולא רק "אי אפשר לשנות". */
+.pf-note{font-size:11.5px;font-weight:600;color:var(--faint);line-height:1.55;
+  margin-top:9px;padding-top:9px;border-top:1px solid var(--line)}
+
 /* ⚠ מי שביקש פחות תנועה מקבל פחות תנועה. */
 @media (prefers-reduced-motion:reduce){
   .kx *{transition-duration:.01ms !important;animation-duration:.01ms !important}

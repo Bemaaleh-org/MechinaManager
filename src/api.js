@@ -90,17 +90,20 @@ export const api = {
   getKitchen: (area) =>
     get("/api/kitchen?action=equip" + (area ? "&area=" + encodeURIComponent(area) : "")),
 
-  /** פריט חדש. par ריק = בלי מפתח. */
-  addKitchenItem: ({ name, qty, kind, par, area }) =>
-    post("/api/kitchen?action=equip", { name, qty, kind, par, area }),
+  /** פריט חדש. par ריק = בלי מפתח.
+   *  ⚠ price ו-kgPer רשות. השדות **חייבים להופיע כאן במפורש** —
+   *    פירוק אובייקט משמיט בשקט כל מה שלא נכתב, וזו הדרך שבה
+   *    שדה חדש נראה עובד במסך ואינו מגיע לשרת. */
+  addKitchenItem: ({ name, qty, kind, par, area, price, kgPer }) =>
+    post("/api/kitchen?action=equip", { name, qty, kind, par, area, price, kgPer }),
 
   /** עריכת פריט. שדה שלא נשלח אינו משתנה. */
   /** ⚠ delta מוסיף לכמות הקיימת; qty דורס אותה. לא לשלוח שניהם. */
   addKitchenQty: ({ itemId, delta }) =>
     put("/api/kitchen?action=equip", { itemId, delta }),
 
-  editKitchenItem: ({ itemId, name, qty, kind, par }) =>
-    put("/api/kitchen?action=equip", { itemId, name, qty, kind, par }),
+  editKitchenItem: ({ itemId, name, qty, kind, par, price, kgPer }) =>
+    put("/api/kitchen?action=equip", { itemId, name, qty, kind, par, price, kgPer }),
 
   /** ⚠ מחיקה — בלתי הפיך, השורה נמחקת מהלוח */
   deleteKitchenItem: (itemId) => del("/api/kitchen?action=equip", { itemId }),

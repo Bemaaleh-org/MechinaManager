@@ -16,6 +16,10 @@ import { KITCHEN_AREA, KITCHEN_AREAS, KITCHEN_KIND } from "../shared/kitchen-boa
 const DOMAIN = {
   areas: KITCHEN_AREAS,
   defaultKind: KITCHEN_KIND.consumable,
+  /* ⚠ מחיר ומשקל קיימים במטבח בלבד. במכולה אין עמודות כאלה
+     בלוח, ושדה שנשלח לשם היה נדחה בשקט — לכן דגל ולא הנחה
+     שהמסך המשותף תומך בכול. */
+  money: true,
   look: {
     [KITCHEN_AREA.food]: {
       title: "ציוד אוכל", photo: null,

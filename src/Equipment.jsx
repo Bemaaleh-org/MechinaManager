@@ -22,6 +22,7 @@
 import React, { useState, useEffect, useCallback, useContext, createContext } from "react";
 import { useExcel, downloadTable, shareText } from "./excel.js";
 import { missingFor } from "../shared/par.js";
+import { produceList, kgPerUnit, unitsToKg, kgToUnits } from "../shared/produce.js";
 
 /* ============================================================
    הקשר התחום — הניסוחים וקריאות השרת של המכולה או של המטבח.
@@ -32,6 +33,23 @@ import { missingFor } from "../shared/par.js";
    ============================================================ */
 const DomainCtx = createContext(null);
 const useDomain = () => useContext(DomainCtx);
+
+/**
+ * מספר לתצוגה.
+ * ⚠ בלי אפסים מיותרים: 1.4 ולא 1.40, אבל 1.44 נשאר 1.44.
+ *   מחיר של 12 אינו "12.00" — הדיוק המדומה הזה סותר את ה-≈
+ *   שמופיע לידו.
+ *
+ * ⚠ **מספרים קטנים דורשים יותר ספרות.** שתי ספרות עיגלו את
+ *   עגבניית השרי מ-0.012 ל-0.01 — שגיאה של 20% — והשורה
+ *   סתרה את עצמה: "0.01 ק״ג ליחידה" מול "83 יחידות בק״ג".
+ */
+const fmt = (n) => {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return "—";
+  const digits = Math.abs(v) < 0.1 ? 3 : 2;
+  return v.toLocaleString("he-IL", { maximumFractionDigits: digits });
+};
 
 const CI = {
   box: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 8l9-5 9 5v8l-9 5-9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>,
@@ -101,6 +119,8 @@ function EquipRow({ item, say, onChanged }) {
   const [f, setF] = useState({
     name: item.name, qty: item.qty, kind: item.kind,
     par: item.par == null ? "" : String(item.par),
+    price: item.price == null ? "" : String(item.price),
+    kgPer: item.kgPer == null ? "" : String(item.kgPer),
   });
   const [busy, setBusy] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
@@ -133,7 +153,11 @@ function EquipRow({ item, say, onChanged }) {
   const save = () => {
     if (busy || !f.name.trim()) return;
     setBusy(true);
-    d.editEquip({ itemId: item.id, name: f.name.trim(), qty: f.qty, kind: f.kind, par: f.par })
+    d.editEquip({
+      itemId: item.id, name: f.name.trim(), qty: f.qty, kind: f.kind,
+      par: f.par,
+      ...(d.money ? { price: f.price, kgPer: f.kgPer } : {}),
+    })
       .then(() => { say("נשמר"); setOpen(false); onChanged(); })
       .catch((e) => say(e.message))
       .finally(() => setBusy(false));
@@ -156,6 +180,10 @@ function EquipRow({ item, say, onChanged }) {
             <span className={"pill " + (item.kind === "מתכלה" ? "p-new" : "p-ok")}>{item.kind}</span>
             {item.par != null && <span>מפתח {item.par}</span>}
             {missing > 0 && <span className="pill p-low">חסר {missing}</span>}
+            {/* ⚠ תמיד עם ≈. המחיר הוא סדר גודל ולא מחיר חוזה,
+                ומספר בלי הסימן הזה נקרא כאילו נספר בקופה. */}
+            {item.cost != null && <span>≈ ₪{fmt(item.cost)}</span>}
+            {item.kgTotal != null && <span>≈ {fmt(item.kgTotal)} ק״ג</span>}
           </div>
           {/* ⚠ כמות מול מפתח כפס. "18 · מפתח 30 · חסר 12" מחייב
               חישוב בראש; פס באורך 60% נקרא במבט אחד. פריט בלי
@@ -233,6 +261,33 @@ function EquipRow({ item, say, onChanged }) {
                 onChange={(e) => setF({ ...f, par: e.target.value })} />
             </div>
           </div>
+
+          {d.money && (
+          <>
+          {/* ---------- מחיר ומשקל ----------
+              ⚠ שניהם רשות. רוב הפריטים לא ימולאו, וזה בסדר —
+                המסך מודיע כמה פריטים אין להם מחיר במקום להציג
+                סכום שנראה שלם ואינו. */}
+          <div className="two">
+            <div className="fld">
+              <label>מחיר ליחידה (₪)</label>
+              <input value={f.price} disabled={busy} inputMode="decimal" placeholder="ריק = לא ידוע"
+                onChange={(e) => setF({ ...f, price: e.target.value })} />
+            </div>
+            <div className="fld">
+              <label>ק״ג ליחידה</label>
+              <input value={f.kgPer} disabled={busy} inputMode="decimal"
+                placeholder={item.kgSource === "table" ? `לפי הטבלה ≈ ${item.kgEach}` : "ריק = לא ידוע"}
+                onChange={(e) => setF({ ...f, kgPer: e.target.value })} />
+              {/* ⚠ אומר מאיפה הגיע המספר. "0.12" בלי מקור נראה
+                  כמו מדידה, וזו הערכה מטבלה. */}
+              {item.kgSource === "table" && !f.kgPer.trim() && (
+                <div className="fld-hint">ממולא מטבלת ההמרה. מספר כאן גובר עליה.</div>
+              )}
+            </div>
+          </div>
+          </>
+          )}
           <div style={{ display: "flex", gap: 6 }}>
             <button className="btn btn-primary btn-sm" style={{ flex: 1 }} disabled={busy} onClick={save}>
               {busy ? "…" : "שמירה"}
@@ -249,6 +304,123 @@ function EquipRow({ item, say, onChanged }) {
         </div>
       )}
     </div>
+  );
+}
+
+/* ============================================================
+   טבלת המרה — כמות ↔ ק״ג
+   ------------------------------------------------------------
+   ⚠ **הערכה מוצהרת.** עגבנייה שוקלת בין 80 ל-180 גרם, וכל
+     מספר כאן הוא ממוצע. לכן ≈ בכל מקום ומשפט פתיחה שאומר
+     את זה במילים — טבלה שנראית מדויקת ואינה, מסוכנת מטבלה
+     שמצהירה על עצמה.
+
+   ⚠ ההמרה עובדת **לשני הכיוונים**, כי שתי השאלות אמיתיות:
+     "כמה ק״ג זה 12 מלפפונים" בבוקר של קניות, ו"כמה עגבניות
+     יוצאות מ-5 ק״ג" כשמחלקים עבודה למטבח.
+   ============================================================ */
+function ProduceTable() {
+  const [q, setQ] = useState("");
+  const [pick, setPick] = useState("");
+  const [amount, setAmount] = useState("");
+  const [dir, setDir] = useState("toKg");   /* toKg | toUnits */
+
+  const rows = produceList();
+  const shown = q.trim()
+    ? rows.filter((x) => x.name.includes(q.trim()) || kgPerUnit(q.trim()) === x.kg)
+    : rows;
+
+  const per = pick ? kgPerUnit(pick) : null;
+  const out = !pick || !amount.trim() ? null
+    : dir === "toKg" ? unitsToKg(amount, pick) : kgToUnits(amount, pick);
+
+  return (
+    <>
+      {/* ⚠ ההסתייגות לפני הכלי ולא אחריו. מי שיקרא רק את השורה
+          הראשונה יקרא בדיוק את מה שחשוב. */}
+      <div className="alert a-amber">
+        <div style={{ flex: 1 }}>
+          <div className="ttl">המספרים כאן הם ממוצעים</div>
+          <div className="bd">
+            עגבנייה שוקלת בין 80 ל-180 גרם. הטבלה עונה על "כמה ק״ג להזמין",
+            ולא מתאימה לחישוב עלות מדויק. פריט שהוזן לו ק״ג ליחידה בציוד — הערך שלו גובר.
+          </div>
+        </div>
+      </div>
+
+      {/* ---------- המחשבון ---------- */}
+      <div className="sec-label">המרה מהירה</div>
+      <div className="card lift" style={{ marginBottom: 14 }}>
+        <div className="fld">
+          <label>מה ממירים</label>
+          <input value={pick} placeholder="עגבניות, מלפפונים, תפוחים…"
+            onChange={(e) => setPick(e.target.value)} />
+          {pick.trim() && per == null
+            ? <div className="fld-bad">הפריט אינו בטבלה. אפשר להזין לו ק״ג ליחידה במסך הציוד.</div>
+            : per != null && <div className="fld-hint">יחידה אחת ≈ {fmt(per)} ק״ג</div>}
+        </div>
+        <div className="seg" style={{ marginBottom: 12 }}>
+          <button className={dir === "toKg" ? "on" : ""} onClick={() => setDir("toKg")}>
+            יחידות ← ק״ג
+          </button>
+          <button className={dir === "toUnits" ? "on" : ""} onClick={() => setDir("toUnits")}>
+            ק״ג ← יחידות
+          </button>
+        </div>
+        <div className="fld">
+          <label>{dir === "toKg" ? "כמה יחידות" : "כמה ק״ג"}</label>
+          <input value={amount} inputMode="decimal"
+            onChange={(e) => setAmount(e.target.value)} />
+        </div>
+        {out != null && (
+          <div className="valbar" style={{ marginBottom: 0 }}>
+            <div>
+              <span className="val-n">≈ {fmt(out)} {dir === "toKg" ? "ק״ג" : "יחידות"}</span>
+              <span className="val-l">
+                {fmt(amount)} {dir === "toKg" ? "יחידות" : "ק״ג"} של {pick.trim()}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ---------- הטבלה ---------- */}
+      <div className="sec-label">הטבלה המלאה</div>
+      <input className="search" value={q} onChange={(e) => setQ(e.target.value)}
+        placeholder="חיפוש בטבלה" />
+      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <table className="conv">
+          <thead>
+            <tr>
+              <th>פריט</th>
+              <th className="num">ק״ג ליחידה</th>
+              {/* ⚠ גם הכיוון ההפוך בטבלה עצמה. "כמה עגבניות בק״ג"
+                  היא השאלה שנשאלת בקנייה, ובלעדיה כל שורה
+                  דורשת חילוק בראש. */}
+              <th className="num">יחידות בק״ג</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((x) => (
+              <tr key={x.name}>
+                <td>{x.name}</td>
+                <td className="num">≈ {fmt(x.kg)}</td>
+                {/* ⚠ "0.2 אבטיחים בק״ג" הוא נכון וחסר תועלת.
+                    פריט ששוקל יותר מק״ג נמדד ביחידות ולא בק״ג,
+                    והעמודה הראשונה כבר עונה עליו. */}
+                <td className="num">
+                  {x.perKg < 1 ? "—" : "≈ " + Math.round(x.perKg)}
+                </td>
+              </tr>
+            ))}
+            {!shown.length && (
+              <tr><td colSpan={3} style={{ color: "var(--ink3)" }}>אין התאמה</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ height: 40 }} />
+    </>
   );
 }
 
@@ -461,7 +633,7 @@ function EquipmentScreen({ say, domain: d, area }) {
   const [q, setQ] = useState("");
   const [adding, setAdding] = useState(false);
   const [building, setBuilding] = useState(null); // null | "manual" | "missing"
-  const [nf, setNf] = useState({ name: "", qty: "", kind: d.defaultKind, par: "" });
+  const [nf, setNf] = useState({ name: "", qty: "", kind: d.defaultKind, par: "", price: "" });
   const [savingNew, setSavingNew] = useState(false);
 
   const look = (area === null ? d.look.all : d.look[area]) || d.look[d.areas[0]];
@@ -500,8 +672,9 @@ function EquipmentScreen({ say, domain: d, area }) {
        שנבחר במסנן — ואם לא נבחר, לתחום הראשון. פריט בלי תחום
        לא היה מופיע באף מסנן. */
     d.addEquip({ name: nf.name.trim(), qty: nf.qty, kind: nf.kind, par: nf.par,
+      ...(d.money ? { price: nf.price } : {}),
       area: area || areaFilter || d.areas[0] })
-      .then(() => { say("הציוד נוסף"); setAdding(false); setNf({ name: "", qty: "", kind: d.defaultKind, par: "" }); reload(); })
+      .then(() => { say("הציוד נוסף"); setAdding(false); setNf({ name: "", qty: "", kind: d.defaultKind, par: "", price: "" }); reload(); })
       .catch((e) => say(e.message))
       .finally(() => setSavingNew(false));
   };
@@ -571,7 +744,15 @@ function EquipmentScreen({ say, domain: d, area }) {
         <button className={sub === "shop" ? "on" : ""} onClick={() => setSub("shop")}>
           קניות{data.counts.openShopping ? ` (${data.counts.openShopping})` : ""}
         </button>
+        {/* ⚠ במטבח בלבד. במכולה אין ירקות להמיר. */}
+        {d.money && (
+          <button className={sub === "conv" ? "on" : ""} onClick={() => setSub("conv")}>
+            המרה
+          </button>
+        )}
       </div>
+
+      {sub === "conv" && <ProduceTable />}
 
       {sub === "equip" && (
         <>
@@ -596,6 +777,25 @@ function EquipmentScreen({ say, domain: d, area }) {
               </div>
             </div>
           </div>
+
+          {/* ---------- שווי המלאי ----------
+              ⚠ מוצג רק כשיש **בכלל** מחירים. פס שכתוב בו ₪0
+                נראה כמו מחסן ריק ולא כמו מחסן בלי מחירים.
+
+              ⚠ תמיד עם ≈ ותמיד עם מספר הפריטים שלא נספרו.
+                "₪1,240" לבד נקרא כשווי המחסן כשהוא שווי של
+                החלק שמולא, וזו טעות של פי שלושה. */}
+          {d.money && data.value && data.value.counted > 0 && (
+            <div className="valbar">
+              <div>
+                <span className="val-n">≈ ₪{fmt(data.value.total)}</span>
+                <span className="val-l">שווי מוערך של המלאי</span>
+              </div>
+              {data.value.unpriced > 0 && (
+                <span className="pill p-new">{data.value.unpriced} פריטים בלי מחיר</span>
+              )}
+            </div>
+          )}
 
           {/* ⚠ מסנן התחום מוצג רק במצב המאוחד. במסך של תחום
               יחיד הוא היה שורה שלמה עם תשובה אחת. */}
@@ -628,12 +828,16 @@ function EquipmentScreen({ say, domain: d, area }) {
                 file: look.file,
                 sheet: "ציוד",
                 title: `${look.title} — מכינת ניר עוז`,
-                header: ["פריט", "כמות", "סוג", "מפתח", "חסר"],
+                /* ⚠ עמודות המחיר נוספות רק במטבח. במכולה הן
+                   היו נשארות ריקות לכל אורך הקובץ. */
+                header: ["פריט", "כמות", "סוג", "מפתח", "חסר",
+                  ...(d.money ? ["מחיר ליחידה", "ק״ג ליחידה", "שווי מוערך"] : [])],
                 rows: data.equipment.map((x) => {
                   const m = missingFor(x);
-                  return [x.name, x.qty || "", x.kind || "", x.par ?? "", m > 0 ? m : ""];
+                  return [x.name, x.qty || "", x.kind || "", x.par ?? "", m > 0 ? m : "",
+                    ...(d.money ? [x.price ?? "", x.kgEach ?? "", x.cost ?? ""] : [])];
                 }),
-                widths: [28, 12, 10, 9, 8],
+                widths: [28, 12, 10, 9, 8, ...(d.money ? [12, 12, 12] : [])],
               });
               say("הקובץ ירד");
             }}><CI.dl />הורדת כל הציוד לאקסל</button>
@@ -668,6 +872,16 @@ function EquipmentScreen({ say, domain: d, area }) {
                     onChange={(e) => setNf({ ...nf, par: e.target.value })} />
                 </div>
               </div>
+              {/* ⚠ מחיר בלבד בהוספה. ק״ג ליחידה נגזר מהטבלה
+                  ברוב המקרים, ושדה שכמעט תמיד נשאר ריק בטופס
+                  קצר גורם לדלג גם על מה שכן חשוב. */}
+              {d.money && (
+                <div className="fld">
+                  <label>מחיר ליחידה (₪) — לא חובה</label>
+                  <input value={nf.price} disabled={savingNew} inputMode="decimal"
+                    onChange={(e) => setNf({ ...nf, price: e.target.value })} />
+                </div>
+              )}
               <button className="btn btn-primary" disabled={savingNew || !nf.name.trim()} onClick={addNew}>
                 {savingNew ? "מוסיף…" : "הוספת הציוד"}
               </button>

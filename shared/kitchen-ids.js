@@ -13,6 +13,9 @@ export const KITCHEN_BOARDS = {
 };
 
 export const KITCHEN_COLS = {
-  equipment: { qty: "text_mm6gpsc7", kind: "color_mm6g5xe4", area: "color_mm6gthnf", par: "numeric_mm6gfk9m" },
+  equipment: {
+    qty: "text_mm6gpsc7", kind: "color_mm6g5xe4", area: "color_mm6gthnf", par: "numeric_mm6gfk9m",
+    price: "numeric_mm6m5y4b", kgPer: "numeric_mm6m99f5",
+  },
   shopping: { qty: "text_mm6g3rtt", date: "date_mm6grr9a", status: "color_mm6gbf5k", by: "text_mm6gfn7v", area: "color_mm6ggr80" },
 };

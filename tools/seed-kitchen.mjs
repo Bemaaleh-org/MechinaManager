@@ -102,6 +102,11 @@ const E = {
   kind: await createColumn(equipBoard, "סוג", "status", labels("מתכלה", "תמידי")),
   area: await createColumn(equipBoard, "תחום", "status", labels("אוכל", "חד״פ")),
   par: await createColumn(equipBoard, "מפתח", "numbers"),
+  /* ⚠ מחיר וק״ג ליחידה הם **סדר גודל** ולא נתון חשבונאי.
+     הם עונים על "כמה בערך תעלה ההזמנה" ו"כמה ק״ג להזמין",
+     ולכן מותר להם להיות ריקים — רוב הפריטים לא ימולאו. */
+  price: await createColumn(equipBoard, "מחיר ליחידה", "numbers"),
+  kgPer: await createColumn(equipBoard, "ק״ג ליחידה", "numbers"),
 };
 ok(`ציוד — ${Object.keys(E).length} עמודות`);
 

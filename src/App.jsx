@@ -5,6 +5,7 @@ import { api, setUnauthorizedHandler } from "./api.js";
 import Login from "./Login.jsx";
 import Setup from "./Setup.jsx";
 import { CyclesPage } from "./Cycles.jsx";
+import { ProfilePage } from "./Profile.jsx";
 import { MechinaApp, MechinaStaff, MechinaRolesPage } from "./Mechina.jsx";
 import { LessonsPage, LessonsBoard } from "./Lessons.jsx";
 import { AlumniPage, HostingPage, LoansPage } from "./Extras.jsx";
@@ -243,6 +244,8 @@ function Staff({ auth, onSignedOut }) {
             { items: [
               { key: "dash", label: "מסך הבית", icon: <I.home />, active: section === "dash",
                 onClick: () => setSection("dash") },
+              { key: "profile", label: "הפרופיל שלי", icon: <I.users />,
+                active: section === "profile", onClick: () => setSection("profile") },
             ] },
             { label: "מטבח וחד״א", items: kitchenItems },
             { label: "חניכים ונוכחות", items: [
@@ -340,6 +343,7 @@ function Staff({ auth, onSignedOut }) {
 
           {section === "kitchen" && <KitchenPage say={say} area={kArea} />}
           {section === "menu" && <MenuPage say={say} />}
+          {section === "profile" && <ProfilePage say={say} />}
           {section === "alumni" && <AlumniPage say={say} />}
           {section === "cycles" && auth.isHead && <CyclesPage say={say} />}
           {section === "hosting" && <HostingPage say={say} />}

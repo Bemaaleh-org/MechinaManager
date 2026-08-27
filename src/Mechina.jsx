@@ -26,6 +26,7 @@ import { BudgetPage } from "./Budget.jsx";
 import { KitchenPage } from "./Kitchen.jsx";
 import { HostingPage, LoansPage } from "./Extras.jsx";
 import { useNotify, NotifyBell, NotifyPanel } from "./Notify.jsx";
+import { ProfilePage } from "./Profile.jsx";
 import { GanttPage } from "./Gantt.jsx";
 import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
@@ -2469,10 +2470,11 @@ export function MechinaApp({ auth, onSignedOut }) {
         groups={[
           { label: "אישי", items: [
             { key: "home", label: "בית", icon: <MI.home />, active: tab === "home", onClick: () => setTab("home") },
+            { key: "profile", label: "הפרופיל שלי", icon: <MI.users />,
+              active: tab === "profile", onClick: () => setTab("profile") },
             { key: "year", label: "הנוכחות שלי", icon: <MI.cal />, active: tab === "year", onClick: () => setTab("year") },
             { key: "requests", label: "בקשות יציאה", icon: <MI.note />, badge: unseen,
               active: tab === "requests", onClick: () => setTab("requests") },
-            { key: "profile", label: "הפרופיל שלי", icon: <MI.users />, active: tab === "profile", onClick: () => setTab("profile") },
             { key: "placements", label: "השיבוצים שלי", icon: <MI.users />, active: tab === "placements", onClick: () => setTab("placements") },
             { key: "menu", label: "תפריט ארוחות", icon: <MI.book />, active: tab === "menu", onClick: () => setTab("menu") },
             { key: "report", label: "דיווח תקלה", icon: <MI.tool />, active: tab === "report", onClick: () => setTab("report") },
@@ -2585,15 +2587,23 @@ export function MechinaApp({ auth, onSignedOut }) {
             בלי שהחניך צריך להתנתק. השרת אוכף, זו רק התצוגה. */}
         {tab === "placements" && <MyPlacements say={say} />}
 
-        {tab === "profile" && (
-          <>
-            <div className="screen-title">הפרופיל שלי</div>
-            <ProfileCard studentId={null} say={say} />
-          </>
-        )}
+
 
         {tab === "menu" && <MenuPage say={say} />}
         {tab === "report" && <FaultReportPage say={say} />}
+
+        {/* ⚠ מסך אחד ולא שניים. היו כאן שתי לשוניות בשם
+            "הפרופיל שלי" — אחת לזהות ואחת לצבא ולמיונים —
+            והחניך היה צריך לנחש איזו מהן מחזיקה את מה שהוא
+            מחפש. הכול על עצמי יושב במקום אחד. */}
+        {tab === "profile" && (
+          <>
+            <ProfilePage say={say} />
+            <div className="sec-label">שאיפות ומיונים</div>
+            <ProfileCard studentId={null} say={say} />
+            <div style={{ height: 40 }} />
+          </>
+        )}
 
         {tab === "agenda" && <AgendaPage />}
 
