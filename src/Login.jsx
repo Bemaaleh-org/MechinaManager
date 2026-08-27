@@ -48,26 +48,20 @@ function Secret({ id, label, value, onChange, disabled, hint, autoFocus, autoCom
 }
 
 export default function Login({ notice, onDone }) {
-  /* signin · forgot · sent · reset · code */
+  /* signin · forgot · enter · reset · code */
   const [view, setView] = useState("signin");
   const [user, setUser] = useState("");
   const [password, setPassword] = useState("");
+  const [password2, setPassword2] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [msg, setMsg] = useState(null);
 
-  /* ---------- קישור איפוס מהמייל ---------- */
-  const [token, setToken] = useState(null);
-  const [tokenName, setTokenName] = useState(null);
-  useEffect(() => {
-    const t = new URLSearchParams(location.search).get("reset");
-    if (!t) return;
-    setToken(t); setView("reset");
-    api.checkReset(t)
-      .then((d) => setTokenName(d.name || null))
-      .catch((e) => { setErr(e.message); setView("signin"); setToken(null); });
-  }, []);
+  /* ⚠ הקוד מהמייל, אחרי שאומת. נשמר כדי שלא יידרש להקליד
+     אותו שוב במסך הסיסמה. */
+  const [okCode, setOkCode] = useState(null);
+  const [codeName, setCodeName] = useState(null);
 
   const go = (v) => { if (!busy) { setView(v); setErr(null); setMsg(null); } };
 
@@ -85,16 +79,27 @@ export default function Login({ notice, onDone }) {
   const doForgot = (e) => {
     e.preventDefault();
     if (busy || !user.trim()) return;
-    run(api.forgot(user.trim()), (d) => { setMsg(d.message); setView("sent"); });
+    run(api.forgot(user.trim()), (d) => { setMsg(d.message); setView("enter"); });
+  };
+
+  /* ⚠ הקוד נבדק לפני שמציגים שדות סיסמה. מי שהקליד קוד שגוי
+     אמור לדעת מיד, ולא אחרי שכבר בחר סיסמה. */
+  const doCheckCode = (e) => {
+    e.preventDefault();
+    const c = code.trim();
+    if (busy || c.length < 6) return;
+    run(api.checkReset(user.trim(), c), (d) => {
+      setOkCode(c); setCodeName(d.name || null); setView("reset");
+    });
   };
 
   const doReset = (e) => {
     e.preventDefault();
-    if (busy || !password) return;
-    run(api.resetPassword(token, password), () => {
-      setPassword("");
-      history.replaceState({}, "", location.pathname);
-      setToken(null); setMsg("הסיסמה הוחלפה. אפשר להיכנס."); setView("signin");
+    if (busy || !password || password !== password2) return;
+    run(api.resetPassword(user.trim(), okCode, password), () => {
+      setPassword(""); setPassword2(""); setCode(""); setOkCode(null);
+      setMsg("הסיסמה הוחלפה. אפשר להיכנס.");
+      setView("signin");
     });
   };
 
@@ -161,7 +166,8 @@ export default function Login({ notice, onDone }) {
         {view === "forgot" && (
           <form className="card lift" onSubmit={doForgot}>
             <div className="login-lead">
-              מזינים שם משתמש או אימייל, ואנחנו שולחים דרך לקבוע סיסמה חדשה.
+              מזינים שם משתמש או אימייל, ואנחנו שולחים קוד בן שש ספרות לתיבה
+              הרשומה. הקוד בתוקף לשעה.
             </div>
             <div className="fld">
               <label htmlFor="fu">שם משתמש או אימייל</label>
@@ -169,36 +175,60 @@ export default function Login({ notice, onDone }) {
                 onChange={(e) => setUser(e.target.value)} />
             </div>
             <button className="btn btn-primary" type="submit" disabled={busy || !user.trim()}>
-              {busy ? "שולח…" : "שליחת קישור לאיפוס"}
+              {busy ? "שולח…" : "שליחת קוד למייל"}
             </button>
             <button type="button" className="link-btn" disabled={busy}
               onClick={() => go("signin")}>חזרה לכניסה</button>
           </form>
         )}
 
-        {/* ============ נשלח ============ */}
-        {view === "sent" && (
-          <div className="card lift">
-            <div className="login-done">
-              <div className="ld-mark">✓</div>
-              <b>הבקשה נקלטה</b>
+        {/* ============ הזנת הקוד ============ */}
+        {view === "enter" && (
+          <form className="card lift" onSubmit={doCheckCode}>
+            <div className="login-done" style={{ paddingBottom: 10 }}>
+              <div className="ld-mark">✉</div>
+              <b>הקוד נשלח</b>
               <span>{msg}</span>
             </div>
-            <button type="button" className="btn btn-ghost"
-              onClick={() => go("signin")}>חזרה לכניסה</button>
-          </div>
+            <div className="fld">
+              <label htmlFor="cd">הקוד מהמייל</label>
+              {/* ⚠ inputMode numeric פותח מקלדת ספרות בטלפון,
+                  ו-dir=ltr כדי שהספרות לא יתהפכו בעברית. */}
+              <input id="cd" autoFocus value={code} disabled={busy}
+                inputMode="numeric" maxLength={6} dir="ltr"
+                className="code-in" placeholder={"–".repeat(6)}
+                autoComplete="one-time-code"
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} />
+            </div>
+            <button className="btn btn-primary" type="submit"
+              disabled={busy || code.trim().length < 6}>
+              {busy ? "בודק…" : "המשך"}
+            </button>
+            <button type="button" className="link-btn" disabled={busy}
+              onClick={() => { setCode(""); go("forgot"); }}>
+              לא הגיע? שליחה מחדש
+            </button>
+          </form>
         )}
 
-        {/* ============ קביעת סיסמה מקישור ============ */}
+        {/* ============ סיסמה חדשה ואישורה ============ */}
         {view === "reset" && (
           <form className="card lift" onSubmit={doReset}>
             <div className="login-lead">
-              {tokenName ? `שלום ${tokenName.split(" ")[0]}, ` : ""}בחרו סיסמה חדשה.
+              {codeName ? `שלום ${codeName.split(" ")[0]}, ` : ""}הקוד אומת. בחרו סיסמה חדשה.
             </div>
             <Secret id="np" label="סיסמה חדשה" value={password} onChange={setPassword}
               disabled={busy} autoFocus autoComplete="new-password"
               hint="לפחות שמונה תווים" />
-            <button className="btn btn-primary" type="submit" disabled={busy || !password}>
+            <Secret id="np2" label="שוב, לוודא" value={password2} onChange={setPassword2}
+              disabled={busy} autoComplete="new-password" />
+            {password2 && password !== password2 && (
+              <div className="fld-bad" style={{ marginTop: -8, marginBottom: 12 }}>
+                הסיסמאות אינן זהות
+              </div>
+            )}
+            <button className="btn btn-primary" type="submit"
+              disabled={busy || !password || password !== password2}>
               {busy ? "שומר…" : "קביעת הסיסמה"}
             </button>
           </form>

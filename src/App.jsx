@@ -5,7 +5,6 @@ import { api, setUnauthorizedHandler } from "./api.js";
 import Login from "./Login.jsx";
 import Setup from "./Setup.jsx";
 import { CyclesPage } from "./Cycles.jsx";
-import { MailCheckPage } from "./MailCheck.jsx";
 import { MechinaApp, MechinaStaff, MechinaRolesPage } from "./Mechina.jsx";
 import { LessonsPage, LessonsBoard } from "./Lessons.jsx";
 import { AlumniPage, HostingPage, LoansPage } from "./Extras.jsx";
@@ -280,10 +279,6 @@ function Staff({ auth, onSignedOut }) {
               /* ⚠ ראש המכינה בלבד. השרת אוכף; זו תצוגה. */
               ...(auth.isHead ? [{ key: "cycles", label: "מחזורים", icon: <I.cal />,
                 active: section === "cycles", onClick: () => setSection("cycles") }] : []),
-              /* ⚠ אבחון שליחת הדואר. יושב כאן ולא בהגדרות כי אין
-                 מסך הגדרות, ומי שמחפש אותו מחפש אותו פעם בשנה. */
-              { key: "mail", label: "בדיקת מייל", icon: <I.note />,
-                active: section === "mail", onClick: () => setSection("mail") },
             ] },
             { label: "בטיחות ותחזוקה", items: [
               { key: "safety", label: "אירועי בטיחות", icon: <I.warn />, active: section === "safety",
@@ -347,7 +342,6 @@ function Staff({ auth, onSignedOut }) {
           {section === "menu" && <MenuPage say={say} />}
           {section === "alumni" && <AlumniPage say={say} />}
           {section === "cycles" && auth.isHead && <CyclesPage say={say} />}
-          {section === "mail" && isMgr && <MailCheckPage say={say} />}
           {section === "hosting" && <HostingPage say={say} />}
           {section === "loans" && <LoansPage say={say} />}
 

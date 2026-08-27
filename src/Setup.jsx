@@ -69,7 +69,7 @@ export default function Setup({ name, onDone, onSignOut }) {
   const STEPS = [
     { t: "שם משתמש", s: "בשם הזה נכנסים מכאן והלאה" },
     { t: "סיסמה", s: "לפחות שמונה תווים" },
-    { t: "אימייל", s: "לשחזור סיסמה אם תשכחו אותה" },
+    { t: "אימייל", s: "חובה — לשם יישלח קוד אם תשכחו סיסמה" },
   ];
 
   return (
@@ -153,14 +153,15 @@ export default function Setup({ name, onDone, onSignOut }) {
           {step === 2 && (
             <>
               <div className="fld">
-                <label htmlFor="se">אימייל</label>
+                <label htmlFor="se">אימייל <b className="req">חובה</b></label>
                 <input id="se" type="email" autoFocus value={email} disabled={busy}
                   autoComplete="email" placeholder="you@example.com"
                   onChange={(e) => setEmail(e.target.value)} />
                 {email.trim() && !emailOk
                   ? <div className="fld-bad">הכתובת אינה נראית תקינה</div>
                   : <div className="fld-hint">
-                      לכאן יישלח קישור אם תשכחו את הסיסמה. זה השימוש היחיד שלו.
+                      ⚠ בלי אימייל אי אפשר לאפס סיסמה. לכאן יישלח קוד
+                      אם תשכחו אותה — וזה השימוש היחיד שלו.
                     </div>}
               </div>
               <button className="btn btn-primary" disabled={busy || !emailOk} onClick={save}>

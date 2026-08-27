@@ -138,8 +138,12 @@ export const api = {
   getAccount: () => get("/api/auth?action=account"),
   saveAccount: (b) => post("/api/auth?action=account", b),
   forgot: (user) => post("/api/auth?action=recover", { user }),
-  checkReset: (token) => get("/api/auth?action=recover&token=" + encodeURIComponent(token)),
-  resetPassword: (token, password) => post("/api/auth?action=recover", { token, password }),
+  /* ⚠ הקוד נבדק תמיד מול שם המשתמש. שש ספרות לבדן ניתנות
+     לניחוש; שש ספרות של אדם מסוים אינן. */
+  checkReset: (user, token) =>
+    get(`/api/auth?action=recover&user=${encodeURIComponent(user)}&token=${encodeURIComponent(token)}`),
+  resetPassword: (user, token, password) =>
+    post("/api/auth?action=recover", { user, token, password }),
 
   /* ⚠ אבחון הדואר — מנהל בלבד. מחזיר את שגיאת Resend כלשונה,
      כי בלעדיה "השליחה נכשלה" הוא כל מה שיש. */

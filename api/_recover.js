@@ -27,7 +27,7 @@ import {
 } from "./_session.js";
 import { identities, byUser, byEmail, writeIdentity } from "./_identity.js";
 import {
-  hashPassword, passwordProblem, newResetToken, packReset, resetMatches,
+  hashPassword, passwordProblem, packReset, resetMatches,
   newHandCode, RESET_MINUTES,
 } from "./_credentials.js";
 import { sendMail, mailerReady, resetLetter } from "./_mailer.js";
@@ -35,14 +35,8 @@ import { sendMail, mailerReady, resetLetter } from "./_mailer.js";
 /* ⚠ אותה תשובה תמיד. ראו ההערה בראש הקובץ. */
 const SAME = {
   ok: true,
-  message: "אם קיים חשבון בשם הזה, נשלחה אליו דרך לאיפוס. "
-    + "אם אין אימייל רשום — יש לפנות לצוות המכינה לקבלת קוד.",
-};
-
-const originOf = (req) => {
-  const proto = req.headers["x-forwarded-proto"] || "http";
-  const host = req.headers["x-forwarded-host"] || req.headers.host || "";
-  return host ? `${proto}://${host}` : "";
+  message: "אם קיים חשבון בשם הזה, נשלח אליו קוד בן שש ספרות. "
+    + "יש להקליד אותו כאן. הקוד בתוקף לשעה.",
 };
 
 export default async function handler(req, res) {
@@ -50,15 +44,16 @@ export default async function handler(req, res) {
   try {
     checkThrottle(key);
 
-    /* ---------- בדיקת אסימון ---------- */
+    /* ---------- בדיקת הקוד ---------- */
     if (req.method === "GET") {
       const token = String(req.query?.token || "");
-      if (!token) return res.status(400).json({ error: "חסר אסימון" });
+      const who = String(req.query?.user || "").trim();
+      if (!token || !who) return res.status(400).json({ error: "חסר קוד או שם משתמש" });
       const all = await identities();
-      const row = all.find((r) => r.reset && resetMatches(token, stripHand(r.reset)));
-      if (!row) {
+      const row = forUser(all, who);
+      if (!row || !row.reset || !resetMatches(token, stripHand(row.reset))) {
         await penalize(key);
-        return res.status(404).json({ error: "הקישור פג תוקף או שכבר נעשה בו שימוש" });
+        return res.status(404).json({ error: "הקוד שגוי או שפג תוקפו" });
       }
       return res.status(200).json({ ok: true, name: row.name });
     }
@@ -74,11 +69,13 @@ export default async function handler(req, res) {
        ============================================================ */
     if (body?.token) {
       const token = String(body.token);
+      const who = String(body?.user || "").trim();
+      if (!who) return res.status(400).json({ error: "חסר שם משתמש" });
       const all = await identities();
-      const row = all.find((r) => r.reset && resetMatches(token, stripHand(r.reset)));
-      if (!row) {
+      const row = forUser(all, who);
+      if (!row || !row.reset || !resetMatches(token, stripHand(row.reset))) {
         await penalize(key);
-        return res.status(404).json({ error: "הקישור פג תוקף או שכבר נעשה בו שימוש" });
+        return res.status(404).json({ error: "הקוד שגוי או שפג תוקפו" });
       }
       if (!row.active) {
         return res.status(403).json({ error: "החשבון אינו פעיל. יש לפנות לצוות" });
@@ -105,48 +102,31 @@ export default async function handler(req, res) {
     if (!who) return res.status(400).json({ error: "יש להזין שם משתמש או אימייל" });
 
     const all = await identities();
-    const row = byUser(all, who) || byEmail(all, who);
+    const row = forUser(all, who);
 
     /* ⚠ אין כאן penalize על "לא נמצא": ההשהיה עצמה הייתה הופכת
        את זמן התשובה לאינדיקציה שהמשתמש קיים. */
     if (!row || !row.active) return res.status(200).json(SAME);
 
     /* ============================================================
-       השליחה — ותמיד עם רשת מתחת
+       קוד אחד — נשמר, ואז נשלח
        ------------------------------------------------------------
-       ⚠ באג שהיה כאן: כשהמייל נכשל, האסימון נשאר אסימון־מייל.
-         המשתמש לא קיבל דבר, ולמנהל לא היה קוד למסור — האיפוס
-         הפך לדלת ללא מפתח, והמסך הציג "הבקשה נקלטה".
-
-         מייל אינו ערוץ אמין: דומיין שאינו מאומת, מכסה שנגמרה,
-         תיבה מלאה, ספאם. **כל אחד מהם חייב לנחות באותו מקום**
-         — קוד בן שש ספרות שהמנהל רואה ומוסר.
-
-       ⚠ הסדר: כותבים קוד ידני **קודם**, ורק אם המייל באמת יצא
-         מחליפים אותו באסימון הקישור. כך גם קריסה באמצע משאירה
-         דרך פתוחה ולא דלת נעולה.
+       ⚠ נשמר **לפני** השליחה. אם השליחה תיכשל, הקוד כבר קיים
+         בלוח וניתן לחלץ אותו משם; אילו היה נשמר אחריה, כשל
+         באמצע היה משאיר בקשה בלי שום מפתח.
        ============================================================ */
     const code = newHandCode();
     await writeIdentity(row, { reset: `hand:${code}|${packReset(code)}` });
 
     if (mailerReady() && row.email) {
-      const token = newResetToken();
-      const origin = originOf(req);
       const { subject, text } = resetLetter({
-        name: row.name,
-        link: `${origin}/?reset=${encodeURIComponent(token)}`,
-        minutes: RESET_MINUTES,
+        name: row.name, code, minutes: RESET_MINUTES,
       });
       const out = await sendMail({ to: row.email, subject, text });
-      if (out.sent) {
-        /* ⚠ המייל יצא — הקישור מחליף את הקוד. אסימון אחד בכל
-           רגע, אחרת היו שני מפתחות פתוחים לאותו חשבון. */
-        await writeIdentity(row, { reset: packReset(token) });
-      } else {
-        /* ⚠ נרשם ללוג ואינו נחשף למי שביקש. הקוד הידני נשאר
-           במקומו, והמנהל רואה אותו במסך ההתראות. */
-        console.error("[recover] שליחה נכשלה:", out.reason);
-      }
+      /* ⚠ כישלון אינו נחשף למי שביקש — התשובה זהה תמיד. */
+      if (!out.sent) console.error("[recover] שליחה נכשלה:", out.reason);
+    } else {
+      console.error("[recover] אין אימייל או שירות דואר עבור", row.kind);
     }
 
     return res.status(200).json(SAME);
@@ -156,6 +136,9 @@ export default async function handler(req, res) {
     res.status(status).json({ error: status === 502 ? "הפעולה נכשלה" : e.message });
   }
 }
+
+/** שם משתמש או אימייל → השורה. אותו כלל בכל שלושת המסלולים. */
+const forUser = (all, who) => byUser(all, who) || byEmail(all, who) || null;
 
 /**
  * "hand:123456|hash|exp" → "hash|exp"

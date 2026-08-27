@@ -1854,7 +1854,17 @@ html,body{margin:0;padding:0;background:#012E58}
   width:36px;height:36px;border-radius:10px;display:grid;place-items:center;
   color:var(--faint);transition:all .12s var(--ease)}
 .kx .pw-eye:active{background:var(--accent-soft);color:var(--accent)}
+/* ⚠ שדה קוד — ספרות גדולות ומרווחות, כי מקלידים אותן ממייל
+   ומשווים תו-תו. */
+.kx .code-in{text-align:center;font-size:26px;font-weight:900;
+  letter-spacing:10px;padding-right:0;padding-left:0;
+  font-variant-numeric:tabular-nums;min-height:60px}
+.kx .code-in::placeholder{letter-spacing:8px;font-weight:700}
 .fld-hint{font-size:11.5px;font-weight:600;color:var(--faint);margin-top:5px;line-height:1.45}
+/* ⚠ "חובה" ליד התווית — כתוב, לא רק כוכבית. */
+.kx .fld label .req{font-size:10px;font-weight:900;letter-spacing:.5px;
+  color:var(--clay);background:var(--clay-soft);border-radius:5px;
+  padding:1px 6px;margin-right:5px}
 .fld-bad{font-size:11.5px;font-weight:800;color:var(--clay);margin-top:5px}
 
 /* מד חוזק — ⚠ מילה ולא רק פס צבעוני. */
