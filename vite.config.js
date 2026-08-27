@@ -37,7 +37,27 @@ function localApi() {
   };
 }
 
+/* ------------------------------------------------------------
+   חותמת הגרסה בעמוד עצמו
+   ------------------------------------------------------------
+   ⚠ נוסף אחרי מקרה שבו תיקון בצד השרת נדחף, ולא הייתה שום דרך
+     לדעת אם הוא כבר באוויר: חבילת הלקוח אינה משתנה כששינוי הוא
+     בשרת בלבד, ולכן השוואת גיבוב הקובץ אינה עוזרת.
+
+   ⚠ התג יושב ב-HTML ולא בתשובת API, כדי שאפשר יהיה לקרוא אותו
+     **בלי להתחבר**. מזהה קומיט אינו סוד ואינו פותח דבר.
+   ------------------------------------------------------------ */
+function buildStamp() {
+  const sha = (process.env.VERCEL_GIT_COMMIT_SHA || "local").slice(0, 7);
+  return {
+    name: "build-stamp",
+    transformIndexHtml: (html) =>
+      html.replace("</head>", `  <meta name="build" content="${sha}" />
+  </head>`),
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), localApi()],
+  plugins: [react(), localApi(), buildStamp()],
   server: { port: 5173 },
 });
