@@ -29,6 +29,7 @@ import incident from "./_student-incidents.js";
 import placements from "./_placements.js";
 import placementsSetup from "./_placements-setup.js";
 import cycles from "./_cycles-api.js";
+import importStep from "./_cycle-import.js";
 import safety from "./_safety.js";
 import safetySetup from "./_safety-setup.js";
 import faults from "./_faults.js";
@@ -36,4 +37,4 @@ import faultsSetup from "./_faults-setup.js";
 import alumni from "./_alumni.js";
 import hosting from "./_hosting.js";
 
-export default router({ login, list, year, leader, weeks, role, profile, incident, placements, "placements-setup": placementsSetup, safety, "safety-setup": safetySetup, faults, "faults-setup": faultsSetup, alumni, hosting, cycles });
+export default router({ login, list, year, leader, weeks, role, profile, incident, placements, "placements-setup": placementsSetup, safety, "safety-setup": safetySetup, faults, "faults-setup": faultsSetup, alumni, hosting, cycles, import: importStep });

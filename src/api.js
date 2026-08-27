@@ -152,6 +152,17 @@ export const api = {
   /* ---------- מחזורים ----------
      ⚠ ראש המכינה בלבד. פתיחת מחזור יוצרת 19 לוחות ב-monday. */
   getCycles: () => get("/api/students?action=cycles"),
+  /* ---------- ייבוא נתוני מחזור ----------
+     ⚠ תמיד תצוגה מקדימה לפני כתיבה. ראו api/_cycle-import.js. */
+  importPreview: (cycleId, step, text) =>
+    post("/api/students?action=import", { cycleId, step, text }),
+  importCommit: (cycleId, step, text) =>
+    post("/api/students?action=import", { cycleId, step, text, commit: true }),
+  importRows: (cycleId, step) =>
+    get(`/api/students?action=import&cycleId=${encodeURIComponent(cycleId)}&step=${encodeURIComponent(step)}`),
+  importEdit: (b) => put("/api/students?action=import", b),
+  importDelete: (cycleId, step, id) =>
+    del("/api/students?action=import", { cycleId, step, id }),
   addCycle: (b) => post("/api/students?action=cycles", b),
   editCycle: (b) => put("/api/students?action=cycles", b),
   deleteCycle: (id) => del("/api/students?action=cycles", { id }),

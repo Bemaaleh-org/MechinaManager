@@ -15,6 +15,8 @@
 
 import React, { useState } from "react";
 import { api } from "./api.js";
+import { CycleImport } from "./CycleImport.jsx";
+import { PARSERS } from "../shared/import-parse.js";
 
 const CI = {
   chev: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
@@ -206,7 +208,16 @@ function NewCycle({ say, onDone, onCancel }) {
 function CycleDetail({ cycle, steps, say, onChange, onBack }) {
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
+  /* ⚠ שלב שנפתח למילוי בפועל. זה מה שהופך את המסילה מהסבר
+     לכלי עבודה. */
+  const [doing, setDoing] = useState(null);
   const active = cycle.status === "פעיל";
+
+  if (doing) {
+    return <CycleImport cycle={cycle} step={doing} say={say}
+      onBack={() => { setDoing(null); onChange(); }}
+      onDone={() => { /* השלב מסומן ידנית — ראו ההערה למטה */ }} />;
+  }
 
   const patch = (b) => {
     setBusy(true);
@@ -266,15 +277,25 @@ function CycleDetail({ cycle, steps, say, onChange, onBack }) {
                   {s.need && !s.done && <span className="pill p-new" style={{ marginRight: 6 }}>חובה</span>}
                 </div>
                 <div className="step-s">{s.desc}</div>
-                {/* ⚠ הסימון ידני בכוונה: המערכת אינה יכולה לדעת
-                    שהגאנט "הושלם" — היא יכולה לדעת שיש בו שורות,
-                    וזה לא אותו דבר. ראש המכינה יודע. */}
-                {!active && (
-                  <button className="step-mark" disabled={busy}
-                    onClick={() => patch({ step: s.key, undo: s.done })}>
-                    {s.done ? "ביטול הסימון" : "סימון כהושלם"}
-                  </button>
-                )}
+                <div className="step-acts">
+                  {/* ⚠ השלב שאפשר למלא בפועל — זה מה שהופך את
+                      המסילה מהסבר לכלי. שלב בלי מסלול ייבוא
+                      (פתיחת לוחות, תפקידים) אינו מקבל כפתור. */}
+                  {PARSERS[s.key] && (
+                    <button className="step-go" disabled={busy}
+                      onClick={() => setDoing(s.key)}>
+                      {s.done ? "הוספה או תיקון" : "מילוי עכשיו"}
+                    </button>
+                  )}
+                  {/* ⚠ הסימון ידני בכוונה: המערכת יודעת שיש שורות
+                      בגאנט, לא שהגאנט **נכון**. ראש המכינה יודע. */}
+                  {!active && (
+                    <button className="step-mark" disabled={busy}
+                      onClick={() => patch({ step: s.key, undo: s.done })}>
+                      {s.done ? "ביטול הסימון" : "סימון כהושלם"}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}

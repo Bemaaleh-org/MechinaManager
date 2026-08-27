@@ -1936,6 +1936,62 @@ html,body{margin:0;padding:0;background:#012E58}
   margin-top:6px;line-height:1.5;word-break:break-word}
 .mc-fix{font-weight:800;margin-top:8px;line-height:1.6}
 
+/* ---- ייבוא נתוני מחזור ---- */
+.step-acts{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+.kx .step-go{font-size:12px;font-weight:900;color:#fff;
+  background:linear-gradient(100deg,#012E58,#0A4478);border-radius:9px;
+  padding:6px 12px;min-height:0;
+  box-shadow:0 4px 12px -6px rgba(10,68,120,.6)}
+.kx .step-go:active{transform:translateY(1px)}
+
+.imp-sum{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;font-weight:700;
+  color:var(--muted);padding-bottom:11px;border-bottom:1px solid var(--line);
+  margin-bottom:11px}
+.imp-sum b{font-size:16px;font-weight:900;color:var(--ink)}
+.imp-sum .ok b{color:var(--ok)}
+.imp-sum .bad b{color:var(--clay)}
+
+.imp-rows{max-height:44vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.imp-r{display:flex;align-items:center;gap:9px;padding:7px 0;
+  border-bottom:1px solid var(--line);font-size:12.5px}
+.imp-r:last-child{border-bottom:none}
+.imp-n{flex:0 0 24px;font-size:10.5px;font-weight:800;color:var(--faint)}
+.imp-c{color:var(--muted);font-weight:600;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.imp-c.first{flex:1;min-width:0;font-weight:800;color:var(--ink)}
+
+/* ⚠ מה שלא נקלט — עם הסיבה, ולא נעלם */
+.imp-bad{margin-top:12px;background:var(--clay-soft);border-radius:var(--r-md);
+  padding:11px 12px}
+.imp-bad-h{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:900;
+  color:var(--clay);margin-bottom:8px}
+.imp-b{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;
+  font-size:11.5px;padding:5px 0;border-top:1px solid rgba(158,54,38,.14)}
+.imp-b:first-of-type{border-top:none}
+.imp-bl{flex:0 0 auto;font-weight:800;color:var(--clay);opacity:.75}
+.imp-bt{flex:1;min-width:0;font-family:ui-monospace,monospace;font-size:11px;
+  color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.imp-bw{flex:0 0 auto;font-weight:800;color:var(--clay)}
+.imp-none{font-size:12.5px;font-weight:700;color:var(--faint);
+  text-align:center;padding:12px}
+
+/* ---- מה שכבר בפנים, וניתן לתיקון ---- */
+.imp-e{display:flex;align-items:stretch;gap:6px;
+  border-bottom:1px solid var(--line)}
+.imp-e:last-child{border-bottom:none}
+.kx .imp-e-main{flex:1;min-width:0;text-align:right;padding:10px 2px;
+  display:block;border-radius:8px;transition:background .12s var(--ease)}
+.kx .imp-e-main:active{background:var(--bg)}
+.imp-e-n{display:block;font-size:14px;font-weight:800;letter-spacing:-.2px}
+.imp-e-f{display:block;font-size:11.5px;font-weight:600;color:var(--muted);
+  margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kx .imp-e-x{flex:0 0 auto;width:34px;border-radius:9px;color:var(--faint);
+  display:grid;place-items:center}
+.kx .imp-e-x:active{background:var(--clay-soft);color:var(--clay)}
+.imp-edit{flex:1;padding:12px 0}
+.imp-acts{display:flex;gap:7px}
+.imp-acts>*{flex:1}
+
 /* ⚠ מי שביקש פחות תנועה מקבל פחות תנועה. */
 @media (prefers-reduced-motion:reduce){
   .kx *{transition-duration:.01ms !important;animation-duration:.01ms !important}
