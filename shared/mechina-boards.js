@@ -37,6 +37,10 @@ export const MECHINA_COLS = {
     dob: "date4",
     gender: "single_selectzh76wty",
     active: "boolean_mm6cnc93",
+  /* ⚠ חשבון בדיקה: נכנס למערכת ככל חניך, ואינו נספר בשום
+     מקום — לא בנוכחות, לא בשיבוצים, לא בסטטיסטיקה. ראו
+     activeStudents ב-api/_student-rows.js. */
+  demo: "boolean_mm6m2st4",
     leader: "boolean_mm6ch96v", // מוביל שבוע — המנהל מסמן בלוח
 
     /* ---- פרופיל ----

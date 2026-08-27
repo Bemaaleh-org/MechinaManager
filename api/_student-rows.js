@@ -34,7 +34,7 @@ export const normalizeTz = (v) =>
 export async function studentRows({ force = false } = {}) {
   return cached("student-rows", async () => {
     const ids = JSON.stringify([
-      C.tz, C.active, C.leader, C.gender, ROLES_COL,
+      C.tz, C.active, C.demo, C.leader, C.gender, ROLES_COL,
       C.army, C.tryouts, C.talk1, C.talk2, C.talk3,
     ]);
     const d = await gql(
@@ -53,6 +53,9 @@ export async function studentRows({ force = false } = {}) {
         tz: normalizeTz(val(i, C.tz)),
         gender: val(i, C.gender) || null,
         active: val(i, C.active) === "v",
+        /* ⚠ חשבון בדיקה. נכנס למערכת ככל חניך ואינו נספר בשום
+           מקום — הסינון ב-activeStudents למטה. */
+        demo: val(i, C.demo) === "v",
         leader: val(i, C.leader) === "v",
         roles,
         /* ⚠ התפקיד היחיד שקשורה אליו הרשאה. ראו shared/lessons-boards.js */
@@ -84,10 +87,24 @@ export const toPublic = (r) => ({
   isScheduler: Boolean(r.isScheduler),
 });
 
-/** החניכים הפעילים בלבד, ממוינים לפי א״ב */
+/* ============================================================
+   החניכים הפעילים, ממוינים לפי א״ב
+   ------------------------------------------------------------
+   ⚠ **חשבון בדיקה יוצא כאן, פעם אחת.** כל מסך שמונה חניכים —
+     נוכחות, שיבוצים, מובילי שבוע, רשימת החניכים, אימונים —
+     עובר דרך הפונקציה הזו, ולכן די בשורה אחת כדי שהוא לא
+     ייספר בשום מקום.
+
+     כיוון הכשל הנכון: מסך חדש שייכתב ויקרא activeStudents
+     יסנן אותו מעצמו. מי שירצה דווקא לכלול אותו יצטרך לקרוא
+     ל-studentRows במפורש, ולכתוב למה.
+
+   ⚠ הכניסה עצמה עוברת ב-studentRows ולא כאן — ולכן הוא כן
+     יכול להיכנס. זו כל התכלית שלו.
+   ============================================================ */
 export async function activeStudents() {
   const rows = await studentRows();
   return rows
-    .filter((r) => r.active)
+    .filter((r) => r.active && !r.demo)
     .sort((a, b) => a.name.localeCompare(b.name, "he", { numeric: true }));
 }
