@@ -34,7 +34,7 @@ export const normalizeTz = (v) =>
 export async function studentRows({ force = false } = {}) {
   return cached("student-rows", async () => {
     const ids = JSON.stringify([
-      C.tz, C.active, C.demo, C.leader, C.gender, ROLES_COL,
+      C.tz, C.active, C.demo, C.leader, C.gender, C.dob, ROLES_COL,
       C.army, C.tryouts, C.talk1, C.talk2, C.talk3,
     ]);
     const d = await gql(
@@ -52,6 +52,9 @@ export async function studentRows({ force = false } = {}) {
         name: String(i.name || "").trim(),
         tz: normalizeTz(val(i, C.tz)),
         gender: val(i, C.gender) || null,
+        /* ⚠ אינו ב-toPublic. יוצא רק דרך נקודת הקצה של הפרופיל,
+           ורק לצוות — כמו תעודת הזהות. */
+        dob: val(i, C.dob) || null,
         active: val(i, C.active) === "v",
         /* ⚠ חשבון בדיקה. נכנס למערכת ככל חניך ואינו נספר בשום
            מקום — הסינון ב-activeStudents למטה. */

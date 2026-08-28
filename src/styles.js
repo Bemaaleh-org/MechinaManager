@@ -2050,6 +2050,16 @@ html,body{margin:0;padding:0;background:#012E58}
 .val-n{display:block;font-size:19px;font-weight:800;letter-spacing:-.02em}
 .val-l{display:block;font-size:12px;color:var(--ink3);margin-top:2px}
 
+/* ---------- התיק של החניך ----------
+   ⚠ שורת בקשה ולא כרטיס: זו רשימה שנסרקת בעין, ומסגרת לכל
+     שורה הייתה הופכת עשר בקשות לעשרה עצמים נפרדים. */
+.dos-req{padding:11px 14px;border-bottom:1px solid var(--line)}
+.dos-req:last-child{border-bottom:none}
+.dos-req-t{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.dos-req-t b{font-size:14.5px;font-weight:700}
+.dos-req-m{font-size:12.5px;color:var(--ink3);margin-top:2px}
+.dos-req-d{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.45}
+
 /* ---------- טבלת המרה ---------- */
 .conv{width:100%;border-collapse:collapse;font-size:14px}
 .conv th{text-align:right;font-size:12px;font-weight:700;color:var(--ink3);

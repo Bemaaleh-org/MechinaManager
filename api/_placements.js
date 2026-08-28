@@ -82,6 +82,40 @@ const toStudentDef = (d) => ({
   id: d.id, name: d.name, category: d.category, period: d.period, hours: d.hours,
 });
 
+/* ============================================================
+   השיבוצים של חניך אחד — **לצוות בלבד**
+   ------------------------------------------------------------
+   ⚠ מחזירה את ההגדרה המלאה (שעות, אחראי, תיאור) ולא את
+     `toStudentDef`. הקוראת היחידה היא נקודת הקצה של הפרופיל,
+     שכבר אכפה `session.isManager` לפניה — ואסור שתיקרא ממקום
+     שלא אכף. הפרטים האלה הם חומר של הצוות.
+
+   ⚠ לוח שטרם הוקם מחזיר רשימה ריקה ולא זורק: מסך החניך של
+     המדריך לא אמור ליפול בגלל שלוחות השיבוצים לא הוקמו.
+   ============================================================ */
+export async function placementsFor(studentId) {
+  if (!placementsReady()) return [];
+  const [definitions, assignments] = await Promise.all([
+    loadDefinitions(), loadAssignments(),
+  ]);
+  const byId = new Map(definitions.map((d) => [d.id, d]));
+  const ORDER = ["ענף", "ועדה", "סדרה", "קבוצה"];
+  return assignments
+    .filter((a) => a.student === String(studentId))
+    .map((a) => {
+      const d = byId.get(a.placement);
+      if (!d) return null;
+      return {
+        id: a.id, semester: a.semester,
+        name: d.name, category: d.category, period: d.period,
+        hours: d.hours, lead: d.lead, desc: d.desc,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => ORDER.indexOf(a.category) - ORDER.indexOf(b.category)
+      || a.name.localeCompare(b.name, "he"));
+}
+
 async function handler(req, res, session) {
   if (!placementsReady()) {
     return res.status(503).json({

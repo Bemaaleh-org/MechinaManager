@@ -12,6 +12,21 @@
    ⚠ אירועים חריגים אינם כאן בכוונה — יש להם נקודת קצה נפרדת
      שכולה מנהל בלבד, כדי שטעות בקוד תצוגה לעולם לא תדליף
      השעיה לחניך.
+
+   ------------------------------------------------------------
+   ⚠ **הבלוק `staff` — כל מה שידוע על החניך, לצוות בלבד.**
+     שיבוצים, בקשות יציאה, שבועות שהוביל, תפקידים ופרטי זיהוי.
+     המדריך היה צריך לפתוח ארבעה מסכים ואת monday כדי להרכיב
+     את התמונה הזו, וזו בדיוק הסיבה שהיא לא הורכבה.
+
+     הוא נבנה **רק אחרי** `session.isManager`, ואינו קיים
+     בתשובה לחניך — לא ריק, לא null: פשוט אינו שם. שדה שאינו
+     נשלח אינו יכול לדלוף מטעות בתצוגה.
+
+   ⚠ **תעודת זהות ותאריך לידה נכללים.** הם כבר גלויים לכל
+     הצוות בלוח החניכים ב-monday, ולכן המסך אינו מרחיב חשיפה —
+     הוא חוסך פתיחה של הלוח. אם יוחלט לצמצם, המקום היחיד
+     לעשות זאת הוא כאן.
    ============================================================ */
 
 import { withAuth } from "./_session.js";
@@ -20,6 +35,10 @@ import { studentRows } from "./_student-rows.js";
 import { invalidate } from "./_cache.js";
 import { MECHINA_BOARDS, MECHINA_COLS } from "../shared/mechina-boards.js";
 import { guideMap, isGuideOf } from "./_guides.js";
+import { loadRequests } from "./_requests.js";
+import { loadLeaderWeeks } from "./_leader-weeks.js";
+import { placementsFor } from "./_placements.js";
+import { identities } from "./_identity.js";
 
 const C = MECHINA_COLS.roster;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -60,12 +79,90 @@ async function read(req, res, session) {
          את התאריכים ולא יוכל לשנותם — וחשוב שהמסך ידע את זה
          מראש, אחרת הוא מציע עריכה שתיחסם ב-403. */
       canEditTalks: talksEditable,
-      talksBy: guide ? (guide.short || guide.name) : null
+      talksBy: guide ? (guide.short || guide.name) : null,
+      /* ⚠ נבנה רק לצוות, ואינו קיים בתשובה לחניך. ראו ההערה
+         בראש הקובץ. */
+      ...(session.isManager ? { staff: await staffView(student, guide) } : {}),
     });
   } catch (e) {
     console.error("[student-profile:read]", e);
     res.status(502).json({ error: "שליפת הפרופיל נכשלה" });
   }
+}
+
+/* ============================================================
+   התמונה המלאה — לצוות בלבד
+   ------------------------------------------------------------
+   ⚠ כל מקור נטען במקביל ואף אחד מהם אינו מפיל את המסך. לוח
+     שטרם הוקם, או תקלה רגעית ב-monday, מחזירים רשימה ריקה
+     ומסומנים ב-`partial` — כדי שהמסך יוכל לומר "לא נטען"
+     במקום להציג "אין שיבוצים" על חניך שיש לו חמישה.
+   ============================================================ */
+async function staffView(student, guide) {
+  const failed = [];
+  const safe = async (name, fn) => {
+    try { return await fn(); }
+    catch (e) {
+      console.error(`[student-profile:${name}]`, e && e.message);
+      failed.push(name);
+      return null;
+    }
+  };
+
+  const [placements, requests, weeks, ident] = await Promise.all([
+    safe("placements", () => placementsFor(student.id)),
+    safe("requests", async () =>
+      (await loadRequests()).filter((r) => r.studentId === student.id)),
+    safe("weeks", async () =>
+      (await loadLeaderWeeks()).filter((w) => (w.leaderIds || []).includes(student.id))),
+    safe("identity", async () =>
+      (await identities()).find((r) => r.kind === "student" && r.id === student.id) || null),
+  ]);
+
+  return {
+    /* ---------- מי הוא ---------- */
+    tz: student.tz || null,
+    dob: student.dob || null,
+    gender: student.gender || null,
+    active: student.active,
+    /* ⚠ חשבון בדיקה מסומן במפורש. מדריך שיראה אותו ברשימה
+       צריך לדעת שהוא אינו חניך. */
+    demo: Boolean(student.demo),
+    group: guide ? guide.group || null : null,
+    guide: guide ? (guide.short || guide.name) : null,
+    roles: student.roles || [],
+    leader: Boolean(student.leader),
+
+    /* ---------- הכניסה למערכת ----------
+       ⚠ הסיסמה לא קיימת כאן ולא בשום מקום — רק האם נבחרה.
+         "טרם נרשם" הוא המידע שהמדריך צריך; הסיסמה אינה. */
+    account: ident ? {
+      registered: Boolean(ident.user && ident.hash),
+      user: ident.user || null,
+      email: ident.email || null,
+      setAt: ident.setAt || null,
+    } : null,
+
+    /* ---------- מה הוא עושה ---------- */
+    placements: placements || [],
+    /* ⚠ **מיפוי מפורש.** שדה שיתווסף ללוח הבקשות לא ידלוף
+       מעצמו למסך — עיקרון 4. */
+    requests: (requests || []).map((r) => ({
+      id: r.id, type: r.type, date: r.date, endDate: r.endDate,
+      status: r.status, detail: r.detail || null,
+      decidedBy: r.decidedBy, decidedAt: r.decidedAt,
+      guideDecision: r.guideDecision, guideBy: r.guideBy,
+    })),
+    weeks: (weeks || []).map((w) => ({
+      id: w.id, num: w.num, name: w.name,
+      start: w.start, end: w.end, what: w.what,
+    })),
+
+    /* ⚠ מה **לא** נטען. בלי זה, כשל טעינה נראה בדיוק כמו
+       "אין נתונים", וזה ההבדל בין מדריך שמרים טלפון לבין
+       מדריך שמניח שהכול בסדר. */
+    partial: failed.length ? failed : null,
+  };
 }
 
 async function write(req, res, session) {

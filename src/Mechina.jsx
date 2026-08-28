@@ -1126,8 +1126,9 @@ function StudentDetail({ student, onBack, say }) {
           <HalfPicker half={half} setHalf={setHalf} />
           <div className="card"><YearBoard days={data.days} half={half} /></div>
 
-          <div className="sec-label">פרופיל · שיבוץ ומיונים מהחניך</div>
-          <ProfileCard studentId={student.id} say={say} />
+          {/* ⚠ התיק המלא לפני "שיבוץ ומיונים": העובדות לפני
+              מה שהחניך כתב על עצמו. */}
+          <ProfileCard studentId={student.id} say={say} withDossier />
 
           {/* ⚠ צוות בלבד — הרכיב אינו קיים אצל החניך */}
           <Incidents studentId={student.id} say={say} />
@@ -1335,7 +1336,152 @@ function Leaders({ say }) {
    ============================================================ */
 const TALK_LABELS = ["תחילת שנה", "אמצע שנה", "סוף שנה"];
 
-function ProfileCard({ studentId, say }) {
+/* ============================================================
+   התיק המלא של החניך — לצוות בלבד
+   ------------------------------------------------------------
+   ⚠ הנתונים מגיעים מ-`data.staff` של נקודת הקצה של הפרופיל,
+     ואינם קיימים כלל בתשובה לחניך. ראו api/_student-profile.js.
+
+   ⚠ **מה שריק אינו מוצג.** מדריך שפותח חניך בלי בקשות יציאה
+     לא אמור לראות כותרת "בקשות יציאה" מעל ריק — זה נראה כמו
+     תקלה ומייצר שאלה במקום לענות עליה. הכותרת מופיעה רק כשיש
+     מה להציג תחתיה.
+
+   ⚠ **`partial` הוא ההפך מזה.** מקור שלא נטען **כן** מוצג,
+     כי "לא הצלחנו לטעון שיבוצים" ו"אין שיבוצים" הם שני דברים
+     שונים לגמרי, ואחד מהם דורש טלפון.
+   ============================================================ */
+function StaffDossier({ f }) {
+  if (!f) return null;
+
+  const fmtDate = (d) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : "—");
+  /* גיל מתאריך לידה — המספר שמדריך באמת צריך, לא התאריך */
+  const age = (() => {
+    if (!f.dob) return null;
+    const b = new Date(f.dob), n = new Date();
+    let a = n.getFullYear() - b.getFullYear();
+    const m = n.getMonth() - b.getMonth();
+    if (m < 0 || (m === 0 && n.getDate() < b.getDate())) a--;
+    return a >= 0 && a < 130 ? a : null;
+  })();
+
+  const rows = [
+    ["קבוצה", f.group],
+    ["מדריך", f.guide],
+    ["מין", f.gender],
+    ["תאריך לידה", f.dob ? `${fmtDate(f.dob)}${age != null ? ` · בן/בת ${age}` : ""}` : null],
+    ["תעודת זהות", f.tz],
+  ].filter(([, v]) => v);
+
+  return (
+    <>
+      {/* ⚠ מקור שלא נטען — לפני הכול, ולא אחרי. מי שיקרא רק את
+          החלק העליון צריך לדעת שהתמונה חסרה. */}
+      {f.partial && (
+        <div className="alert a-amber" style={{ marginTop: 14 }}>
+          <div style={{ flex: 1 }}>
+            <div className="ttl">חלק מהנתונים לא נטענו</div>
+            <div className="bd">
+              {f.partial.map((x) => DOSSIER_NAMES[x] || x).join(" · ")} —
+              מה שמוצג למטה חסר, ואין להסיק ממנו שאין נתונים.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- מי הוא ---------- */}
+      <div className="sec-label">פרטים</div>
+      <div className="card" style={{ marginBottom: 14 }}>
+        {rows.map(([k, v]) => (
+          <div className="pf-row" key={k}>
+            <span className="pf-l">{k}</span>
+            <span className="pf-v num">{v}</span>
+          </div>
+        ))}
+        {(f.leader || (f.roles || []).length > 0 || f.demo || !f.active) && (
+          <div className="chips" style={{ marginTop: 4 }}>
+            {!f.active && <span className="pill p-low">אינו פעיל</span>}
+            {f.demo && <span className="pill p-new">חשבון בדיקה</span>}
+            {f.leader && <span className="chip">מוביל שבוע</span>}
+            {(f.roles || []).map((r) => <span className="chip" key={r}>{r}</span>)}
+          </div>
+        )}
+        {/* ⚠ מצב ההרשמה, ולעולם לא הסיסמה. "טרם נרשם" הוא מה
+            שמדריך צריך לדעת כשחניך אומר שהוא לא מצליח להיכנס. */}
+        {f.account && (
+          <div className="pf-note" style={{ marginTop: 10 }}>
+            {f.account.registered
+              ? <>נרשם למערכת · {f.account.user}{f.account.email ? ` · ${f.account.email}` : ""}</>
+              : <>טרם נרשם למערכת — נכנסים עם תעודת הזהות בשני השדות</>}
+          </div>
+        )}
+      </div>
+
+      {/* ---------- שיבוצים ---------- */}
+      {(f.placements || []).length > 0 && (
+        <>
+          <div className="sec-label">שיבוצים ({f.placements.length})</div>
+          <div className="pl-stack" style={{ marginBottom: 14 }}>
+            {f.placements.map((m) => (
+              <PlacementTile key={m.id}
+                m={{ id: m.id, semester: m.semester, def: m }} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ---------- שבועות שהוביל ---------- */}
+      {(f.weeks || []).length > 0 && (
+        <>
+          <div className="sec-label">שבועות שהוביל ({f.weeks.length})</div>
+          <div className="card" style={{ marginBottom: 14 }}>
+            {f.weeks.map((w) => (
+              <div className="pf-row" key={w.id}>
+                <span className="pf-l">{w.name || `שבוע ${w.num}`}</span>
+                <span className="pf-v num">{fmtDate(w.start)}–{fmtDate(w.end)}</span>
+                {w.what && <span className="pf-n">{w.what}</span>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ---------- בקשות יציאה ----------
+          ⚠ כולן, לא רק הפתוחות. ההיסטוריה היא מה שמראה דפוס,
+            והדפוס הוא מה שמדריך מחפש. */}
+      {(f.requests || []).length > 0 && (
+        <>
+          <div className="sec-label">בקשות יציאה ({f.requests.length})</div>
+          <div className="card" style={{ marginBottom: 14, padding: 0, overflow: "hidden" }}>
+            {f.requests.map((r) => (
+              <div className="dos-req" key={r.id}>
+                <div className="dos-req-t">
+                  <b>{r.type}</b>
+                  <span className={"pill " + (STATUS_PILL[r.status] || "p-new")}>{r.status}</span>
+                </div>
+                <div className="dos-req-m num">
+                  {fmtDate(r.date)}{r.endDate && r.endDate !== r.date ? `–${fmtDate(r.endDate)}` : ""}
+                  {r.decidedBy ? ` · ${r.decidedBy}` : ""}
+                </div>
+                {r.detail && <div className="dos-req-d">{r.detail}</div>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+/** שמות המקורות, לשורת "לא נטען" */
+const DOSSIER_NAMES = {
+  placements: "שיבוצים",
+  requests: "בקשות יציאה",
+  weeks: "שבועות הובלה",
+  identity: "פרטי הכניסה",
+};
+
+function ProfileCard({ studentId, say, withDossier = false }) {
   const { data, err, busy, reload } = useLoad(() => api.getProfile(studentId), [studentId]);
   const [f, setF] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -1365,6 +1511,12 @@ function ProfileCard({ studentId, say }) {
 
   return (
     <>
+      {/* ⚠ התיק המלא נטען באותה בקשה. מסך אחד = קריאה אחת,
+          ולא שלוש קריאות שנוחתות בזו אחר זו וגורמות לתוכן
+          לקפוץ מתחת לאצבע. */}
+      {withDossier && <StaffDossier f={data.staff} />}
+
+      {withDossier && <div className="sec-label">שיבוץ ומיונים · מילוי החניך</div>}
       <div className="card" style={{ marginBottom: 12 }}>
         <div className="fld">
           <label htmlFor="pf-army">שיבוץ צבאי</label>
