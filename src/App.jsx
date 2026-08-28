@@ -6,6 +6,7 @@ import Login from "./Login.jsx";
 import Setup from "./Setup.jsx";
 import { CyclesPage } from "./Cycles.jsx";
 import { ProfilePage } from "./Profile.jsx";
+import ExportPage from "./Export.jsx";
 import { MechinaApp, MechinaStaff, MechinaRolesPage } from "./Mechina.jsx";
 import { LessonsPage, LessonsBoard } from "./Lessons.jsx";
 import { AlumniPage, HostingPage, LoansPage } from "./Extras.jsx";
@@ -282,6 +283,10 @@ function Staff({ auth, onSignedOut }) {
               /* ⚠ ראש המכינה בלבד. השרת אוכף; זו תצוגה. */
               ...(auth.isHead ? [{ key: "cycles", label: "מחזורים", icon: <I.cal />,
                 active: section === "cycles", onClick: () => setSection("cycles") }] : []),
+              /* ⚠ צוות, לא ראש מכינה בלבד. הדוחות הם כלי עבודה
+                 ולא פעולה מבנית, והשרת אוכף `manager`. */
+              { key: "export", label: "ייצוא לגיליונות", icon: <I.download />,
+                active: section === "export", onClick: () => setSection("export") },
             ] },
             { label: "בטיחות ותחזוקה", items: [
               { key: "safety", label: "אירועי בטיחות", icon: <I.warn />, active: section === "safety",
@@ -346,6 +351,7 @@ function Staff({ auth, onSignedOut }) {
           {section === "profile" && <ProfilePage say={say} />}
           {section === "alumni" && <AlumniPage say={say} />}
           {section === "cycles" && auth.isHead && <CyclesPage say={say} />}
+          {section === "export" && <ExportPage say={say} />}
           {section === "hosting" && <HostingPage say={say} />}
           {section === "loans" && <LoansPage say={say} />}
 

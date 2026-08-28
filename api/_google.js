@@ -199,6 +199,47 @@ export async function appendRows(id, range, rows) {
   });
 }
 
+/**
+ * `batchUpdate` — כל שינוי מבני או עיצובי בגיליון.
+ * ⚠ **הבקשות מתבצעות לפי סדרן ובאטומיות**: או שכולן עברו או
+ *   שאף אחת לא. זו הסיבה שכל החוברת נשלחת בקריאה אחת ולא
+ *   גיליון-גיליון — כשל באמצע היה משאיר חוברת חצי בנויה.
+ *
+ * ⚠ גוגל מגבילה גודל בקשה. חוברת גדולה מפוצלת על ידי הקורא
+ *   לקבוצות, וכל קבוצה עדיין אטומית בפני עצמה.
+ */
+export async function batchUpdate(id, requests) {
+  if (!requests.length) return { replies: [] };
+  return call(`${id}:batchUpdate`, { method: "POST", body: { requests } });
+}
+
+/**
+ * מוודא שקיימות לשוניות בשמות המבוקשים, ומחזיר שם → מזהה.
+ * ⚠ **לשונית שאינה ברשימה אינה נמחקת.** מי שהוסיף לעצמו
+ *   לשונית בחוברת לא אמור לגלות שהיא נעלמה כי הריצה הבאה לא
+ *   הכירה אותה. עודפות מדווחות ולא נוגעים בהן.
+ */
+export async function ensureTabs(id, titles) {
+  const meta = await sheetMeta(id);
+  const have = new Map();
+  const full = await call(id, { params: { fields: "sheets.properties(sheetId,title)" } });
+  for (const s of full.sheets || []) {
+    have.set(s.properties.title, s.properties.sheetId);
+  }
+  const missing = titles.filter((t) => !have.has(t));
+  if (missing.length) {
+    const r = await batchUpdate(id, missing.map((title) => ({ addSheet: { properties: { title } } })));
+    (r.replies || []).forEach((rep, i) => {
+      if (rep.addSheet) have.set(missing[i], rep.addSheet.properties.sheetId);
+    });
+  }
+  return {
+    ids: Object.fromEntries(titles.map((t) => [t, have.get(t)])),
+    extra: [...have.keys()].filter((t) => !titles.includes(t)),
+    title: meta.title,
+  };
+}
+
 /** ניקוי טווח — לכתיבה מחדש של דוח שלם */
 export async function clearRange(id, range) {
   return call(`${id}/values/${encodeURIComponent(range)}:clear`, { method: "POST" });

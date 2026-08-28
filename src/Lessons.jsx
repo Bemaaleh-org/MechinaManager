@@ -1011,10 +1011,10 @@ export function LessonsBoard({ say, onOpenSheet, compact = false }) {
      הגאנט הוא זה שצריך תיקון. */
   const Row = ({ m, late, off }) => (
     <button className={"st-row " + (off ? "st-off"
-      : m.conflict && m.conflict.blocked ? "tone-3" : late ? "tone-8" : "tone-1")}
+      : late ? "tone-8" : "tone-1")}
       onClick={() => onOpenSheet && onOpenSheet(m.sheetId)}>
       <div className="tile sm">
-        {late || (m.conflict && m.conflict.blocked) ? <LI.warn /> : <LI.book />}
+        {late ? <LI.warn /> : <LI.book />}
       </div>
       <div className="st-main">
         <div className="st-n">{m.subject}</div>
@@ -1037,9 +1037,6 @@ export function LessonsBoard({ say, onOpenSheet, compact = false }) {
           <div className="clash">
             בגיליון: {m.dayTime} — המפגש ביום אחר
           </div>
-        )}
-        {m.conflict && m.conflict.blocked && (
-          <div className="clash">הגאנט אומר: {m.conflict.reason}</div>
         )}
       </div>
       <LI.chev style={{ color: "var(--line2)", flex: "0 0 auto" }} />
@@ -1064,11 +1061,12 @@ export function LessonsBoard({ say, onOpenSheet, compact = false }) {
               </div>
               <div className="band-l">טרם דווחו</div>
             </div>
+            {/* ⚠ היה כאן מונה התנגשויות מול הגאנט. הוא הוסר
+                יחד עם הקשר עצמו, ובמקומו המספר שבאמת מעניין
+                כאן: כמה מפגשים בוטלו. */}
             <div className="band-c">
-              <div className={"band-n" + (data.counts.clashing ? " warn" : "")}>
-                {data.counts.clashing || 0}
-              </div>
-              <div className="band-l">דורשים בדיקה</div>
+              <div className="band-n">{data.counts.cancelled || 0}</div>
+              <div className="band-l">בוטלו</div>
             </div>
           </div>
         </div>
@@ -1085,16 +1083,6 @@ export function LessonsBoard({ say, onOpenSheet, compact = false }) {
       )}
 
       <div className="sec-label">השיעורים הקרובים</div>
-      {/* ⚠ אזהרה ולא סינון: הגיליון אומר שהם מתקיימים והגאנט
-          חולק. השיעור נשאר ברשימה — הצהרה מפורשת של אחראי
-          הלו״ז גוברת על אירוע כללי בגאנט — וההתנגשות מסומנת
-          על השורה עצמה. */}
-      {data.counts.clashing > 0 && (
-        <div className="clash-note">
-          {data.counts.clashing} מהם נופלים על יום שבגאנט מסומן כחג או כבית.
-          הם מוצגים כרגיל — הגיליון מכריע — ומסומנים בשורה.
-        </div>
-      )}
       {data.upcoming.length === 0 ? (
         <div className="empty tone-1">
           <div className="e-ico"><LI.book /></div>

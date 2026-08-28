@@ -41,11 +41,9 @@
 
 import { withAuth } from "./_session.js";
 import { loadSheets, loadMeetings } from "./_lessons-data.js";
-import { loadGantt } from "./_lessons-gantt.js";
 import {
   timeOf, dayOf, minutesOf, hebDayOf, PLANNED,
 } from "../shared/lessons-boards.js";
-import { eventsByDate, lessonBlock } from "../shared/gantt-days.js";
 import { israelToday } from "./_attendance-data.js";
 import { parseTestDate } from "./_test-date.js";
 
@@ -67,9 +65,11 @@ async function handler(req, res) {
         }).format(test)
       : israelToday();
 
-    const [sheets, meetings, gantt] = await Promise.all([
-      loadSheets(), loadMeetings(), loadGantt()]);
-    const evIndex = eventsByDate(gantt);
+    /* ⚠ **הגאנט אינו נקרא כאן, בכוונה.** היה כאן חיבור שסימן
+       מפגש כ"מתנגש" עם אירוע בגאנט, והוא הוסר: אין קשר בין
+       השניים. מה שקובע אם מפגש מתקיים הוא עמודת "מתוכנן"
+       שבגיליון, שאחראי הלו״ז ממלא — ורק היא. */
+    const [sheets, meetings] = await Promise.all([loadSheets(), loadMeetings()]);
     const byId = new Map(sheets.map((s) => [s.id, s]));
 
     const from = shift(today, -DAYS);
@@ -98,9 +98,6 @@ async function handler(req, res) {
         happened: m.happened,
         reason: m.reason,
         note: m.note,
-        /* ⚠ נגזר מהגאנט בכל שליפה ואינו נשמר: הזזת אירוע
-           בגאנט משנה אותו מיד, ושדה שמור היה מתיישן. */
-        conflict: lessonBlock(evIndex, m.date),
       };
     };
 
@@ -167,9 +164,6 @@ async function handler(req, res) {
         upcoming: upcoming.length,
         unreported: unreported.length,
         cancelled: cancelled.length,
-        /* ⚠ אזהרה ולא סינון: כמה מהמתוכננים נופלים על יום
-           שהגאנט מסמן כחג או כבית. */
-        clashing: upcoming.filter((m) => m.conflict.blocked).length,
         offDay: upcoming.filter((m) => m.offDay).length,
       },
     });

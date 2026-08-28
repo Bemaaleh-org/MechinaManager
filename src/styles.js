@@ -2050,6 +2050,18 @@ html,body{margin:0;padding:0;background:#012E58}
 .val-n{display:block;font-size:19px;font-weight:800;letter-spacing:-.02em}
 .val-l{display:block;font-size:12px;color:var(--ink3);margin-top:2px}
 
+/* ---------- ייצוא לגיליונות ----------
+   ⚠ כתובת חשבון השירות בשורה משלה וניתנת להעתקה. מי שיקליד
+     אותה ביד יטעה, וההודעה שיקבל תהיה "הגיליון לא שותף" בלי
+     לומר במה. */
+.acct{display:flex;align-items:center;gap:8px;margin-top:7px;flex-wrap:wrap;
+  background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:7px 10px}
+.acct .num{flex:1;min-width:0;font-size:12px;font-weight:700;direction:ltr;
+  text-align:left;overflow-wrap:anywhere}
+.acct .btn{width:auto;min-height:34px;padding:0 12px;font-size:13px}
+.link-inline{display:inline-flex;align-items:center;gap:5px;font-weight:800;
+  color:var(--navy);text-decoration:underline}
+
 /* ---------- התיק של החניך ----------
    ⚠ שורת בקשה ולא כרטיס: זו רשימה שנסרקת בעין, ומסגרת לכל
      שורה הייתה הופכת עשר בקשות לעשרה עצמים נפרדים. */

@@ -163,6 +163,12 @@ export const api = {
   getNotify: () => get("/api/auth?action=notify"),
   markNotifySeen: () => post("/api/auth?action=notify", {}),
 
+  /* ---------- ייצוא לגיליונות Google ----------
+     ⚠ המנהל מדביק קישור לגיליון **שהוא יצר ושיתף** עם חשבון
+        השירות. הקישור יציב, והדוח מתרענן לתוך אותו קובץ. */
+  getExportStatus: () => get("/api/lessons?action=export"),
+  exportToSheet: ({ kind, url }) => post("/api/lessons?action=export", { kind, url }),
+
   /* ---------- מחזורים ----------
      ⚠ ראש המכינה בלבד. פתיחת מחזור יוצרת 19 לוחות ב-monday. */
   getCycles: () => get("/api/students?action=cycles"),

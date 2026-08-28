@@ -61,37 +61,15 @@ export function eventsByDate(gantt) {
 }
 
 /* ============================================================
-   האם מתקיימים שיעורים ביום הזה
+   ⚠ **`lessonBlock` הוסרה, וזו החלטה ולא ניקיון.**
    ------------------------------------------------------------
-   ⚠ מחזיר סיבה ולא רק "לא". מפגש שנעלם בלי הסבר נראה כמו
-     תקלה, ומי שרואה "הגאנט אומר: יום כיפור" יודע מיד אם
-     הגאנט צודק או שהוא זה שצריך תיקון.
+   היא נבנתה כדי לסמן מפגש שנופל על יום שהגאנט מסמן כחג או
+   כבית — ולא היה לזה בסיס. **אין קשר בין הגאנט לשיעורים.**
+   מה שקובע אם מפגש מתקיים הוא עמודת "מתוכנן" שבגיליון, שאחראי
+   הלו״ז ממלא ידנית, והגאנט אינו מעיד עליה דבר.
 
-   ⚠ הסדר הוא ההכרעה, כמו בתקציב: חג גובר על הכול, אחריו בית,
-     אחריו יציאה מהמכינה, ואחרי הכול שבת.
+   הקובץ הזה משרת עכשיו את **תקציב המטבח בלבד**, ושם הקשר
+   אמיתי: סופ״ש בית וחג משנים כמה סועדים יש במכינה.
 
-   ⚠ "סדרה" אינה חוסמת. בסדרה יש לימודים, רק לא לפי המערכת
-     הרגילה — וחסימה שלה הייתה מסתירה מפגשים אמיתיים.
+   ⚠ מי שירצה להחזיר סימון כזה — לשאול קודם. זה נוסה ונדחה.
    ============================================================ */
-export function lessonBlock(index, iso) {
-  const events = dayEvents(index, iso);
-
-  const holiday = events.find((e) => e.type === "חג ומועד");
-  if (holiday) return { blocked: true, reason: holiday.name, kind: "חג" };
-
-  /* ⚠ שבת נבדקת גם דרך יום שישי שלפניה: "סופ״ש בית" נרשם
-     בגאנט על שישי ונמשך לשבת, בדיוק כמו בתקציב. */
-  const friday = isSaturday(iso) ? prevDay(iso) : iso;
-  const weekend = isSaturday(iso) ? dayEvents(index, friday) : [];
-  const home = [...events, ...weekend].find((e) => HOME_RE.test(e.name || ""));
-  if (home) return { blocked: true, reason: home.name, kind: "בית" };
-
-  const away = events.find((e) => AWAY_RE.test(e.name || "") && !SERIES_RE.test(e.name || ""));
-  if (away) return { blocked: true, reason: away.name, kind: "יציאה" };
-
-  const shabbat = events.find((e) => e.type === "שבת");
-  if (shabbat) return { blocked: true, reason: shabbat.name, kind: "שבת" };
-  if (isSaturday(iso)) return { blocked: true, reason: "שבת", kind: "שבת" };
-
-  return { blocked: false, reason: null, kind: null };
-}
