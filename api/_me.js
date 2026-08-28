@@ -9,6 +9,7 @@
 
 import { requireAuth, setSession, traineeRoster, AuthError } from "./_session.js";
 import { ensureCycle } from "./_cycle.js";
+import { teamsForStudent } from "./_team-data.js";
 
 export default async function handler(req, res) {
   try {
@@ -55,6 +56,19 @@ export default async function handler(req, res) {
           isKitchen: session.isKitchen,
           isSafety: session.isSafety,
           isHouse: session.isHouse,
+          /* ============================================================
+             ⚠ **ועדות וסדרות — לא תפקיד בעמודה, אלא שיבוץ.**
+
+             כל שאר הדגלים כאן נגזרים מעמודת התפקידים בלוח החניכים;
+             אלה נגזרים מלוח השיבוצים, ולכן הם נקראים כאן ולא ב-
+             `_session.js`. חבר ועדה אינו "בעל תפקיד" — הוא משובץ,
+             וזה רוב החניכים ולא מיעוט.
+
+             ⚠ הרשימה עצמה אינה הרשאה. `mayTeam` בשרת קוראת את
+               ההקשר טרי בכל בקשה, ולכן חניך שהוסר מוועדה נחסם
+               מיד גם אם הדגל בדפדפן עדיין ישן.
+             ============================================================ */
+          ...(await teamFlags(session.itemId)),
         } : {}),
       });
     }
@@ -105,4 +119,30 @@ async function readJson(req) {
   for await (const c of req) chunks.push(c);
   const raw = Buffer.concat(chunks).toString("utf8");
   return raw ? JSON.parse(raw) : {};
+}
+
+/* ============================================================
+   הצוותים של החניך — ועדות וסדרות
+   ------------------------------------------------------------
+   ⚠ **נכשל בשקט ומחזיר ריק.** לוחות שיבוצים שטרם הוקמו לא
+     אמורים למנוע מחניך להיכנס למערכת בכלל; המסך עצמו יאמר
+     שאין לו צוותים, וזה מצב תקין ברוב השנה הראשונה.
+
+   ⚠ **הרשימה אינה הרשאה.** `mayTeam` בשרת קוראת את ההקשר
+     טרי בכל בקשה, ולכן חניך שהוסר מוועדה נחסם מיד גם אם
+     הדגל בדפדפן עדיין ישן. זה אותו כלל כמו התפקידים (4יט).
+   ============================================================ */
+async function teamFlags(studentId) {
+  try {
+    const teams = await teamsForStudent(studentId);
+    return {
+      isChair: teams.some((t) => t.isChair),
+      teams: teams.map((t) => ({
+        id: t.id, name: t.name, category: t.category, isChair: t.isChair,
+      })),
+    };
+  } catch (e) {
+    console.error("[me:teams]", e);
+    return { isChair: false, teams: [] };
+  }
 }

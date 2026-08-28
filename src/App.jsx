@@ -16,6 +16,7 @@ import { BudgetPage } from "./Budget.jsx";
 import { GanttPage } from "./Gantt.jsx";
 import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { PlacementsPage } from "./Placements.jsx";
+import TeamsPage from "./Teams.jsx";
 import { SafetyPage } from "./Safety.jsx";
 import { FaultsPage } from "./Faults.jsx";
 import { KitchenPage } from "./Kitchen.jsx";
@@ -269,6 +270,11 @@ function Staff({ auth, onSignedOut }) {
                 active: false, onClick: () => goRoles("notes") },
               { key: "a-place", label: "שיבוצי חניכים", icon: <I.users />, active: section === "placements",
                 onClick: () => setSection("placements") },
+              /* ⚠ אותו מסך בדיוק של החניך, ולא גרסה מקוצצת —
+                 עיקרון 4יט. ההבדל היחיד הוא ההרשאה, ו-mayTeam
+                 בשרת היא שקובעת אותה. */
+              { key: "a-teams", label: "ניהול צוותים", icon: <I.users />, active: section === "teams",
+                onClick: () => setSection("teams") },
             ] },
             { label: "לו״ז", items: [
               { key: "agenda", label: "הלו״ז שלי", icon: <I.day />,
@@ -375,6 +381,7 @@ function Staff({ auth, onSignedOut }) {
             <MechinaRolesPage say={say} key={rolesNav.n} sub0={rolesNav.sub || undefined} />
           )}
           {section === "placements" && isMgr && <PlacementsPage say={say} />}
+          {section === "teams" && isMgr && <TeamsPage say={say} />}
           {section === "safety" && isMgr && <SafetyPage say={say} />}
           {section === "faults" && isMgr && <FaultsPage say={say} />}
           {section === "agenda" && <AgendaPage />}

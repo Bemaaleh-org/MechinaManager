@@ -27,7 +27,7 @@ const A = PLACEMENT_COLS.assignments;
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
 
 /** ההגדרות: מהם השיבוצים. הסדר — כסדר הלוח. */
-async function loadDefinitions({ force = false } = {}) {
+export async function loadDefinitions({ force = false } = {}) {
   return cached("placement-defs", async () => {
     const items = await allItems(PLACEMENT_BOARDS.definitions);
     return items
@@ -48,6 +48,11 @@ async function loadDefinitions({ force = false } = {}) {
              שתי עמודות ולא אחת — ראו shared/placements-ids.js */
           chair: val(i, D.chair) || null,
           chairName: val(i, D.chairName) || null,
+          /* ⚠ **ריק פירושו פעיל.** הקוטביות הפוכה בכוונה: כל
+             שורה שקיימת היום נכתבה לפני שהעמודה נוספה, ותיבה
+             ריקה שמשמעותה "מוארכב" הייתה מעלימה את כולן
+             בשקט — שם מסך השיבוצים היה נראה כמו לוח ריק. */
+          archived: val(i, D.archived) === "v",
         };
       })
       .filter((x) => x.name && CATEGORIES.includes(x.category));
@@ -55,7 +60,7 @@ async function loadDefinitions({ force = false } = {}) {
 }
 
 /** השיבוצים בפועל */
-async function loadAssignments({ force = false } = {}) {
+export async function loadAssignments({ force = false } = {}) {
   return cached("placement-asgn", async () => {
     const items = await allItems(PLACEMENT_BOARDS.assignments);
     return items
@@ -85,6 +90,20 @@ const invalidatePlacements = () => {
 const toStudentDef = (d) => ({
   id: d.id, name: d.name, category: d.category, period: d.period, hours: d.hours,
 });
+
+/** מי משובץ לשיבוץ הזה — מזהי חניכים, בכל סמסטר */
+export async function membersOf(placementId) {
+  if (!placementsReady()) return [];
+  const asg = await loadAssignments();
+  const id = String(placementId);
+  const out = new Map();
+  for (const a of asg) {
+    if (a.placement !== id) continue;
+    if (!out.has(a.student)) out.set(a.student, { id: a.student, name: a.studentName, semesters: [] });
+    out.get(a.student).semesters.push(a.semester);
+  }
+  return [...out.values()];
+}
 
 /* ============================================================
    מי יו״ר של מה
@@ -198,7 +217,10 @@ async function handler(req, res, session) {
       /* ⚠ המכסה נאכפת בשרת, לא רק בתצוגה. המכינה קבעה מספר
          מדויק לכל ענף — ענף עם 8 מקומות לא יקבל תשיעי, גם אם
          הבקשה הגיעה מכתובת ישירה. מכסה ריקה = בלי הגבלה. */
-      if (def.capacity != null && studentIds.length > def.capacity) {
+      /* ⚠ `Number("שמונה")` הוא NaN, ו-`NaN != null` הוא true —
+         אבל `length > NaN` תמיד false, כלומר האכיפה **מתבטלת
+         בשקט** והמסך מציג "X/NaN". Number.isFinite ולא != null. */
+      if (Number.isFinite(def.capacity) && studentIds.length > def.capacity) {
         return res.status(400).json({
           error: `ל"${def.name}" יש ${def.capacity} מקומות — נשלחו ${studentIds.length}`,
         });
@@ -236,9 +258,37 @@ async function handler(req, res, session) {
       }
       invalidatePlacements();
 
+      /* ============================================================
+         ⚠ **יו״ר שהוסר מהוועדה מאבד גם את היו״ר.**
+
+         הדיפרנציאל מוחק את שורת השיבוץ ולא נגע ב-`chair`, ולכן
+         `chairMap()` המשיכה להעניק אחריות למי שכבר אינו בוועדה.
+         עד היום זו הייתה אחריות-רפאים במרכז התפקיד; מרגע שיש
+         לוח משימות צוות, זו **הרשאת ניהול ששורדת את ההסרה**.
+
+         ⚠ הבדיקה היא **בכל הסמסטרים** ולא רק בזה שנערך. יו״ר
+           שמשובץ בסמסטר א׳ בזמן שעורכים את ב׳ נשאר יו״ר.
+         ============================================================ */
+      let chairCleared = false;
+      if (def.chair) {
+        const still = (await loadAssignments({ force: true }))
+          .some((x) => x.placement === placementId && x.student === def.chair);
+        if (!still) {
+          await gql(
+            `mutation($b:ID!,$i:ID!,$v:JSON!){ change_multiple_column_values(board_id:$b,item_id:$i,column_values:$v,create_labels_if_missing:false){ id } }`,
+            { b: PLACEMENT_BOARDS.definitions, i: placementId,
+              v: JSON.stringify({ [D.chair]: "", [D.chairName]: "" }) });
+          invalidatePlacements();
+          chairCleared = true;
+        }
+      }
+
       return res.status(200).json({
         ok: true, placementId, semester,
         added: toCreate.length, removed: toDelete.length, total: studentIds.length,
+        /* ⚠ מוחזר כדי שהמסך יאמר זאת. הסרה שקטה של יו״ר היא
+           בדיוק סוג ההפתעה שמתגלה חודש אחר כך. */
+        chairCleared,
       });
     }
 

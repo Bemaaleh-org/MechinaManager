@@ -11,7 +11,7 @@
    חלוקה של הנוכחות, שנקטעת בשבוע האמצע.
    ============================================================ */
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { api } from "./api.js";
 import { GUIDES } from "./placement-guides.js";
 import { RoleHolders } from "./Mechina.jsx";
@@ -99,12 +99,28 @@ function SetupCard({ say, onDone }) {
 
 /* ---------- עריכת המשובצים בשיבוץ+סמסטר אחד ---------- */
 function AssignEditor({ def, semester, assigned, roster, say, onDone, onCancel }) {
-  const [picked, setPicked] = useState(() => new Set(assigned.map((a) => a.student)));
+  /* ============================================================
+     ⚠ **חניך שכובה לא יקפיא את העורך.**
+
+     `picked` אותחל מכל המשובצים, בעוד `roster` מכיל פעילים
+     בלבד — ולכן חניך שכובה נשאר **מסומן בלי תיבה לבטל**,
+     והשמירה נכשלה ב-400 "ברשימה חניך שאינו פעיל" לנצח, עד
+     שמוחקים את השורה ב-monday. באמצע שנה זה קורה בוודאות.
+
+     ⚠ והוא **מדווח ולא נשמט בשקט** — מי שעורך צריך לדעת
+       שמישהו הוסר מהרשימה, אחרת המספר משתנה בלי הסבר.
+     ============================================================ */
+  const live = useMemo(() => new Set(roster.map((r) => r.id)), [roster]);
+  const dropped = assigned.filter((a) => !live.has(a.student));
+  const [picked, setPicked] = useState(
+    () => new Set(assigned.filter((a) => live.has(a.student)).map((a) => a.student)));
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
 
   const list = roster.filter((r) => !q.trim() || r.name.includes(q.trim()));
-  const over = def.capacity != null && picked.size > def.capacity;
+  /* ⚠ Number.isFinite ולא != null: מכסה לא-מספרית ב-monday
+     נותנת NaN, וכל השוואה איתה false — האזהרה נעלמת בשקט. */
+  const over = Number.isFinite(def.capacity) && picked.size > def.capacity;
 
   const toggle = (id) => setPicked((p) => {
     const n = new Set(p);
@@ -137,6 +153,15 @@ function AssignEditor({ def, semester, assigned, roster, say, onDone, onCancel }
         </span>
         {over && <span className="pill p-low">מעל המכסה</span>}
       </div>
+
+      {/* ⚠ מדווח ולא נשמט בשקט. ראו ההערה למעלה. */}
+      {dropped.length > 0 && (
+        <div className="note-warn" style={{ marginBottom: 12 }}>
+          {dropped.length === 1 ? "משובץ אחד הוסר" : `${dropped.length} משובצים הוסרו`} מהרשימה
+          כי אינם פעילים במכינה: {dropped.map((a) => a.studentName || a.student).join(" · ")}.
+          שמירה תמחק את השיבוץ שלהם.
+        </div>
+      )}
 
       {/* ⚠ הפירוט מוצג כאן, ליד השיבוץ עצמו — זה הרגע שבו
           המנהל צריך לדעת מה הענף דורש ומי מתאים לו.

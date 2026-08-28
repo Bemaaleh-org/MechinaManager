@@ -32,6 +32,12 @@ export const CYCLE_BOARDS = [
   { key: "leaderWeeks", title: "מובילי שבוע", path: "mechina.leaderWeeks", need: false },
   { key: "dutyTasks", title: "משימות בעלי תפקידים", path: "duty.tasks", need: false },
   { key: "dutyNotes", title: "הצפות לבעלי תפקידים", path: "duty.notes", need: false },
+  /* ⚠ **משימות הצוותים כן במחזור, ואוצר המילים לא.**
+     המשימות הן של ועדת מחזור זה ואינן עוברות הלאה; אוצר
+     המילים ("בעבודה", "לפני האירוע", ומה נחשב סגור) הוא
+     ידע מוסדי שהמכינה כיוונה פעם אחת — בדיוק כמו מסמכי
+     החפיפה ולוח המנות, שגם הם מחוץ לחוזה (4מז). */
+  { key: "teamTasks", title: "משימות ועדות וסדרות", path: "team.tasks", need: false },
   { key: "sheets", title: "גיליונות מרצים", path: "lessons.sheets", need: true },
   { key: "meetings", title: "מפגשי שיעורים", path: "lessons.meetings", need: true },
   { key: "evals", title: "חוות דעת", path: "lessons.evals", need: false },

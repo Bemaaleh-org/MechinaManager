@@ -2318,4 +2318,175 @@ html,body{margin:0;padding:0;background:#012E58}
 .yr2-key b{width:13px;height:13px;aspect-ratio:auto;border-radius:4px;
   display:block;font-size:0}
 
+/* ============================================================
+   ניהול צוותים — ועדות וסדרות
+   ------------------------------------------------------------
+   ⚠ **כל כלל כאן מתחיל ב-.kx** — כרטיס המשימה, הלשונית והשבב
+     הם button, ו-.kx button מאפסת background ו-border בסגוליות
+     גבוהה יותר (0,1,1). אותה מלכודת תפסה כבר את .task-box
+     ואת .yr2-c.
+
+   ⚠ ואין בקטיקים בקובץ הזה. הוא template literal אחד, ובקטיק
+     בהערה סוגר אותו — ואז vite build **מדווח הצלחה** בעוד
+     הדפדפן נשבר.
+   ============================================================ */
+.tm-sub{font-size:13.5px;color:var(--muted);font-weight:600;
+  margin:-8px 2px 16px;line-height:1.55}
+
+/* ---------- רשימת הצוותים ---------- */
+.tm-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
+.kx .tm-card{display:block;width:100%;text-align:right;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--r-lg);padding:15px 16px 13px;
+  box-shadow:var(--sh-1);transition:transform .12s var(--ease),box-shadow .12s var(--ease);
+  position:relative;overflow:hidden}
+/* ⚠ פס הגוון בקצה, כמו ב-.card.lift — הוא מה שמבדיל ועדה
+   מוועדה ברשימה של תריסר. */
+.kx .tm-card::before{content:"";position:absolute;inset-inline:0;top:0;height:3px;
+  background:var(--t)}
+.kx .tm-card:hover{transform:translateY(-2px);box-shadow:var(--sh-2)}
+.kx .tm-card:active{transform:translateY(0)}
+.tm-card-h{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.tm-card-n{font-family:Heebo,sans-serif;font-size:17px;font-weight:800;
+  line-height:1.35;margin-bottom:4px}
+.tm-card-s{font-size:12.5px;color:var(--muted);font-weight:700;line-height:1.5}
+.tm-card-f{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+
+/* ---------- טבעת ההתקדמות ---------- */
+.tm-ring{flex:0 0 auto;overflow:visible}
+.tm-ring-bg{fill:none;stroke:var(--line2);stroke-width:6}
+.tm-ring-fg{fill:none;stroke:var(--t,var(--accent));stroke-width:6;stroke-linecap:round;
+  transition:stroke-dasharray .5s var(--ease)}
+.tm-ring-t{text-anchor:middle;dominant-baseline:central;font-size:15px;font-weight:800;
+  fill:var(--ink);font-family:Heebo,sans-serif}
+
+/* ---------- הכותרת ---------- */
+.tm-hero{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  background:linear-gradient(140deg,var(--t-s),var(--surface) 78%);
+  border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:18px 18px 16px;box-shadow:var(--sh-1);margin-bottom:12px}
+.tm-hero-m{min-width:0}
+.tm-hero-c{display:inline-block;font-size:11.5px;font-weight:800;letter-spacing:.4px;
+  color:var(--t);background:var(--surface);border:1px solid var(--line2);
+  border-radius:999px;padding:3px 10px;margin-bottom:8px}
+.tm-hero h2{font-family:Heebo,sans-serif;font-size:22px;font-weight:800;
+  margin:0 0 8px;line-height:1.25}
+.tm-hero-p{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;
+  color:var(--muted);font-weight:700}
+.tm-band{margin-bottom:12px}
+
+/* ---------- אזהרה ---------- */
+/* ⚠ הגדרה חסרה נראית אחרת ממצב ריק (עיקרון 6), ולכן זו
+   רצועה ולא טקסט אפור בשוליים. */
+.note-warn{display:flex;align-items:flex-start;gap:9px;font-size:13px;font-weight:700;
+  line-height:1.6;color:#8A5A1E;background:#FBF3E4;
+  border:1px solid var(--line2);border-radius:var(--r-md);padding:11px 13px;margin-bottom:10px}
+.note-warn svg{flex:0 0 auto;margin-top:2px}
+
+/* ---------- לשוניות ומסננים ---------- */
+.tm-tabs{display:flex;gap:8px;margin:14px 0 12px}
+.kx .tm-tab{display:flex;align-items:center;gap:7px;flex:1;justify-content:center;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);
+  padding:11px 12px;font-size:13.5px;font-weight:800;color:var(--muted);
+  box-shadow:var(--sh-1);transition:all .12s var(--ease)}
+.kx .tm-tab.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.tm-filters{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px;
+  scrollbar-width:none}
+.tm-filters::-webkit-scrollbar{display:none}
+.kx .tm-chip{display:flex;align-items:center;gap:6px;flex:0 0 auto;
+  background:var(--surface);border:1px solid var(--line);border-radius:999px;
+  padding:7px 13px;font-size:12.5px;font-weight:800;color:var(--muted);
+  transition:all .12s var(--ease)}
+.kx .tm-chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tm-chip i{font-style:normal;font-weight:900;opacity:.65;font-size:11.5px}
+.kx .tm-add{width:100%;margin-bottom:14px;display:flex;align-items:center;
+  justify-content:center;gap:8px}
+
+/* ---------- קבוצת שלב ---------- */
+.tm-group{margin-bottom:18px}
+.tm-group-h{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:800;
+  color:var(--muted);letter-spacing:.3px;margin:0 2px 8px}
+.tm-group-h::after{content:"";flex:1;height:1px;background:var(--line2)}
+.tm-group-h i{font-style:normal;order:-1;background:var(--sand);border-radius:999px;
+  padding:1px 8px;font-size:11.5px}
+
+/* ---------- כרטיס משימה ---------- */
+/* ⚠ .kx .tm-task ולא .tm-task. ראו הכותרת. */
+.kx .tm-task{display:flex;align-items:flex-start;gap:11px;width:100%;text-align:right;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);
+  padding:12px 14px;margin-bottom:8px;box-shadow:var(--sh-1);
+  transition:transform .12s var(--ease),box-shadow .12s var(--ease),opacity .2s}
+.kx .tm-task:hover{transform:translateY(-1px);box-shadow:var(--sh-2)}
+.kx .tm-task.done{opacity:.62;background:var(--sand)}
+/* ⚠ האיחור הוא פס בקצה **ומילה**, ולא צבע לבד — מי שאינו
+   מבחין בין ירוק לאדום עדיין רואה את התאריך מודגש (4ו). */
+.kx .tm-task.late{border-inline-start:3px solid var(--clay)}
+.tm-task-m{flex:1;min-width:0}
+.tm-task-t{font-size:14.5px;font-weight:800;line-height:1.45;margin-bottom:6px}
+.kx .tm-task.done .tm-task-t{text-decoration:line-through;text-decoration-thickness:1.5px}
+.tm-task-s{display:flex;flex-wrap:wrap;align-items:center;gap:5px 9px;font-size:12px;
+  font-weight:700;color:var(--muted)}
+.tm-st{background:var(--sand);border-radius:999px;padding:2px 9px;font-size:11.5px}
+.tm-st.on{background:#E3F1E8;color:#177A45}
+.tm-own{display:flex;align-items:center;gap:4px}
+.tm-own::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--accent)}
+.tm-own.none{opacity:.6}
+.tm-own.none::before{background:var(--line2)}
+.tm-due{display:flex;align-items:center;gap:4px}
+.tm-due.late{color:var(--clay);font-weight:800}
+.tm-has{display:flex;opacity:.5}
+.tm-task-n{font-size:12.5px;color:var(--muted);font-weight:600;line-height:1.55;
+  margin-top:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden}
+.tm-done-mark{flex:0 0 auto;width:22px;height:22px;border-radius:50%;
+  background:#177A45;color:#fff;display:flex;align-items:center;
+  justify-content:center;margin-top:1px}
+
+/* ---------- עורך ---------- */
+.tm-editor{margin-bottom:10px}
+.tm-row2{display:grid;gap:0 12px;grid-template-columns:1fr 1fr}
+@media (max-width:520px){.tm-row2{grid-template-columns:1fr}}
+.tm-editor-f{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.kx .tm-editor-f .tm-del{margin-inline-start:auto;color:var(--clay)}
+.tm-meta{display:flex;gap:6px;flex-wrap:wrap;font-size:11.5px;color:var(--faint);
+  font-weight:600;margin-top:10px}
+
+/* ---------- לפי אדם ---------- */
+.tm-people{display:grid;gap:9px}
+.tm-person{background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-md);padding:12px 14px;box-shadow:var(--sh-1)}
+.tm-person.none{background:var(--sand);border-style:dashed}
+.tm-person-h{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin-bottom:8px}
+.tm-person-h b{font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:7px}
+.tm-person-h span{font-size:13px;font-weight:800;color:var(--muted);
+  font-variant-numeric:tabular-nums}
+.tm-person-f{display:flex;gap:12px;font-size:12px;font-weight:700;color:var(--muted);
+  margin-top:7px}
+.tm-faint{color:var(--faint)}
+.tm-bad{color:var(--clay);font-weight:800}
+
+/* ---------- הפסקה הסוגרת ---------- */
+/* ⚠ הפוכה במכוון לזו שבמרכז התפקיד. ראו ההערה בראש
+   src/Teams.jsx: אם שני המסכים ייקראו אותו דבר, ההבטחה
+   שבמרכז התפקיד תיקרא כשקר. */
+.tm-note{font-size:12.5px;color:var(--muted);font-weight:600;line-height:1.75;
+  background:var(--sand);border:1px solid var(--line2);border-radius:var(--r-md);
+  padding:13px 15px;margin-top:22px}
+.tm-note b{color:var(--ink);font-weight:800}
+
+@media (prefers-reduced-motion:reduce){
+  .kx .tm-card,.kx .tm-task{transition:none}
+  .tm-ring-fg{transition:none}
+}
+
+/* ---------- הצפות בתוך הוועדה ---------- */
+.tm-esc{background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-lg);padding:16px 17px;box-shadow:var(--sh-1)}
+.tm-esc-h{font-size:15px;font-weight:800;margin-bottom:12px}
+.tm-esc p{font-size:13.5px;color:var(--muted);font-weight:600;
+  line-height:1.7;margin:0 0 14px}
+.tm-esc-n{font-size:12.5px;color:var(--muted);font-weight:600;line-height:1.7;
+  background:var(--sand);border-radius:var(--r-sm);padding:11px 13px;margin-top:14px}
+.tm-esc-n b{color:var(--ink);font-weight:800}
+
 `;

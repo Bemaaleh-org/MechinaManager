@@ -29,6 +29,9 @@ export const PLACEMENT_COLS = {
          לשאול "האם אני היו״ר של הוועדה הזו" בלי התאמת שמות,
          והשם כדי שהלוח יהיה קריא לאדם. */
     chair: "text_mm6nh85h", chairName: "text_mm6n4h5s",
+    /* ⚠ **ריק = פעיל.** ראו ההערה ב-api/_placements.js:
+       הקוטביות הפוכה כדי ששורות קיימות לא ייעלמו. */
+    archived: "boolean_mm6ncm52",
   },
   assignments: {
     student: "text_mm6g1cpe", studentName: "text_mm6gv73f",

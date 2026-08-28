@@ -34,6 +34,7 @@ import { FAULTS } from "../shared/faults-ids.js";
 import { SAFETY } from "../shared/safety-ids.js";
 import { EXTRA } from "../shared/extras-ids.js";
 import { DUTY_BOARDS } from "../shared/duty-ids.js";
+import { TEAM_BOARDS } from "../shared/team-ids.js";
 
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
 
@@ -48,6 +49,10 @@ const FALLBACK = JSON.parse(JSON.stringify({
   /* ⚠ `handover` נמצא באובייקט אך **אינו** ב-CYCLE_BOARDS —
      הוא לא מוחלף בהחלפת מחזור, וזה מכוון. */
   duty: DUTY_BOARDS,
+  /* ⚠ `vocab` נמצא באובייקט ואינו ב-CYCLE_BOARDS, בדיוק כמו
+     `handover` למעלה — אוצר המילים של הצוותים הוא ידע מוסדי
+     שהמכינה כיוונה פעם אחת, ואינו מוחלף בהחלפת מחזור. */
+  team: TEAM_BOARDS,
 }));
 
 /** לאן כל מרחב שמות כותב */
@@ -59,6 +64,7 @@ const TARGETS = {
   faults: FAULTS,
   safety: SAFETY,
   duty: DUTY_BOARDS,
+  team: TEAM_BOARDS,
 };
 
 /**

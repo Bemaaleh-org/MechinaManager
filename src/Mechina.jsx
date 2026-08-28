@@ -29,6 +29,7 @@ import { HostingPage, LoansPage } from "./Extras.jsx";
 import { useNotify, NotifyBell, NotifyPanel } from "./Notify.jsx";
 import { ProfilePage } from "./Profile.jsx";
 import DutyPage from "./Duty.jsx";
+import TeamsPage from "./Teams.jsx";
 import { GanttPage } from "./Gantt.jsx";
 import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
@@ -2702,6 +2703,21 @@ export function MechinaApp({ auth, onSignedOut }) {
             { key: "requests", label: "בקשות יציאה", icon: <MI.note />, badge: unseen,
               active: tab === "requests", onClick: () => setTab("requests") },
             { key: "placements", label: "השיבוצים שלי", icon: <MI.users />, active: tab === "placements", onClick: () => setTab("placements") },
+            /* ============================================================
+               ניהול הצוותים — באישי ולא בתפקידים
+               ------------------------------------------------------------
+               ⚠ **חברות בוועדה אינה תפקיד.** כל השאר בקבוצת
+                 "תפקידים" נגזר מעמודת התפקידים בלוח החניכים, וזו
+                 קבוצה קטנה; ועדה וסדרה הן שיבוץ, ולהן משובץ כמעט
+                 כל חניך. שם התפקידים היה מרמז שזה למעטים.
+
+               ⚠ **מוצג תמיד ואינו מותנה בדגל.** `auth.teams` נקרא
+                 בכניסה, וחניך שישובץ לוועדה באמצע הסשן לא היה רואה
+                 את המסך עד ריענון. המסך עצמו אומר "אינכם משובצים"
+                 כשאין — וזה מצב תקין, לא כשל.
+               ============================================================ */
+            { key: "teams", label: "ועדות וסדרות", icon: <MI.tick />,
+              active: tab === "teams", onClick: () => setTab("teams") },
             { key: "menu", label: "תפריט ארוחות", icon: <MI.book />, active: tab === "menu", onClick: () => setTab("menu") },
             { key: "report", label: "דיווח תקלה", icon: <MI.tool />, active: tab === "report", onClick: () => setTab("report") },
             { key: "agenda", label: "הלו״ז שלי", icon: <MI.cal />, active: tab === "agenda", onClick: () => setTab("agenda") },
@@ -2845,6 +2861,7 @@ export function MechinaApp({ auth, onSignedOut }) {
             קיים פשוט לא יעשה כלום, ולכן שתי הרשימות חייבות
             להישאר אותה רשימה. */}
         {tab === "duty" && <DutyPage say={say} go={(t) => setTab(t)} />}
+        {tab === "teams" && <TeamsPage say={say} go={(t) => setTab(t)} />}
 
         {/* ⚠ area={null} — התצוגה המאוחדת, אותה אחת של המנהל. */}
         {tab === "k-all" && auth.isKitchen && <KitchenPage say={say} area={null} />}

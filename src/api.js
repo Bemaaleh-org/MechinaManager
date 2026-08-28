@@ -190,6 +190,30 @@ export const api = {
   setChair: ({ placementId, studentId }) =>
     put("/api/students?action=chair", { placementId, studentId }),
 
+  /* ---- ניהול צוותים: ועדות וסדרות ----
+     ⚠ אלה **אינן** משימות התפקיד האישיות. שם הלוח סגור לצוות
+       (4מה) וכאן הוא משותף לוועדה כולה — שתי מתודות, שני מסלולים,
+       ואף אחת שמחזירה את שתיהן. ראו shared/team.js. */
+  getTeams: () => get("/api/students?action=team"),
+  getTeam: (id) => get("/api/students?action=team&id=" + encodeURIComponent(id)),
+  /* ⚠ פירוק מפורש: שדה שלא נכתב כאן נשמט בשקט ונראה עובד
+     במסך בלי להגיע לשרת (4לג). */
+  addTeamTask: ({ teamId, title, owner, status, stage, due, note, link }) =>
+    post("/api/students?action=team-task",
+      { teamId, title, owner, status, stage, due, note, link }),
+  updateTeamTask: ({ id, title, owner, status, stage, due, note, link }) =>
+    put("/api/students?action=team-task",
+      { id, title, owner, status, stage, due, note, link }),
+  deleteTeamTask: (id) => del("/api/students?action=team-task", { id }),
+
+  getTeamAdmin: () => get("/api/students?action=team-admin"),
+  saveTeamDef: ({ id, name, category, period, capacity, desc, hours, needs, lead, archived }) =>
+    post("/api/students?action=team-admin",
+      { id, name, category, period, capacity, desc, hours, needs, lead, archived }),
+  saveTeamVocab: ({ id, name, kind, order, closes, archived, remove }) =>
+    put("/api/students?action=team-admin",
+      { id, name, kind, order, closes, archived, remove }),
+
   /* ---------- ייצוא לגיליונות Google ----------
      ⚠ המנהל מדביק קישור לגיליון **שהוא יצר ושיתף** עם חשבון
         השירות. הקישור יציב, והדוח מתרענן לתוך אותו קובץ. */
