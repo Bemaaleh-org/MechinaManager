@@ -33,6 +33,7 @@ import { BUDGET_BOARDS } from "../shared/budget-ids.js";
 import { FAULTS } from "../shared/faults-ids.js";
 import { SAFETY } from "../shared/safety-ids.js";
 import { EXTRA } from "../shared/extras-ids.js";
+import { DUTY_BOARDS } from "../shared/duty-ids.js";
 
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
 
@@ -44,6 +45,9 @@ const FALLBACK = JSON.parse(JSON.stringify({
   placements: PLACEMENT_BOARDS, budget: BUDGET_BOARDS,
   faults: FAULTS, safety: SAFETY,
   extras: { hosting: EXTRA.hosting.board, loans: EXTRA.loans.board },
+  /* ⚠ `handover` נמצא באובייקט אך **אינו** ב-CYCLE_BOARDS —
+     הוא לא מוחלף בהחלפת מחזור, וזה מכוון. */
+  duty: DUTY_BOARDS,
 }));
 
 /** לאן כל מרחב שמות כותב */
@@ -54,6 +58,7 @@ const TARGETS = {
   budget: BUDGET_BOARDS,
   faults: FAULTS,
   safety: SAFETY,
+  duty: DUTY_BOARDS,
 };
 
 /**

@@ -18,6 +18,17 @@ export const PLACEMENT_COLS = {
     /* ---- פירוט השיבוץ. ⚠ תיאור ודרישות אינם יוצאים לחניך ---- */
     desc: "long_text_mm6jd1y9", hours: "text_mm6j2fk5",
     needs: "long_text_mm6jmwhh", lead: "text_mm6j922j",
+    /* ---- יו״ר ועדה או סדרה ----
+       ⚠ **חניך, ולא איש צוות.** `lead` מחזיקה את המדריך המלווה
+         ונקראת על ידי api/_guides.js כדי לגזור קבוצה→מדריך.
+         עמודה אחת לשניהם הייתה נגמרת ביום שבו ועדה תרצה גם
+         מדריך מלווה וגם יו״ר — וזה בדיוק מה ש-placement-guides
+         כבר מתאר.
+
+       ⚠ מזהה **ושם**, כמו בלוח השיבוצים: המזהה כדי שאפשר יהיה
+         לשאול "האם אני היו״ר של הוועדה הזו" בלי התאמת שמות,
+         והשם כדי שהלוח יהיה קריא לאדם. */
+    chair: "text_mm6nh85h", chairName: "text_mm6n4h5s",
   },
   assignments: {
     student: "text_mm6g1cpe", studentName: "text_mm6gv73f",

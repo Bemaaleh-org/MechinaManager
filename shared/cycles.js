@@ -30,6 +30,8 @@ export const CYCLE_BOARDS = [
   { key: "marked", title: "סימוני נוכחות", path: "mechina.marked", need: false },
   { key: "incidents", title: "אירועים חריגים", path: "mechina.incidents", need: false },
   { key: "leaderWeeks", title: "מובילי שבוע", path: "mechina.leaderWeeks", need: false },
+  { key: "dutyTasks", title: "משימות בעלי תפקידים", path: "duty.tasks", need: false },
+  { key: "dutyNotes", title: "הצפות לבעלי תפקידים", path: "duty.notes", need: false },
   { key: "sheets", title: "גיליונות מרצים", path: "lessons.sheets", need: true },
   { key: "meetings", title: "מפגשי שיעורים", path: "lessons.meetings", need: true },
   { key: "evals", title: "חוות דעת", path: "lessons.evals", need: false },
@@ -45,6 +47,11 @@ export const CYCLE_BOARDS = [
 ];
 
 /** מה נדרש כדי שמחזור ייחשב מוכן */
+/* ⚠ **משימות והצפות שייכות למחזור; מסמכי החפיפה לא.**
+   חפיפה היא ידע מוסדי שעובר בין מחזורים — בדיוק הנימוק
+   שבגללו לוח המנות ולוח הבוגרים נשארים מחוץ לרשימה. משימות
+   שייכות לשנה שלהן. */
+
 export const REQUIRED = CYCLE_BOARDS.filter((b) => b.need).map((b) => b.key);
 
 export const CYCLE_STATUS = {

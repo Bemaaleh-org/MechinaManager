@@ -73,6 +73,17 @@ async function handler(req, res, session) {
       period: await createColumn(defsBoard, "תקופה", "status",
         labels(PERIOD.perSemester, PERIOD.yearly, PERIOD.firstOnly, PERIOD.secondOnly)),
       capacity: await createColumn(defsBoard, "מכסה", "numbers"),
+      /* ⚠ ארבע העמודות האלה נוספו ללוח אחרי ההקמה הראשונה ולא
+      נוספו לכאן, והמחולל היה מוחק אותן מקובץ המזהים בהרצה
+      הבאה — `lead` ריקה פירושה `guideMap` ריקה, כלומר כל בקשת
+      יציאה מדלגת על המדריך **בלי שגיאה ובלי שאיש ישים לב**. */
+      desc: await createColumn(defsBoard, "תיאור", "long_text"),
+      hours: await createColumn(defsBoard, "שעות פעילות", "text"),
+      needs: await createColumn(defsBoard, "מה נדרש", "long_text"),
+      lead: await createColumn(defsBoard, "אחראי", "text"),
+      /* יו״ר ועדה או סדרה — חניך, ולא המדריך המלווה */
+      chair: await createColumn(defsBoard, "מזהה יו״ר", "text"),
+      chairName: await createColumn(defsBoard, "יו״ר", "text"),
     };
     const A = {
       student: await createColumn(asgnBoard, "מזהה חניך", "text"),
@@ -99,7 +110,11 @@ export const PLACEMENT_BOARDS = {
 };
 
 export const PLACEMENT_COLS = {
-  definitions: { category: "${D.category}", period: "${D.period}", capacity: "${D.capacity}" },
+  definitions: {
+    category: "${D.category}", period: "${D.period}", capacity: "${D.capacity}",
+    desc: "${D.desc}", hours: "${D.hours}", needs: "${D.needs}", lead: "${D.lead}",
+    chair: "${D.chair}", chairName: "${D.chairName}",
+  },
   assignments: { student: "${A.student}", studentName: "${A.studentName}", placement: "${A.placement}", placementName: "${A.placementName}", semester: "${A.semester}" },
 };
 `);

@@ -28,6 +28,7 @@
 
 import { withAuth } from "./_session.js";
 import { gql } from "./_monday.js";
+import { boardColumn } from "./_board-col.js";
 import { israelToday } from "./_attendance-data.js";
 import { AUTH_BOARD, AUTH_COLS } from "../shared/auth-board.js";
 import { MECHINA_BOARDS, MECHINA_COLS } from "../shared/mechina-boards.js";
@@ -326,16 +327,10 @@ async function studentNotes(session, today) {
    ============================================================ */
 const SEEN_TITLE = "התראות נקראו";
 
-async function seenColumn(board) {
-  const cols = (await gql(`{ boards(ids:[${board}]){ columns{ id title } } }`))
-    .boards[0].columns;
-  const hit = cols.find((c) => c.title === SEEN_TITLE);
-  if (hit) return hit.id;
-  const d = await gql(
-    `mutation($b:ID!,$t:String!){ create_column(board_id:$b,title:$t,column_type:text){ id } }`,
-    { b: board, t: SEEN_TITLE });
-  return d.create_column.id;
-}
+/* ⚠ **היה כאן שאילתת `columns` בכל בקשת פעמון**, בלי מטמון —
+   כל שלוש דקות לכל משתמש מחובר. עבר ל-api/_board-col.js, שם
+   התוצאה נשמרת. ראו את ההערה שם על מה שהמטמון כן ולא מבטיח. */
+const seenColumn = (board) => boardColumn(board, SEEN_TITLE, "text");
 
 const boardOf = (session) =>
   session.isStudent ? MECHINA_BOARDS.roster : AUTH_BOARD;

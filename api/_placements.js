@@ -44,6 +44,10 @@ async function loadDefinitions({ force = false } = {}) {
           desc: val(i, D.desc) || null,
           needs: val(i, D.needs) || null,
           lead: val(i, D.lead) || null,
+          /* ⚠ יו״ר הוא **חניך**, ו-lead הוא המדריך המלווה.
+             שתי עמודות ולא אחת — ראו shared/placements-ids.js */
+          chair: val(i, D.chair) || null,
+          chairName: val(i, D.chairName) || null,
         };
       })
       .filter((x) => x.name && CATEGORIES.includes(x.category));
@@ -81,6 +85,29 @@ const invalidatePlacements = () => {
 const toStudentDef = (d) => ({
   id: d.id, name: d.name, category: d.category, period: d.period, hours: d.hours,
 });
+
+/* ============================================================
+   מי יו״ר של מה
+   ------------------------------------------------------------
+   ⚠ מזהה חניך → ההגדרות שהוא יו״ר שלהן. נקרא מעמודת `chair`
+     שבלוח ההגדרות, שהיא **חניך** — להבדיל מ-`lead`, שהיא
+     המדריך המלווה ונקראת על ידי api/_guides.js.
+
+   ⚠ יו״ר יכול להיות של יותר מוועדה אחת, ולכן מערך ולא ערך.
+   ============================================================ */
+export async function chairMap({ force = false } = {}) {
+  if (!placementsReady()) return new Map();
+  const defs = await loadDefinitions({ force });
+  const out = new Map();
+  for (const d of defs) {
+    if (!d.chair) continue;
+    if (!out.has(d.chair)) out.set(d.chair, []);
+    out.get(d.chair).push({
+      id: d.id, name: d.name, category: d.category, chairName: d.chairName,
+    });
+  }
+  return out;
+}
 
 /* ============================================================
    השיבוצים של חניך אחד — **לצוות בלבד**

@@ -36,5 +36,13 @@ import faults from "./_faults.js";
 import faultsSetup from "./_faults-setup.js";
 import alumni from "./_alumni.js";
 import hosting from "./_hosting.js";
+/* ---- אחריות: מרכז התפקיד, משימות והצפות ----
+   ⚠ ארבעה actions ואפס פונקציות Vercel חדשות. כל מודול נושא
+     את ה-withAuth שלו — הנתב אינו עוטף. */
+import duty from "./_duty-hub.js";
+import dutyTasks from "./_duty-tasks.js";
+import dutyNotes from "./_duty-notes.js";
+import chair from "./_placement-chair.js";
 
-export default router({ login, list, year, leader, weeks, role, profile, incident, placements, "placements-setup": placementsSetup, safety, "safety-setup": safetySetup, faults, "faults-setup": faultsSetup, alumni, hosting, cycles, import: importStep });
+export default router({ login, list, year, leader, weeks, role, profile, incident, placements, "placements-setup": placementsSetup, safety, "safety-setup": safetySetup, faults, "faults-setup": faultsSetup, alumni, hosting, cycles, import: importStep,
+  duty, "duty-tasks": dutyTasks, "duty-notes": dutyNotes, chair });
