@@ -134,8 +134,20 @@ export const isSchoolDay = (day) => Boolean(day) && !NON_SCHOOL_KINDS.includes(d
 export function summarize(studentId, { absences, marked, byDate }) {
   const mine = absences.filter((a) => a.studentId === studentId);
 
-  const markedDates = [...marked.keys()].sort();
-  const schoolDays = markedDates.length;
+  /* ============================================================
+     ⚠ **המכנה מסונן לפי סוג היום, ולא רק לפי "סומן".**
+
+     קודם נספר כל יום שסומן. אבל יום שסומן ואז השתנה סוגו —
+     למשל ל"לא התקיימה שגרת מכינה" — נשאר במכנה לנצח, כי שורת
+     הסימון עדיין קיימת. התוצאה הייתה חניך על 0/1 ביום שבו
+     לא הייתה מכינה בכלל.
+
+     עכשיו הסינון נעשה בזמן החישוב, ולכן שינוי סוג היום בלוח
+     מתקן את האחוז **מיד ולמפרע**, בלי לגעת בשורות.
+     ============================================================ */
+  const counted = [...marked.keys()].filter((d) => isSchoolDay(byDate.get(d))).sort();
+  const countedSet = new Set(counted);
+  const schoolDays = counted.length;
 
   const count = (type) => mine.filter((a) => a.type === type).length;
 
@@ -149,12 +161,15 @@ export function summarize(studentId, { absences, marked, byDate }) {
     return { half, used, left: Math.max(0, VACATION_PER_HALF - used), total: VACATION_PER_HALF };
   };
 
-  const absent = mine.filter((a) => marked.has(a.date)).length;
+  /* ⚠ גם ההיעדרות נספרת רק בימים שנספרים. אחרת חניך היה
+     צובר היעדרויות ביום שאינו במכנה — ואז absent > schoolDays. */
+  const absent = mine.filter((a) => countedSet.has(a.date)).length;
 
   /* ⚠ נוכחות נספרת רק כשסומנה במפורש. יום שסומן אבל החניך לא
      סומן בו — לא נוכח ולא נעדר — נספר "לא סומן". */
   let present = 0;
-  for (const stamp of marked.values()) {
+  for (const [date, stamp] of marked.entries()) {
+    if (!countedSet.has(date)) continue;
     if (stamp.present && stamp.present.has(studentId)) present++;
   }
 

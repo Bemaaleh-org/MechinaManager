@@ -2292,6 +2292,10 @@ html,body{margin:0;padding:0;background:#012E58}
 .kx .yr2-c.just{background:#FAECD2;color:#7A4B08;border-color:#EEDCB8}
 .kx .yr2-c.vac{background:#D8E4F7;color:#1D4ED8;border-color:#C0D3EF}
 .kx .yr2-c.off{background:var(--sand);color:var(--faint);border-color:transparent}
+/* ⚠ יום שהמכינה לא התקיימה בו — נבדל מ"חופשה" בעין, כי הוא
+   מצב אחר: לא תוכנן, אלא התגלה. */
+.kx .yr2-c.noroutine{background:var(--sand);color:var(--faint);
+  border-color:var(--line2);border-style:dashed}
 .kx .yr2-c.future{background:var(--bg);color:var(--line2);border-color:transparent}
 .kx .yr2-c.unmarked{background:#fff;color:var(--muted);border-color:var(--line2)}
 /* ⚠ תאריך שאינו בלוח השנה — נבדל גם מ-off וגם מריפוד ריק */

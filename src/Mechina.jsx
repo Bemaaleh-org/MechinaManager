@@ -158,7 +158,11 @@ function YearBoard({ days, half }) {
     /* ⚠ המצב החמישי. ראו ההערה למעלה. */
     if (!d) return "missing";
     if (d.state === "absent") return TYPE_CLASS[d.type] || "sick";
-    if (d.state === "off") return "off";
+    /* ⚠ שני סוגים שונים של "אין פעילות", ולכן שתי מחלקות:
+       חופשה מתוכננת מראש, ו"לא התקיימה" מתגלה בדיעבד. */
+    if (d.state === "off") {
+      return d.kind === "לא התקיימה שגרת מכינה" ? "noroutine" : "off";
+    }
     if (d.state === "future") return "future";
     if (d.state === "unmarked") return "unmarked";
     return "present";
@@ -223,7 +227,8 @@ function YearBoard({ days, half }) {
         <i><b className="yr2-c sick" />מחלה</i>
         <i><b className="yr2-c just" />מוצדקת</i>
         <i><b className="yr2-c vac" />חופש</i>
-        <i><b className="yr2-c off" />ללא פעילות</i>
+        <i><b className="yr2-c off" />חופשה</i>
+        <i><b className="yr2-c noroutine" />לא התקיימה מכינה</i>
         <i><b className="yr2-c unmarked" />טרם סומן</i>
         <i><b className="yr2-c missing" />אינו בלוח</i>
       </div>
