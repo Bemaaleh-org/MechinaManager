@@ -1,0 +1,217 @@
+/* ============================================================
+   חיבור ל-Google Sheets — חשבון שירות, בלי ספרייה חיצונית
+   ------------------------------------------------------------
+   ⚠ **בלי `googleapis`.** הספרייה הרשמית שוקלת עשרות מגה-בייט
+     ומושכת עשרות תלויות, וכל מה שצריך ממנה כאן הוא לחתום JWT
+     ולקרוא ל-REST. החתימה נעשית עם `node:crypto` המובנה.
+     nodemailer נשארת התלות החיצונית היחידה בפרויקט.
+
+   ⚠ **חשבון שירות ולא OAuth של משתמש.** OAuth דורש שמישהו
+     ילחץ "אשר" ויתחדש כל כמה שבועות; חשבון שירות הוא זהות
+     משלו שלא פגה. משתפים איתו את הגיליון בדיוק כמו עם אדם,
+     והוא רואה **רק** את מה ששיתפו איתו — וזו גם הגבלת ההרשאה.
+
+   ⚠ **המפתח הפרטי הוא סוד מלא.** מי שמחזיק אותו מתחזה לחשבון
+     השירות בכל גיליון ששותף איתו. הוא חי ב-GOOGLE_SA_KEY
+     שבסביבה בלבד — לא בקוד, לא בקומיט, ולא בתשובת API.
+
+   ⚠ **צד שרת בלבד.** אין לייבא מ-src/, בדיוק כמו _monday.js.
+   ============================================================ */
+
+import crypto from "node:crypto";
+
+const TOKEN_URL = "https://oauth2.googleapis.com/token";
+const SHEETS = "https://sheets.googleapis.com/v4/spreadsheets";
+
+/* ⚠ ההרשאה הצרה ביותר שמאפשרת קריאה **וכתיבה** לגיליונות
+   ששותפו. אין כאן drive.readonly ואין drive מלא — חשבון
+   השירות אינו אמור לראות את הדרייב, רק את מה ששיתפו איתו. */
+const SCOPE = "https://www.googleapis.com/auth/spreadsheets";
+
+const b64url = (buf) =>
+  Buffer.from(buf).toString("base64")
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
+/**
+ * פרטי חשבון השירות מהסביבה.
+ * ⚠ מחזירה null ולא זורקת: מערכת בלי חיבור לגוגל היא מצב
+ *   תקין, ולא תקלה. מי שקורא בודק ומדווח "טרם חובר".
+ */
+export function serviceAccount() {
+  const raw = process.env.GOOGLE_SA_KEY;
+  if (!raw) return null;
+  try {
+    const j = JSON.parse(raw);
+    if (!j.client_email || !j.private_key) return null;
+    /* ⚠ משתני סביבה ב-Vercel נשמרים לעיתים עם \n כשני תווים.
+       בלי ההמרה הזו החתימה נכשלת בהודעה בלתי קריאה. */
+    return { email: j.client_email, key: String(j.private_key).replace(/\\n/g, "\n") };
+  } catch {
+    return null;
+  }
+}
+
+/** האם החיבור מוגדר בכלל */
+export const googleReady = () => Boolean(serviceAccount());
+
+/* ============================================================
+   האסימון
+   ------------------------------------------------------------
+   ⚠ נשמר במטמון עד דקה לפני שהוא פג. אסימון חדש לכל קריאה
+     היה מוסיף סיבוב רשת שלם לכל פעולה, ואסימון שנשמר עד
+     לרגע הפקיעה נכשל בדיוק כשהשעונים אינם מסונכרנים.
+   ============================================================ */
+let cached = { token: null, exp: 0 };
+
+export async function accessToken() {
+  const sa = serviceAccount();
+  if (!sa) throw new Error("החיבור ל-Google Sheets טרם הוגדר");
+
+  const now = Math.floor(Date.now() / 1000);
+  if (cached.token && cached.exp > now + 60) return cached.token;
+
+  const header = b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const claims = b64url(JSON.stringify({
+    iss: sa.email,
+    scope: SCOPE,
+    aud: TOKEN_URL,
+    iat: now,
+    exp: now + 3600,
+  }));
+  const signer = crypto.createSign("RSA-SHA256");
+  signer.update(`${header}.${claims}`);
+  const jwt = `${header}.${claims}.${b64url(signer.sign(sa.key))}`;
+
+  const r = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt,
+    }),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !d.access_token) {
+    /* ⚠ שגיאת גוגל כלשונה. "החיבור נכשל" לבדו הוא בדיוק סוג
+       ההודעה שמשאירה אותנו לנחש שעה. */
+    throw new Error(`Google לא הנפיקה אסימון: ${d.error_description || d.error || r.status}`);
+  }
+  cached = { token: d.access_token, exp: now + (Number(d.expires_in) || 3600) };
+  return cached.token;
+}
+
+/* ============================================================
+   קריאה וכתיבה
+   ============================================================ */
+
+async function call(path, { method = "GET", body, params } = {}) {
+  const token = await accessToken();
+  const qs = params ? "?" + new URLSearchParams(params) : "";
+  const r = await fetch(`${SHEETS}/${path}${qs}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const msg = d.error?.message || `שגיאה ${r.status}`;
+    /* ⚠ 403 כאן פירושו כמעט תמיד "הגיליון לא שותף עם חשבון
+       השירות", וזו הטעות הראשונה של כל מי שמחבר גיליון. */
+    if (r.status === 403 || r.status === 404) {
+      const sa = serviceAccount();
+      throw new Error(
+        `${msg} — ודאו שהגיליון שותף עם ${sa ? sa.email : "חשבון השירות"} בהרשאת עריכה`
+      );
+    }
+    throw new Error(msg);
+  }
+  return d;
+}
+
+/**
+ * מזהה הגיליון מתוך כתובת מלאה או מזהה חשוף.
+ * ⚠ אנשים מדביקים את הכתובת מהדפדפן, לא את המזהה. דרישה
+ *   למזהה בלבד הייתה שולחת אותם לחפש איפה הוא נמצא.
+ */
+export function sheetId(input) {
+  const s = String(input || "").trim();
+  if (!s) return null;
+  const m = s.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (m) return m[1];
+  return /^[a-zA-Z0-9-_]{20,}$/.test(s) ? s : null;
+}
+
+/** שמות הלשוניות בגיליון, וכותרתו */
+export async function sheetMeta(id) {
+  const d = await call(id, { params: { fields: "properties.title,sheets.properties" } });
+  return {
+    title: d.properties?.title || "",
+    tabs: (d.sheets || []).map((s) => ({
+      title: s.properties?.title || "",
+      rows: s.properties?.gridProperties?.rowCount ?? null,
+      cols: s.properties?.gridProperties?.columnCount ?? null,
+    })),
+  };
+}
+
+/**
+ * קריאת טווח → מערך שורות של מחרוזות.
+ * ⚠ גוגל **מקצרת שורות**: שורה שנגמרת בתאים ריקים מוחזרת
+ *   קצרה יותר מהאחרות. בלי הריפוד כאן, כל קורא היה נופל על
+ *   `undefined` בעמודה האחרונה — וזה באג שמופיע רק כשהתא ריק.
+ */
+export async function readRange(id, range) {
+  const d = await call(`${id}/values/${encodeURIComponent(range)}`, {
+    params: { majorDimension: "ROWS", valueRenderOption: "UNFORMATTED_VALUE" },
+  });
+  const rows = d.values || [];
+  const width = rows.reduce((m, r) => Math.max(m, r.length), 0);
+  return rows.map((r) => {
+    const out = r.map((c) => (c == null ? "" : String(c)));
+    while (out.length < width) out.push("");
+    return out;
+  });
+}
+
+/**
+ * כתיבת טווח.
+ * ⚠ `RAW` ולא `USER_ENTERED`: טקסט שמתחיל ב-= היה הופך
+ *   לנוסחה, ומחרוזת כמו "1/9" הייתה הופכת לתאריך בפורמט
+ *   אמריקאי. אנחנו כותבים נתונים, לא קלט מקלדת.
+ */
+export async function writeRange(id, range, rows) {
+  return call(`${id}/values/${encodeURIComponent(range)}`, {
+    method: "PUT",
+    params: { valueInputOption: "RAW" },
+    body: { range, majorDimension: "ROWS", values: rows },
+  });
+}
+
+/** הוספת שורות בסוף הלשונית */
+export async function appendRows(id, range, rows) {
+  return call(`${id}/values/${encodeURIComponent(range)}:append`, {
+    method: "POST",
+    params: { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" },
+    body: { majorDimension: "ROWS", values: rows },
+  });
+}
+
+/** ניקוי טווח — לכתיבה מחדש של דוח שלם */
+export async function clearRange(id, range) {
+  return call(`${id}/values/${encodeURIComponent(range)}:clear`, { method: "POST" });
+}
+
+/**
+ * מצב החיבור, לאבחון במסך.
+ * ⚠ **אינו מחזיר את המפתח ואף לא חלק ממנו** — רק את כתובת
+ *   חשבון השירות, שאותה ממילא צריך כדי לשתף גיליון.
+ */
+export function googleStatus() {
+  const sa = serviceAccount();
+  return sa
+    ? { ready: true, account: sa.email }
+    : { ready: false, account: null, hint: "חסר GOOGLE_SA_KEY במשתני הסביבה" };
+}
