@@ -176,6 +176,49 @@ export async function readRange(id, range) {
   });
 }
 
+/* ============================================================
+   קריאת לשונית **עם המבנה והצבעים**
+   ------------------------------------------------------------
+   ⚠ `readRange` מחזירה ערכים בלבד, וזה לא מספיק לגאנט: שם
+     **המשמעות יושבת בצבע ובמיזוג**. אירוע רב-יומי הוא תא
+     ממוזג, וסוג האירוע (חג, שבת, סמינר) נבדל בצבע הרקע בלבד.
+     בלי הקריאה הזו כל אירוע היה נראה כיום בודד חסר סוג.
+
+   ⚠ `includeGridData` מחזירה הרבה, ולכן מבקשים **רק** את
+     השדות הדרושים. בלי המסנן התשובה על גיליון של 998 שורות
+     היא מגה-בייטים.
+   ============================================================ */
+export async function readGrid(id, tabTitle) {
+  const d = await call(id, {
+    params: {
+      ranges: tabTitle,
+      includeGridData: "true",
+      fields: "sheets(properties(title,sheetId),merges,"
+        + "data(rowData(values(formattedValue,effectiveFormat(backgroundColor)))))",
+    },
+  });
+  const sh = (d.sheets || [])[0];
+  if (!sh) throw new Error(`הלשונית "${tabTitle}" אינה קיימת בגיליון`);
+
+  const rowData = sh.data?.[0]?.rowData || [];
+  const rows = rowData.map((r) => (r.values || []).map((c) => c.formattedValue ?? ""));
+  const colors = rowData.map((r) => (r.values || []).map((c) => {
+    const bg = c.effectiveFormat?.backgroundColor;
+    if (!bg) return null;
+    const to = (x) => Math.round((x || 0) * 255);
+    /* ⚠ לבן הוא "בלי צבע" ולא צבע. גוגל מחזירה לבן לכל תא. */
+    const hex = `#${[to(bg.red), to(bg.green), to(bg.blue)]
+      .map((n) => n.toString(16).padStart(2, "0")).join("")}`.toUpperCase();
+    return hex === "#FFFFFF" ? null : hex;
+  }));
+  /* ⚠ A1 ולא אינדקסים — אותה צורה שהפרסר מקבל מקובץ מומר. */
+  const merges = (sh.merges || []).map((m) => ({
+    r1: m.startRowIndex, c1: m.startColumnIndex,
+    r2: m.endRowIndex - 1, c2: m.endColumnIndex - 1,
+  }));
+  return { title: sh.properties?.title || tabTitle, rows, colors, merges };
+}
+
 /**
  * כתיבת טווח.
  * ⚠ `RAW` ולא `USER_ENTERED`: טקסט שמתחיל ב-= היה הופך
