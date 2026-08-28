@@ -88,9 +88,10 @@ export default function ExportPage({ say }) {
         <div className="card lift">
           <div className="sec-label" style={{ marginTop: 0 }}>החיבור טרם הוגדר</div>
           <div className="login-lead">
-            כדי שהמערכת תוכל לכתוב לגיליונות Google, צריך פעם אחת ליצור
-            חשבון שירות ולהזין את המפתח שלו במשתני הסביבה
-            (<span className="num">GOOGLE_SA_KEY</span>).
+            צריך פעם אחת להזין מפתח במשתני הסביבה: חשבון שירות
+            (<span className="num">GOOGLE_SA_KEY</span>) לקריאה וכתיבה,
+            או מפתח API (<span className="num">GOOGLE_API_KEY</span>)
+            לקריאה מגיליונות המוגדרים "כל מי שיש לו הקישור".
           </div>
           <div className="pf-note">{st.hint}</div>
         </div>
@@ -106,6 +107,18 @@ export default function ExportPage({ say }) {
                   <div className="step-s">אחד לכל דוח, או אחד שמשמש את כולם</div>
                 </div>
               </div>
+              {/* ⚠ שני מצבים, שתי הוראות. במצב מפתח API אין
+                  כתובת לשתף איתה — הגיליון פשוט צריך להיות
+                  ציבורי, וזו הוראה אחרת לגמרי. */}
+              {st.mode === "key" ? (
+                <div className="step-row on">
+                  <div className="step-n">2</div>
+                  <div className="step-b">
+                    <div className="step-t">מגדירים את הגיליון "כל מי שיש לו הקישור"</div>
+                    <div className="step-s">{st.note}</div>
+                  </div>
+                </div>
+              ) : (
               <div className="step-row on">
                 <div className="step-n">2</div>
                 <div className="step-b">
@@ -123,6 +136,7 @@ export default function ExportPage({ say }) {
                   </div>
                 </div>
               </div>
+              )}
               <div className="step-row">
                 <div className="step-n">3</div>
                 <div className="step-b">
@@ -165,7 +179,16 @@ export default function ExportPage({ say }) {
             ))}
           </div>
 
-          {/* ---------- הדוחות ---------- */}
+          {/* ---------- הדוחות ----------
+              ⚠ כתיבה דורשת חשבון שירות. במצב מפתח API הכפתורים
+                היו נכשלים אחרי הלחיצה, וזה גרוע מלא להציג אותם. */}
+          {!st.canWrite ? (
+            <div className="attn-calm" style={{ marginBottom: 14 }}>
+              <b>מצב קריאה בלבד</b>
+              <span>כתיבת דוחות לגיליון דורשת מפתח של חשבון שירות</span>
+            </div>
+          ) : (
+          <>
           <div className="sec-label">מה לייצא</div>
           <div className="rows" style={{ marginBottom: 14 }}>
             {st.kinds.map((k) => (
@@ -183,6 +206,9 @@ export default function ExportPage({ say }) {
               </div>
             ))}
           </div>
+
+          </>
+          )}
 
           {done && (
             <div className="alert a-ok">

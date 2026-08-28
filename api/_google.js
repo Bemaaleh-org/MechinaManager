@@ -6,10 +6,23 @@
      ולקרוא ל-REST. החתימה נעשית עם `node:crypto` המובנה.
      nodemailer נשארת התלות החיצונית היחידה בפרויקט.
 
-   ⚠ **חשבון שירות ולא OAuth של משתמש.** OAuth דורש שמישהו
-     ילחץ "אשר" ויתחדש כל כמה שבועות; חשבון שירות הוא זהות
-     משלו שלא פגה. משתפים איתו את הגיליון בדיוק כמו עם אדם,
-     והוא רואה **רק** את מה ששיתפו איתו — וזו גם הגבלת ההרשאה.
+   ⚠ **שני מסלולי אימות, ולא במקרה.**
+
+     1. **חשבון שירות** — זהות שלא פגה, קוראת **וכותבת** לגיליון
+        ששותף איתה ספציפית. זה המסלול המועדף.
+
+     2. **מפתח API** — קורא **בלבד**, ורק גיליונות שהוגדרו
+        "כל מי שיש לו קישור". נוסף אחרי ש-Google חסמה יצירת
+        מפתחות חשבון שירות ברמת הארגון
+        (`iam.disableServiceAccountKeyCreation`), חסימה שהיא
+        מפעילה כברירת מחדל בחשבונות Workspace חדשים.
+        **המדיניות הזו אינה חלה על מפתחות API.**
+
+     ⚠ המחיר של מסלול 2 הוא אמיתי ומוצהר: גיליון "כל מי שיש
+       לו קישור" נגיש לכל מי שהקישור הגיע אליו, גם אם איש לא
+       הפיץ אותו. המכינה בחרה בזה במודע.
+
+   ⚠ חשבון שירות **גובר** כששניהם מוגדרים — הוא צר יותר.
 
    ⚠ **המפתח הפרטי הוא סוד מלא.** מי שמחזיק אותו מתחזה לחשבון
      השירות בכל גיליון ששותף איתו. הוא חי ב-GOOGLE_SA_KEY
@@ -51,8 +64,25 @@ export function serviceAccount() {
   }
 }
 
+/**
+ * מפתח API — קריאה בלבד, לגיליונות ציבוריים.
+ * ⚠ הוא אינו סוד ברמת המפתח הפרטי, אבל הוא כן צורך מכסה
+ *   ומאפשר קריאה של כל גיליון ציבורי. מקומו בסביבה.
+ */
+export const apiKey = () => process.env.GOOGLE_API_KEY || null;
+
+/** "service" (קריאה וכתיבה) · "key" (קריאה בלבד) · null */
+export function authMode() {
+  if (serviceAccount()) return "service";
+  if (apiKey()) return "key";
+  return null;
+}
+
 /** האם החיבור מוגדר בכלל */
-export const googleReady = () => Boolean(serviceAccount());
+export const googleReady = () => authMode() !== null;
+
+/** ⚠ כתיבה אפשרית רק עם חשבון שירות. */
+export const canWrite = () => authMode() === "service";
 
 /* ============================================================
    האסימון
@@ -105,14 +135,28 @@ export async function accessToken() {
    ============================================================ */
 
 async function call(path, { method = "GET", body, params } = {}) {
-  const token = await accessToken();
-  const qs = params ? "?" + new URLSearchParams(params) : "";
+  const mode = authMode();
+  if (!mode) throw new Error("החיבור ל-Google Sheets טרם הוגדר");
+
+  /* ⚠ כתיבה עם מפתח API נכשלת אצל גוגל בשגיאה שאינה מסבירה
+     דבר. עדיף להיעצר כאן ולומר למה. */
+  if (mode === "key" && method !== "GET") {
+    throw new Error(
+      "מפתח API מאפשר קריאה בלבד. כתיבה לגיליון דורשת חשבון שירות");
+  }
+
+  const p = { ...(params || {}) };
+  let auth = {};
+  if (mode === "service") {
+    auth = { Authorization: `Bearer ${await accessToken()}` };
+  } else {
+    p.key = apiKey();
+  }
+
+  const qs = Object.keys(p).length ? "?" + new URLSearchParams(p) : "";
   const r = await fetch(`${SHEETS}/${path}${qs}`, {
     method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(body ? { "Content-Type": "application/json" } : {}),
-    },
+    headers: { ...auth, ...(body ? { "Content-Type": "application/json" } : {}) },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const d = await r.json().catch(() => ({}));
@@ -121,10 +165,13 @@ async function call(path, { method = "GET", body, params } = {}) {
     /* ⚠ 403 כאן פירושו כמעט תמיד "הגיליון לא שותף עם חשבון
        השירות", וזו הטעות הראשונה של כל מי שמחבר גיליון. */
     if (r.status === 403 || r.status === 404) {
+      /* ⚠ אותה שגיאה מגוגל, שתי סיבות שונות לגמרי — ולכן שתי
+         הודעות שונות. במסלול המפתח הבעיה כמעט תמיד היא שהגיליון
+         אינו ציבורי; במסלול חשבון השירות — שלא שותף איתו. */
       const sa = serviceAccount();
-      throw new Error(
-        `${msg} — ודאו שהגיליון שותף עם ${sa ? sa.email : "חשבון השירות"} בהרשאת עריכה`
-      );
+      throw new Error(sa
+        ? `${msg} — ודאו שהגיליון שותף עם ${sa.email} בהרשאת עריכה`
+        : `${msg} — ודאו שהגיליון מוגדר "כל מי שיש לו הקישור" (צפייה)`);
     }
     throw new Error(msg);
   }
@@ -294,8 +341,19 @@ export async function clearRange(id, range) {
  *   חשבון השירות, שאותה ממילא צריך כדי לשתף גיליון.
  */
 export function googleStatus() {
-  const sa = serviceAccount();
-  return sa
-    ? { ready: true, account: sa.email }
-    : { ready: false, account: null, hint: "חסר GOOGLE_SA_KEY במשתני הסביבה" };
+  const mode = authMode();
+  if (mode === "service") {
+    return { ready: true, mode, account: serviceAccount().email, canWrite: true };
+  }
+  if (mode === "key") {
+    /* ⚠ המפתח עצמו **אינו** מוחזר, גם לא חלקית. */
+    return {
+      ready: true, mode, account: null, canWrite: false,
+      note: "מפתח API — קריאה בלבד, מגיליונות המוגדרים \"כל מי שיש לו הקישור\"",
+    };
+  }
+  return {
+    ready: false, mode: null, account: null, canWrite: false,
+    hint: "חסר GOOGLE_SA_KEY או GOOGLE_API_KEY במשתני הסביבה",
+  };
 }
