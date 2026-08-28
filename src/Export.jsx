@@ -35,11 +35,25 @@ export default function ExportPage({ say }) {
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(null);   /* kind שרץ עכשיו */
   const [done, setDone] = useState(null);
+  const [check, setCheck] = useState(null);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     try { setUrl(localStorage.getItem(KEY) || ""); } catch { /* חלון פרטי */ }
     api.getExportStatus().then(setSt).catch((e) => setErr(e.message));
   }, []);
+
+  /* ⚠ בדיקה לפני כתיבה. כתיבה שנכשלת אחרי שהמנהל כבר לחץ
+     "ייצוא" משאירה אותו בלי לדעת אם הבעיה בקישור, בשיתוף או
+     בקובץ — שלוש בעיות עם אותה הודעה מגוגל. */
+  const probe = () => {
+    if (checking || !url.trim()) return;
+    setChecking(true); setCheck(null);
+    api.checkSheet(url.trim())
+      .then((d) => setCheck(d.check || null))
+      .catch((e) => say(e.message))
+      .finally(() => setChecking(false));
+  };
 
   const run = (kind) => {
     if (busy) return;
@@ -122,8 +136,33 @@ export default function ExportPage({ say }) {
               <label htmlFor="xu">קישור לגיליון</label>
               <input id="xu" value={url} dir="ltr" disabled={Boolean(busy)}
                 placeholder="https://docs.google.com/spreadsheets/d/…"
-                onChange={(e) => setUrl(e.target.value)} />
+                onChange={(e) => { setUrl(e.target.value); setCheck(null); }} />
             </div>
+            <button className="btn btn-ghost btn-sm" style={{ width: "100%" }}
+              disabled={checking || !url.trim()} onClick={probe}>
+              {checking ? "בודק…" : "בדיקת הקישור"}
+            </button>
+
+            {check && (check.ok ? (
+              <div className="alert a-ok" style={{ marginTop: 10, marginBottom: 0 }}>
+                <div style={{ flex: 1 }}>
+                  <div className="ttl">הגיליון נגיש — "{check.title}"</div>
+                  <div className="bd">{check.tabs.length} לשוניות: {
+                    check.tabs.slice(0, 6).map((t) => t.title).join(" · ")
+                  }{check.tabs.length > 6 ? " …" : ""}</div>
+                </div>
+              </div>
+            ) : (
+              /* ⚠ הסיבה **ומה עושים איתה**. "אין גישה" לבדו
+                  משאיר את המנהל לנחש בין ארבע אפשרויות. */
+              <div className="alert a-amber" style={{ marginTop: 10, marginBottom: 0 }}>
+                <XI.warn />
+                <div style={{ flex: 1 }}>
+                  <div className="ttl">{check.why}</div>
+                  <div className="bd">{check.fix}</div>
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* ---------- הדוחות ---------- */}

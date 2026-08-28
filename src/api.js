@@ -167,6 +167,11 @@ export const api = {
      ⚠ המנהל מדביק קישור לגיליון **שהוא יצר ושיתף** עם חשבון
         השירות. הקישור יציב, והדוח מתרענן לתוך אותו קובץ. */
   getExportStatus: () => get("/api/lessons?action=export"),
+  /* ⚠ בודק קישור אחד ואומר **מה לעשות** אם הוא לא תקין.
+     בהתחברות לגיליון יש ארבע דרכים להיכשל, וגוגל מחזירה על
+     כולן שגיאה שאינה מסבירה כלום. */
+  checkSheet: (url) =>
+    get("/api/lessons?action=export&url=" + encodeURIComponent(url)),
   exportToSheet: ({ kind, url }) => post("/api/lessons?action=export", { kind, url }),
 
   /* ---------- מחזורים ----------

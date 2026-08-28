@@ -19,7 +19,7 @@
    ============================================================ */
 
 import { withAuth } from "./_session.js";
-import { googleStatus, googleReady, sheetId, ensureTabs, batchUpdate } from "./_google.js";
+import { googleStatus, googleReady, sheetId, ensureTabs, batchUpdate, sheetMeta } from "./_google.js";
 import { WORKBOOKS, emit } from "./_reports.js";
 
 /* ⚠ גוגל מגבילה את גודל הבקשה. חוברת השיעורים מייצרת בקשה
@@ -30,10 +30,61 @@ const CHUNK = 400;
 async function handler(req, res, session) {
   try {
     if (req.method === "GET") {
-      return res.status(200).json({
+      const base = {
         ...googleStatus(),
         kinds: Object.entries(WORKBOOKS).map(([k, v]) => ({ kind: k, title: v.title })),
-      });
+      };
+      /* ============================================================
+         בדיקת גיליון — ?url=...
+         ------------------------------------------------------------
+         ⚠ **הכלי הזה קיים כדי שלא צריך יהיה לנחש.** בהתחברות
+           לגיליון יש בדיוק ארבע דרכים להיכשל, ולכל אחת מהן
+           גוגל מחזירה שגיאה שאינה אומרת מה לעשות:
+
+             1. המפתח אינו של חשבון שירות
+             2. Google Sheets API לא הופעל בפרויקט
+             3. הקובץ הוא אקסל שהועלה, ולא Google Sheets
+             4. הגיליון לא שותף עם חשבון השירות
+
+           כאן כל אחת מהן מקבלת משפט שאומר מה עושים.
+         ============================================================ */
+      const probe = String(req.query?.url || "").trim();
+      if (!probe) return res.status(200).json(base);
+
+      if (!base.ready) {
+        return res.status(200).json({ ...base, check: {
+          ok: false, why: "המפתח טרם הוגדר", fix: base.hint } });
+      }
+      const id = sheetId(probe);
+      if (!id) {
+        return res.status(200).json({ ...base, check: {
+          ok: false, why: "לא זוהה מזהה גיליון בכתובת",
+          fix: "העתיקו את הכתובת המלאה מסרגל הכתובות של הגיליון" } });
+      }
+      try {
+        const meta = await sheetMeta(id);
+        return res.status(200).json({ ...base, check: {
+          ok: true, id, title: meta.title,
+          tabs: meta.tabs.map((t) => ({ title: t.title, rows: t.rows })),
+        } });
+      } catch (e) {
+        const msg = String(e.message || "");
+        /* ⚠ **קובץ אקסל שהועלה לדרייב אינו גיליון**, וה-API
+           מחזיר עליו בדיוק את אותה שגיאה כמו על קובץ שלא שותף.
+           המזהה מבדיל: גיליון מקורי הוא 44 תווים, קובץ שהועלה
+           הוא כ-33. בלי ההבחנה הזו המנהל היה משתף שוב ושוב
+           קובץ שלעולם לא ייקרא. */
+        const looksUploaded = id.length < 40;
+        return res.status(200).json({ ...base, check: {
+          ok: false, id, raw: msg,
+          why: looksUploaded
+            ? "נראה שזה קובץ אקסל שהועלה לדרייב, ולא Google Sheets"
+            : "לא הצלחתי לפתוח את הגיליון",
+          fix: looksUploaded
+            ? "בדרייב: פותחים את הקובץ → קובץ → שמור כ-Google Sheets, ושולחים את הקישור החדש"
+            : `לשתף את הגיליון עם ${base.account} בהרשאת עורך`,
+        } });
+      }
     }
 
     if (req.method !== "POST") {
