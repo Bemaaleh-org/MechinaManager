@@ -22,6 +22,10 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { api } from "./api.js";
+import Escalate from "./Escalate.jsx";
+import { CATEGORY, PERIOD, PERIODS, plural, byCategory } from "../shared/placements.js";
+import { dutyKey, DUTY_CHAIR } from "../shared/duties.js";
+import { TEAM_CATEGORIES } from "../shared/team.js";
 
 const TI = {
   chev: (p) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
@@ -91,10 +95,13 @@ function TeamList({ data, onPick }) {
           <div className="tm-card-h">
             <div>
               <div className="tm-card-n">{t.name}</div>
+              {/* ⚠ הקטגוריה לא מוצגת כאן — הלשונית כבר אמרה
+                  אותה, ושורה שחוזרת על הכותרת שמעליה היא רעש. */}
               <div className="tm-card-s">
-                {t.category}
-                {t.chairName ? " · יו״ר " + t.chairName : ""}
-                {t.isChair ? " · אתם היו״ר" : ""}
+                {t.isChair ? "אתם היו״ר"
+                  : t.chairName ? "יו״ר · " + t.chairName
+                  : "אין יו״ר"}
+                {t.lead ? " · מדריך " + t.lead : ""}
               </div>
             </div>
             <Ring pct={t.progress.pct} size={54} />
@@ -265,34 +272,26 @@ function TaskCard({ t, statusName, onOpen }) {
 /* ============================================================
    ההצפות של הוועדה
    ------------------------------------------------------------
-   ⚠ **אין כאן מרחב מפתחות שני, ובכוונה.** ההצפה ממשיכה להיות
+   ⚠ **אותו רכיב בדיוק שיושב בכרטיס התפקיד** (src/Escalate.jsx).
+     שני עותקים היו נפרדים בתיקון הראשון, ואז "ההצפה מתפקיד"
+     ו"ההצפה מוועדה" היו מתנהגות אחרת בלי שאיש יבחין.
+
+   ⚠ **ואין כאן מרחב מפתחות שני, בכוונה.** ההצפה ממשיכה להיות
      מופנית ל-`יו״ר#<מזהה הוועדה>` — מפתח שכבר קיים, שכבר נישא
-     ב-`dutiesForStudent`, וששורד החלפת יו״ר. מפתח חדש בשם
+     ב-`dutiesForStudent`, וששורד החלפת יו״ר. מפתח בשם
      "צוות#<מזהה>" היה מכפיל את הערוץ ומייצר שתי תיבות דואר
      לאותה שאלה.
 
-   ⚠ **וההבטחה של 4מה נשמרת גם כאן: לצוות יש תיבת יוצא, לא
-     מראה.** איש הצוות כותב ואינו רואה אם טופל. התיבה הנכנסת
-     של היו״ר יושבת במרכז התפקיד, וזה **קישור אחד בכיוון אחד**
-     — לא לשונית שמשכפלת אותה לכאן.
+   ⚠ **התיבה הנכנסת של היו״ר אינה כאן.** היא במרכז התפקיד,
+     ומכאן יש אליה **קישור אחד בכיוון אחד** — כדי ששני המסכים
+     לא ייראו כמו אותו מסך, וההבטחה של 4מה לא תיקרא כשקר.
    ============================================================ */
-function Escalation({ team, me, say, go }) {
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [busy, setBusy] = useState(false);
-  const duty = "יו״ר#" + team.id;
-
-  /* ⚠ בורר החניך אינו קיים כאן, בדיוק כמו במסך ההצפות הכללי.
-     אין מאיפה שתצמח עמודה "לפי אדם" (4מה). */
-  const send = () => {
-    if (busy) return;
-    if (!title.trim()) { say("צריך נושא"); return; }
-    setBusy(true);
-    api.sendDutyNote({ duty, title, body })
-      .then(() => { setTitle(""); setBody(""); say("נשלח ליו״ר הוועדה"); })
-      .catch((e) => say(e.message))
-      .finally(() => setBusy(false));
-  };
+function TeamNotes({ team, me, say, go }) {
+  /* ⚠ **dutyKey ולא מחרוזת מוקלדת.** הגרש ב"יו״ר" הוא U+05F4
+     בכל המאגר, אבל מפתח שנבנה ביד הוא בדיוק מה ש-shared/duties.js
+     מזהיר ממנו: מפתח שגוי בתו אחד נשמר, מופיע לשולח בתיבת
+     היוצא, **ולעולם לא מגיע** — כי הפעמון משווה מול dutyKey. */
+  const duty = dutyKey({ name: DUTY_CHAIR, scope: team.id });
 
   if (me.role === "chair") {
     return (
@@ -302,8 +301,6 @@ function Escalation({ team, me, say, go }) {
           מה שהצוות מציף אליכם כיו״ר <b>{team.name}</b> יושב במרכז התפקיד,
           יחד עם המשימות האישיות שלכם ומסמך החפיפה.
         </p>
-        {/* ⚠ קישור אחד ובכיוון אחד. מרכז התפקיד אינו מקשר חזרה
-            לכאן, כדי ששני המסכים לא ייראו כמו אותו מסך. */}
         <button className="btn btn-primary" onClick={() => go && go("duty")}>
           למרכז התפקיד
         </button>
@@ -311,46 +308,9 @@ function Escalation({ team, me, say, go }) {
     );
   }
 
-  if (!me.manage) {
-    return (
-      <div className="empty">
-        <div className="e-ico"><TI.bell /></div>
-        <b>ההצפות מופנות ליו״ר הוועדה</b>
-        <span>
-          חבר ועדה מדבר עם היו״ר ישירות. הערוץ הזה קיים כדי שהצוות
-          יוכל להפנות שאלה בלי לעקוב אחרי המשימות.
-        </span>
-      </div>
-    );
-  }
-
   return (
-    <div className="tm-esc">
-      <div className="tm-esc-h">הצפה ליו״ר {team.name}</div>
-      <div className="fld">
-        <label>הנושא</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)}
-          placeholder="מה צריך לבדוק" />
-      </div>
-      <div className="fld">
-        <label>פירוט</label>
-        <textarea rows={4} value={body} onChange={(e) => setBody(e.target.value)}
-          placeholder="רשות" />
-      </div>
-      <button className="btn btn-primary" disabled={busy} onClick={send}>
-        {busy ? "שולח…" : "שליחה"}
-      </button>
-      {/* ⚠ **המחיר מוצהר במסך ולא רק בקוד.** איש צוות שלא יידע
-          שאין חיווי יחשוב שההצפה נעלמה. */}
-      <div className="tm-esc-n">
-        {team.chairName
-          ? "ההצפה מגיעה ל" + team.chairName + ", ונשארת נכונה גם אם היו״ר יתחלף — היא מופנית לתפקיד ולא לאדם."
-          : "אין כרגע יו״ר לוועדה. ההצפה תמתין למי שיתמנה — היא מופנית לתפקיד ולא לאדם."}
-        {" "}
-        <b>לא תדעו אם היא טופלה</b> — זו הבחירה שנעשתה כדי לתת לחניכים
-        אוטונומיה, והבדיקה חוזרת לשיחה.
-      </div>
-    </div>
+    <Escalate duty={duty} label={"יו״ר " + team.name} say={say}
+      who={team.chairName || null} />
   );
 }
 
@@ -494,7 +454,7 @@ function TeamHub({ id, say, onBack, go }) {
       </div>
 
       {view === "notes" && (
-        <Escalation team={d.team} me={d.me} say={say} go={go} />
+        <TeamNotes team={d.team} me={d.me} say={say} go={go} />
       )}
 
       {view === "tasks" && (
@@ -600,32 +560,263 @@ function TeamHub({ id, say, onBack, go }) {
 }
 
 /* ============================================================
+   טופס הקמת צוות
+   ------------------------------------------------------------
+   ⚠ **זה מה ש"בלי מפתח" אומר בפועל.** "קם צוות באמצע שנה,
+     נגיד צוות יום הזיכרון" — דני מקים אותו כאן, קובע לו יו״ר
+     ומכסה, משבץ אליו חניכים, ומנהל בו משימות. אף שורת קוד
+     ואף דיפלוי (עיקרון 1).
+
+   ⚠ **שדות מוגדרים ולא טופס חופשי.** קטגוריה, תקופה ומכסה הן
+     בדיוק מה שכל שאר המערכת כבר יודעת לקרוא — לוח השיבוצים,
+     הפרופיל של החניך, מסך המדריך. שדה חופשי היה נראה גמיש
+     יותר ולא היה מגיע לאף מסך.
+   ============================================================ */
+function TeamForm({ preset, say, onDone, onCancel }) {
+  const [f, setF] = useState({
+    name: "", category: preset || CATEGORY.adhoc,
+    period: PERIOD.yearly, capacity: "", desc: "", lead: "",
+  });
+  const [busy, setBusy] = useState(false);
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+
+  const save = () => {
+    if (busy) return;
+    if (!f.name.trim()) { say("אין צוות בלי שם"); return; }
+    setBusy(true);
+    api.saveTeamDef(f)
+      .then((r) => onDone(r.id, f.name.trim(), f.category))
+      .catch((e) => { say(e.message); setBusy(false); });
+  };
+
+  return (
+    <div className="tm-editor card lift">
+      <div className="tm-form-h">צוות חדש</div>
+
+      <div className="fld">
+        <label>שם הצוות</label>
+        <input value={f.name} autoFocus onChange={(e) => set("name", e.target.value)}
+          placeholder="למשל: צוות יום הזיכרון" />
+      </div>
+
+      <div className="tm-row2">
+        <div className="fld">
+          <label>סוג</label>
+          {/* ⚠ רק קטגוריות שמנהלות משימות. ענף וקבוצה נוצרים
+              במסך השיבוצים — לענף אין יו״ר, ולקבוצה יש מדריך
+              צוות, ושניהם דברים אחרים. */}
+          <select value={f.category} onChange={(e) => set("category", e.target.value)}>
+            {TEAM_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div className="fld">
+          <label>תקופה</label>
+          <select value={f.period} onChange={(e) => set("period", e.target.value)}>
+            {PERIODS.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className="tm-row2">
+        <div className="fld">
+          <label>מכסת חניכים</label>
+          {/* ⚠ type=number, אבל השרת בודק Number.isFinite בכל
+              מקרה: תוכן לא-מספרי נותן NaN, וההשוואה מולו תמיד
+              false — כלומר האכיפה מתבטלת בשקט. */}
+          <input type="number" min="0" step="1" dir="ltr" value={f.capacity}
+            onChange={(e) => set("capacity", e.target.value)}
+            placeholder="ריק = בלי הגבלה" />
+        </div>
+        <div className="fld">
+          <label>מדריך מלווה</label>
+          <input value={f.lead} onChange={(e) => set("lead", e.target.value)}
+            placeholder="שם איש הצוות" />
+        </div>
+      </div>
+
+      <div className="fld">
+        <label>תיאור</label>
+        <textarea rows={2} value={f.desc} onChange={(e) => set("desc", e.target.value)}
+          placeholder="מה הצוות עושה" />
+      </div>
+
+      <div className="tm-editor-f">
+        <button className="btn btn-primary" disabled={busy} onClick={save}>
+          {busy ? "יוצר…" : "יצירת הצוות"}
+        </button>
+        <button className="btn btn-ghost" onClick={onCancel}>ביטול</button>
+      </div>
+      <div className="tm-esc-n">
+        אחרי היצירה: קובעים יו״ר ומשבצים חניכים במסך
+        <b> שיבוצי חניכים</b>, ואז מנהלים כאן את המשימות.
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
    השער
    ============================================================ */
 export default function TeamsPage({ say, go }) {
   const [list, setList] = useState(null);
   const [err, setErr] = useState("");
   const [pick, setPick] = useState(null);
+  /* ⚠ **הלשוניות כאן הן `.seg` ולא `.tm-tab`.** בתוך מסך הצוות
+     כבר יש שורת לשוניות (משימות · לפי אדם · הצפות), ושתי שורות
+     באותו מראה בשני מפלסים היו נקראות כמו אותה בחירה — המשתמש
+     היה לוחץ וחושב שהוא לא זז. */
+  const [cat, setCat] = useState(null);
+  const [creating, setCreating] = useState(false);
+  const [made, setMade] = useState(null);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     if (pick) return;
     api.getTeams()
-      .then((r) => { setList(r); setErr(""); })
+      .then((r) => {
+        setList(r);
+        setErr("");
+        /* ⚠ **הלשונית הפותחת נקבעת מהנתונים ולא בקוד.** ברירת
+           מחדל קבועה ל"סדרות" הייתה נוחתת על לשונית שאולי אינה
+           מרונדרת כלל — ואז המסך נראה ריק בלי סיבה. */
+        setCat((cur) => {
+          const live = tabsOf(r);
+          return cur && live.includes(cur) ? cur : (live[0] || null);
+        });
+      })
       .catch((e) => setErr(e.message));
-  }, [pick]);
+  }, [pick, tick]);
 
   if (pick) return <TeamHub id={pick} say={say} go={go} onBack={() => setPick(null)} />;
+
+  const TABS = list ? tabsOf(list) : [];
+  const shown = list && cat ? list.teams.filter((t) => t.category === cat) : [];
 
   return (
     <>
       <div className="screen-title">ניהול צוותים</div>
       <div className="tm-sub">
-        ועדות וסדרות — משימות, אחריות והתקדמות במקום אחד.
+        משימות, אחריות והתקדמות במקום אחד — במקום גיליון.
       </div>
+
       {/* ⚠ כשל טעינה נראה אחרת מ"אין צוותים" — עיקרון 6. */}
       {err && <div className="login-err">{err}</div>}
       {!err && !list && <div className="skel" style={{ height: 180 }} />}
-      {!err && list && <TeamList data={list} onPick={setPick} />}
+
+      {!err && list && (
+        <>
+          {/* ⚠ רצועה של לשונית אחת אינה בחירה — היא רעש. */}
+          {TABS.length > 1 && (
+            <div className="seg tm-seg">
+              {TABS.map((c) => (
+                <button key={c} className={cat === c ? "on" : ""}
+                  onClick={() => { setCat(c); setCreating(false); setMade(null); }}>
+                  {plural(c)}
+                  <i className="seg-n">{list.teams.filter((t) => t.category === c).length}</i>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* ⚠ הכפתור יודע מראש. team-admin הוא צוות בלבד, וחניך
+              יו״ר שילחץ היה מקבל 403 אחרי שכבר מילא טופס (4יד). */}
+          {list.canManage && !creating && !made && (
+            <button className="btn btn-primary tm-add" onClick={() => setCreating(true)}>
+              <TI.plus />צוות חדש
+            </button>
+          )}
+
+          {creating && (
+            <TeamForm preset={cat || CATEGORY.adhoc} say={say}
+              onCancel={() => setCreating(false)}
+              onDone={(id, name, category) => {
+                setCreating(false);
+                setCat(category);
+                setMade({ id, name, category });
+              }} />
+          )}
+
+          {/* ============================================================
+              ⚠ **כרטיס הצלחה, ולא קפיצה אל הצוות החדש.**
+
+              `invalidatePlacements()` בשרת מנקה את המטמון **במופע
+              שטיפל בבקשה בלבד**, והוא בן 30 שניות. בייצור הבקשה
+              הבאה עשויה לנחות על מופע אחר ולקבל "הצוות אינו נמצא"
+              על צוות שזה עתה נוצר — כלומר יצירה מוצלחת שנראית
+              בדיוק כמו כישלון.
+
+              ולכן הכרטיס אומר מה קרה ומה השלב הבא, ונותן כפתור
+              רענון מפורש. לחיצה שנייה על "צוות חדש" הייתה מחזירה
+              «"X" כבר קיים בלוח ההגדרות» — שני מסרים סותרים,
+              ואף אחד מהם לא נכון.
+              ============================================================ */}
+          {made && (
+            <div className="tm-made card lift">
+              <div className="tm-made-h">✓ {made.name} נוצר</div>
+              <p>
+                הצוות ריק כרגע. <b>יו״ר וחניכים נקבעים במסך שיבוצי חניכים</b>,
+                ומשם חוזרים לכאן לנהל את המשימות.
+              </p>
+              <div className="tm-editor-f">
+                <button className="btn btn-primary" onClick={() => setPick(made.id)}>
+                  למסך הצוות
+                </button>
+                <button className="btn btn-ghost" onClick={() => { setMade(null); setTick((t) => t + 1); }}>
+                  רענון הרשימה
+                </button>
+              </div>
+            </div>
+          )}
+
+          {shown.length === 0 && !creating && !made ? (
+            <div className="empty">
+              <div className="e-ico"><TI.users /></div>
+              <b>{emptyTitle(cat, list.canManage)}</b>
+              <span>{emptyHint(cat, list.canManage)}</span>
+            </div>
+          ) : (
+            shown.length > 0 && <TeamList data={{ ...list, teams: shown }} onPick={setPick} />
+          )}
+        </>
+      )}
     </>
   );
+}
+
+/* ============================================================
+   אילו לשוניות בכלל מוצגות
+   ------------------------------------------------------------
+   ⚠ **לשונית נרנדרת רק אם יש בה צוות** — פלוס "צוותים מזדמנים"
+     תמיד למנהל, כי שם מקימים את הראשון. חניך שמשובץ לוועדה
+     אחת אינו צריך לראות שתי לשוניות ריקות שיסיק מהן שמשהו לא
+     נטען.
+
+   ⚠ והסדר מ-`byCategory` ולא ממערך מקובע כאן — זה בדיוק המקום
+     שבו נולדות רשימות מקבילות שמתפצלות.
+   ============================================================ */
+function tabsOf(list) {
+  return [...TEAM_CATEGORIES].sort(byCategory).filter(
+    (c) => list.teams.some((t) => t.category === c)
+      || (c === CATEGORY.adhoc && list.canManage));
+}
+
+/* ⚠ **שלוש קטגוריות, שני קהלים, ושש הודעות ריקות שונות.**
+   "אין ועדות" למנהל ולחניך אינן אותה אמירה: אצל המנהל זה מצב
+   שהוא יכול לתקן, ואצל החניך זה פשוט מצב, והוא צריך לדעת
+   למי לפנות. */
+function emptyTitle(cat, canManage) {
+  if (cat === CATEGORY.adhoc) return "אין צוותים מזדמנים";
+  if (cat === CATEGORY.series) return canManage ? "אין סדרות" : "אינכם משובצים לאף סדרה";
+  if (cat === CATEGORY.committee) return canManage ? "אין ועדות" : "אינכם משובצים לאף ועדה";
+  return "אין צוותים";
+}
+function emptyHint(cat, canManage) {
+  if (cat === CATEGORY.adhoc) {
+    return canManage
+      ? "צוות שקם באמצע שנה — צוות יום הזיכרון, צוות טקס. אפשר להקים אותו כאן ולשבץ אליו חניכים."
+      : "כאן יופיעו צוותים שקמים באמצע שנה, אם תשובצו לאחד מהם.";
+  }
+  return canManage
+    ? "השיבוצים מוגדרים במסך שיבוצי חניכים."
+    : "שיבוץ נעשה על ידי הצוות.";
 }

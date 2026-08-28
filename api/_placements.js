@@ -20,6 +20,7 @@ import { invalidateGuides } from "./_guides.js";
 import { activeStudents } from "./_student-rows.js";
 import {
   PLACEMENT_BOARDS, PLACEMENT_COLS, CATEGORIES, PERIOD, placementsReady, semestersFor,
+  byCategory,
 } from "../shared/placements.js";
 
 const D = PLACEMENT_COLS.definitions;
@@ -145,7 +146,7 @@ export async function placementsFor(studentId) {
     loadDefinitions(), loadAssignments(),
   ]);
   const byId = new Map(definitions.map((d) => [d.id, d]));
-  const ORDER = ["ענף", "ועדה", "סדרה", "קבוצה"];
+
   return assignments
     .filter((a) => a.student === String(studentId))
     .map((a) => {
@@ -158,7 +159,9 @@ export async function placementsFor(studentId) {
       };
     })
     .filter(Boolean)
-    .sort((a, b) => ORDER.indexOf(a.category) - ORDER.indexOf(b.category)
+    /* ⚠ byCategory מ-shared ולא מערך מקומי: מערך סגור נותן
+       -1 לקטגוריה חדשה והיא קופצת לראש המיון בשקט. */
+    .sort((a, b) => byCategory(a.category, b.category)
       || a.name.localeCompare(b.name, "he"));
 }
 

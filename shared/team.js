@@ -22,8 +22,14 @@
 
 import { CATEGORY } from "./placements.js";
 
-/** רק אלה מנהלים משימות. לענף אין יו״ר, ולקבוצה יש מדריך. */
-export const TEAM_CATEGORIES = [CATEGORY.committee, CATEGORY.series];
+/* ⚠ **מי מנהל משימות.** לענף אין יו״ר, ולקבוצה יש מדריך
+   צוות שנקרא מ-lead על ידי api/_guides.js — יו״ר שם היה מבלבל
+   בין שני דברים שונים.
+
+   ⚠ **וצוות מזדמן מתנהג בדיוק כמו ועדה.** הוא נוסף כאן
+   ולא כמקרה מיוחד: כל מקום שבודק isTeamCategory מקבל אותו
+   מעצמו, ואין נתיב שני לתחזק. */
+export const TEAM_CATEGORIES = [CATEGORY.committee, CATEGORY.series, CATEGORY.adhoc];
 export const isTeamCategory = (c) => TEAM_CATEGORIES.includes(c);
 
 /* ============================================================

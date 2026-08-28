@@ -15,6 +15,8 @@
      שהמנהל יראה בדיוק מה לא נקלט ולמה.
    ============================================================ */
 
+import { CATEGORIES } from "./placements.js";
+
 /** שורה → תאים */
 export function cells(line) {
   const raw = String(line || "").replace(/‏|‎/g, "").trim();
@@ -156,7 +158,11 @@ export function parseSheets(text) {
 /* ============================================================
    ענפים, ועדות וסדרות —  שם · קטגוריה · מכסה? · מוביל?
    ============================================================ */
-export const GROUP_CATEGORIES = ["ענף", "ועדה", "סדרה", "קבוצה"];
+/* ⚠ נגזר מ-CATEGORIES ואינו רשימה שנייה. כאן ישבו ארבע
+   מחרוזות **בסדר אחר** מזה שב-shared/placements.js, וקטגוריה
+   חדשה לא הייתה מתקבלת בייבוא בלי שום שגיאה — השורה פשוט
+   הייתה נדחית כ"קטגוריה לא מוכרת". */
+export const GROUP_CATEGORIES = CATEGORIES;
 
 export function parseGroups(text) {
   const out = [], bad = [], seen = new Set();

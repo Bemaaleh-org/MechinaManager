@@ -2489,4 +2489,73 @@ html,body{margin:0;padding:0;background:#012E58}
   background:var(--sand);border-radius:var(--r-sm);padding:11px 13px;margin-top:14px}
 .tm-esc-n b{color:var(--ink);font-weight:800}
 
+/* ============================================================
+   הצפה — הרכיב שיושב בתוך כל הקשר
+   ------------------------------------------------------------
+   ⚠ כל כלל על כפתור מתחיל ב-.kx: הכלל .kx button מאפס
+     background ו-border בסגוליות (0,1,1). ואין בקטיקים בקובץ.
+   ============================================================ */
+.esc{margin-bottom:4px}
+.esc-c{margin:-2px 0 14px}
+.esc-h{font-size:15px;font-weight:800;margin-bottom:11px}
+.kx .esc-open{width:100%;display:flex;align-items:center;justify-content:center;
+  gap:8px;border:1px dashed var(--line2);background:var(--sand);color:var(--muted)}
+.kx .esc-open:hover{border-color:var(--accent);color:var(--accent)}
+.esc-form{background:var(--sand);border:1px solid var(--line2);
+  border-radius:var(--r-md);padding:13px 14px 11px}
+.esc-f{display:flex;gap:8px;margin-top:2px}
+.esc-n{font-size:12px;color:var(--muted);font-weight:600;line-height:1.7;
+  margin-top:11px;padding-top:11px;border-top:1px solid var(--line2)}
+.esc-n b{color:var(--ink);font-weight:800}
+.esc-ro{font-size:12.5px;color:var(--muted);font-weight:600;line-height:1.7;
+  background:var(--sand);border-radius:var(--r-sm);padding:11px 13px}
+.esc-ro b{color:var(--ink);font-weight:800}
+.esc-err{margin-bottom:10px}
+
+/* ---------- מה כבר נשלח ---------- */
+.esc-list{margin-top:12px}
+.esc-lh{font-size:11.5px;font-weight:800;color:var(--muted);letter-spacing:.3px;
+  margin:0 2px 7px}
+.esc-item{background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-sm);padding:10px 12px;margin-bottom:7px}
+.esc-it{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.esc-it b{font-size:13.5px;font-weight:800;line-height:1.45}
+.kx .esc-del{flex:0 0 auto;width:24px;height:24px;border-radius:6px;
+  color:var(--faint);display:flex;align-items:center;justify-content:center}
+.kx .esc-del:hover{background:var(--sand);color:var(--clay)}
+.esc-ib{font-size:12.5px;color:var(--muted);font-weight:600;line-height:1.6;
+  margin-top:5px}
+.esc-im{font-size:11px;color:var(--faint);font-weight:700;margin-top:6px}
+/* ⚠ התשובה נראית אחרת מההצפה: היא הדבר היחיד שזורם פנימה,
+   והיא מגיעה מהחניך ולא מהצוות. */
+.esc-reply{display:flex;gap:8px;margin-top:9px;padding:9px 11px;
+  background:var(--sand);border-radius:var(--r-sm);
+  border-inline-start:3px solid var(--accent)}
+.esc-reply svg{flex:0 0 auto;margin-top:2px;color:var(--accent)}
+.esc-reply div{min-width:0}
+.esc-reply div>div{font-size:12.5px;font-weight:600;line-height:1.6}
+.esc-reply span{display:block;font-size:11px;color:var(--faint);
+  font-weight:700;margin-top:4px}
+
+/* ---------- לשוניות הצוותים ---------- */
+/* ⚠ .seg ולא .tm-tab: בתוך מסך הצוות כבר יש שורת לשוניות,
+   ושתי שורות באותו מראה בשני מפלסים נקראות כמו אותה בחירה. */
+.tm-seg button{display:flex;align-items:center;justify-content:center;gap:7px}
+.seg-n{font-style:normal;font-size:11px;font-weight:900;opacity:.6;
+  background:rgba(0,0,0,.06);border-radius:999px;padding:1px 7px;
+  font-variant-numeric:tabular-nums}
+.seg button.on .seg-n{opacity:.8}
+.tm-form-h{font-family:Heebo,sans-serif;font-size:17px;font-weight:800;
+  margin-bottom:14px}
+
+/* ---------- כרטיס "הצוות נוצר" ---------- */
+/* ⚠ לא קפיצה אוטומטית אל הצוות החדש: מטמון השרת בן 30
+   שניות ויושב פר-מופע, והבקשה הבאה עלולה לנחות על מופע אחר
+   ולומר "הצוות אינו נמצא" על צוות שזה עתה נוצר. */
+.tm-made{margin-bottom:14px}
+.tm-made-h{font-size:16px;font-weight:800;color:#177A45;margin-bottom:8px}
+.tm-made p{font-size:13px;color:var(--muted);font-weight:600;
+  line-height:1.75;margin:0 0 14px}
+.tm-made p b{color:var(--ink);font-weight:800}
+
 `;

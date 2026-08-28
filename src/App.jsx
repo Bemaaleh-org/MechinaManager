@@ -266,8 +266,11 @@ function Staff({ auth, onSignedOut }) {
                  אותם, כי הפריט היחיד שלח תמיד ל"מובילי שבוע". */
               { key: "a-roles", label: "בעלי תפקידים", icon: <I.users />,
                 active: false, onClick: () => goRoles("roles") },
-              { key: "a-notes", label: "הצפה לבעלי תפקידים", icon: <I.bell />,
-                active: false, onClick: () => goRoles("notes") },
+              /* ⚠ **היה כאן "הצפה לבעלי תפקידים" והוא הוסר.**
+                 ההצפה אינה מסך — היא יושבת בתוך כרטיס התפקיד
+                 שב"בעלי תפקידים", ובתוך מסך כל ועדה וסדרה.
+                 פריט תפריט שמוביל למסך שבו בוחרים מרשימה את מה
+                 שכבר היה מול העיניים הוא צעד מיותר. */
               { key: "a-place", label: "שיבוצי חניכים", icon: <I.users />, active: section === "placements",
                 onClick: () => setSection("placements") },
               /* ⚠ אותו מסך בדיוק של החניך, ולא גרסה מקוצצת —
@@ -381,7 +384,11 @@ function Staff({ auth, onSignedOut }) {
             <MechinaRolesPage say={say} key={rolesNav.n} sub0={rolesNav.sub || undefined} />
           )}
           {section === "placements" && isMgr && <PlacementsPage say={say} />}
-          {section === "teams" && isMgr && <TeamsPage say={say} />}
+          {/* ⚠ go מועבר: בלעדיו הכפתור "למרכז התפקיד" במסך
+              הצוות לא עושה כלום, **בלי שגיאה** — Teams.jsx מגן
+              ב-go && go(...). מנהל אינו יו״ר ולכן הוא לא יגיע
+              לשם, אבל תנאי שמסתיר כשל הוא בדיוק מה שנשכח. */}
+          {section === "teams" && isMgr && <TeamsPage say={say} go={() => setSection("roles")} />}
           {section === "safety" && isMgr && <SafetyPage say={say} />}
           {section === "faults" && isMgr && <FaultsPage say={say} />}
           {section === "agenda" && <AgendaPage />}

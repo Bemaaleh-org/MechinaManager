@@ -24,7 +24,9 @@ import {
   PERIOD, PERIODS, SEM, semestersFor, placementsReady,
 } from "../shared/placements.js";
 import { TEAM_BOARDS, TEAM_COLS } from "../shared/team-ids.js";
-import { VOCAB_KIND, VOCAB_KINDS, isTeamCategory } from "../shared/team.js";
+import {
+  VOCAB_KIND, VOCAB_KINDS, isTeamCategory, TEAM_CATEGORIES,
+} from "../shared/team.js";
 import {
   loadDefinitions, loadAssignments,
 } from "./_placements.js";
@@ -88,7 +90,11 @@ async function handler(req, res, session) {
         roster: roster.map((r) => ({ id: r.id, name: r.name })),
         vocab,
         options: {
-          categories: CATEGORIES, teamCategories: [CATEGORY.committee, CATEGORY.series],
+          /* ⚠ TEAM_CATEGORIES ולא מערך מקובע: כאן ישבה רשימה
+             שסתרה את `isTeam` שלוש שורות מעליה — אותה תשובה
+             אמרה ששיבוץ הוא צוות, ובו בזמן שהסוג שלו אינו
+             מהסוגים שמנהלים משימות. */
+          categories: CATEGORIES, teamCategories: TEAM_CATEGORIES,
           periods: PERIODS, semesters: [SEM.first, SEM.second],
           kinds: VOCAB_KINDS,
         },
@@ -198,7 +204,8 @@ async function handler(req, res, session) {
         }
       }
 
-      await renameItem(id, name);
+      /* ⚠ שלושה ארגומנטים — ראו api/_team-task.js */
+      await renameItem(PLACEMENT_BOARDS.definitions, id, name);
       await setColumns(PLACEMENT_BOARDS.definitions, id, cols);
 
       /* ⚠ קטגוריה שיוצאת מ"ועדה/סדרה" מאבדת את היו״ר: אין יו״ר
@@ -275,7 +282,7 @@ async function handler(req, res, session) {
       if (!all.find((v) => v.id === id) && !vocab.unknown.find((v) => v.id === id)) {
         return res.status(404).json({ error: "השורה אינה נמצאת" });
       }
-      await renameItem(id, name);
+      await renameItem(TEAM_BOARDS.vocab, id, name);
       await setColumns(TEAM_BOARDS.vocab, id, cols);
       invalidateTeams();
 

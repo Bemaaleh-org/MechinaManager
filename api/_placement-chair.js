@@ -23,10 +23,14 @@ import { activeStudents } from "./_student-rows.js";
 import {
   PLACEMENT_BOARDS, PLACEMENT_COLS, CATEGORY, placementsReady,
 } from "../shared/placements.js";
+import { TEAM_CATEGORIES } from "../shared/team.js";
 
 const D = PLACEMENT_COLS.definitions;
-/** רק אלה נושאים יו״ר */
-const CHAIRABLE = [CATEGORY.committee, CATEGORY.series];
+/* ⚠ **מקור אחד.** היו כאן שתי רשימות שאמורות היו להיות
+   זהות — CHAIRABLE כאן ו-TEAM_CATEGORIES ב-shared/team.js —
+   וקטגוריה שנוספת לאחת ולא לשנייה נותנת ועדה שאפשר לנהל בה
+   משימות אבל אי אפשר לקבוע לה יו״ר. בלי שגיאה. */
+const CHAIRABLE = TEAM_CATEGORIES;
 
 async function handler(req, res, session) {
   if (!placementsReady()) {

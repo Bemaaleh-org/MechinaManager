@@ -13,7 +13,7 @@
    ============================================================ */
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import DutyNotesPage from "./DutyNotes.jsx";
+import Escalate from "./Escalate.jsx";
 import { api } from "./api.js";
 import { testDate } from "./testDate.js";
 import { LessonsPage, LessonsBoard } from "./Lessons.jsx";
@@ -34,6 +34,10 @@ import { GanttPage } from "./Gantt.jsx";
 import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
 import { useExcel, downloadTable } from "./excel.js";
+/* ⚠ המסך היחיד שמייבא קטגוריות מ-shared. סדר התצוגה חייב
+   לבוא ממקום אחד — ראו ההערה ב-shared/placements.js. */
+import { CATEGORIES, byCategory } from "../shared/placements.js";
+import { DUTY_LEADER } from "../shared/duties.js";
 
 /* אותו אוצר צורות של האייקונים במטבח: 21px, stroke 2.1, קצוות עגולים */
 const MI = {
@@ -1862,6 +1866,22 @@ export function RoleHolders({ say }) {
                   </>
                 )}
 
+                {/* ============================================================
+                    ⚠ **ההצפה כאן, בתוך הכרטיס, ולא בדף נפרד.**
+
+                    היה מסך "הצפות" משלו, ובו בורר תפקידים. הבחירה
+                    ההיא הייתה כל הבעיה: מי שעומד מול הכרטיס של
+                    אחראי המטבח ורוצה להעיר לו משהו לא צריך לעזוב
+                    את המסך ולבחור שוב את מה שכבר היה מול העיניים.
+
+                    ⚠ נטען רק כשהכרטיס פתוח — rl-body אינו מרונדר
+                      כשהוא סגור, ולכן רשימה של עשרה תפקידים אינה
+                      מייצרת ולו בקשה אחת.
+                    ============================================================ */}
+                <div className="rl-k">הצפה אל בעל התפקיד</div>
+                <Escalate duty={role} label={role} say={say} compact
+                  who={h.map((s2) => s2.name).join(" · ") || null} />
+
                 <div className="rl-k">בחירת חניכים</div>
                 <input className="search" value={q} placeholder="חיפוש חניך"
                   onChange={(e) => setQ(e.target.value)} />
@@ -2099,6 +2119,14 @@ function WeekLeaders({ say }) {
             <ul className="ld-tasks">
               {LEADER_INFO.tasks.map((t, i) => <li key={i}>{t}</li>)}
             </ul>
+
+            {/* ⚠ **בלי זה למוביל שבוע אין נתיב הצפה בכלל.**
+                shared/duties.js מדלג עליו ברשימת התפקידים, והוא
+                אינו בעמודת התפקידים בלוח החניכים — הוא נגזר
+                משיבוץ בלוח מובילי השבוע. הכרטיס הזה הוא ההקשר
+                היחיד שלו במסך, ולכן ההצפה יושבת כאן. */}
+            <div className="rl-k">הצפה אל מוביל השבוע</div>
+            <Escalate duty={DUTY_LEADER} label="מוביל שבוע" say={say} compact />
           </div>
         )}
       </div>
@@ -2227,20 +2255,20 @@ function WeekLeaders({ say }) {
    תפקידים במכינה — דף עצמאי, נפרד לגמרי מהנוכחות
    ============================================================ */
 export function MechinaRolesPage({ say, sub0 }) {
-  const [sub, setSub] = useState(sub0 || "weeks");
+  /* WARN **שתי לשוניות, לא שלוש.** "הצפות" הייתה השלישית והיא
+     הוסרה: ההצפה יושבת עכשיו בתוך כרטיס התפקיד ב-RoleHolders,
+     ובתוך מסך כל ועדה וסדרה. `sub0 === "notes"` שנשאר בקישור
+     ישן נופל ל"בעלי תפקידים" ולא למסך ריק. */
+  const [sub, setSub] = useState(sub0 === "notes" ? "roles" : (sub0 || "weeks"));
   return (
     <>
       <div className="screen-title">תפקידים במכינה</div>
       <div className="seg">
         <button className={sub === "weeks" ? "on" : ""} onClick={() => setSub("weeks")}>מובילי שבוע</button>
         <button className={sub === "roles" ? "on" : ""} onClick={() => setSub("roles")}>בעלי תפקידים</button>
-        {/* ⚠ הערוץ היחיד של הצוות אל בעלי התפקידים. אין כאן
-            מסך מעקב — ראו src/DutyNotes.jsx. */}
-        <button className={sub === "notes" ? "on" : ""} onClick={() => setSub("notes")}>הצפות</button>
       </div>
       {sub === "weeks" && <WeekLeaders say={say} />}
       {sub === "roles" && <RoleHolders say={say} />}
-      {sub === "notes" && <DutyNotesPage say={say} />}
     </>
   );
 }
@@ -2266,6 +2294,9 @@ const PL_LOOK = {
   "ועדה": { cls: "pl-committee", eyebrow: "ועדה" },
   "סדרה": { cls: "pl-series", eyebrow: "צוות סדרה" },
   "קבוצה": { cls: "pl-group", eyebrow: "קבוצה" },
+  /* ⚠ צוות שקם באמצע שנה. חולק את מראה הוועדה — הוא מתנהג
+     כמוה, ומראה שלישי היה מרמז על הבדל שאינו קיים. */
+  "צוות מזדמן": { cls: "pl-committee", eyebrow: "צוות" },
 };
 
 function PlacementTile({ m, onClick }) {
@@ -2304,7 +2335,8 @@ function MyPlacements({ say }) {
     .filter((m) => m.def);
 
   /* סדר הצגה: ענף, ועדות, סדרות, קבוצות */
-  const ORDER = ["ענף", "ועדה", "סדרה", "קבוצה"];
+  /* ⚠ מקור אחד לסדר. ראו ההערה ב-shared/placements.js. */
+  const ORDER = CATEGORIES;
   const sorted = [...mine].sort((a, b) =>
     ORDER.indexOf(a.def.category) - ORDER.indexOf(b.def.category)
     || a.def.name.localeCompare(b.def.name, "he"));
@@ -2490,8 +2522,7 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
         <div className="pl-stack" style={{ marginBottom: 16 }}>
           {[...places]
             .sort((a, b) =>
-              ["ענף", "ועדה", "סדרה", "קבוצה"].indexOf(a.def.category)
-              - ["ענף", "ועדה", "סדרה", "קבוצה"].indexOf(b.def.category)
+              byCategory(a.def.category, b.def.category)
               || a.def.name.localeCompare(b.def.name, "he"))
             .map((m) => (
               <PlacementTile key={m.id} m={m} onClick={() => go("placements")} />

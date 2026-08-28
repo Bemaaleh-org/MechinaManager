@@ -15,7 +15,8 @@ import React, { useState, useMemo } from "react";
 import { api } from "./api.js";
 import { GUIDES } from "./placement-guides.js";
 import { RoleHolders } from "./Mechina.jsx";
-import { CATEGORIES, semestersFor } from "../shared/placements.js";
+import { CATEGORIES, semestersFor, plural } from "../shared/placements.js";
+import { isTeamCategory } from "../shared/team.js";
 
 const PI = {
   chev: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
@@ -213,7 +214,9 @@ function ChairPicker({ def, roster, picked, say, onDone }) {
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
 
-  if (def.category !== "ועדה" && def.category !== "סדרה") return null;
+  /* ⚠ isTeamCategory מ-shared ולא שתי השוואות: הן היו
+     משאירות את "צוות מזדמן" בלי בורר יו״ר, בשקט. */
+  if (!isTeamCategory(def.category)) return null;
 
   const members = roster.filter((r) => picked.has(r.id));
   const cur = def.chair
@@ -448,7 +451,10 @@ export function PlacementsPage({ say }) {
         {CATEGORIES.map((c) => (
           <button key={c} className={!rolesTab && cat === c ? "on" : ""}
             onClick={() => { setRolesTab(false); setCat(c); }}>
-            {c === "ענף" ? "ענפים" : c === "סדרה" ? "סדרות" : c === "ועדה" ? "ועדות" : "קבוצות"}
+            {/* ⚠ plural() ולא שרשרת טרנרי: היא נפלה ל-else,
+                וקטגוריה חמישית קיבלה את התווית "קבוצות" — שתי
+                לשוניות באותו שם ממש כאן. */}
+            {plural(c)}
           </button>
         ))}
         <button className={rolesTab ? "on" : ""} onClick={() => setRolesTab(true)}>תפקידים</button>

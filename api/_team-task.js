@@ -100,7 +100,10 @@ async function handler(req, res, session) {
       if (body?.title !== undefined) {
         const title = clip(body.title, MAX.title);
         if (!title) return res.status(400).json({ error: "אין משימה בלי כותרת" });
-        await renameItem(id, title);
+        /* ⚠ שלושה ארגומנטים: renameItem(board, itemId, name).
+           קריאה בשניים משאירה name undefined, $n:String! מגיע חסר,
+           וכל שינוי שם נופל ל-502 שלא אומר כלום. */
+        await renameItem(TEAM_BOARDS.tasks, id, title);
       }
       const patch = await build(body, ctx, perm, meId, res, task);
       if (!patch) return;
