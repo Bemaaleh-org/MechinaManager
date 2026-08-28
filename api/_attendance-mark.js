@@ -28,6 +28,18 @@
      "סימון ידני", כך שרואים בלוח שאדם נגע בה אחרי האישור.
 
    ⚠ מוביל שבוע — היום הנוכחי בלבד, נאכף כאן ולא בתצוגה.
+
+   ⚠ **מכסת ימי החופש נאכפת כאן, לכל מחצית בנפרד.**
+
+     היא **לא** הייתה נאכפת כאן, וזו הייתה חורה אמיתית: בקשת
+     יציאה עוברת שתי בדיקות מכסה (api/_requests.js בהגשה,
+     api/_request-decide.js באישור), והסימון הידני של הצוות
+     לא עבר אף אחת. מי שסימן "חופש" ידנית עקף את המכסה בלי
+     שאיש ידע — לא המנהל, לא החניך, וגם לא המסך שהציג
+     "3/3 נותרו" בזמן שנוצל יום רביעי.
+
+     ההפרדה בין המחציות מוחלטת: יום חופש במחצית א׳ אינו נספר
+     במחצית ב׳ ולהפך, ושבוע האמצע אינו נושא מכסה כלל.
    ============================================================ */
 
 import { withAuth, actorName } from "./_session.js";
@@ -36,7 +48,9 @@ import {
   loadCalendar, loadAbsences, todayFor, isSchoolDay, vacationRule,
   createAbsence, deleteAbsence, stampMarked, invalidateAttendance,
 } from "./_attendance-data.js";
-import { ABSENCE, ABSENCE_SOURCE } from "../shared/mechina-boards.js";
+import {
+  ABSENCE, ABSENCE_SOURCE, HALF, VACATION_PER_HALF,
+} from "../shared/mechina-boards.js";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TYPES = [ABSENCE.vacation, ABSENCE.sick, ABSENCE.justified];
@@ -105,6 +119,49 @@ async function handler(req, res, session) {
     const absences = await loadAbsences({ force: true });
     const onDate = absences.filter((a) => a.date === date);
     const byStudent = new Map(onDate.map((a) => [a.studentId, a]));
+
+    /* ============================================================
+       מכסת ימי החופש — לכל מחצית בנפרד
+       ------------------------------------------------------------
+       ⚠ נחסם כאן ולא מסונן: שמירה חלקית שמדלגת על חניך אחד
+         משאירה אותו "לא סומן" ומדווחת על כך בשורה שקל לפספס.
+         400 עם השם ועם המספר הוא חד-משמעי, והמסך שומר את מה
+         שהוקלד — אין מה לאבד.
+
+       ⚠ מי שכבר מסומן חופש **באותו תאריך** אינו יום נוסף.
+         בלי זה, תיקון הפירוט של יום חופש קיים היה נחסם.
+       ============================================================ */
+    const wantVacation = clean.filter((w) => w.type === ABSENCE.vacation);
+    if (wantVacation.length) {
+      const half = day.half;
+      if (half !== HALF.first && half !== HALF.second) {
+        return res.status(400).json({
+          error: half
+            ? `${half} אינו נושא מכסת ימי חופש`
+            : "התאריך אינו משויך למחצית — אי אפשר לחשב מכסת חופש",
+        });
+      }
+      const over = [];
+      for (const w of wantVacation) {
+        const cur = byStudent.get(w.studentId);
+        if (cur && cur.type === ABSENCE.vacation) continue;
+        /* ⚠ `a.date !== date` — היום שמסמנים עכשיו אינו נספר
+           פעמיים, גם אם כבר קיימת בו שורה מסוג אחר. */
+        const used = absences.filter((a) =>
+          a.studentId === w.studentId
+          && a.type === ABSENCE.vacation
+          && a.date !== date
+          && (cal.byDate.get(a.date) || {}).half === half).length;
+        if (used + 1 > VACATION_PER_HALF) {
+          over.push(`${w.name} (${used}/${VACATION_PER_HALF})`);
+        }
+      }
+      if (over.length) {
+        return res.status(400).json({
+          error: `נגמרה מכסת ימי החופש ב${half} — ${over.join(" · ")}`,
+        });
+      }
+    }
 
     /* ⚠ ההרשאה לתקן שורה שמקורה בבקשה מאושרת. מנהל בלבד. */
     const canOverride = session.isManager;
