@@ -260,6 +260,13 @@ function Staff({ auth, onSignedOut }) {
             ] },
             { label: "תפקידים ושיבוצים", items: [
               { key: "a-leaders", label: "מובילי שבוע", icon: <I.day />, active: section === "roles", onClick: () => goRoles("weeks") },
+              /* ⚠ שתי הלשוניות האחרות של אותו דף לא היו נגישות
+                 מהתפריט כלל — מנהל שחיפש "בעלי תפקידים" לא מצא
+                 אותם, כי הפריט היחיד שלח תמיד ל"מובילי שבוע". */
+              { key: "a-roles", label: "בעלי תפקידים", icon: <I.users />,
+                active: false, onClick: () => goRoles("roles") },
+              { key: "a-notes", label: "הצפה לבעלי תפקידים", icon: <I.bell />,
+                active: false, onClick: () => goRoles("notes") },
               { key: "a-place", label: "שיבוצי חניכים", icon: <I.users />, active: section === "placements",
                 onClick: () => setSection("placements") },
             ] },

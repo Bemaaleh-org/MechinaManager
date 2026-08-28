@@ -163,6 +163,33 @@ export const api = {
   getNotify: () => get("/api/auth?action=notify"),
   markNotifySeen: () => post("/api/auth?action=notify", {}),
 
+  /* ---------- אחריות: מרכז התפקיד ----------
+     ⚠ הכול בקריאה אחת. מסך שנוחת בארבעה שלבים גורם לתוכן
+        לקפוץ מתחת לאצבע.
+     ⚠ ופירוק מפורש בכל מתודה — שדה שלא נכתב כאן נשמט בשקט
+        ולא מגיע לשרת. */
+  getDuty: () => get("/api/students?action=duty"),
+  markHandoverRead: (duty) => post("/api/students?action=duty", { duty }),
+
+  addDutyTask: ({ duty, title, due, note }) =>
+    post("/api/students?action=duty-tasks", { duty, title, due, note }),
+  setDutyTask: ({ id, done, title, due, note }) =>
+    put("/api/students?action=duty-tasks", { id, done, title, due, note }),
+  deleteDutyTask: (id) => del("/api/students?action=duty-tasks", { id }),
+
+  /* ⚠ אין כאן `getDutyTasksOf(studentId)` ולא יהיה. ראו
+     api/_duty-tasks.js — המשימות אינן נגישות לצוות. */
+  getDutyNotes: () => get("/api/students?action=duty-notes"),
+  sendDutyNote: ({ duty, title, body }) =>
+    post("/api/students?action=duty-notes", { duty, title, body }),
+  replyDutyNote: ({ id, reply }) =>
+    put("/api/students?action=duty-notes", { id, reply }),
+  deleteDutyNote: (id) => del("/api/students?action=duty-notes", { id }),
+
+  /* יו״ר לוועדה או לסדרה — מנהל בלבד */
+  setChair: ({ placementId, studentId }) =>
+    put("/api/students?action=chair", { placementId, studentId }),
+
   /* ---------- ייצוא לגיליונות Google ----------
      ⚠ המנהל מדביק קישור לגיליון **שהוא יצר ושיתף** עם חשבון
         השירות. הקישור יציב, והדוח מתרענן לתוך אותו קובץ. */

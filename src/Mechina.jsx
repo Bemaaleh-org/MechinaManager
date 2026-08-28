@@ -13,6 +13,7 @@
    ============================================================ */
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import DutyNotesPage from "./DutyNotes.jsx";
 import { api } from "./api.js";
 import { testDate } from "./testDate.js";
 import { LessonsPage, LessonsBoard } from "./Lessons.jsx";
@@ -27,6 +28,7 @@ import { KitchenPage } from "./Kitchen.jsx";
 import { HostingPage, LoansPage } from "./Extras.jsx";
 import { useNotify, NotifyBell, NotifyPanel } from "./Notify.jsx";
 import { ProfilePage } from "./Profile.jsx";
+import DutyPage from "./Duty.jsx";
 import { GanttPage } from "./Gantt.jsx";
 import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
@@ -50,6 +52,10 @@ const MI = {
   tool: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M14.7 6.3a4.5 4.5 0 0 0-6 5.6L3 17.6V21h3.4l5.7-5.7a4.5 4.5 0 0 0 5.6-6L14.6 12l-2.6-2.6 2.7-3.1z"/></svg>,
   dl: (p) => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3v12M7 11l5 5 5-5M4 20h16"/></svg>,
 };
+
+/* ⚠ ראשון ראשון. `getUTCDay()` מחזיר 0 לראשון, וזה מה
+   שהריפוד בתחילת החודש נשען עליו. */
+const DOW_HE = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
 
 const MON_HE = ["ינו׳","פבר׳","מרץ","אפר׳","מאי","יוני","יולי","אוג׳","ספט׳","אוק׳","נוב׳","דצמ׳"];
 const dm = (iso) => iso ? iso.slice(8, 10) + "/" + iso.slice(5, 7) : "";
@@ -108,59 +114,118 @@ const Loading = ({ what }) => (
    לוח נוכחות שנתי
    ============================================================ */
 function YearBoard({ days, half }) {
-  const shown = half ? days.filter((d) => d.half === half) : days;
+  /* ⚠ **מעמעם ולא מסנן.** גרסה קודמת הסירה ימים שאינם במחצית
+     שנבחרה, וברשת חודשית הם היו הופכים לחורים באמצע החודש —
+     שנראים בדיוק כמו תאריך שאינו בלוח השנה. עכשיו הם מוצגים
+     דהויים, והחודש נשאר שלם. */
+  const dim = (d) => Boolean(half) && d.half !== half;
 
+  const [open, setOpen] = useState(null);   /* התאריך שנבחר */
+
+  const byDate = useMemo(
+    () => new Map(days.map((d) => [d.date, d])), [days]);
+
+  /* ============================================================
+     חודשים שלמים, מהראשון לאחרון
+     ------------------------------------------------------------
+     ⚠ **כל יום בחודש מקבל תא, גם אם אין לו שורה בלוח.** `days`
+       מכיל רק תאריכים שקיימים ב-monday; ברשת חודשית כל תאריך
+       חסר הופך לחור גלוי. בלי מצב חזותי משלו הוא נראה כמו
+       "יום ללא פעילות" — טענה שגויה על הנתונים, וזה עיקרון 6
+       בגרסה חזותית.
+     ============================================================ */
   const months = useMemo(() => {
+    if (!days.length) return [];
+    const first = days[0].date, last = days[days.length - 1].date;
     const out = [];
-    let cur = null;
-    for (const d of shown) {
-      const key = d.date.slice(0, 7);
-      if (!cur || cur.key !== key) {
-        cur = { key, label: MON_HE[Number(d.date.slice(5, 7)) - 1], days: [] };
-        out.push(cur);
+    let y = Number(first.slice(0, 4)), m = Number(first.slice(5, 7));
+    const endY = Number(last.slice(0, 4)), endM = Number(last.slice(5, 7));
+    while (y < endY || (y === endY && m <= endM)) {
+      const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      const pad = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();  /* 0=ראשון */
+      const cells = [];
+      for (let n = 1; n <= lastDay; n++) {
+        const iso = `${y}-${String(m).padStart(2, "0")}-${String(n).padStart(2, "0")}`;
+        cells.push({ n, iso, d: byDate.get(iso) || null });
       }
-      cur.days.push(d);
+      out.push({ key: `${y}-${m}`, label: `${MON_HE[m - 1]} ${y}`, pad, cells });
+      m++; if (m > 12) { m = 1; y++; }
     }
     return out;
-  }, [shown]);
+  }, [days, byDate]);
 
   const cls = (d) => {
+    /* ⚠ המצב החמישי. ראו ההערה למעלה. */
+    if (!d) return "missing";
     if (d.state === "absent") return TYPE_CLASS[d.type] || "sick";
     if (d.state === "off") return "off";
     if (d.state === "future") return "future";
     if (d.state === "unmarked") return "unmarked";
-    return "present"; // סומן נוכח במפורש
+    return "present";
   };
-  const title = (d) => {
-    const base = dmy(d.date) + " · " + d.kind;
-    if (d.state === "absent") return base + " · " + d.type + (d.detail ? " — " + d.detail : "");
-    if (d.state === "unmarked") return base + " · טרם סומן";
-    if (d.state === "future") return base;
-    if (d.state === "off") return base;
-    return base + " · נוכחות";
+  const label = (d) => {
+    if (!d) return "אינו בלוח השנה של המכינה";
+    if (d.state === "absent") return d.type + (d.detail ? " — " + d.detail : "");
+    if (d.state === "unmarked") return "טרם סומן";
+    if (d.state === "future") return "עוד לא היה";
+    if (d.state === "off") return d.kind;
+    return "נכחת";
   };
+
+  const sel = open ? byDate.get(open) : null;
 
   return (
     <>
-      <div className="yr">
-        {months.map((m) => (
-          <div className="yr-row" key={m.key}>
-            <div className="yr-lab">{m.label}</div>
-            <div className="yr-cells">
-              {m.days.map((d) => (
-                <span className={"yr-c " + cls(d)} key={d.date} title={title(d)} />
+      <div className="yr2">
+        {months.map((mo) => (
+          <div className="yr2-mon" key={mo.key}>
+            <div className="yr2-lab">{mo.label}</div>
+            <div className="yr2-dow">
+              {DOW_HE.map((x, i) => <span key={i}>{x}</span>)}
+            </div>
+            <div className="yr2-grid">
+              {Array.from({ length: mo.pad }, (_, i) => (
+                <span className="yr2-pad" key={"p" + i} />
+              ))}
+              {mo.cells.map((c) => (
+                <button
+                  key={c.iso}
+                  className={"yr2-c " + cls(c.d)
+                    + (dim(c.d || {}) ? " dim" : "")
+                    + (open === c.iso ? " sel" : "")}
+                  /* ⚠ `title` אינו עובד במגע, וזה היה כל המידע
+                     שהיה כאן. עכשיו לחיצה פותחת שורת פירוט. */
+                  onClick={() => setOpen(open === c.iso ? null : c.iso)}>
+                  {c.n}
+                </button>
               ))}
             </div>
           </div>
         ))}
       </div>
-      <div className="yr-key">
-        <i><b style={{ background: "#16A34A", borderColor: "#16A34A" }} />נוכחות</i>
-        <i><b style={{ background: "#DC2626", borderColor: "#DC2626" }} />מחלה</i>
-        <i><b style={{ background: "#D97706", borderColor: "#D97706" }} />מוצדקת</i>
-        <i><b style={{ background: "#2563EB", borderColor: "#2563EB" }} />חופש</i>
-        <i><b style={{ background: "#E7EBF1", borderColor: "#E7EBF1" }} />ללא פעילות</i>
-        <i><b className="yr-c unmarked" style={{ width: 11, height: 11 }} />טרם סומן</i>
+
+      {/* ---------- פירוט היום שנבחר ---------- */}
+      {open && (
+        <div className="yr2-det">
+          <b>{dmy(open)}</b>
+          <span>{sel ? sel.kind : "—"}</span>
+          <span className={"pill " + (sel && sel.state === "absent" ? "p-low" : "p-ok")}>
+            {label(sel)}
+          </span>
+        </div>
+      )}
+
+      {/* ⚠ המקרא נבנה ממחלקות ולא מ-hex מוטבע. גרסה קודמת
+          החזיקה חמישה צבעים ידניים, ואחד מהם כבר לא תאם את
+          מה שב-CSS. */}
+      <div className="yr2-key">
+        <i><b className="yr2-c present" />נוכחות</i>
+        <i><b className="yr2-c sick" />מחלה</i>
+        <i><b className="yr2-c just" />מוצדקת</i>
+        <i><b className="yr2-c vac" />חופש</i>
+        <i><b className="yr2-c off" />ללא פעילות</i>
+        <i><b className="yr2-c unmarked" />טרם סומן</i>
+        <i><b className="yr2-c missing" />אינו בלוח</i>
       </div>
     </>
   );
@@ -2163,9 +2228,13 @@ export function MechinaRolesPage({ say, sub0 }) {
       <div className="seg">
         <button className={sub === "weeks" ? "on" : ""} onClick={() => setSub("weeks")}>מובילי שבוע</button>
         <button className={sub === "roles" ? "on" : ""} onClick={() => setSub("roles")}>בעלי תפקידים</button>
+        {/* ⚠ הערוץ היחיד של הצוות אל בעלי התפקידים. אין כאן
+            מסך מעקב — ראו src/DutyNotes.jsx. */}
+        <button className={sub === "notes" ? "on" : ""} onClick={() => setSub("notes")}>הצפות</button>
       </div>
       {sub === "weeks" && <WeekLeaders say={say} />}
       {sub === "roles" && <RoleHolders say={say} />}
+      {sub === "notes" && <DutyNotesPage say={say} />}
     </>
   );
 }
@@ -2635,6 +2704,11 @@ export function MechinaApp({ auth, onSignedOut }) {
           ] },
           ...(auth.isLeader || auth.isScheduler || auth.isContainer || auth.isSafety || auth.isHouse || auth.isKitchen ? [{
             label: "תפקידים", items: [
+              /* ⚠ **ראשון בקבוצה.** מרכז התפקיד הוא נקודת
+                 הכניסה: משם מגיעים לכל השאר, ושם יושבים מסמך
+                 החפיפה, המשימות וההצפות מהצוות. */
+              { key: "duty", label: "מרכז התפקיד", icon: <MI.tick />,
+                active: tab === "duty", onClick: () => setTab("duty") },
               ...(auth.isLeader ? [{ key: "mark", label: "סימון נוכחות", icon: <MI.tick />,
                 active: tab === "mark", onClick: () => setTab("mark") }] : []),
               ...(auth.isScheduler || auth.isLeader ? [{ key: "lessons", label: "שיעורים במכינה", icon: <MI.book />,
@@ -2760,6 +2834,12 @@ export function MechinaApp({ auth, onSignedOut }) {
         {tab === "agenda" && <AgendaPage />}
 
         {tab === "gantt" && <GanttPage say={say} />}
+
+        {/* ⚠ `go` מקבל מזהה טאב מ-shared/duties.js — אותה
+            רשימה שמזינה את המגירה. קיצור שיצביע על טאב שאינו
+            קיים פשוט לא יעשה כלום, ולכן שתי הרשימות חייבות
+            להישאר אותה רשימה. */}
+        {tab === "duty" && <DutyPage say={say} go={(t) => setTab(t)} />}
 
         {/* ⚠ area={null} — התצוגה המאוחדת, אותה אחת של המנהל. */}
         {tab === "k-all" && auth.isKitchen && <KitchenPage say={say} area={null} />}

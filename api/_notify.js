@@ -29,6 +29,11 @@
 import { withAuth } from "./_session.js";
 import { gql } from "./_monday.js";
 import { boardColumn } from "./_board-col.js";
+import {
+  dutiesForStudent, loadHandovers, loadNotes,
+  handoverFor, handoverStamp,
+} from "./_duty-data.js";
+import { dutyKey } from "../shared/duties.js";
 import { israelToday } from "./_attendance-data.js";
 import { AUTH_BOARD, AUTH_COLS } from "../shared/auth-board.js";
 import { MECHINA_BOARDS, MECHINA_COLS } from "../shared/mechina-boards.js";
@@ -74,6 +79,10 @@ const note = (o) => ({
   tab: o.tab || null,
   /* ⚠ תאריך שממנו נגזר "חדש". ריק = תמיד חדש. */
   when: o.when || null,
+  /* ⚠ **חותמת מלאה, כשיש.** `when` הוא תאריך בלבד, והשוואה
+     שלו מול `seenAt` נכשלת באותו יום: מי שפתח את הפעמון
+     בבוקר ושובץ לתפקיד בצהריים לא היה מקבל תג. */
+  at: o.at || null,
   /* גבוה = דורש טיפול היום · רגיל · נמוך = לידיעה */
   level: o.level || "רגיל",
 });
@@ -320,6 +329,68 @@ async function studentNotes(session, today) {
   return out;
 }
 
+
+/* ============================================================
+   אחריות — שיבוץ לתפקיד, מסמך חפיפה והצפות
+   ------------------------------------------------------------
+   ⚠ **נגזר מהמצב, כמו כל השאר.** אין כאן "נשלחה התראה": יש
+     תפקיד שהחניך נושא, מסמך שהוא טרם אישר, והצפה שטרם השיב
+     עליה. ברגע שהוא מטפל — ההתראה נעלמת מעצמה.
+
+   ⚠ **מסמך שנכתב מחדש חוזר להתריע**, כי החותמת כוללת את
+     תאריך העדכון. זה מכוון: מסמך חפיפה שעודכן הוא מסמך חדש.
+
+   ⚠ **ההצפה אינה מסומנת "טופלה".** היא נעלמת מהפעמון כשיש
+     תשובה, וזה הדבר היחיד שהחניך שולח החוצה. ראו
+     api/_duty-notes.js.
+   ============================================================ */
+async function dutyNotes(session) {
+  const duties = await dutiesForStudent(session.itemId);
+  if (!duties.length) return [];
+
+  const [docs, notes, read] = await Promise.all([
+    loadHandovers(),
+    loadNotes(),
+    handoverReadSet(session.itemId),
+  ]);
+
+  const out = [];
+  for (const d of duties) {
+    const key = dutyKey(d);
+
+    /* ---- מסמך חפיפה שממתין ---- */
+    const doc = handoverFor(docs, d.name);
+    if (doc && !read.has(handoverStamp(doc))) {
+      out.push(note({
+        id: `duty-doc:${key}:${doc.at || ""}`,
+        kind: "אחריות",
+        title: `מסמך חפיפה ממתין לך — ${d.label}`,
+        body: doc.by
+          ? `${doc.by} השאיר לך מסמך עם מה שכדאי לדעת לפני שמתחילים`
+          : "מי שהיה בתפקיד לפניך השאיר מסמך",
+        tab: "duty",
+        when: doc.at || null,
+        level: "רגיל",
+      }));
+    }
+
+    /* ---- הצפה מהצוות שטרם נענתה ---- */
+    for (const n of notes) {
+      if (n.duty !== key || n.reply) continue;
+      out.push(note({
+        id: `duty-note:${n.id}`,
+        kind: "אחריות",
+        title: n.title,
+        body: n.by ? `${n.by} · ${d.label}` : d.label,
+        tab: "duty",
+        at: n.at || null,
+        level: "רגיל",
+      }));
+    }
+  }
+  return out;
+}
+
 /* ============================================================
    חותמת "נקרא"
    ⚠ עמודה אחת למשתמש, בלוח שממנו הוא מתחבר. אין לוח התראות
@@ -331,6 +402,19 @@ const SEEN_TITLE = "התראות נקראו";
    כל שלוש דקות לכל משתמש מחובר. עבר ל-api/_board-col.js, שם
    התוצאה נשמרת. ראו את ההערה שם על מה שהמטמון כן ולא מבטיח. */
 const seenColumn = (board) => boardColumn(board, SEEN_TITLE, "text");
+
+/* ⚠ אותה עמודה שמרכז התפקיד כותב אליה — api/_duty-hub.js.
+   שתי קריאות לאותה עמודה, ולכן שתיהן עוברות דרך boardColumn
+   שמחזיק מטמון. */
+async function handoverReadSet(studentId) {
+  const col = await boardColumn(MECHINA_BOARDS.roster, "חפיפות שנקראו", "long_text");
+  if (!col) return new Set();
+  const d = await gql(
+    `query($i:[ID!],$c:[String!]){ items(ids:$i){ column_values(ids:$c){ text } } }`,
+    { i: [String(studentId)], c: [col] });
+  const raw = d.items?.[0]?.column_values?.[0]?.text || "";
+  return new Set(raw.split("|").map((x) => x.trim()).filter(Boolean));
+}
 
 const boardOf = (session) =>
   session.isStudent ? MECHINA_BOARDS.roster : AUTH_BOARD;
@@ -362,6 +446,9 @@ async function handler(req, res, session) {
 
     if (session.isStudent) {
       jobs.push(studentNotes(session, today));
+      /* ⚠ רק לחניך שנושא אחריות — הבונה עוצר מיד כשאין. בלי
+         זה, 33 חניכים היו שולפים ארבעה לוחות כל שלוש דקות. */
+      jobs.push(dutyNotes(session));
     } else {
       jobs.push(requestNotes(session, today));
     }
@@ -406,7 +493,15 @@ async function handler(req, res, session) {
        רק אם מעולם לא נלחץ "נקראו" — אחרת התג לעולם לא היה
        מתאפס. */
     const seenAt = seen.at || "";
-    const isNew = (n) => (n.when ? (!seenAt || n.when > seenAt.slice(0, 10)) : !seenAt);
+    /* ⚠ `at` מדויק לשנייה וגובר; `when` הוא נפילה אחורה
+       ליום. בלי ההעדפה הזו, כל מה שקרה **אחרי** הפתיחה באותו
+       יום נבלע. */
+    const isNew = (n) => {
+      if (!seenAt) return true;
+      if (n.at) return n.at > seenAt;
+      if (n.when) return n.when > seenAt.slice(0, 10);
+      return true;
+    };
 
     return res.status(200).json({
       notes: notes.map((n) => ({ ...n, fresh: isNew(n) })),

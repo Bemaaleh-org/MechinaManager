@@ -143,6 +143,8 @@ function AssignEditor({ def, semester, assigned, roster, say, onDone, onCancel }
           לחניך הוא אינו מגיע: השרת אינו שולח אותו. */}
       <PlacementDetail def={def} />
 
+      <ChairPicker def={def} roster={roster} picked={picked} say={say} onDone={onDone} />
+
       <input className="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="חיפוש חניך" />
 
       <div className="rows" style={{ maxHeight: "52vh", overflowY: "auto" }}>
@@ -166,6 +168,79 @@ function AssignEditor({ def, semester, assigned, roster, say, onDone, onCancel }
       </div>
       <div style={{ height: 60 }} />
     </>
+  );
+}
+
+/* ============================================================
+   יו״ר הוועדה או הסדרה
+   ------------------------------------------------------------
+   ⚠ **יו״ר הוא חניך; "אחראי" בכרטיס הוא המדריך המלווה.** שתי
+     עמודות נפרדות בלוח, ולא אחת — ראו shared/placements-ids.js.
+
+   ⚠ **נבחר מתוך המשובצים ולא מכל המכינה.** יו״ר שאינו חבר
+     בוועדה הוא כמעט תמיד טעות הקלדה, ובורר עם 33 שמות מזמין
+     אותה. אם באמת צריך מישהו מבחוץ — משבצים אותו קודם.
+
+   ⚠ **ענף וקבוצה אינם נושאים יו״ר.** השרת חוסם, וכאן הרכיב
+     פשוט אינו מוצג — כפתור שנחסם אחרי לחיצה גרוע מהיעדרו.
+   ============================================================ */
+function ChairPicker({ def, roster, picked, say, onDone }) {
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  if (def.category !== "ועדה" && def.category !== "סדרה") return null;
+
+  const members = roster.filter((r) => picked.has(r.id));
+  const cur = def.chair
+    ? (roster.find((r) => r.id === def.chair) || { id: def.chair, name: def.chairName || "—" })
+    : null;
+
+  const set = (studentId) => {
+    if (busy) return;
+    setBusy(true);
+    api.setChair({ placementId: def.id, studentId })
+      .then(() => { say(studentId ? "היו״ר נקבע" : "היו״ר הוסר"); setOpen(false); onDone(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <div className="card" style={{ marginBottom: 12 }}>
+      <div className="pf-row" style={{ borderBottom: "none", padding: "2px 0" }}>
+        <span className="pf-l">יו״ר</span>
+        <span className="pf-v">{cur ? cur.name : "טרם נקבע"}</span>
+        <button className="conv-edit" disabled={busy} onClick={() => setOpen(!open)}>
+          {open ? "סגירה" : cur ? "החלפה" : "בחירה"}
+        </button>
+      </div>
+
+      {open && (
+        <div style={{ marginTop: 10 }}>
+          {members.length === 0 ? (
+            /* ⚠ אומר מה לעשות, ולא רק "אין". */
+            <div className="fld-hint">
+              עוד לא שובצו חברים. משבצים קודם, ואז בוחרים יו״ר מתוכם.
+            </div>
+          ) : (
+            <div className="rows" style={{ maxHeight: "34vh", overflowY: "auto" }}>
+              {members.map((r) => (
+                <button className="st-row" key={r.id} disabled={busy}
+                  onClick={() => set(r.id === def.chair ? "" : r.id)}>
+                  <div className={"tick" + (r.id === def.chair ? " on" : "")}>
+                    {r.id === def.chair && <span style={{ color: "#fff", fontWeight: 900 }}>✓</span>}
+                  </div>
+                  <div className="st-main"><div className="st-n">{r.name}</div></div>
+                </button>
+              ))}
+            </div>
+          )}
+          {cur && (
+            <button className="btn btn-ghost btn-sm" style={{ marginTop: 8, color: "var(--clay)" }}
+              disabled={busy} onClick={() => set("")}>הסרת היו״ר</button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

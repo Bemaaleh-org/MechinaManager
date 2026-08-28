@@ -2114,4 +2114,204 @@ html,body{margin:0;padding:0;background:#012E58}
 @media (prefers-reduced-motion:reduce){
   .kx *{transition-duration:.01ms !important;animation-duration:.01ms !important}
 }
+
+/* ============================================================
+   מרכז התפקיד
+   ------------------------------------------------------------
+   ⚠ נכתב **אחרי** שכבת ההרמה השנייה. כל דבר שנכתב לפניה
+     נדרס בשקט — ".kx .card" מוגדרת שם בפעם השלישית.
+
+   ⚠ ו-".kx button" מאפסת background ו-border בסגוליות (0,1,1).
+     כל כפתור כאן נכתב כ-".kx .שם" כדי לגבור עליה. המלכודת הזו
+     כבר תפסה שלוש פעמים בקובץ הזה.
+   ============================================================ */
+
+/* ---------- בורר האחריות ----------
+   ⚠ שורה גוללת ולא רשת: חניך עם חמש אחריות בטלפון היה מקבל
+     שתי שורות שנשברות באמצע מילה. */
+.kx .duty-bar{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 10px;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.kx .duty-bar::-webkit-scrollbar{display:none}
+.kx .duty-chip{flex:0 0 auto;display:flex;align-items:center;gap:8px;
+  padding:9px 14px;border-radius:99px;border:1.5px solid var(--line);
+  background:var(--surface);font-weight:800;font-size:14px;color:var(--ink2);
+  transition:all .12s var(--ease);min-height:0}
+.kx .duty-chip .dot{width:9px;height:9px;border-radius:99px;background:var(--t)}
+.kx .duty-chip.on{background:var(--t-s);border-color:var(--t);color:var(--t)}
+.kx .duty-chip .n{font-size:12px;font-weight:900;opacity:.75}
+
+/* ---------- כותרת האחריות ----------
+   רצועה בגוון האחריות. ⚠ הגוון נגזר מהשם ואינו נשמר — תפקיד
+   חדש שיתווסף בלוח מקבל צבע מעצמו. */
+.duty-hero{position:relative;overflow:hidden;border-radius:var(--r-lg);
+  background:linear-gradient(135deg,var(--t) 0%,color-mix(in srgb,var(--t) 78%,#000) 100%);
+  color:#fff;padding:18px 18px 16px;margin-bottom:14px;box-shadow:var(--sh-2)}
+.duty-hero::after{content:"";position:absolute;inset:-40% -20% auto auto;
+  width:220px;height:220px;border-radius:99px;background:rgba(255,255,255,.09)}
+.duty-hero-t{display:flex;align-items:center;gap:11px;position:relative;z-index:1}
+.duty-hero-i{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;
+  background:rgba(255,255,255,.18);flex:0 0 42px}
+.duty-hero-n{font-size:20px;font-weight:900;letter-spacing:-.03em;line-height:1.15}
+.duty-hero-s{font-size:12.5px;font-weight:600;opacity:.85;margin-top:2px}
+.duty-nums{display:flex;gap:0;margin-top:15px;position:relative;z-index:1}
+.duty-num{flex:1;text-align:center;padding:0 4px;
+  border-inline-start:1px solid rgba(255,255,255,.22)}
+.duty-num:first-child{border:none}
+.duty-num b{display:block;font-size:23px;font-weight:900;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums}
+.duty-num span{display:block;font-size:11px;font-weight:700;opacity:.82;margin-top:1px}
+.duty-num.warn b{color:#FFD9D2}
+
+/* ---------- קיצורי דרך למסכים ---------- */
+.duty-links{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px}
+.kx .duty-link{display:flex;align-items:center;gap:10px;padding:13px 14px;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);
+  box-shadow:var(--sh-1);font-weight:800;font-size:14.5px;color:var(--ink);
+  text-align:start;transition:transform .12s var(--ease)}
+.kx .duty-link:active{transform:scale(.98)}
+.duty-link .ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;
+  background:var(--t-s);color:var(--t);flex:0 0 32px}
+@media(min-width:600px){.duty-links{grid-template-columns:repeat(3,1fr)}}
+
+/* ---------- מסמך החפיפה ----------
+   ⚠ מתקפל. המסמך ארוך, והוא הדבר שקוראים פעם אחת — פתוח
+     תמיד היה דוחף את המשימות מתחת לקו הקיפול לתמיד. */
+.doc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+  box-shadow:var(--sh-1);overflow:hidden;margin-bottom:14px}
+.kx .doc-head{display:flex;align-items:center;gap:11px;width:100%;padding:14px 16px;
+  text-align:start;background:var(--surface)}
+.doc-head .ic{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;
+  background:var(--amber-soft);color:#8A5A1E;flex:0 0 34px}
+.doc-head b{font-size:15px;font-weight:800;display:block}
+.doc-head span{font-size:12px;color:var(--muted);font-weight:600}
+.doc-body{padding:0 16px 16px;border-top:1px solid var(--line)}
+.doc-sec{margin-top:14px}
+.doc-sec h4{font-size:12.5px;font-weight:900;color:var(--t,var(--navy));
+  letter-spacing:.02em;margin-bottom:5px}
+.doc-sec p{font-size:14px;line-height:1.65;color:var(--ink2);white-space:pre-line}
+.doc-by{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;
+  padding-top:12px;border-top:1px dashed var(--line2);font-size:12.5px;color:var(--muted)}
+.doc-by a{font-weight:800;color:var(--navy);direction:ltr}
+.doc-read{display:flex;align-items:center;gap:7px;margin-top:12px;
+  font-size:12.5px;font-weight:800;color:var(--ok)}
+
+/* ---------- משימות ----------
+   ⚠ ".kx .rows{overflow:hidden}" חותכת רשימה גוללת בלי לרמוז
+     שהיא נחתכה. הרשימה כאן אינה בתוך .rows. */
+.task-add{display:flex;gap:7px;margin-bottom:10px}
+.kx .task-add input{flex:1;min-height:46px}
+.kx .task-add button{width:auto;min-height:46px;padding:0 16px;flex:0 0 auto}
+.task-list{display:flex;flex-direction:column;gap:7px}
+.kx .task{display:flex;align-items:flex-start;gap:11px;width:100%;text-align:start;
+  padding:12px 14px;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-md);box-shadow:var(--sh-1);transition:all .14s var(--ease)}
+.kx .task.done{background:var(--bg);box-shadow:none;opacity:.72}
+.kx .task.late{border-color:#EFCEC7}
+/* ⚠ **".kx .task-box" ולא ".task-box".** תיבת הסימון היא
+   <button>, ו-".kx button" (סגוליות 0,1,1) מאפסת background
+   ו-border. בלי הקידומת התיבה נעלמת לגמרי — וזו בדיוק
+   המלכודת שמתועדת שלוש פעמים בקובץ הזה. */
+.kx .task-box{width:24px;height:24px;border-radius:8px;border:2px solid var(--line2);
+  flex:0 0 24px;display:grid;place-items:center;margin-top:1px;padding:0;
+  background:var(--surface);color:transparent;min-height:0;
+  transition:all .14s var(--ease)}
+.kx .task.done .task-box{background:var(--ok);border-color:var(--ok);color:#fff}
+.kx .task-box:active{transform:scale(.9)}
+.task-b{flex:1;min-width:0}
+.task-t{font-size:14.5px;font-weight:700;line-height:1.4}
+.task.done .task-t{text-decoration:line-through;color:var(--faint)}
+.task-m{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px;
+  font-size:12px;color:var(--muted);font-weight:600}
+.task-m .due{font-variant-numeric:tabular-nums}
+.task-m .due.late{color:var(--clay);font-weight:800}
+.kx .task-x{width:auto;min-height:0;padding:4px;color:var(--faint);flex:0 0 auto}
+.kx .task-x:hover{color:var(--clay)}
+
+/* ---------- הצפות מהצוות ----------
+   ⚠ נראות כמו הודעה שהגיעה, ולא כמו משימה שהוקצתה. ההבחנה
+     הזו היא כל הגבול: הצוות מציף, החניך מחליט. */
+.msg{background:var(--surface);border:1px solid var(--line);border-inline-start:3px solid var(--amber);
+  border-radius:var(--r-md);box-shadow:var(--sh-1);padding:13px 15px;margin-bottom:9px}
+.msg-h{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.msg-h b{font-size:14.5px;font-weight:800}
+.msg-h span{font-size:11.5px;color:var(--faint);font-weight:700}
+.msg-b{font-size:13.5px;line-height:1.6;color:var(--ink2);margin-top:5px;white-space:pre-line}
+.msg-reply{margin-top:10px;padding:10px 12px;background:var(--ok-soft);
+  border-radius:10px;font-size:13px;line-height:1.55;color:#194B32}
+.msg-reply b{display:block;font-size:11.5px;font-weight:900;margin-bottom:3px;opacity:.8}
+.msg-form{display:flex;gap:7px;margin-top:10px}
+.kx .msg-form input{flex:1;min-height:42px;font-size:14px}
+.kx .msg-form button{width:auto;min-height:42px;padding:0 14px;flex:0 0 auto;font-size:14px}
+
+/* ---------- מצב ריק של האחריות ---------- */
+.duty-none{text-align:center;padding:26px 18px}
+.duty-none .e-ico{width:56px;height:56px;margin:0 auto 12px;border-radius:18px;
+  display:grid;place-items:center;background:var(--sand);color:var(--muted)}
+.duty-none b{display:block;font-size:16px;font-weight:800}
+.duty-none span{display:block;font-size:13.5px;color:var(--muted);margin-top:4px;line-height:1.5}
+
+
+/* ============================================================
+   לוח הנוכחות השנתי — רשת חודשים
+   ------------------------------------------------------------
+   ⚠ החליף שורה של ריבועים זעירים בלי מספרים, שנשברה
+     באמצע החודש ושהמידע היחיד בה היה title — שאינו עובד במגע.
+
+   ⚠ **direction:rtl במפורש** על הרשת, כמו ב-".cal" של הגאנט.
+     בלעדיו יום ראשון נוחת בצד שמאל.
+
+   ⚠ ו-".kx .yr2-c" ולא ".yr2-c": התא הוא <button>, ו-".kx button"
+     מאפסת background ו-border בסגוליות גבוהה יותר.
+   ============================================================ */
+.yr2{display:grid;grid-template-columns:1fr;gap:16px}
+@media(min-width:560px){.yr2{grid-template-columns:1fr 1fr}}
+@media(min-width:900px){.yr2{grid-template-columns:repeat(3,1fr)}}
+
+.yr2-mon{background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-md);box-shadow:var(--sh-1);padding:12px 12px 13px}
+.yr2-lab{font-size:13.5px;font-weight:900;letter-spacing:-.02em;
+  margin-bottom:9px;color:var(--ink)}
+.yr2-dow,.yr2-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;
+  direction:rtl}
+.yr2-dow{margin-bottom:5px}
+.yr2-dow span{text-align:center;font-size:10.5px;font-weight:800;color:var(--faint)}
+.yr2-pad{aspect-ratio:1}
+
+.kx .yr2-c{aspect-ratio:1;min-height:0;padding:0;display:grid;place-items:center;
+  border-radius:8px;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums;
+  border:1px solid transparent;background:var(--bg);color:var(--muted);
+  transition:transform .1s var(--ease)}
+.kx .yr2-c:active{transform:scale(.9)}
+.kx .yr2-c.dim{opacity:.32}
+.kx .yr2-c.sel{outline:2.5px solid var(--navy);outline-offset:1px;z-index:1}
+
+/* המצבים. ⚠ הצבע לעולם לא לבדו — יש מספר בכל תא ושורת פירוט
+   בלחיצה, כדי שמי שאינו מבחין בין ירוק לאדום יוכל לקרוא. */
+.kx .yr2-c.present{background:#DCF3E5;color:#12603A;border-color:#BFE6D0}
+.kx .yr2-c.sick{background:#FBDDD8;color:#8E2318;border-color:#F2C4BC}
+.kx .yr2-c.just{background:#FAECD2;color:#7A4B08;border-color:#EEDCB8}
+.kx .yr2-c.vac{background:#D8E4F7;color:#1D4ED8;border-color:#C0D3EF}
+.kx .yr2-c.off{background:var(--sand);color:var(--faint);border-color:transparent}
+.kx .yr2-c.future{background:var(--bg);color:var(--line2);border-color:transparent}
+.kx .yr2-c.unmarked{background:#fff;color:var(--muted);border-color:var(--line2)}
+/* ⚠ תאריך שאינו בלוח השנה — נבדל גם מ-off וגם מריפוד ריק */
+.kx .yr2-c.missing{background:repeating-linear-gradient(45deg,
+  var(--bg),var(--bg) 3px,var(--line) 3px,var(--line) 4px);
+  color:transparent;border-color:transparent}
+
+/* ---------- שורת הפירוט ---------- */
+.yr2-det{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:12px;
+  padding:11px 14px;background:var(--sand);border-radius:var(--r-md);
+  border:1px solid var(--line)}
+.yr2-det b{font-size:15px;font-weight:900;font-variant-numeric:tabular-nums}
+.yr2-det span{font-size:13px;color:var(--muted);font-weight:600}
+
+/* ---------- מקרא ---------- */
+.yr2-key{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:14px;
+  font-size:12px;color:var(--muted);font-weight:700}
+.yr2-key i{display:flex;align-items:center;gap:6px;font-style:normal}
+/* ⚠ גודל קבוע במקרא. aspect-ratio על .yr2-c היה מנפח אותו. */
+.yr2-key b{width:13px;height:13px;aspect-ratio:auto;border-radius:4px;
+  display:block;font-size:0}
+
 `;
