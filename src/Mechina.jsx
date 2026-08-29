@@ -126,6 +126,15 @@ function YearBoard({ days, half }) {
   const dim = (d) => Boolean(half) && d.half !== half;
 
   const [open, setOpen] = useState(null);   /* התאריך שנבחר */
+  /* ⚠ **חודש אחד בכל פעם, ולא כל השנה בבת אחת.** עשרה חודשים
+     על מסך אחד הפכו כל תא לשישה פיקסלים — קריאים כרשת, בלתי
+     קריאים כתאריך. עכשיו חודש אחד בגדול, ודפדוף בין החודשים.
+
+     ⚠ `null` פירושו "עוד לא נבחר", והבחירה נעשית **אחרי**
+       שהחודשים מחושבים — כדי לפתוח על החודש הנוכחי אם הוא
+       בטווח, ועל הראשון אם לא. ברירת מחדל של 0 הייתה פותחת
+       תמיד בספטמבר, גם בפברואר. */
+  const [mi, setMi] = useState(null);
 
   const byDate = useMemo(
     () => new Map(days.map((d) => [d.date, d])), [days]);
@@ -153,11 +162,29 @@ function YearBoard({ days, half }) {
         const iso = `${y}-${String(m).padStart(2, "0")}-${String(n).padStart(2, "0")}`;
         cells.push({ n, iso, d: byDate.get(iso) || null });
       }
-      out.push({ key: `${y}-${m}`, label: `${MON_HE[m - 1]} ${y}`, pad, cells });
+      out.push({
+        key: `${y}-${m}`,
+        /* ⚠ מפתח מרופד לצורך השוואה ל-YYYY-MM. `${y}-${m}` נותן
+           "2026-9" ולעולם לא יתאים ל-"2026-09". */
+        key2: `${y}-${String(m).padStart(2, "0")}`,
+        label: `${MON_HE[m - 1]} ${y}`, pad, cells,
+      });
       m++; if (m > 12) { m = 1; y++; }
     }
     return out;
   }, [days, byDate]);
+
+  /* ⚠ נבחר פעם אחת, ורק כשעוד לא נבחר — אחרת כל רינדור היה
+     מחזיר את המשתמש לחודש הנוכחי אחרי שדפדף. */
+  useEffect(() => {
+    if (mi !== null || !months.length) return;
+    /* ⚠ שעון ישראל, ו-?date= מכובד. new Date() גולמי היה
+       פותח על החודש הלא-נכון בשעות הערב וב-UTC (ראו "זמן"). */
+    const now = (testDate() || new Date().toLocaleDateString("sv-SE",
+      { timeZone: "Asia/Jerusalem" })).slice(0, 7);
+    const at = months.findIndex((mo) => mo.key2 === now);
+    setMi(at >= 0 ? at : 0);
+  }, [months, mi]);
 
   const cls = (d) => {
     /* ⚠ המצב החמישי. ראו ההערה למעלה. */
@@ -182,40 +209,55 @@ function YearBoard({ days, half }) {
   };
 
   const sel = open ? byDate.get(open) : null;
+  const mo = mi === null ? null : months[mi] || null;
 
   return (
     <>
-      <div className="yr2">
-        {months.map((mo) => (
-          <div className="yr2-mon" key={mo.key}>
-            <div className="yr2-lab">{mo.label}</div>
-            <div className="yr2-dow">
-              {DOW_HE.map((x, i) => <span key={i}>{x}</span>)}
+      {mo && (
+        <div className="mv">
+          {/* ⚠ החץ **מושבת ולא מוסתר** בקצוות. כפתור שנעלם מזיז
+              את הכותרת בכל דפדוף, וזה נראה כמו קפיצה. */}
+          <div className="mv-head">
+            <button className="mv-nav" disabled={mi <= 0}
+              onClick={() => { setMi(mi - 1); setOpen(null); }}
+              aria-label="החודש הקודם">
+              <MI.chev style={{ transform: "rotate(180deg)" }} />
+            </button>
+            <div className="mv-lab">
+              <b>{mo.label}</b>
+              <span>{mi + 1} מתוך {months.length}</span>
             </div>
-            <div className="yr2-grid">
-              {Array.from({ length: mo.pad }, (_, i) => (
-                <span className="yr2-pad" key={"p" + i} />
-              ))}
-              {mo.cells.map((c) => (
-                <button
-                  key={c.iso}
-                  className={"yr2-c " + cls(c.d)
-                    + (dim(c.d || {}) ? " dim" : "")
-                    + (open === c.iso ? " sel" : "")}
-                  /* ⚠ `title` אינו עובד במגע, וזה היה כל המידע
-                     שהיה כאן. עכשיו לחיצה פותחת שורת פירוט. */
-                  onClick={() => setOpen(open === c.iso ? null : c.iso)}>
-                  {c.n}
-                </button>
-              ))}
-            </div>
+            <button className="mv-nav" disabled={mi >= months.length - 1}
+              onClick={() => { setMi(mi + 1); setOpen(null); }}
+              aria-label="החודש הבא">
+              <MI.chev />
+            </button>
           </div>
-        ))}
-      </div>
+
+          <div className="mv-dow">
+            {DOW_HE.map((x, i) => <span key={i}>{x}</span>)}
+          </div>
+          <div className="mv-grid">
+            {Array.from({ length: mo.pad }, (_, i) => (
+              <span className="mv-pad" key={"p" + i} />
+            ))}
+            {mo.cells.map((c) => (
+              <button
+                key={c.iso}
+                className={"mv-c " + cls(c.d)
+                  + (dim(c.d || {}) ? " dim" : "")
+                  + (open === c.iso ? " sel" : "")}
+                onClick={() => setOpen(open === c.iso ? null : c.iso)}>
+                {c.n}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ---------- פירוט היום שנבחר ---------- */}
       {open && (
-        <div className="yr2-det">
+        <div className="mv-det">
           <b>{dmy(open)}</b>
           <span>{sel ? sel.kind : "—"}</span>
           <span className={"pill " + (sel && sel.state === "absent" ? "p-low" : "p-ok")}>
@@ -227,15 +269,15 @@ function YearBoard({ days, half }) {
       {/* ⚠ המקרא נבנה ממחלקות ולא מ-hex מוטבע. גרסה קודמת
           החזיקה חמישה צבעים ידניים, ואחד מהם כבר לא תאם את
           מה שב-CSS. */}
-      <div className="yr2-key">
-        <i><b className="yr2-c present" />נוכחות</i>
-        <i><b className="yr2-c sick" />מחלה</i>
-        <i><b className="yr2-c just" />מוצדקת</i>
-        <i><b className="yr2-c vac" />חופש</i>
-        <i><b className="yr2-c off" />חופשה</i>
-        <i><b className="yr2-c noroutine" />לא התקיימה מכינה</i>
-        <i><b className="yr2-c unmarked" />טרם סומן</i>
-        <i><b className="yr2-c missing" />אינו בלוח</i>
+      <div className="mv-key">
+        <i><b className="mv-c present" />נוכחות</i>
+        <i><b className="mv-c sick" />מחלה</i>
+        <i><b className="mv-c just" />מוצדקת</i>
+        <i><b className="mv-c vac" />חופש</i>
+        <i><b className="mv-c off" />חופשה</i>
+        <i><b className="mv-c noroutine" />לא התקיימה מכינה</i>
+        <i><b className="mv-c unmarked" />טרם סומן</i>
+        <i><b className="mv-c missing" />אינו בלוח</i>
       </div>
     </>
   );
@@ -1446,6 +1488,14 @@ function StaffDossier({ f }) {
     ["מין", f.gender],
     ["תאריך לידה", f.dob ? `${fmtDate(f.dob)}${age != null ? ` · בן/בת ${age}` : ""}` : null],
     ["תעודת זהות", f.tz],
+    /* ⚠ **פרטי קשר, ולא יותר.** הם כבר גלויים לכל הצוות בלוח
+       ב-monday, והמסך חוסך פתיחה שלו (4מא). מה שנשאר בלוח ואינו
+       כאן: כתובת מלאה, פרטי ההורים, קופת חולים ובעיה רפואית. */
+    ["טלפון", f.phone],
+    ["אימייל", f.mail],
+    ["עיר מגורים", f.city],
+    ["הגדרה דתית", f.religion],
+    ["מידת חולצה", f.shirt],
   ].filter(([, v]) => v);
 
   return (
@@ -1473,6 +1523,16 @@ function StaffDossier({ f }) {
             <span className="pf-v num">{v}</span>
           </div>
         ))}
+        {/* ⚠ **אלרגיה מובלטת ואינה שורה ברשימה.**
+            זה הנתון היחיד כאן שיש לו משמעות מיידית — מי שמבשל
+            צריך לראות אותו, ולא לסרוק שמונה שורות אפורות כדי
+            למצוא אותו. */}
+        {f.allergy && (
+          <div className="pf-alert">
+            <b>אלרגיה או רגישות</b>
+            <span>{f.allergy}</span>
+          </div>
+        )}
         {(f.leader || (f.roles || []).length > 0 || f.demo || !f.active) && (
           <div className="chips" style={{ marginTop: 4 }}>
             {!f.active && <span className="pill p-low">אינו פעיל</span>}

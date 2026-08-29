@@ -35,6 +35,7 @@ export async function studentRows({ force = false } = {}) {
   return cached("student-rows", async () => {
     const ids = JSON.stringify([
       C.tz, C.active, C.demo, C.leader, C.gender, C.dob, ROLES_COL,
+      C.phone, C.mail, C.city, C.allergy, C.religion, C.shirt,
       C.army, C.tryouts, C.talk1, C.talk2, C.talk3,
     ]);
     const d = await gql(
@@ -51,6 +52,14 @@ export async function studentRows({ force = false } = {}) {
         id: String(i.id),
         name: String(i.name || "").trim(),
         tz: normalizeTz(val(i, C.tz)),
+        /* ⚠ פרטי קשר. מי שרואה אותם נקבע במיפוי המפורש של
+           נקודת הקצה, לא כאן — ראו _account.js ו-_student-profile.js. */
+        phone: val(i, C.phone),
+        mail: val(i, C.mail),
+        city: val(i, C.city),
+        allergy: val(i, C.allergy),
+        religion: val(i, C.religion),
+        shirt: val(i, C.shirt),
         gender: val(i, C.gender) || null,
         /* ⚠ אינו ב-toPublic. יוצא רק דרך נקודת הקצה של הפרופיל,
            ורק לצוות — כמו תעודת הזהות. */

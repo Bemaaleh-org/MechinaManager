@@ -33,6 +33,7 @@ import {
 } from "./_credentials.js";
 import { mailerReady } from "./_mailer.js";
 import { studentRows } from "./_student-rows.js";
+import { phoneHe } from "../shared/mechina-boards.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -47,13 +48,30 @@ async function handler(req, res, session) {
          (לצוות אין שורה במצבה). זה המידע שלו על עצמו, והוא
          לעולם אינו מגיע דרך כאן על אף אחד אחר — הבדיקה היא
          על session.itemId ולא על פרמטר כלשהו. */
-      let tz = null, gender = null;
+      let tz = null, gender = null, details = null;
       if (session.isStudent) {
         const row = (await studentRows()).find((r) => r.id === String(session.itemId));
-        if (row) { tz = row.tz || null; gender = row.gender || null; }
+        if (row) {
+          tz = row.tz || null; gender = row.gender || null;
+          /* ⚠ **מיפוי מפורש ולא פריסה של השורה.** שורת המצבה
+             מחזיקה גם עמודות שאין להן מקום כאן, וספרייד היה
+             שולח אותן ברגע שמישהו יוסיף עמודה ללוח (עיקרון 4). */
+          details = {
+            phone: phoneHe(row.phone) || null,
+            mail: row.mail || null,
+            city: row.city || null,
+            allergy: row.allergy || null,
+            religion: row.religion || null,
+            shirt: row.shirt || null,
+          };
+        }
       }
 
       return res.status(200).json({
+        /* ⚠ פרטי הקשר של המשתמש עצמו בלבד. `details` הוא null
+           לצוות — לא אובייקט ריק: לאיש צוות אין שורה במצבה,
+           ושדה ריק היה נראה כמו נתון שנמחק. */
+        details,
         name: me.name,
         kind: me.kind,
         user: me.user || null,

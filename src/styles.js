@@ -2566,4 +2566,100 @@ html,body{margin:0;padding:0;background:#012E58}
   border-bottom:1px solid var(--line2)}
 .ro-bar b{font-weight:900}
 
+/* ---------- אלרגיה — מובלטת ולא שורה ---------- */
+/* ⚠ הנתון היחיד בתיק שיש לו משמעות מיידית. שורה אפורה בין
+   שמונה שורות אפורות אינה נקראת בזמן שמבשלים. */
+.pf-alert{display:flex;flex-direction:column;gap:3px;margin-top:10px;
+  padding:11px 13px;border-radius:var(--r-sm);
+  background:#FBF3E4;border-inline-start:3px solid #8A5A1E}
+.pf-alert b{font-size:11.5px;font-weight:800;color:#8A5A1E;letter-spacing:.2px}
+.pf-alert span{font-size:14px;font-weight:700;line-height:1.5}
+
+/* ============================================================
+   לוח נוכחות — חודש אחד, בגדול
+   ------------------------------------------------------------
+   ⚠ **החליף את רשת עשרת החודשים.** שם כל תא היה שישה פיקסלים:
+     קריא כרשת, בלתי קריא כתאריך. כאן תא אחד תופס את מה שהוא
+     צריך, והדפדוף עושה את השאר.
+
+   ⚠ **.kx .mv-c ו-.kx .mv-nav** — שניהם <button>, ו-
+     .kx button מאפסת background ו-border בסגוליות (0,1,1).
+     אותה מלכודת תפסה כבר את .task-box, את .yr2-c ואת
+     .tm-task.
+
+   ⚠ ואין בקטיקים בקובץ הזה.
+   ============================================================ */
+.mv{background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-lg);padding:14px 14px 16px;box-shadow:var(--sh-1);
+  direction:rtl;margin-bottom:12px}
+
+/* ---------- הכותרת והחצים ---------- */
+.mv-head{display:flex;align-items:center;justify-content:space-between;
+  gap:10px;margin-bottom:14px}
+.mv-lab{text-align:center;min-width:0;flex:1}
+.mv-lab b{display:block;font-family:'Suez One',Heebo,serif;font-size:20px;
+  font-weight:400;line-height:1.25}
+.mv-lab span{display:block;font-size:11px;color:var(--faint);font-weight:700;
+  margin-top:3px;font-variant-numeric:tabular-nums}
+/* ⚠ עיגול מלא ולא חץ עירום: שטח נגיעה של 40px, וקצה שנראה לחיץ. */
+.kx .mv-nav{flex:0 0 auto;width:40px;height:40px;border-radius:50%;
+  background:var(--sand);border:1px solid var(--line2);color:var(--ink);
+  display:flex;align-items:center;justify-content:center;
+  transition:all .12s var(--ease)}
+.kx .mv-nav:hover:not(:disabled){background:var(--accent);color:#fff;
+  border-color:var(--accent);transform:scale(1.06)}
+.kx .mv-nav:active:not(:disabled){transform:scale(.96)}
+/* ⚠ מושבת ולא מוסתר — כפתור שנעלם מזיז את הכותרת בכל דפדוף. */
+.kx .mv-nav:disabled{opacity:.32;cursor:default}
+
+/* ---------- הרשת ---------- */
+.mv-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;
+  margin-bottom:6px;direction:rtl}
+.mv-dow span{text-align:center;font-size:11px;font-weight:800;
+  color:var(--faint);letter-spacing:.3px}
+.mv-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;direction:rtl}
+.mv-pad{aspect-ratio:1}
+.kx .mv-c{aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+  border-radius:var(--r-sm);font-size:15px;font-weight:800;
+  border:1px solid transparent;font-variant-numeric:tabular-nums;
+  transition:transform .1s var(--ease),box-shadow .1s var(--ease)}
+.kx .mv-c:hover{transform:scale(1.06);box-shadow:var(--sh-1);z-index:1}
+.kx .mv-c.sel{outline:2px solid var(--ink);outline-offset:1px}
+/* ⚠ מעמעם ולא מסיר — יום מחוץ למחצית שנבחרה נשאר במקומו,
+   אחרת נפער חור באמצע החודש שנראה כמו תאריך שאינו קיים. */
+.kx .mv-c.dim{opacity:.3}
+
+.kx .mv-c.present{background:#E3F1E8;color:#177A45}
+.kx .mv-c.sick{background:#FBF3E4;color:#8A5A1E}
+.kx .mv-c.just{background:#E7EEF7;color:#2A4E7E}
+.kx .mv-c.vac{background:#F3E8F5;color:#6B3D7A}
+.kx .mv-c.off{background:var(--sand);color:var(--faint)}
+/* ⚠ "לא התקיימה" נבדל מ"חופשה": חופשה מתוכננת, וזה מתגלה
+   בדיעבד. מקווקו ולא צבע אחר — הצבעים תפוסים למצבי החניך. */
+.kx .mv-c.noroutine{background:var(--sand);color:var(--faint);
+  border-color:var(--line2);border-style:dashed}
+.kx .mv-c.unmarked{background:var(--surface);border-color:var(--line2)}
+.kx .mv-c.future{background:transparent;color:var(--line2)}
+/* ⚠ המצב החמישי: תאריך שאין לו שורה בלוח כלל. בלי מצב משלו
+   הוא נראה כמו "יום ללא פעילות" — טענה שגויה על הנתונים. */
+.kx .mv-c.missing{background:transparent;color:var(--line2);opacity:.45}
+
+/* ---------- פירוט ומקרא ---------- */
+.mv-det{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;
+  background:var(--sand);border-radius:var(--r-md);padding:11px 14px;
+  margin-bottom:12px;font-size:13.5px;font-weight:700}
+.mv-det b{font-size:15px;font-weight:800}
+.mv-det span{color:var(--muted)}
+.mv-key{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:11.5px;
+  font-weight:700;color:var(--muted)}
+.mv-key i{display:flex;align-items:center;gap:6px;font-style:normal}
+/* ⚠ גודל קבוע במקרא. aspect-ratio על .mv-c היה מנפח אותו. */
+.mv-key b{width:13px;height:13px;aspect-ratio:auto;border-radius:4px;
+  display:block;font-size:0;flex:0 0 auto}
+
+@media (prefers-reduced-motion:reduce){
+  .kx .mv-c,.kx .mv-nav{transition:none}
+  .kx .mv-c:hover,.kx .mv-nav:hover:not(:disabled){transform:none}
+}
+
 `;

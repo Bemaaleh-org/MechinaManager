@@ -39,6 +39,7 @@ import { loadRequests } from "./_requests.js";
 import { loadLeaderWeeks } from "./_leader-weeks.js";
 import { placementsFor } from "./_placements.js";
 import { identities } from "./_identity.js";
+import { phoneHe } from "../shared/mechina-boards.js";
 
 const C = MECHINA_COLS.roster;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -122,6 +123,24 @@ async function staffView(student, guide) {
   return {
     /* ---------- מי הוא ---------- */
     tz: student.tz || null,
+    /* ============================================================
+       ⚠ **פרטי קשר — בבלוק הצוות בלבד.**
+
+       הם כבר גלויים לכל הצוות בלוח החניכים ב-monday, ולכן המסך
+       אינו מרחיב חשיפה — הוא חוסך פתיחה של הלוח (4מא). הבלוק
+       הזה נבנה **רק אחרי `session.isManager`** ואינו קיים בכלל
+       בתשובה לחניך.
+
+       ⚠ ומה שלא כאן ולא יהיה: כתובת מלאה, פרטי ההורים,
+         קופת חולים ובעיה רפואית. הם בלוח, והמערכת אינה קוראת
+         אותם (4יג).
+       ============================================================ */
+    phone: phoneHe(student.phone) || null,
+    mail: student.mail || null,
+    city: student.city || null,
+    allergy: student.allergy || null,
+    religion: student.religion || null,
+    shirt: student.shirt || null,
     dob: student.dob || null,
     gender: student.gender || null,
     active: student.active,

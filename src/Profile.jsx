@@ -127,15 +127,32 @@ export function ProfilePage({ say }) {
       </div>
 
       {/* ---------- מה שלא משתנה כאן ---------- */}
-      {(me.tz || me.gender) && (
+      {(me.tz || me.gender || me.details) && (
         <>
           <div className="sec-label">פרטים</div>
           <div className="card" style={{ marginBottom: 14 }}>
             {me.tz && <Fixed label="תעודת זהות" value={me.tz} />}
             {me.gender && <Fixed label="מין" value={me.gender} />}
+            {/* ⚠ **פרטי הקשר מגיעים מהרשימה שהמכינה קיבלה ממך**
+                ואינם ניתנים לעריכה כאן — הם מזינים גם את המטבח
+                (אלרגיה) וגם את הזמנות החולצות, ותיקון חייב לעבור
+                דרך מי שמחזיק את הרשימה. */}
+            {me.details && me.details.phone && <Fixed label="טלפון" value={me.details.phone} />}
+            {me.details && me.details.mail && <Fixed label="אימייל אישי" value={me.details.mail} />}
+            {me.details && me.details.city && <Fixed label="עיר מגורים" value={me.details.city} />}
+            {me.details && me.details.religion && <Fixed label="הגדרה דתית" value={me.details.religion} />}
+            {me.details && me.details.shirt && <Fixed label="מידת חולצה" value={me.details.shirt} />}
+            {/* ⚠ אלרגיה מובלטת. ראו StaffDossier ב-Mechina.jsx. */}
+            {me.details && me.details.allergy && (
+              <div className="pf-alert">
+                <b>אלרגיה או רגישות</b>
+                <span>{me.details.allergy}</span>
+              </div>
+            )}
             {/* ⚠ אומר למי לפנות, ולא רק "אי אפשר". */}
             <div className="pf-note">
-              אלה מזהים אותך מול המכינה. תיקון נעשה על ידי הצוות במסך החניכים.
+              אלה מזהים אותך מול המכינה ומגיעים מהרשימה שמסרת.
+              תיקון נעשה על ידי הצוות במסך החניכים.
             </div>
           </div>
         </>
