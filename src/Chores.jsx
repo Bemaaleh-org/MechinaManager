@@ -1,0 +1,655 @@
+/* ============================================================
+   תורניות
+   ------------------------------------------------------------
+   מסך אחד, ארבעה קהלים:
+     · אב הבית (וראש המכינה) — משבץ, עורך גזרות, מתקן ספירות
+     · אחראי המטבח — רואה הכול, עורך את התורנות היומית והצ׳ק ליסט
+     · תורן היום — מסמן את הצ׳ק ליסט
+     · כל חניך — רואה איפה הוא משובץ ואת טבלת המעקב של כולם
+
+   ⚠⚠ **אדום בטבלה אינו "בעיה" אלא "תורו".** בכל שאר המערכת
+     אדום הוא חוסר או חריגה; כאן הוא אומר שהחניך עשה **פחות**
+     מהממוצע ולכן הוא המועמד הבא. זה הפוך לאינטואיציה, ולכן
+     המקרא אומר את זה במילים ולא רק בצבע.
+
+   ⚠ **טבלת המעקב גלויה לכל החניכים**, בבקשה מפורשת של המכינה.
+     זו גם התשובה ל"תמיד אני": מי שרואה את המספרים של כולם
+     יכול לבדוק בעצמו.
+
+   ⚠ **ואין כאן שום שדה שאומר מי ביצע מה בפועל** — רק כמה
+     פעמים כל אחד **שובץ**. עיקרון 5 לא זז.
+   ============================================================ */
+
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { api } from "./api.js";
+import TextBlock from "./TextBlock.jsx";
+import { KIND, SAME_SECTOR_WARN } from "../shared/chores.js";
+
+const CI = {
+  chev: (p) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
+  plus: (p) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" {...p}><path d="M12 5v14M5 12h14"/></svg>,
+  check: (p) => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M4 12.5 9.5 18 20 6.5"/></svg>,
+  users: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="9" cy="8" r="3.4"/><path d="M2.5 20c0-3.4 2.9-5.6 6.5-5.6s6.5 2.2 6.5 5.6"/><path d="M17 8.5a3 3 0 0 0 0-1M18 14.6c2 .7 3.5 2.4 3.5 5.4"/></svg>,
+  grid: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>,
+  list: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>,
+  cog: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 9 4.6 1.6 1.6 0 0 0 10 3.1V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>,
+  warn: (p) => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3 2 20h20L12 3z"/><path d="M12 9v5M12 17.5h.01"/></svg>,
+  bulb: (p) => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M9 18h6M10 22h4"/><path d="M12 2a6 6 0 0 0-3.5 10.9c.5.4.8 1 .9 1.6l.1.5h5l.1-.5c.1-.6.4-1.2.9-1.6A6 6 0 0 0 12 2z"/></svg>,
+  crown: (p) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 7l4.5 4L12 4l4.5 7L21 7l-2 12H5L3 7z"/></svg>,
+};
+
+const dmy = (d) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : "");
+const dmyFull = (d) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : "");
+
+/* ============================================================
+   טבלת מעקב
+   ------------------------------------------------------------
+   ⚠ **`hasData` הוא מה שמפריד בין טבלה לבין הצהרה.** בתחילת
+     שנה כל הספירות אפס והממוצע אפס — כלומר כולם בדיוק בממוצע.
+     טבלה צהובה שלמה נראית כמו מסקנה; המשפט מעליה אומר שאין
+     עדיין מה להשוות (אותו כלל כמו אחוז נוכחות מחמישה ימים).
+   ============================================================ */
+function Tally({ rows, compact }) {
+  if (!rows.length) return null;
+  return (
+    <div className={"ch-tally" + (compact ? " compact" : "")}>
+      {rows.map((t) => (
+        <div className="ch-tally-s" key={t.sector}>
+          <div className="ch-tally-h">
+            <b>{t.name}</b>
+            <span>
+              {t.hasData ? `ממוצע ${t.avg}` : "טרם שובץ אף אחד"}
+            </span>
+          </div>
+          {!t.hasData ? (
+            <div className="ch-tally-none">
+              אין עדיין מה להשוות — הצבעים יופיעו אחרי הסבב הראשון.
+            </div>
+          ) : (
+            <div className="ch-cells">
+              {t.per.map((p) => (
+                <div className={"ch-cell t-" + p.tone} key={p.id} title={p.name}>
+                  <b>{p.count}</b>
+                  <span>{p.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+      {/* ⚠ המקרא במילים, כי הצבע כאן הפוך לאינטואיציה. */}
+      <div className="ch-key">
+        <i><b className="ch-dot t-over" />מעל הממוצע</i>
+        <i><b className="ch-dot t-near" />בערך בממוצע</i>
+        <i><b className="ch-dot t-under" />הרבה מתחת — <b className="ch-key-em">תורו הבא</b></i>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   בורר חניכים לגזרה
+   ============================================================ */
+function Picker({ students, leaders, picked, onToggle, cap, busy }) {
+  const [q, setQ] = useState("");
+  const lead = new Set((leaders || []).map(String));
+  const list = students.filter((s) => !q.trim() || s.name.includes(q.trim()));
+  const over = Number.isFinite(cap) && picked.length > cap;
+
+  return (
+    <>
+      {Number.isFinite(cap) && (
+        <div className={"ch-cap" + (over ? " over" : "")}>
+          {picked.length} מתוך {cap}{over ? " — מעל המכסה" : ""}
+        </div>
+      )}
+      <input className="search" value={q} placeholder="חיפוש חניך"
+        onChange={(e) => setQ(e.target.value)} />
+      <div className="rows ch-pick">
+        {list.map((s) => {
+          const isLead = lead.has(String(s.id));
+          const on = picked.includes(s.id);
+          return (
+            <button className="st-row" key={s.id} disabled={busy || isLead}
+              onClick={() => onToggle(s.id)}>
+              <div className={"tick" + (on ? " on" : "")}>
+                {on && <CI.check style={{ color: "#fff" }} />}
+              </div>
+              <div className="st-main"><div className="st-n">{s.name}</div></div>
+              {/* ⚠ **מסומן ולא מוסתר.** חניך שלא יראה את עצמו
+                  ברשימה יחשוב שנשכח, ולא שהוא פטור. */}
+              {isLead && <span className="pill ch-lead"><CI.crown />מוביל השבוע</span>}
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+/* ============================================================
+   לשונית הגזרות
+   ============================================================ */
+function Sectors({ d, say, reload }) {
+  const [pi, setPi] = useState(0);
+  const [open, setOpen] = useState(null);
+  const [picked, setPicked] = useState([]);
+  const [busy, setBusy] = useState(false);
+
+  const p = d.periods[pi];
+  if (!p) return <div className="empty"><b>אין תקופות לשבץ אליהן</b></div>;
+
+  const start = (s) => {
+    setOpen(s.id);
+    setPicked(s.members.map((m) => m.id));
+  };
+  const save = (s) => {
+    if (busy) return;
+    setBusy(true);
+    api.assignChore({ sector: s.id, week: p.id, students: picked })
+      .then((r) => {
+        setOpen(null);
+        (r.warnings || []).forEach(say);
+        say(`נשמר — ${r.total} משובצים`);
+        reload();
+      })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  const sugg = d.admin ? d.admin.suggest : {};
+
+  return (
+    <>
+      {/* ⚠ התקופה היא שבוע הובלה ולא שבוע קלנדרי — כשקדנציה
+          מתחלפת, מתחלפות גם התורניות. */}
+      <div className="seg ch-seg">
+        {d.periods.map((x, i) => (
+          <button key={x.id} className={pi === i ? "on" : ""} onClick={() => { setPi(i); setOpen(null); }}>
+            שבוע {x.num}
+            <i className="seg-n">{dmy(x.start)}</i>
+          </button>
+        ))}
+      </div>
+
+      {p.leaderNames.length > 0 && (
+        <div className="ch-leadbar">
+          <CI.crown />
+          מובילי השבוע — <b>{p.leaderNames.join(" · ")}</b> — פטורים מתורנות ואי אפשר לשבץ אותם.
+        </div>
+      )}
+
+      {d.sectors.filter((s) => s.kind === KIND.evening && !s.archived).map((s) => {
+        const live = p.sectors.find((x) => x.id === s.id) || { members: [] };
+        const isOpen = open === s.id;
+        const hint = sugg[s.id];
+        return (
+          <div className="ch-sec card" key={s.id}>
+            <button className="ch-sec-h" onClick={() => (isOpen ? setOpen(null) : start(live))}>
+              <div className="ch-sec-n">
+                <b>{s.name}</b>
+                <span>{live.members.length ? live.members.map((m) => m.name).join(" · ") : "טרם שובץ"}</span>
+              </div>
+              <b className="ch-sec-c">{live.members.length}</b>
+              <CI.chev style={{ transform: isOpen ? "rotate(-90deg)" : "none", color: "var(--line2)" }} />
+            </button>
+
+            {s.detail && <div className="ch-detail">{s.detail}</div>}
+
+            {/* ============================================================
+                ⚠ **ההמלצה היא הצעה ולא בחירה.** אב הבית יודע דברים
+                  שהמערכת אינה יודעת — מי חולה, מי במיונים, מי כבר
+                  עשה טובה. הניסוח שואל ולא קובע, ושתי הרמות
+                  מנוסחות אחרת: "מומלץ" מול "הכי מאחור".
+                ============================================================ */}
+            {d.me.assign && hint && hint.list.length > 0 && (
+              <div className={"ch-sugg" + (hint.strong ? " strong" : "")}>
+                <CI.bulb />
+                <div>
+                  {hint.strong ? "שווה לשקול: " : "הכי מאחור כרגע: "}
+                  {hint.list.map((x) => (
+                    <b key={x.id}>{x.name} <span>({x.count})</span></b>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {isOpen && d.me.assign && (
+              <div className="ch-sec-b">
+                <Picker students={d.admin.students} leaders={p.leaders}
+                  picked={picked} cap={s.cap} busy={busy}
+                  onToggle={(id) => setPicked((v) =>
+                    v.includes(id) ? v.filter((x) => x !== id) : [...v, id])} />
+                <button className="btn btn-primary" style={{ width: "100%", marginTop: 10 }}
+                  disabled={busy} onClick={() => save(s)}>
+                  {busy ? "שומר…" : `שמירת השיבוץ (${picked.length})`}
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+/* ============================================================
+   לשונית המטבח והחד״א
+   ============================================================ */
+function Daily({ d, say, reload }) {
+  const [pi, setPi] = useState(0);
+  const [open, setOpen] = useState(null);
+  const [picked, setPicked] = useState([]);
+  const [busy, setBusy] = useState(false);
+
+  const daily = d.sectors.find((s) => s.kind === KIND.daily);
+  const p = d.periods[pi];
+  if (!daily) return <div className="empty"><b>אין גזרה מסוג יומי</b><span>אב הבית מגדיר אותה בהגדרות.</span></div>;
+  if (!p) return <div className="empty"><b>אין תקופות לשבץ אליהן</b></div>;
+
+  /* ⚠ באיזו גזרת ערב יושב כל חניך בשבוע הזה — זו השאלה שאב
+     הבית שואל כשהוא בוחר תורן, ולכן היא מוצגת לצד השם. */
+  const sectorOf = useMemo(() => {
+    const m = new Map();
+    for (const s of p.sectors) for (const x of s.members) m.set(x.id, s.name);
+    return m;
+  }, [p]);
+
+  const save = (day) => {
+    if (busy) return;
+    setBusy(true);
+    api.assignChore({ sector: daily.id, date: day.date, students: picked })
+      .then((r) => {
+        setOpen(null);
+        (r.warnings || []).forEach(say);
+        say(`נשמר — ${r.total} תורנים`);
+        reload();
+      })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <>
+      <div className="seg ch-seg">
+        {d.periods.map((x, i) => (
+          <button key={x.id} className={pi === i ? "on" : ""} onClick={() => { setPi(i); setOpen(null); }}>
+            שבוע {x.num}
+            <i className="seg-n">{dmy(x.start)}</i>
+          </button>
+        ))}
+      </div>
+
+      <div className="ch-note">
+        {daily.cap || 3} תורנים ליום. הם מופרשים מרוב הלו״ז <b>ומתורנות סוף היום שלהם</b>,
+        ולכן כדאי לקחת אחד או שניים מכל גזרה ולא יותר.
+      </div>
+
+      {p.days.map((day) => {
+        const isOpen = open === day.date;
+        return (
+          <div className={"ch-day card" + (day.on.length ? " has" : "")} key={day.date}>
+            <button className="ch-day-h" onClick={() => {
+              if (isOpen) { setOpen(null); return; }
+              setOpen(day.date); setPicked(day.on.map((x) => x.id));
+            }}>
+              <div className="ch-day-d">
+                <b>{day.dow}</b>
+                <span>{dmy(day.date)}</span>
+              </div>
+              <div className="ch-day-n">
+                {day.on.length
+                  ? day.on.map((x) => x.name).join(" · ")
+                  : <span className="ch-day-empty">טרם שובץ</span>}
+                {day.from.length > 0 && (
+                  <div className="ch-day-from">
+                    {day.from.map((f) => (
+                      <span key={f.name} className={f.n > SAME_SECTOR_WARN ? "hot" : ""}>
+                        {f.name} ×{f.n}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {d.me.assign && <CI.chev style={{ transform: isOpen ? "rotate(-90deg)" : "none", color: "var(--line2)" }} />}
+            </button>
+
+            {/* ⚠ מתריע ואינו חוסם — יום שבו אין ברירה הוא מצב אמיתי. */}
+            {day.crowded.length > 0 && (
+              <div className="ch-crowd"><CI.warn />{day.crowded.join(" · ")} — הגזרה תישאר חסרה באותו ערב</div>
+            )}
+
+            {isOpen && d.me.assign && (
+              <div className="ch-sec-b">
+                <Picker students={d.admin.students.map((s) => ({
+                  ...s,
+                  name: s.name + (sectorOf.get(s.id) ? ` · ${sectorOf.get(s.id)}` : ""),
+                }))} leaders={p.leaders} picked={picked} cap={daily.cap} busy={busy}
+                  onToggle={(id) => setPicked((v) =>
+                    v.includes(id) ? v.filter((x) => x !== id) : [...v, id])} />
+                <button className="btn btn-primary" style={{ width: "100%", marginTop: 10 }}
+                  disabled={busy} onClick={() => save(day)}>
+                  {busy ? "שומר…" : `שמירת התורנות (${picked.length})`}
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+/* ============================================================
+   הצ׳ק ליסט
+   ============================================================ */
+function Checklist({ d, say, reload }) {
+  const [busy, setBusy] = useState(null);
+  const c = d.checklist;
+
+  const groups = useMemo(() => {
+    const m = new Map();
+    for (const it of c.items) {
+      const k = it.area || "כללי";
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(it);
+    }
+    return [...m.entries()];
+  }, [c.items]);
+
+  const toggle = (it) => {
+    if (busy) return;
+    setBusy(it.id);
+    api.tickChore({ item: it.id, done: !it.done, date: d.today })
+      .then(reload)
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(null));
+  };
+
+  return (
+    <>
+      <div className="ch-note">
+        המטלות של היום — יום {c.dow}. השגרה היומית חוזרת בכל יום, ומעליה
+        המטלות של היום עצמו.
+      </div>
+
+      <div className="ch-duty">
+        <b>תורני היום</b>
+        <span>{c.onDuty.length ? c.onDuty.map((x) => x.name).join(" · ") : "טרם שובצו"}</span>
+      </div>
+
+      {/* ⚠ **רק תורן היום מסמן**, וזה נאמר במפורש. הכפתור יודע
+          מראש, אחרת המשתמש לוחץ ומקבל 403 (4יד). */}
+      {!d.me.onDutyToday && (
+        <div className="ch-ro">
+          הסימון נעשה על ידי תורני המטבח של אותו יום. לצפייה ולמעקב הגישה פתוחה לכולם.
+        </div>
+      )}
+
+      {groups.map(([area, items]) => (
+        <div className="ch-grp" key={area}>
+          <div className="ch-grp-h">{area}<i>{items.filter((x) => x.done).length}/{items.length}</i></div>
+          {items.map((it) => (
+            <button className={"ch-task" + (it.done ? " done" : "")} key={it.id}
+              disabled={!d.me.onDutyToday || busy === it.id}
+              onClick={() => toggle(it)}>
+              <div className={"tick" + (it.done ? " on" : "")}>
+                {it.done && <CI.check style={{ color: "#fff" }} />}
+              </div>
+              <span>{it.task}</span>
+              {it.day !== "כל יום" && <i className="ch-task-d">יום {it.day}</i>}
+            </button>
+          ))}
+        </div>
+      ))}
+
+      {!c.items.length && (
+        <div className="empty">
+          <div className="e-ico"><CI.list /></div>
+          <b>אין מטלות ליום הזה</b>
+          <span>אחראי המטבח מגדיר את המטלות בלשונית ההגדרות.</span>
+        </div>
+      )}
+    </>
+  );
+}
+
+export default function ChoresPage({ say }) {
+  const [d, setD] = useState(null);
+  const [err, setErr] = useState("");
+  const [tab, setTab] = useState("sectors");
+
+  const load = useCallback(() => {
+    api.getChores(true)
+      .then((r) => { setD(r); setErr(""); })
+      .catch((e) => setErr(e.message));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  if (err) return <><div className="screen-title">תורניות</div><div className="login-err">{err}</div></>;
+  if (!d) return <><div className="screen-title">תורניות</div><div className="skel" style={{ height: 220 }} /></>;
+
+  const TABS = [
+    ["sectors", "גזרות", <CI.grid key="a" />],
+    ["daily", "מטבח וחד״א", <CI.users key="b" />],
+    ["check", "צ׳ק ליסט", <CI.list key="c" />],
+    ["tally", "מעקב", <CI.grid key="d" />],
+  ];
+  if (d.me.sectors || d.me.daily) TABS.push(["setup", "הגדרות", <CI.cog key="e" />]);
+
+  return (
+    <>
+      <div className="screen-title">תורניות</div>
+      <div className="tm-sub">
+        גזרות ניקיון בסוף היום, ותורנות מטבח וחד״א לכל היום.
+      </div>
+
+      {d.warnings.map((w, i) => (
+        <div className="note-warn" key={i}><CI.warn />{w}</div>
+      ))}
+
+      <div className="tm-tabs ch-tabs">
+        {TABS.map(([k, label, ic]) => (
+          <button key={k} className={"tm-tab" + (tab === k ? " on" : "")}
+            onClick={() => setTab(k)}>{ic}{label}</button>
+        ))}
+      </div>
+
+      {tab === "sectors" && <Sectors d={d} say={say} reload={load} />}
+      {tab === "daily" && <Daily d={d} say={say} reload={load} />}
+      {tab === "check" && <Checklist d={d} say={say} reload={load} />}
+      {tab === "tally" && (
+        <>
+          <div className="ch-note">
+            כמה פעמים כל אחד <b>שובץ</b> לכל גזרה. הטבלה גלויה לכולם בכוונה —
+            כך אפשר לבדוק ולא רק להרגיש.
+          </div>
+          <Tally rows={d.tally} />
+        </>
+      )}
+      {tab === "setup" && <Setup d={d} say={say} reload={load} />}
+    </>
+  );
+}
+
+/* ============================================================
+   ההגדרות — האוטונומיה
+   ============================================================ */
+function Setup({ d, say, reload }) {
+  const [edit, setEdit] = useState(null);
+  const [f, setF] = useState({});
+  const [busy, setBusy] = useState(false);
+  const [adj, setAdj] = useState({ student: "", sector: "", delta: "1", reason: "" });
+
+  const open = (s) => {
+    setEdit(s ? s.id : "new");
+    setF(s ? { name: s.name, kind: s.kind, cap: s.cap ?? "", detail: s.detail || "", archived: s.archived }
+      : { name: "", kind: KIND.evening, cap: "", detail: "", archived: false });
+  };
+  const save = () => {
+    if (busy) return;
+    setBusy(true);
+    api.saveSector({ id: edit === "new" ? undefined : edit, ...f })
+      .then(() => { setEdit(null); say("נשמר"); reload(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+  const addAdj = () => {
+    if (busy) return;
+    setBusy(true);
+    api.addChoreAdjust({ ...adj, delta: Number(adj.delta) })
+      .then(() => { setAdj({ student: "", sector: "", delta: "1", reason: "" }); say("נרשם"); reload(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <>
+      {d.me.sectors && (
+        <>
+          <div className="sec-label">גזרות</div>
+          {edit === "new"
+            ? <SectorForm f={f} setF={setF} busy={busy} onSave={save} onCancel={() => setEdit(null)} isNew />
+            : <button className="btn btn-primary tm-add" onClick={() => open(null)}>
+                <CI.plus />גזרה חדשה
+              </button>}
+        </>
+      )}
+
+      {d.sectors.map((s) => (
+        <div className="ch-set card" key={s.id}>
+          {edit === s.id ? (
+            <SectorForm f={f} setF={setF} busy={busy} onSave={save} onCancel={() => setEdit(null)} />
+          ) : (
+            <>
+              <div className="ch-set-h">
+                <div>
+                  <b>{s.name}</b>
+                  <span>{s.kind}{s.cap != null ? ` · ${s.cap} חניכים` : ""}{s.archived ? " · מוסתרת" : ""}</span>
+                </div>
+                {/* ⚠ אחראי המטבח עורך את הגזרה היומית בלבד — היא
+                    המטבח שלו. הכפתור יודע מראש. */}
+                {(d.me.sectors || (d.me.daily && s.kind === KIND.daily)) && (
+                  <button className="btn btn-ghost btn-sm" onClick={() => open(s)}>עריכה</button>
+                )}
+              </div>
+              {s.detail && <div className="ch-detail">{s.detail}</div>}
+            </>
+          )}
+        </div>
+      ))}
+
+      {/* ---------- תיקון ספירה ---------- */}
+      {d.me.assign && d.admin && (
+        <>
+          <div className="sec-label">תיקון ספירה</div>
+          <div className="card">
+            <div className="ch-note" style={{ marginTop: 0 }}>
+              הייתה תקלה, מישהו החליף, או שהתורנות לא התקיימה — כאן מוסיפים
+              או מורידים מהספירה, <b>עם סיבה</b>. ההיסטוריה נשמרת ואינה נדרסת.
+            </div>
+            <div className="tm-row2">
+              <div className="fld">
+                <label>חניך</label>
+                <select value={adj.student} onChange={(e) => setAdj((p) => ({ ...p, student: e.target.value }))}>
+                  <option value="">—</option>
+                  {d.admin.students.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <div className="fld">
+                <label>גזרה</label>
+                <select value={adj.sector} onChange={(e) => setAdj((p) => ({ ...p, sector: e.target.value }))}>
+                  <option value="">—</option>
+                  {d.sectors.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="tm-row2">
+              <div className="fld">
+                <label>שינוי</label>
+                <select value={adj.delta} onChange={(e) => setAdj((p) => ({ ...p, delta: e.target.value }))}>
+                  <option value="1">1+ · הוסף תורנות</option>
+                  <option value="-1">1- · הורד תורנות</option>
+                </select>
+              </div>
+              <div className="fld">
+                <label>סיבה</label>
+                <input value={adj.reason} placeholder="למשל: היה כצופר"
+                  onChange={(e) => setAdj((p) => ({ ...p, reason: e.target.value }))} />
+              </div>
+            </div>
+            <button className="btn btn-primary" disabled={busy || !adj.student || !adj.sector}
+              onClick={addAdj}>רישום</button>
+          </div>
+
+          {d.admin.adjusts.length > 0 && (
+            <div className="rows ch-adj">
+              {d.admin.adjusts.map((a) => (
+                <div className="ch-adj-r" key={a.id}>
+                  <b className={a.delta > 0 ? "up" : "down"}>{a.delta > 0 ? "+" : ""}{a.delta}</b>
+                  <div>
+                    <div>{a.studentName} · {a.sectorName}</div>
+                    <span>{a.reason || "בלי סיבה"}{a.by ? " · " + a.by : ""}</span>
+                  </div>
+                  <button className="esc-del" title="ביטול"
+                    onClick={() => api.deleteChoreAdjust(a.id).then(reload).catch((e) => say(e.message))}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ---------- הנהלים ---------- */}
+      <div className="sec-label">נהלי המטבח והחד״א</div>
+      {d.texts.map((t) => (
+        <TextBlock key={t.key} block={t} canEdit={d.me.assign} say={say} onSaved={reload} />
+      ))}
+    </>
+  );
+}
+
+function SectorForm({ f, setF, busy, onSave, onCancel, isNew }) {
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+  return (
+    <div className="ch-form">
+      <div className="fld">
+        <label>שם הגזרה</label>
+        <input value={f.name} autoFocus onChange={(e) => set("name", e.target.value)}
+          placeholder="למשל: מגורי בנים" />
+      </div>
+      <div className="tm-row2">
+        <div className="fld">
+          <label>סוג</label>
+          <select value={f.kind} onChange={(e) => set("kind", e.target.value)} disabled={!isNew}>
+            <option value={KIND.evening}>{KIND.evening}</option>
+            <option value={KIND.daily}>{KIND.daily}</option>
+          </select>
+          {!isNew && <div className="fld-hint">שינוי סוג מותר רק כשאין שיבוצים</div>}
+        </div>
+        <div className="fld">
+          <label>כמה חניכים</label>
+          <input type="number" min="0" step="1" dir="ltr" value={f.cap}
+            onChange={(e) => set("cap", e.target.value)} placeholder="ריק = בלי הגבלה" />
+        </div>
+      </div>
+      <div className="fld">
+        <label>מה מנקים כאן</label>
+        <textarea rows={4} value={f.detail} onChange={(e) => set("detail", e.target.value)}
+          placeholder="הפירוט שהתורן יראה — מה בדיוק צריך לנקות" />
+      </div>
+      <label className="ch-chk">
+        <input type="checkbox" checked={Boolean(f.archived)}
+          onChange={(e) => set("archived", e.target.checked)} />
+        {/* ⚠ מוסתרת ולא נמחקת — הספירות ההיסטוריות נשארות נכונות. */}
+        <span>מוסתרת — לא מוצגת לשיבוץ, והספירות שנצברו נשמרות</span>
+      </label>
+      <div className="tm-editor-f">
+        <button className="btn btn-primary" disabled={busy || !f.name.trim()} onClick={onSave}>
+          {busy ? "שומר…" : isNew ? "יצירה" : "שמירה"}
+        </button>
+        <button className="btn btn-ghost" onClick={onCancel}>ביטול</button>
+      </div>
+    </div>
+  );
+}

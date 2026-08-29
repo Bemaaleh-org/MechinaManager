@@ -30,6 +30,7 @@ import { useNotify, NotifyBell, NotifyPanel } from "./Notify.jsx";
 import { ProfilePage } from "./Profile.jsx";
 import DutyPage from "./Duty.jsx";
 import TeamsPage from "./Teams.jsx";
+import ChoresPage from "./Chores.jsx";
 import { GanttPage } from "./Gantt.jsx";
 import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
@@ -2809,6 +2810,12 @@ export function MechinaApp({ auth, onSignedOut }) {
                ============================================================ */
             { key: "teams", label: "ועדות וסדרות", icon: <MI.tick />,
               active: tab === "teams", onClick: () => setTab("teams") },
+            /* ⚠ **תורניות באישי ולא בתפקידים.** כל חניך משובץ
+               לגזרה ולתורנות מטבח, וכל חניך רואה את טבלת המעקב —
+               זו בקשה מפורשת של המכינה. אב הבית מגיע לאותו מסך
+               בדיוק ורואה בו יותר, לפי mayChores (4יט). */
+            { key: "chores", label: "תורניות", icon: <MI.tick />,
+              active: tab === "chores", onClick: () => setTab("chores") },
             { key: "menu", label: "תפריט ארוחות", icon: <MI.book />, active: tab === "menu", onClick: () => setTab("menu") },
             { key: "report", label: "דיווח תקלה", icon: <MI.tool />, active: tab === "report", onClick: () => setTab("report") },
             { key: "agenda", label: "הלו״ז שלי", icon: <MI.cal />, active: tab === "agenda", onClick: () => setTab("agenda") },
@@ -2953,6 +2960,7 @@ export function MechinaApp({ auth, onSignedOut }) {
             להישאר אותה רשימה. */}
         {tab === "duty" && <DutyPage say={say} go={(t) => setTab(t)} />}
         {tab === "teams" && <TeamsPage say={say} go={(t) => setTab(t)} />}
+        {tab === "chores" && <ChoresPage say={say} />}
 
         {/* ⚠ area={null} — התצוגה המאוחדת, אותה אחת של המנהל. */}
         {tab === "k-all" && auth.isKitchen && <KitchenPage say={say} area={null} />}

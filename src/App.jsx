@@ -17,6 +17,7 @@ import { GanttPage } from "./Gantt.jsx";
 import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { PlacementsPage } from "./Placements.jsx";
 import TeamsPage from "./Teams.jsx";
+import ChoresPage from "./Chores.jsx";
 import { SafetyPage } from "./Safety.jsx";
 import { FaultsPage } from "./Faults.jsx";
 import { KitchenPage } from "./Kitchen.jsx";
@@ -290,6 +291,10 @@ function Staff({ auth, onSignedOut }) {
               /* ⚠ אותו מסך בדיוק של החניך, ולא גרסה מקוצצת —
                  עיקרון 4יט. ההבדל היחיד הוא ההרשאה, ו-mayTeam
                  בשרת היא שקובעת אותה. */
+              /* ⚠ אב הבית ואחראי המטבח מגיעים לאותו מסך בדיוק
+                 מהמעטפת שלהם ב-Mechina.jsx — עיקרון 4יט. */
+              { key: "a-chores", label: "תורניות", icon: <I.check />, active: section === "chores",
+                onClick: () => setSection("chores") },
               { key: "a-teams", label: "ניהול צוותים", icon: <I.users />, active: section === "teams",
                 onClick: () => setSection("teams") },
             ] },
@@ -402,6 +407,7 @@ function Staff({ auth, onSignedOut }) {
               הצוות לא עושה כלום, **בלי שגיאה** — Teams.jsx מגן
               ב-go && go(...). מנהל אינו יו״ר ולכן הוא לא יגיע
               לשם, אבל תנאי שמסתיר כשל הוא בדיוק מה שנשכח. */}
+          {section === "chores" && <ChoresPage say={say} />}
           {section === "teams" && isMgr && <TeamsPage say={say} go={() => setSection("roles")} />}
           {section === "safety" && isMgr && <SafetyPage say={say} />}
           {section === "faults" && isMgr && <FaultsPage say={say} />}

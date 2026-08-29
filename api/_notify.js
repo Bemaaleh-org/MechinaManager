@@ -55,6 +55,9 @@ import { mayArea, AREA } from "../shared/container-boards.js";
 import { PLANNED, minutesOf } from "../shared/lessons-boards.js";
 import { requestStage, REQ_STAGE, REQ_STATUS } from "../shared/mechina-boards.js";
 import { guideMap, isGuideOf } from "./_guides.js";
+import {
+  choresReady, loadSectors, loadRoster, loadLeaderWeeks,
+} from "./_chores-data.js";
 
 /** כמה ימים קדימה נחשבים "קרוב" */
 const SOON = 7;
@@ -392,6 +395,84 @@ async function dutyNotes(session) {
 }
 
 /* ============================================================
+   התורנות שלי
+   ------------------------------------------------------------
+   ⚠ **החניך מקבל התראה על השיבוץ שלו, ולא על השיבוץ של אחרים.**
+     טבלת המעקב אמנם גלויה לכולם, אבל פעמון שמודיע לחניך על
+     תורנות של מישהו אחר הוא רעש שמלמד לסגור אותו.
+
+   ⚠ **שער זול לפני כל קריאה.** `_notify` נשאל כל שלוש דקות לכל
+     משתמש מחובר, ו-33 חניכים כפול חמישה לוחות הם 165 קריאות
+     בשלוש דקות. `isStudent` נבדק ראשון, ואחריו `choresReady`.
+
+   ⚠ **ה-`id` נגזר מהתוכן ולא מספר רץ**, אחרת "נקרא" היה מתאפס
+     בכל רענון (4כו).
+   ============================================================ */
+async function choreNotes(session, today) {
+  if (!session.isStudent) return [];
+  if (!choresReady()) return [];
+
+  const me = String(session.itemId || "");
+  const [sectors, roster, weeks] = await Promise.all([
+    loadSectors(), loadRoster(), loadLeaderWeeks(),
+  ]);
+  const week = weeks.find((w) => w.start <= today && today <= w.end);
+  const byId = new Map(sectors.list.map((s) => [s.id, s]));
+  const out = [];
+
+  /* ---------- הגזרה של השבוע ---------- */
+  if (week) {
+    const mine = roster.list.filter((r) => r.week === week.id && r.student === me);
+    for (const r of mine) {
+      const sec = byId.get(r.sector);
+      out.push({
+        id: "chore-week-" + week.id + "-" + r.sector,
+        tone: "calm",
+        title: "התורנות שלך השבוע: " + r.sectorName,
+        body: sec && sec.detail ? sec.detail : "גזרת ניקיון בסוף היום",
+        tab: "chores",
+      });
+    }
+    /* ⚠ **מוביל שבוע מקבל הודעה משלו.** בלעדיה הוא רואה שאין לו
+       תורנות ומניח שנשכח — וזה בדיוק ההפך מהאמת. */
+    if (week.leaderIds.map(String).includes(me)) {
+      out.push({
+        id: "chore-lead-" + week.id,
+        tone: "calm",
+        title: "השבוע אתם מובילי השבוע",
+        body: "מובילי שבוע פטורים מתורנות בשבוע שהם מובילים.",
+        tab: "chores",
+      });
+    }
+  }
+
+  /* ---------- תורנות מטבח בימים הקרובים ---------- */
+  /* ⚠ שלושה ימים קדימה ולא שבועיים: התראה על תורנות בעוד
+     שנים־עשר יום אינה פעולה, והיא מאמנת להתעלם. */
+  const soon = roster.list.filter((r) => r.student === me && r.date
+    && r.date >= today && r.date <= plusDays(today, 3));
+  for (const r of soon) {
+    out.push({
+      id: "chore-day-" + r.date,
+      tone: r.date === today ? "warn" : "calm",
+      title: r.date === today
+        ? "היום אתם תורני " + r.sectorName
+        : "תורנות " + r.sectorName + " ב-" + dmy(r.date),
+      body: r.date === today
+        ? "הצ׳ק ליסט של היום מחכה במסך התורניות."
+        : "יום שלם, ואתם מופרשים מרוב הלו״ז ומתורנות סוף היום.",
+      tab: "chores",
+    });
+  }
+  return out;
+}
+
+const plusDays = (iso, n) =>
+  new Date(new Date(iso + "T00:00:00Z").getTime() + n * 86400000)
+    .toISOString().slice(0, 10);
+const dmy = (d) => (d ? d.slice(8, 10) + "/" + d.slice(5, 7) : "");
+
+/* ============================================================
    חותמת "נקרא"
    ⚠ עמודה אחת למשתמש, בלוח שממנו הוא מתחבר. אין לוח התראות
      ואין שורה לכל התראה — ראו ההערה בראש הקובץ.
@@ -449,6 +530,7 @@ async function handler(req, res, session) {
       /* ⚠ רק לחניך שנושא אחריות — הבונה עוצר מיד כשאין. בלי
          זה, 33 חניכים היו שולפים ארבעה לוחות כל שלוש דקות. */
       jobs.push(dutyNotes(session));
+      jobs.push(choreNotes(session, today));
     } else {
       jobs.push(requestNotes(session, today));
     }

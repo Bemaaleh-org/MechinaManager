@@ -2662,4 +2662,163 @@ html,body{margin:0;padding:0;background:#012E58}
   .kx .mv-c:hover,.kx .mv-nav:hover:not(:disabled){transform:none}
 }
 
+/* ============================================================
+   תורניות
+   ------------------------------------------------------------
+   ⚠ כל כלל על כפתור מתחיל ב-.kx — .kx button מאפסת background
+     ו-border בסגוליות (0,1,1). ואין בקטיקים בקובץ הזה.
+   ============================================================ */
+.ch-tabs{overflow-x:auto;scrollbar-width:none}
+.ch-tabs::-webkit-scrollbar{display:none}
+.kx .ch-tabs .tm-tab{flex:0 0 auto;min-width:110px}
+.ch-seg{margin-top:2px}
+.ch-note{font-size:12.5px;color:var(--muted);font-weight:600;line-height:1.7;
+  background:var(--sand);border-radius:var(--r-md);padding:11px 13px;margin:0 0 12px}
+.ch-note b{color:var(--ink);font-weight:800}
+
+/* ---------- מובילי השבוע ---------- */
+.ch-leadbar{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;
+  line-height:1.6;color:#6B3D7A;background:#F3E8F5;border-radius:var(--r-md);
+  padding:10px 13px;margin-bottom:12px}
+.ch-leadbar b{font-weight:900}
+.ch-leadbar svg{flex:0 0 auto}
+.kx .ch-lead{display:inline-flex;align-items:center;gap:5px;background:#F3E8F5;
+  color:#6B3D7A;font-size:11px;font-weight:800;white-space:nowrap}
+
+/* ---------- כרטיס גזרה ---------- */
+.ch-sec{margin-bottom:10px;padding:0;overflow:hidden}
+.kx .ch-sec-h{display:flex;align-items:center;gap:11px;width:100%;text-align:right;
+  padding:14px 15px}
+.ch-sec-n{flex:1;min-width:0}
+.ch-sec-n b{display:block;font-size:15.5px;font-weight:800;line-height:1.4}
+.ch-sec-n span{display:block;font-size:12.5px;color:var(--muted);font-weight:600;
+  margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ch-sec-c{flex:0 0 auto;font-size:20px;font-weight:800;color:var(--accent);
+  font-variant-numeric:tabular-nums}
+.ch-sec-b{padding:0 15px 15px}
+.ch-detail{font-size:12.5px;color:var(--muted);font-weight:600;line-height:1.7;
+  background:var(--sand);border-radius:var(--r-sm);padding:10px 12px;margin:0 15px 12px;
+  white-space:pre-wrap}
+.ch-pick{max-height:44vh;overflow-y:auto}
+.ch-cap{font-size:12px;font-weight:800;color:var(--muted);margin-bottom:8px}
+.ch-cap.over{color:var(--clay)}
+
+/* ---------- ההמלצה ---------- */
+/* ⚠ שתי רמות שנראות שונה: "מומלץ" עם גוון, "הכי מאחור" בלי.
+   שתיהן באותו מראה היו הופכות את החזקה לרעש. */
+.ch-sugg{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;font-weight:600;
+  line-height:1.7;color:var(--muted);padding:0 15px 12px}
+.ch-sugg.strong{color:#8A5A1E}
+.ch-sugg svg{flex:0 0 auto;margin-top:2px;opacity:.7}
+.ch-sugg b{font-weight:800;color:var(--ink)}
+.ch-sugg.strong b{color:#8A5A1E}
+.ch-sugg b + b::before{content:" · ";font-weight:400;color:var(--line2)}
+.ch-sugg b span{font-weight:700;opacity:.7}
+
+/* ---------- יום תורנות ---------- */
+.ch-day{margin-bottom:8px;padding:0;overflow:hidden}
+.ch-day.has{border-color:var(--line2)}
+.kx .ch-day-h{display:flex;align-items:center;gap:12px;width:100%;text-align:right;
+  padding:12px 14px}
+.ch-day-d{flex:0 0 auto;width:44px;text-align:center}
+.ch-day-d b{display:block;font-size:17px;font-weight:800;line-height:1.1}
+.ch-day-d span{display:block;font-size:11px;color:var(--faint);font-weight:700;margin-top:2px;
+  font-variant-numeric:tabular-nums}
+.ch-day-n{flex:1;min-width:0;font-size:13.5px;font-weight:700;line-height:1.5}
+.ch-day-empty{color:var(--faint);font-weight:600}
+.ch-day-from{display:flex;flex-wrap:wrap;gap:4px 8px;margin-top:5px;
+  font-size:11px;font-weight:700;color:var(--faint)}
+.ch-day-from .hot{color:var(--clay);font-weight:800}
+.ch-crowd{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;
+  color:#8A5A1E;background:#FBF3E4;padding:8px 14px;line-height:1.5}
+.ch-crowd svg{flex:0 0 auto}
+
+/* ---------- טבלת המעקב ---------- */
+.ch-tally-s{margin-bottom:16px}
+.ch-tally-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+  margin:0 2px 8px}
+.ch-tally-h b{font-size:14.5px;font-weight:800}
+.ch-tally-h span{font-size:11.5px;color:var(--faint);font-weight:700}
+.ch-tally-none{font-size:12.5px;color:var(--faint);font-weight:600;
+  background:var(--sand);border-radius:var(--r-sm);padding:10px 12px}
+.ch-cells{display:grid;gap:5px;grid-template-columns:repeat(auto-fill,minmax(78px,1fr))}
+.ch-cell{border-radius:var(--r-sm);padding:7px 6px;text-align:center;min-width:0;
+  border:1px solid transparent}
+.ch-cell b{display:block;font-size:17px;font-weight:800;line-height:1.1;
+  font-variant-numeric:tabular-nums}
+.ch-cell span{display:block;font-size:10.5px;font-weight:700;margin-top:3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.85}
+/* ⚠⚠ אדום כאן אינו "בעיה" אלא "תורו". המקרא אומר את זה במילים,
+   כי הצבע לבדו הפוך לאינטואיציה בכל שאר המערכת. */
+.t-over{background:#E3F1E8;color:#177A45}
+.t-near{background:#FBF3E4;color:#8A5A1E}
+.t-under{background:#F7E4E1;color:#B02A1F}
+.ch-key{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:11.5px;font-weight:700;
+  color:var(--muted);margin-top:4px}
+.ch-key i{display:flex;align-items:center;gap:6px;font-style:normal}
+.ch-key-em{color:#B02A1F;font-weight:800}
+.ch-dot{width:13px;height:13px;border-radius:4px;display:block;font-size:0;flex:0 0 auto}
+
+/* ---------- צ׳ק ליסט ---------- */
+.ch-duty{display:flex;align-items:baseline;gap:10px;background:var(--ink);color:#fff;
+  border-radius:var(--r-md);padding:11px 14px;margin-bottom:12px;font-size:13.5px}
+.ch-duty b{font-size:11.5px;font-weight:800;opacity:.72;flex:0 0 auto}
+.ch-duty span{font-weight:700}
+.ch-ro{font-size:12.5px;color:var(--muted);font-weight:600;line-height:1.7;
+  background:var(--sand);border-radius:var(--r-md);padding:11px 13px;margin-bottom:12px}
+.ch-grp{margin-bottom:16px}
+.ch-grp-h{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;
+  color:var(--muted);letter-spacing:.3px;margin:0 2px 7px}
+.ch-grp-h::after{content:"";flex:1;height:1px;background:var(--line2)}
+.ch-grp-h i{font-style:normal;order:-1;background:var(--sand);border-radius:999px;
+  padding:1px 8px;font-size:11px;font-variant-numeric:tabular-nums}
+.kx .ch-task{display:flex;align-items:center;gap:11px;width:100%;text-align:right;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);
+  padding:11px 13px;margin-bottom:6px;font-size:13.5px;font-weight:700;line-height:1.5}
+.kx .ch-task span{flex:1;min-width:0}
+.kx .ch-task.done{opacity:.6;background:var(--sand)}
+.kx .ch-task.done span{text-decoration:line-through;text-decoration-thickness:1.5px}
+.kx .ch-task:disabled{cursor:default}
+.ch-task-d{font-style:normal;flex:0 0 auto;font-size:10.5px;font-weight:800;
+  color:var(--faint);background:var(--sand);border-radius:999px;padding:2px 8px}
+
+/* ---------- הגדרות ---------- */
+.ch-set{margin-bottom:9px}
+.ch-set-h{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.ch-set-h b{display:block;font-size:15px;font-weight:800}
+.ch-set-h span{display:block;font-size:12px;color:var(--muted);font-weight:700;margin-top:2px}
+.ch-set .ch-detail{margin:10px 0 0}
+.ch-form{padding:2px}
+.ch-chk{display:flex;align-items:flex-start;gap:9px;font-size:12.5px;font-weight:600;
+  color:var(--muted);line-height:1.6;margin:2px 0 14px;cursor:pointer}
+.ch-chk input{margin-top:3px;flex:0 0 auto}
+.ch-adj{display:grid;gap:7px;margin-top:10px}
+.ch-adj-r{display:flex;align-items:center;gap:11px;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px}
+.ch-adj-r > div{flex:1;min-width:0;font-size:13px;font-weight:700}
+.ch-adj-r span{display:block;font-size:11.5px;color:var(--faint);font-weight:600;margin-top:2px}
+.ch-adj-r b{flex:0 0 auto;font-size:16px;font-weight:800;width:34px;text-align:center;
+  font-variant-numeric:tabular-nums}
+.ch-adj-r b.up{color:#177A45}
+.ch-adj-r b.down{color:var(--clay)}
+
+/* ---------- בלוק טקסט נערך ---------- */
+.tb{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:15px 16px;box-shadow:var(--sh-1);margin-bottom:10px}
+.tb-h{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin-bottom:10px}
+.tb-h b{font-size:15.5px;font-weight:800}
+.kx .tb-pen{display:flex;align-items:center;gap:6px;flex:0 0 auto;font-size:12px;
+  font-weight:800;color:var(--muted);background:var(--sand);border-radius:999px;
+  padding:5px 11px}
+.kx .tb-pen:hover{color:var(--accent)}
+/* ⚠ pre-wrap: הטקסט נשמר עם שבירות שורה שמישהו כתב בכוונה,
+   ורינדור שמוחק אותן הופך רשימה של תשעה סעיפים לפסקה אחת. */
+.tb-body{font-size:13.5px;font-weight:600;line-height:1.85;color:var(--muted);
+  white-space:pre-wrap}
+.tb-by{font-size:11px;color:var(--faint);font-weight:700;margin-top:12px;
+  padding-top:10px;border-top:1px solid var(--line2)}
+.tb-f{display:flex;gap:8px}
+.tb-edit textarea{font-family:inherit;line-height:1.8}
+
 `;

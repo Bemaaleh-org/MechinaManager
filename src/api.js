@@ -194,6 +194,26 @@ export const api = {
      ⚠ אלה **אינן** משימות התפקיד האישיות. שם הלוח סגור לצוות
        (4מה) וכאן הוא משותף לוועדה כולה — שתי מתודות, שני מסלולים,
        ואף אחת שמחזירה את שתיהן. ראו shared/team.js. */
+  /* ---- תורניות ----
+     ⚠ **כל החניכים קוראים כאן**, וזו בקשה מפורשת של המכינה:
+       טבלת המעקב גלויה לכולם. ההרשאה האמיתית היא mayChores
+       ב-shared/chores.js, והמסך מסתיר בדיוק את מה שהשרת חוסם. */
+  getChores: (admin) => get("/api/chores?action=view" + (admin ? "&admin=1" : "")),
+  /* ⚠ פירוק מפורש: שדה שלא נכתב כאן נשמט בשקט ונראה עובד
+     במסך בלי להגיע לשרת (4לג). */
+  assignChore: ({ sector, week, date, students }) =>
+    post("/api/chores?action=assign", { sector, week, date, students }),
+  saveSector: ({ id, name, kind, cap, detail, order, archived }) =>
+    post("/api/chores?action=sector", { id, name, kind, cap, detail, order, archived }),
+  addChoreAdjust: ({ student, sector, delta, reason }) =>
+    post("/api/chores?action=adjust", { student, sector, delta, reason }),
+  deleteChoreAdjust: (id) => del("/api/chores?action=adjust", { id }),
+  saveChoreTask: ({ id, task, day, area, order, archived }) =>
+    post("/api/chores?action=task", { id, task, day, area, order, archived }),
+  deleteChoreTask: (id) => del("/api/chores?action=task", { id }),
+  tickChore: ({ item, done, date }) => post("/api/chores?action=tick", { item, done, date }),
+  saveText: ({ key, title, body }) => put("/api/chores?action=text", { key, title, body }),
+
   getTeams: () => get("/api/students?action=team"),
   getTeam: (id) => get("/api/students?action=team&id=" + encodeURIComponent(id)),
   /* ⚠ פירוק מפורש: שדה שלא נכתב כאן נשמט בשקט ונראה עובד
