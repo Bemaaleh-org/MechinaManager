@@ -18,6 +18,7 @@ import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { PlacementsPage } from "./Placements.jsx";
 import TeamsPage from "./Teams.jsx";
 import ChoresPage from "./Chores.jsx";
+import RulesPage from "./Rules.jsx";
 import { SafetyPage } from "./Safety.jsx";
 import { FaultsPage } from "./Faults.jsx";
 import { KitchenPage } from "./Kitchen.jsx";
@@ -295,6 +296,8 @@ function Staff({ auth, onSignedOut }) {
                  מהמעטפת שלהם ב-Mechina.jsx — עיקרון 4יט. */
               { key: "a-chores", label: "תורניות", icon: <I.check />, active: section === "chores",
                 onClick: () => setSection("chores") },
+              { key: "a-rules", label: "נהלים במכינה", icon: <I.book />, active: section === "rules",
+                onClick: () => setSection("rules") },
               { key: "a-teams", label: "ניהול צוותים", icon: <I.users />, active: section === "teams",
                 onClick: () => setSection("teams") },
             ] },
@@ -408,6 +411,7 @@ function Staff({ auth, onSignedOut }) {
               ב-go && go(...). מנהל אינו יו״ר ולכן הוא לא יגיע
               לשם, אבל תנאי שמסתיר כשל הוא בדיוק מה שנשכח. */}
           {section === "chores" && <ChoresPage say={say} />}
+          {section === "rules" && <RulesPage say={say} />}
           {section === "teams" && isMgr && <TeamsPage say={say} go={() => setSection("roles")} />}
           {section === "safety" && isMgr && <SafetyPage say={say} />}
           {section === "faults" && isMgr && <FaultsPage say={say} />}

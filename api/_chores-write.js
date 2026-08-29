@@ -96,8 +96,17 @@ export const assign = withAuth(async (req, res, session) => {
     const leaders = new Set(week.leaderIds.map(String));
     const clash = ids.filter((i) => leaders.has(i));
     if (clash.length) {
+      /* ⚠ **חסימה, ולא אזהרה, ולשני סוגי התורנות.** המכינה
+         קבעה שמוביל שבוע פטור מתורנות בשבוע שהוא מוביל — וזה
+         כולל במפורש את תורנות המטבח, שהיא יום שלם ומפקיעה
+         אותו מהלו״ז בדיוק כשהוא אמור להוביל אותו.
+
+         ⚠ והשבוע נגזר **מהתאריך** בתורנות היומית, לא נשלח
+           מהדפדפן — אחרת אפשר היה לעקוף בשליחת שבוע אחר. */
+      const what = sector.kind === KIND.daily ? "תורנות מטבח" : "תורנות";
       return res.status(400).json({
-        error: `${clash.map((i) => byId.get(i).name).join(" · ")} מוביל/ים את השבוע הזה ופטור/ים מתורנות`,
+        error: `${clash.map((i) => byId.get(i).name).join(" · ")} `
+          + `מוביל/ים את השבוע הזה, ומובילי שבוע פטורים מ${what} בשבוע שלהם`,
       });
     }
   }

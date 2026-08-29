@@ -23,6 +23,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { api } from "./api.js";
 import TextBlock from "./TextBlock.jsx";
+import ScrollTabs from "./Tabs.jsx";
 import { KIND, SAME_SECTOR_WARN } from "../shared/chores.js";
 
 const CI = {
@@ -131,9 +132,56 @@ function Picker({ students, leaders, picked, onToggle, cap, busy }) {
 }
 
 /* ============================================================
+   ניווט בין שבועות
+   ------------------------------------------------------------
+   ⚠ **שני שבועות על המסך, וכל השנה בהישג יד.** ברירת המחדל
+     היא ההווה — זה מה שאב הבית עושה ביום שני בבוקר. אבל תכנון
+     לטווח ארוך ובדיקה של מה שהיה דורשים לדפדף, ולכן החצים
+     עוברים שבוע-שבוע וכפתור "היום" מחזיר.
+
+   ⚠ **החץ מושבת ולא מוסתר בקצוות** — כפתור שנעלם מזיז את
+     הכותרת בכל דפדוף, וזה נראה כמו קפיצה.
+
+   ⚠ **וכפתור "היום" מוצג רק כשלא שם.** כפתור שלא עושה כלום
+     מלמד להתעלם ממנו.
+   ============================================================ */
+function WeekNav({ d, onGo }) {
+  const list = d.weeks || [];
+  const at = list.findIndex((w) => w.id === d.weekAt);
+  const go = (n) => { const w = list[at + n]; if (w) onGo(w.id); };
+  const nowId = (list.find((w) => w.now) || {}).id;
+
+  return (
+    <div className="ch-wnav">
+      <button className="mv-nav" disabled={at <= 0} aria-label="שבוע קודם"
+        onClick={() => go(-1)}>
+        <CI.chev style={{ transform: "rotate(180deg)" }} />
+      </button>
+      <div className="ch-wnav-m">
+        {d.periods.length
+          ? <b>{d.periods.map((p) => "שבוע " + p.num).join(" · ")}</b>
+          : <b>אין שבוע</b>}
+        <span>
+          {d.periods[0] ? dmy(d.periods[0].start) : ""}
+          {d.periods.length > 1 ? " – " + dmy(d.periods[d.periods.length - 1].end) : ""}
+          {d.atNow ? " · השבוע" : ""}
+        </span>
+      </div>
+      <button className="mv-nav" disabled={at < 0 || at >= list.length - 1} aria-label="שבוע הבא"
+        onClick={() => go(1)}>
+        <CI.chev />
+      </button>
+      {!d.atNow && nowId && (
+        <button className="btn btn-ghost btn-sm ch-now" onClick={() => onGo(nowId)}>היום</button>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
    לשונית הגזרות
    ============================================================ */
-function Sectors({ d, say, reload }) {
+function Sectors({ d, say, reload, goWeek }) {
   const [pi, setPi] = useState(0);
   const [open, setOpen] = useState(null);
   const [picked, setPicked] = useState([]);
@@ -166,14 +214,17 @@ function Sectors({ d, say, reload }) {
     <>
       {/* ⚠ התקופה היא שבוע הובלה ולא שבוע קלנדרי — כשקדנציה
           מתחלפת, מתחלפות גם התורניות. */}
-      <div className="seg ch-seg">
-        {d.periods.map((x, i) => (
-          <button key={x.id} className={pi === i ? "on" : ""} onClick={() => { setPi(i); setOpen(null); }}>
-            שבוע {x.num}
-            <i className="seg-n">{dmy(x.start)}</i>
-          </button>
-        ))}
-      </div>
+      <WeekNav d={d} onGo={(id) => { setPi(0); setOpen(null); goWeek(id); }} />
+      {d.periods.length > 1 && (
+        <div className="seg ch-seg">
+          {d.periods.map((x, i) => (
+            <button key={x.id} className={pi === i ? "on" : ""} onClick={() => { setPi(i); setOpen(null); }}>
+              שבוע {x.num}
+              <i className="seg-n">{dmy(x.start)}</i>
+            </button>
+          ))}
+        </div>
+      )}
 
       {p.leaderNames.length > 0 && (
         <div className="ch-leadbar">
@@ -252,7 +303,7 @@ function Sectors({ d, say, reload }) {
 /* ============================================================
    לשונית המטבח והחד״א
    ============================================================ */
-function Daily({ d, say, reload }) {
+function Daily({ d, say, reload, goWeek }) {
   const [pi, setPi] = useState(0);
   const [open, setOpen] = useState(null);
   const [picked, setPicked] = useState([]);
@@ -287,14 +338,25 @@ function Daily({ d, say, reload }) {
 
   return (
     <>
-      <div className="seg ch-seg">
-        {d.periods.map((x, i) => (
-          <button key={x.id} className={pi === i ? "on" : ""} onClick={() => { setPi(i); setOpen(null); }}>
-            שבוע {x.num}
-            <i className="seg-n">{dmy(x.start)}</i>
-          </button>
-        ))}
-      </div>
+      <WeekNav d={d} onGo={(id) => { setPi(0); setOpen(null); goWeek(id); }} />
+      {d.periods.length > 1 && (
+        <div className="seg ch-seg">
+          {d.periods.map((x, i) => (
+            <button key={x.id} className={pi === i ? "on" : ""} onClick={() => { setPi(i); setOpen(null); }}>
+              שבוע {x.num}
+              <i className="seg-n">{dmy(x.start)}</i>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ============================================================
+          ⚠ **טבלת המעקב של המטבח כאן, ולא רק בגזרות.** מי שמשבץ
+            תורני מטבח שואל בדיוק את אותה שאלה — מי כבר עשה וכמה —
+            ומספרים שיושבים בלשונית אחרת דורשים לזכור אותם בעל פה
+            בזמן שמסמנים שמות.
+          ============================================================ */}
+      <Tally rows={d.tally.filter((t) => t.kind === KIND.daily)} compact />
 
       <div className="ch-note">
         {daily.cap || 3} תורנים ליום. הם מופרשים מרוב הלו״ז <b>ומתורנות סוף היום שלהם</b>,
@@ -598,11 +660,15 @@ export default function ChoresPage({ say }) {
   const [err, setErr] = useState("");
   const [tab, setTab] = useState("sectors");
 
+  /* ⚠ `week` הוא **בקשה** ולא מצב: השרת מחזיר `weekAt` עם מה
+     שנטען בפועל, ומזהה שאינו קיים נופל חזרה להווה. מסך שיסמן
+     את מה שביקש ולא את מה שקיבל יראה שבוע שלא נטען. */
+  const [week, setWeek] = useState(null);
   const load = useCallback(() => {
-    api.getChores(true)
+    api.getChores(true, week)
       .then((r) => { setD(r); setErr(""); })
       .catch((e) => setErr(e.message));
-  }, []);
+  }, [week]);
   useEffect(() => { load(); }, [load]);
 
   if (err) return <><div className="screen-title">תורניות</div><div className="login-err">{err}</div></>;
@@ -627,15 +693,15 @@ export default function ChoresPage({ say }) {
         <div className="note-warn" key={i}><CI.warn />{w}</div>
       ))}
 
-      <div className="tm-tabs ch-tabs">
+      <ScrollTabs className="tm-tabs ch-tabs">
         {TABS.map(([k, label, ic]) => (
           <button key={k} className={"tm-tab" + (tab === k ? " on" : "")}
             onClick={() => setTab(k)}>{ic}{label}</button>
         ))}
-      </div>
+      </ScrollTabs>
 
-      {tab === "sectors" && <Sectors d={d} say={say} reload={load} />}
-      {tab === "daily" && <Daily d={d} say={say} reload={load} />}
+      {tab === "sectors" && <Sectors d={d} say={say} reload={load} goWeek={setWeek} />}
+      {tab === "daily" && <Daily d={d} say={say} reload={load} goWeek={setWeek} />}
       {tab === "check" && <Checklist d={d} say={say} reload={load} />}
       {tab === "tally" && (
         <>

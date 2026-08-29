@@ -198,7 +198,11 @@ export const api = {
      ⚠ **כל החניכים קוראים כאן**, וזו בקשה מפורשת של המכינה:
        טבלת המעקב גלויה לכולם. ההרשאה האמיתית היא mayChores
        ב-shared/chores.js, והמסך מסתיר בדיוק את מה שהשרת חוסם. */
-  getChores: (admin) => get("/api/chores?action=view" + (admin ? "&admin=1" : "")),
+  /* ⚠ `week` פותח כל שבוע בשנה — תכנון קדימה ובדיקה אחורה.
+     מזהה שאינו קיים נופל חזרה להווה בשרת ואינו זורק. */
+  getChores: (admin, week) => get("/api/chores?action=view"
+    + (admin ? "&admin=1" : "")
+    + (week ? "&week=" + encodeURIComponent(week) : "")),
   /* ⚠ פירוק מפורש: שדה שלא נכתב כאן נשמט בשקט ונראה עובד
      במסך בלי להגיע לשרת (4לג). */
   assignChore: ({ sector, week, date, students }) =>
@@ -322,9 +326,9 @@ export const api = {
 
   /** הגשת בקשה חדשה. endDate לטווח ימים; אישור מחלה עובר
    *  כ-base64 ועולה לעמודת הקבצים בלוח. */
-  createRequest: ({ type, date, endDate, detail, fileName, fileMime, fileData }) =>
+  createRequest: ({ type, date, endDate, detail, outAt, backAt, fileName, fileMime, fileData }) =>
     post("/api/attendance?action=requests",
-      { type, date, endDate, detail, fileName, fileMime, fileData }),
+      { type, date, endDate, detail, outAt, backAt, fileName, fileMime, fileData }),
 
   /** אישור או דחייה. מנהל בלבד. אישור יוצר את שורת ההיעדרות. */
   decideRequest: ({ requestId, decision }) =>

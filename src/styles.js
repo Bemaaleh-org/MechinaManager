@@ -2879,4 +2879,56 @@ html,body{margin:0;padding:0;background:#012E58}
 .ch-tally.compact .ch-cell span{font-size:9.5px}
 .ch-tally.compact .ch-tally-s{margin-bottom:6px}
 
+/* ---------- רצועת לשוניות שנגללת ---------- */
+/* ⚠ לשונית שנבלעת אינה קיימת: רצועה עם overflow-x:auto
+   נראית שלמה כשהיא נחתכת, ואין פס גלילה במגע. החצים הם
+   הרמז היחיד שיש עוד. */
+.stabs{position:relative;margin-bottom:12px}
+.stabs-in{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;
+  scroll-behavior:smooth;padding-bottom:2px;margin-bottom:0}
+.stabs-in::-webkit-scrollbar{display:none}
+.stabs-in > *{flex:0 0 auto}
+/* ⚠ החץ צף מעל הרצועה עם דהייה מאחוריו — בלי הדהייה
+   הוא יושב על טקסט של לשונית וקשה לקרוא את שניהם. */
+.kx .stabs-a{position:absolute;top:0;bottom:2px;width:44px;z-index:2;
+  display:flex;align-items:center;border-radius:var(--r-md);
+  color:var(--ink);background:none}
+.kx .stabs-a.start{right:0;justify-content:flex-start;padding-right:2px;
+  background:linear-gradient(to left,var(--bg) 45%,transparent)}
+.kx .stabs-a.end{left:0;justify-content:flex-end;padding-left:2px;
+  background:linear-gradient(to right,var(--bg) 45%,transparent)}
+.kx .stabs-a svg{background:var(--surface);border:1px solid var(--line2);
+  border-radius:50%;width:28px;height:28px;padding:5px;box-shadow:var(--sh-1)}
+.kx .stabs-a:hover svg{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ⚠ הרצועות שבתוך .stabs מאבדות את המרווח התחתון שלהן —
+   הוא עבר ל-.stabs עצמו, אחרת יש רווח כפול. */
+.stabs .tm-tabs,.stabs .seg,.stabs .tm-seg{margin-bottom:0}
+.stabs .seg{overflow-x:auto}
+
+/* ⚠ duty-bar בתוך .stabs — המרווח והגלילה עוברים למעטפת. */
+.stabs .duty-bar{margin-bottom:0;overflow-x:auto}
+
+/* ---------- ניווט בין שבועות ---------- */
+/* ⚠ החץ מושבת ולא מוסתר בקצוות — כפתור שנעלם מזיז את
+   הכותרת בכל דפדוף, וזה נראה כמו קפיצה. */
+.ch-wnav{display:flex;align-items:center;gap:10px;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--r-md);padding:8px 10px;
+  margin-bottom:12px;box-shadow:var(--sh-1)}
+.ch-wnav-m{flex:1;min-width:0;text-align:center}
+.ch-wnav-m b{display:block;font-size:14.5px;font-weight:800;line-height:1.3}
+.ch-wnav-m span{display:block;font-size:11px;color:var(--faint);font-weight:700;
+  margin-top:2px;font-variant-numeric:tabular-nums}
+.kx .ch-wnav .mv-nav{width:34px;height:34px}
+.kx .ch-now{flex:0 0 auto;padding:0 12px;min-height:34px}
+
+/* ---------- שעות בבקשת יציאה ---------- */
+.rq-times{display:grid;gap:0 12px;grid-template-columns:1fr 1fr}
+@media (max-width:420px){.rq-times{grid-template-columns:1fr}}
+/* ⚠ input[type=time] ב-RTL מציג את השעות הפוך בלי dir=ltr,
+   ו-19:30 נראה 30:19. */
+.rq-times input{font-variant-numeric:tabular-nums}
+.rq-when{display:flex;gap:8px;font-size:11.5px;font-weight:700;color:var(--faint);
+  margin-top:4px;font-variant-numeric:tabular-nums}
+
 `;

@@ -19,6 +19,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { api } from "./api.js";
+import ScrollTabs from "./Tabs.jsx";
 
 const DI = {
   box: (p) => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 8l9-5 9 5v8l-9 5-9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>,
@@ -330,7 +331,7 @@ export default function DutyPage({ say, go }) {
       {/* ⚠ הבורר מוצג רק כשיש יותר מאחת. שורה עם כפתור יחיד
           היא רעש. */}
       {duties.length > 1 && (
-        <div className="duty-bar">
+        <ScrollTabs className="duty-bar">
           {duties.map((x, i) => (
             <button key={x.key} className={"duty-chip tone-" + x.tone + (i === pick ? " on" : "")}
               onClick={() => setPick(i)}>
@@ -339,7 +340,7 @@ export default function DutyPage({ say, go }) {
               {x.counts.open > 0 && <span className="n">{x.counts.open}</span>}
             </button>
           ))}
-        </div>
+        </ScrollTabs>
       )}
 
       {/* ---------- הכותרת ---------- */}

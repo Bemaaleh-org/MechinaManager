@@ -45,6 +45,8 @@ export async function loadRequests({ force = false } = {}) {
         endDate: val(i, R.endDate) || val(i, R.date),
         hasFile: Boolean(val(i, R.file)),
         detail: val(i, R.detail),
+        outAt: val(i, R.outAt) || null,
+        backAt: val(i, R.backAt) || null,
         status: val(i, R.status) || REQ_STATUS.pending,
         decidedBy: val(i, R.by) || null,
         decidedAt: val(i, R.decided) || null,
@@ -99,6 +101,8 @@ async function list(req, res, session) {
             endDate: r.endDate,
             hasFile: r.hasFile,
             detail: r.detail || null,
+          outAt: r.outAt, backAt: r.backAt,
+            outAt: r.outAt, backAt: r.backAt,
             status: r.status,
             decidedBy: r.decidedBy,
             decidedAt: r.decidedAt,
@@ -167,8 +171,32 @@ async function create(req, res, session) {
     /* ⚠ בקשה יכולה להשתרע על כמה ימים. ריק = יום אחד. */
     const endDate = String(body?.endDate || date).trim();
     const detail = String(body?.detail || "").trim().slice(0, 2000);
+    const outAt = String(body?.outAt || "").trim();
+    const backAt = String(body?.backAt || "").trim();
 
     if (!TYPES.includes(type)) return res.status(400).json({ error: "לא נבחר סוג בקשה" });
+
+    /* ============================================================
+       ⚠ **שעת יציאה ושעת חזרה — חובה בכל בקשה.**
+
+       זו השאלה התפעולית האמיתית: מתי הוא יוצא ומתי הוא חוזר.
+       בלעדיהן המדריך שואל בוואטסאפ בדיוק את מה שהטופס אמור
+       היה לתפוס, והתשובה נשארת שם ולא בבקשה.
+
+       ⚠ **הבדיקה בשרת ולא רק ב-`<input type="time">`.** שדה
+         שעה בדפדפן ישן מוגש כטקסט חופשי, ובקשה ישירה עוקפת
+         אותו לגמרי.
+
+       ⚠ **ואין השוואה בין השעות.** יציאה ב-20:00 וחזרה ב-08:00
+         היא לינה בבית, לא טעות — והשוואה נאיבית הייתה חוסמת
+         בדיוק את הבקשה הנפוצה ביותר.
+       ============================================================ */
+    const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+    if (!TIME_RE.test(outAt) || !TIME_RE.test(backAt)) {
+      return res.status(400).json({
+        error: "יש להזין שעת יציאה ושעת חזרה, בפורמט HH:MM",
+      });
+    }
     if (!DATE_RE.test(date) || !DATE_RE.test(endDate)) {
       return res.status(400).json({ error: "תאריך לא תקין" });
     }
@@ -186,9 +214,21 @@ async function create(req, res, session) {
     const student = rows.find((r) => r.id === session.itemId);
     if (!student) return res.status(404).json({ error: "החניך אינו נמצא" });
 
-    /* היעדרות מוצדקת בלי פירוט אינה ניתנת להכרעה על ידי המנהל */
-    if (type === ABSENCE.justified && !detail) {
-      return res.status(400).json({ error: "היעדרות מוצדקת מחייבת פירוט" });
+    /* ============================================================
+       ⚠ **מחלה ומוצדקת מחייבות פירוט, ויום חופש לא.**
+
+       יום חופש הוא זכות במכסה ואינו דורש נימוק — דרישת הסבר
+       עליו הופכת אותו לבקשת רשות. מחלה והיעדרות מוצדקת, לעומת
+       זאת, הן בדיוק המקרים שבהם המנהל **מכריע**, ובקשה בלי
+       פירוט אינה ניתנת להכרעה: הוא יצטרך לחזור לחניך ולשאול,
+       וזה יום נוסף שבו הבקשה תלויה.
+       ============================================================ */
+    if ((type === ABSENCE.justified || type === ABSENCE.sick) && !detail) {
+      return res.status(400).json({
+        error: type === ABSENCE.sick
+          ? "בקשה בשל מחלה מחייבת פירוט — מה קרה ומה נדרש"
+          : "היעדרות מוצדקת מחייבת פירוט",
+      });
     }
 
     if (type === ABSENCE.vacation) {
@@ -250,6 +290,8 @@ async function create(req, res, session) {
     };
     if (endDate !== date) cols[R.endDate] = { date: endDate };
     if (detail) cols[R.detail] = detail;
+    cols[R.outAt] = outAt;
+    cols[R.backAt] = backAt;
 
     const d = await gql(
       `mutation($b:ID!,$n:String!,$v:JSON!){ create_item(board_id:$b,item_name:$n,column_values:$v,create_labels_if_missing:false){ id } }`,

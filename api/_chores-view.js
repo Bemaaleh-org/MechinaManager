@@ -54,7 +54,24 @@ async function handler(req, res, session) {
          שבועות מקבילות היו נפרדות זו מזו כבר בחג הראשון.
        ============================================================ */
     const nowIdx = weeks.findIndex((w) => w.start <= today && today <= w.end);
-    const near = nowIdx >= 0 ? weeks.slice(nowIdx, nowIdx + 2) : weeks.slice(0, 2);
+
+    /* ============================================================
+       ⚠ **שני שבועות בכל פעם, אבל אפשר לדפדף לכל השנה.**
+
+       ברירת המחדל היא השבוע הנוכחי והבא — זה מה שאב הבית עושה
+       ביום שני בבוקר. אבל תכנון לטווח ארוך ובדיקה של מה שהיה
+       דורשים גישה לכל השבועות, ולכן `?week=<id>` פותח כל אחד
+       מהם.
+
+       ⚠ **מזהה שאינו קיים נופל חזרה להווה ואינו זורק.** קישור
+         ישן, שבוע שנמחק, או הקלדה — כולם צריכים להחזיר מסך
+         עובד ולא שגיאה. ו-`weekAt` מוחזר כדי שהמסך יידע איפה
+         הוא באמת נמצא, ולא יסמן שבוע שלא נטען.
+       ============================================================ */
+    const askedId = String(req.query?.week || "").trim();
+    const askedIdx = askedId ? weeks.findIndex((w) => w.id === askedId) : -1;
+    const from = askedIdx >= 0 ? askedIdx : (nowIdx >= 0 ? nowIdx : 0);
+    const near = weeks.slice(from, from + 2);
 
     /* ---------- טבלת המעקב ---------- */
     const byLeader = new Map(weeks.map((w) => [w.id, new Set(w.leaderIds.map(String))]));
@@ -157,6 +174,19 @@ async function handler(req, res, session) {
       texts: [...texts.values()].map((t) => ({
         key: t.key, title: t.title, body: t.body, by: t.by, at: t.at,
       })),
+      /* ============================================================
+         ⚠ **רשימת כל השבועות מוחזרת לכולם ולא רק לאב הבית.**
+           היא כבר גלויה בלוח מובילי השבוע, והחניך צריך אותה
+           כדי לדפדף אחורה ולראות מתי הוא כבר עשה תורנות. מיפוי
+           מפורש: תאריכים ומספר בלבד, בלי המובילים ובלי ההערות.
+         ============================================================ */
+      weeks: weeks.map((w) => ({
+        id: w.id, num: w.num, start: w.start, end: w.end,
+        now: nowIdx >= 0 && weeks[nowIdx].id === w.id,
+      })),
+      /* איפה אנחנו באמת — ולא איפה ביקשו */
+      weekAt: near[0] ? near[0].id : null,
+      atNow: from === nowIdx,
       warnings: [],
     };
 

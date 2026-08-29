@@ -23,6 +23,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { api } from "./api.js";
 import Escalate from "./Escalate.jsx";
+import ScrollTabs from "./Tabs.jsx";
 import { CATEGORY, PERIOD, PERIODS, plural, byCategory } from "../shared/placements.js";
 import { dutyKey, DUTY_CHAIR } from "../shared/duties.js";
 import { TEAM_CATEGORIES } from "../shared/team.js";
@@ -460,7 +461,7 @@ function TeamHub({ id, say, onBack, go }) {
         <div className="note-warn" key={i}><TI.warn />{w}</div>
       ))}
 
-      <div className="tm-tabs">
+      <ScrollTabs className="tm-tabs">
         {[["tasks", "משימות", <TI.list key="a" />],
           ["people", "לפי אדם", <TI.users key="b" />],
           ["notes", "הצפות", <TI.bell key="c" />]]
@@ -468,7 +469,7 @@ function TeamHub({ id, say, onBack, go }) {
             <button key={k} className={"tm-tab" + (view === k ? " on" : "")}
               onClick={() => setView(k)}>{ic}{label}</button>
           ))}
-      </div>
+      </ScrollTabs>
 
       {view === "notes" && (
         <TeamNotes team={d.team} me={d.me} say={say} go={go} />
@@ -778,7 +779,7 @@ export default function TeamsPage({ say, go }) {
         <>
           {/* ⚠ רצועה של לשונית אחת אינה בחירה — היא רעש. */}
           {TABS.length > 1 && (
-            <div className="seg tm-seg">
+            <ScrollTabs className="seg tm-seg">
               {TABS.map((c) => (
                 <button key={c} className={cat === c ? "on" : ""}
                   onClick={() => { setCat(c); setCreating(false); setMade(null); }}>
@@ -786,7 +787,7 @@ export default function TeamsPage({ say, go }) {
                   <i className="seg-n">{list.teams.filter((t) => t.category === c).length}</i>
                 </button>
               ))}
-            </div>
+            </ScrollTabs>
           )}
 
           {/* ⚠ הכפתור יודע מראש. team-admin הוא צוות בלבד, וחניך

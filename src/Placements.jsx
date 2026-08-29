@@ -17,6 +17,7 @@ import { GUIDES } from "./placement-guides.js";
 import { RoleHolders } from "./Mechina.jsx";
 import { CATEGORIES, semestersFor, plural } from "../shared/placements.js";
 import { isTeamCategory } from "../shared/team.js";
+import ScrollTabs from "./Tabs.jsx";
 
 const PI = {
   chev: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
@@ -447,7 +448,7 @@ export function PlacementsPage({ say }) {
     <>
       <div className="screen-title">שיבוצי חניכים</div>
 
-      <div className="seg">
+      <ScrollTabs className="seg">
         {CATEGORIES.map((c) => (
           <button key={c} className={!rolesTab && cat === c ? "on" : ""}
             onClick={() => { setRolesTab(false); setCat(c); }}>
@@ -458,7 +459,7 @@ export function PlacementsPage({ say }) {
           </button>
         ))}
         <button className={rolesTab ? "on" : ""} onClick={() => setRolesTab(true)}>תפקידים</button>
-      </div>
+      </ScrollTabs>
 
       {rolesTab ? (
         <RoleHolders say={say} />

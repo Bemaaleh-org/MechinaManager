@@ -31,6 +31,7 @@ import { ProfilePage } from "./Profile.jsx";
 import DutyPage from "./Duty.jsx";
 import TeamsPage from "./Teams.jsx";
 import ChoresPage from "./Chores.jsx";
+import RulesPage from "./Rules.jsx";
 import { GanttPage } from "./Gantt.jsx";
 import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
@@ -350,6 +351,12 @@ function RequestForm({ days, quota, onDone, say }) {
   const [date, setDate] = useState("");
   const [endDate, setEndDate] = useState(""); // ריק = יום אחד
   const [detail, setDetail] = useState("");
+  /* ⚠ **שעת יציאה וחזרה — חובה בכל בקשה.** זו השאלה התפעולית
+     האמיתית, ובלעדיה המדריך שואל בוואטסאפ בדיוק את מה שהטופס
+     אמור היה לתפוס. ברירת המחדל היא ריק ולא שעה סבירה: שעה
+     שמולאה מראש נשלחת כמות שהיא בלי שאיש הסתכל עליה. */
+  const [outAt, setOutAt] = useState("");
+  const [backAt, setBackAt] = useState("");
   const [file, setFile] = useState(null); // {name, mime, data}
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -367,11 +374,16 @@ function RequestForm({ days, quota, onDone, say }) {
   const q = day ? quota.find((x) => x.half === day.half) : null;
   const vacationBlocked = type === "חופש" && day && day.kind !== "רגיל";
   const quotaOut = type === "חופש" && q && q.left < Math.max(1, spanDays);
-  const needDetail = type === "מוצדקת" && !detail.trim();
+  /* ⚠ **מחלה ומוצדקת מחייבות פירוט; יום חופש לא.** יום חופש
+     הוא זכות במכסה, ודרישת נימוק עליו הופכת אותו לבקשת רשות. */
+  const needDetail = (type === "מוצדקת" || type === "מחלה") && !detail.trim();
+  const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+  const needTimes = !TIME_RE.test(outAt) || !TIME_RE.test(backAt);
   const unknownDate = Boolean(date) && !day;
   const badRange = Boolean(endDate) && endDate < date;
 
-  const blocked = !date || unknownDate || vacationBlocked || quotaOut || needDetail || badRange;
+  const blocked = !date || unknownDate || vacationBlocked || quotaOut
+    || needDetail || needTimes || badRange;
 
   /* הקובץ נקרא כ-base64 ועובר בגוף הבקשה. עד 3.5MB. */
   const pickFile = (e) => {
@@ -392,13 +404,15 @@ function RequestForm({ days, quota, onDone, say }) {
     setBusy(true); setErr(null);
     api.createRequest({
       type, date, endDate: endDate || undefined, detail: detail.trim(),
+      outAt, backAt,
       ...(type === "מחלה" && file
         ? { fileName: file.name, fileMime: file.mime, fileData: file.data } : {}),
     })
       .then((r) => {
         if (r.fileUploaded === false) say("הבקשה נשלחה, אבל העלאת האישור נכשלה — נסו שוב מהמסך");
         else say(r.days > 1 ? `הבקשה נשלחה — ${r.days} ימים` : "הבקשה נשלחה");
-        setDate(""); setEndDate(""); setDetail(""); setFile(null);
+        setDate(""); setEndDate(""); setDetail("");
+        setOutAt(""); setBackAt(""); setFile(null);
         onDone();
       })
       .catch((e2) => setErr(e2.message))
@@ -494,13 +508,45 @@ function RequestForm({ days, quota, onDone, say }) {
         </div>
       )}
 
+      {/* ============================================================
+          ⚠ **שעת יציאה וחזרה — חובה, ולפני הפירוט.** הן השאלה
+            הראשונה שהמדריך שואל, והן מה שקובע אם החניך מפספס
+            יום שלם או שיעור אחד.
+
+          ⚠ **ואין השוואה ביניהן.** יציאה ב-20:00 וחזרה ב-08:00
+            היא לינה בבית, לא טעות — והשוואה נאיבית הייתה חוסמת
+            בדיוק את הבקשה הנפוצה ביותר.
+          ============================================================ */}
+      <div className="rq-times">
+        <div className="fld">
+          <label htmlFor="rq-out">שעת יציאה (חובה)</label>
+          <input id="rq-out" type="time" dir="ltr" value={outAt} disabled={busy}
+            onChange={(e) => setOutAt(e.target.value)} />
+        </div>
+        <div className="fld">
+          <label htmlFor="rq-back">שעת חזרה (חובה)</label>
+          <input id="rq-back" type="time" dir="ltr" value={backAt} disabled={busy}
+            onChange={(e) => setBackAt(e.target.value)} />
+        </div>
+      </div>
+
       <div className="fld">
         <label htmlFor="rq-detail">
-          פירוט{type === "מוצדקת" ? " (חובה)" : " (לא חובה)"}
+          פירוט{needDetail || type === "מוצדקת" || type === "מחלה" ? " (חובה)" : " (לא חובה)"}
         </label>
         <input id="rq-detail" value={detail} disabled={busy}
           onChange={(e) => setDetail(e.target.value)}
-          placeholder={type === "מוצדקת" ? "שמחה או אבל מדרגה ראשונה" : "אפשר להוסיף הסבר קצר"} />
+          placeholder={type === "מוצדקת" ? "שמחה או אבל מדרגה ראשונה"
+            : type === "מחלה" ? "מה קרה, ומה נדרש"
+            : "אפשר להוסיף הסבר קצר"} />
+        {/* ⚠ אומר **למה** הכפתור נעול, ולא רק שהוא נעול. */}
+        {needDetail && (
+          <div className="fld-hint">
+            {type === "מחלה"
+              ? "בקשה בשל מחלה מחייבת פירוט — המנהל מכריע לפיו"
+              : "היעדרות מוצדקת מחייבת פירוט"}
+          </div>
+        )}
       </div>
 
       {type === "מחלה" && (
@@ -2847,6 +2893,10 @@ export function MechinaApp({ auth, onSignedOut }) {
                בדיוק ורואה בו יותר, לפי mayChores (4יט). */
             { key: "chores", label: "תורניות", icon: <MI.tick />,
               active: tab === "chores", onClick: () => setTab("chores") },
+            /* ⚠ חשוף לכל החניכים — זו התכלית. נוהל שרק הצוות
+               רואה הוא נוהל שאיש אינו יודע. */
+            { key: "rules", label: "נהלים במכינה", icon: <MI.book />,
+              active: tab === "rules", onClick: () => setTab("rules") },
             { key: "menu", label: "תפריט ארוחות", icon: <MI.book />, active: tab === "menu", onClick: () => setTab("menu") },
             { key: "report", label: "דיווח תקלה", icon: <MI.tool />, active: tab === "report", onClick: () => setTab("report") },
             { key: "agenda", label: "הלו״ז שלי", icon: <MI.cal />, active: tab === "agenda", onClick: () => setTab("agenda") },
@@ -2972,6 +3022,7 @@ export function MechinaApp({ auth, onSignedOut }) {
         {tab === "duty" && <DutyPage say={say} go={(t) => setTab(t)} />}
         {tab === "teams" && <TeamsPage say={say} go={(t) => setTab(t)} />}
         {tab === "chores" && <ChoresPage say={say} />}
+        {tab === "rules" && <RulesPage say={say} />}
 
         {/* ⚠ area={null} — התצוגה המאוחדת, אותה אחת של המנהל. */}
         {tab === "k-all" && auth.isKitchen && <KitchenPage say={say} area={null} />}
