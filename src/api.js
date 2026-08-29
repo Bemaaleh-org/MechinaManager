@@ -218,6 +218,14 @@ export const api = {
   tickChore: ({ item, done, date }) => post("/api/chores?action=tick", { item, done, date }),
   saveText: ({ key, title, body }) => put("/api/chores?action=text", { key, title, body }),
 
+  /* ---- עריכת נתוני חניך ----
+     ⚠ **מיפוי מפורש**: army ו-tryouts אינם כאן במכוון —
+       החניך ממלא אותם על עצמו. וגם user, סיסמה ואימייל הכניסה
+       אינם כאן, כי הם החשבון שלו (4כח). */
+  editStudent: ({ studentId, name, tz, dob, gender, phone, mail, city, allergy, religion, shirt }) =>
+    put("/api/students?action=edit",
+      { studentId, name, tz, dob, gender, phone, mail, city, allergy, religion, shirt }),
+
   getTeams: () => get("/api/students?action=team"),
   getTeam: (id) => get("/api/students?action=team&id=" + encodeURIComponent(id)),
   /* ⚠ פירוק מפורש: שדה שלא נכתב כאן נשמט בשקט ונראה עובד

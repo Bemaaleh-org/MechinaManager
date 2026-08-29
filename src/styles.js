@@ -2931,4 +2931,30 @@ html,body{margin:0;padding:0;background:#012E58}
 .rq-when{display:flex;gap:8px;font-size:11.5px;font-weight:700;color:var(--faint);
   margin-top:4px;font-variant-numeric:tabular-nums}
 
+/* ---------- ניהול תוכן ---------- */
+.cn-row{display:flex;align-items:flex-start;gap:11px;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--r-md);padding:13px 14px;
+  margin-bottom:8px;box-shadow:var(--sh-1)}
+.cn-m{flex:1;min-width:0}
+.cn-m b{display:block;font-size:14.5px;font-weight:800;line-height:1.4}
+.cn-m > span{display:block;font-size:11.5px;color:var(--faint);font-weight:700;
+  margin-top:3px;line-height:1.5}
+/* ⚠ תצוגה מקדימה של שתי שורות בלבד: הרשימה היא מפה, לא
+   מקום לקרוא בו נוהל של 5,600 תווים. */
+.cn-prev{font-size:12px;color:var(--muted);font-weight:600;line-height:1.6;
+  margin-top:7px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden}
+.cn-side{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:7px}
+.cn-form{width:100%}
+.kx .cn-reset{margin-inline-start:auto;color:var(--muted)}
+
+/* ⚠ המקור מסומן: תיאור שנערך ותיאור שהמכינה מסרה הם שני
+   דברים, ומי שקורא צריך לדעת מה מולו. */
+.rl-edited{font-size:10px;font-weight:800;color:var(--muted);
+  background:var(--sand);border-radius:999px;padding:1px 7px;margin-inline-start:7px}
+
+/* ⚠ בלוק שלא נכתב אינו מוצג בכלל — הרכיב מחזיר null. הכלל
+   כאן נוגע רק למרווח כשהוא כן קיים. */
+.scr-note{margin-bottom:14px}
+
 `;

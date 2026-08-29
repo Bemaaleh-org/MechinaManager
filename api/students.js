@@ -13,6 +13,7 @@
      ?action=team    GET    מסך ניהול הצוות: ועדה או סדרה
      ?action=team-task POST/PUT/DELETE  משימות הצוות
      ?action=team-admin GET/POST/PUT    הגדרות הצוותים ואוצר המילים
+     ?action=edit    PUT    עריכת נתוני חניך ⚠ ראש מכינה בלבד
 
    ⚠ login אינו דורש סשן, ולכן הקובץ הזה אינו נעטף ב-withAuth —
      כל מודול מביא את ההגנה שלו, בדיוק כמו ב-api/auth.js.
@@ -49,10 +50,13 @@ import chair from "./_placement-chair.js";
 /* ---- ניהול צוותים: ועדות וסדרות ----
    ⚠ לוח אחר, מסלול קריאה אחר ומסך אחר מאשר duty-tasks.
      ההפרדה היא ההבטחה עצמה — ראו shared/team.js. */
+/* ⚠ עריכת נתוני חניך על ידי ראש המכינה — מה שהצוות מנהל,
+   ולא מה שהחניך הזין על עצמו. */
+import edit from "./_student-edit.js";
 import team from "./_team.js";
 import teamTask from "./_team-task.js";
 import teamAdmin from "./_team-admin.js";
 
 export default router({ login, list, year, leader, weeks, role, profile, incident, placements, "placements-setup": placementsSetup, safety, "safety-setup": safetySetup, faults, "faults-setup": faultsSetup, alumni, hosting, cycles, import: importStep,
   duty, "duty-tasks": dutyTasks, "duty-notes": dutyNotes, chair,
-  team, "team-task": teamTask, "team-admin": teamAdmin });
+  team, "team-task": teamTask, "team-admin": teamAdmin, edit });

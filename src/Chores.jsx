@@ -350,12 +350,9 @@ function Daily({ d, say, reload, goWeek }) {
         </div>
       )}
 
-      {/* ============================================================
-          ⚠ **טבלת המעקב של המטבח כאן, ולא רק בגזרות.** מי שמשבץ
-            תורני מטבח שואל בדיוק את אותה שאלה — מי כבר עשה וכמה —
-            ומספרים שיושבים בלשונית אחרת דורשים לזכור אותם בעל פה
-            בזמן שמסמנים שמות.
-          ============================================================ */}
+      {/* ⚠ הטבלה בראש הלשונית **וגם** בתוך כל יום שנפתח. כאן
+          היא התמונה הכללית לפני שמתחילים, ושם היא הכלי בזמן
+          הבחירה. אותו רכיב, שני הקשרים. */}
       <Tally rows={d.tally.filter((t) => t.kind === KIND.daily)} compact />
 
       <div className="ch-note">
@@ -395,6 +392,18 @@ function Daily({ d, say, reload, goWeek }) {
             {/* ⚠ מתריע ואינו חוסם — יום שבו אין ברירה הוא מצב אמיתי. */}
             {day.crowded.length > 0 && (
               <div className="ch-crowd"><CI.warn />{day.crowded.join(" · ")} — הגזרה תישאר חסרה באותו ערב</div>
+            )}
+
+            {/* ============================================================
+                ⚠ **הטבלה בתוך היום, ולא רק בראש הלשונית.** אב
+                  הבית בוחר **כאן**, וטבלה שיושבת שלושה גלילות
+                  למעלה דורשת ממנו לזכור מספרים בעל פה בזמן שהוא
+                  מסמן שמות — בדיוק הנקודה שבה יפסיק להסתכל.
+                ============================================================ */}
+            {isOpen && (
+              <div className="ch-sec-t">
+                <Tally rows={d.tally.filter((t) => t.kind === KIND.daily)} compact />
+              </div>
             )}
 
             {isOpen && d.me.assign && (
@@ -671,8 +680,8 @@ export default function ChoresPage({ say }) {
   }, [week]);
   useEffect(() => { load(); }, [load]);
 
-  if (err) return <><div className="screen-title">תורניות</div><div className="login-err">{err}</div></>;
-  if (!d) return <><div className="screen-title">תורניות</div><div className="skel" style={{ height: 220 }} /></>;
+  if (err) return <><div className="screen-title">תורנויות</div><div className="login-err">{err}</div></>;
+  if (!d) return <><div className="screen-title">תורנויות</div><div className="skel" style={{ height: 220 }} /></>;
 
   const TABS = [
     ["sectors", "גזרות", <CI.grid key="a" />],
@@ -684,7 +693,7 @@ export default function ChoresPage({ say }) {
 
   return (
     <>
-      <div className="screen-title">תורניות</div>
+      <div className="screen-title">תורנויות</div>
       <div className="tm-sub">
         גזרות ניקיון בסוף היום, ותורנות מטבח וחד״א לכל היום.
       </div>

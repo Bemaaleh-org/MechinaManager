@@ -67,7 +67,7 @@ export const DUTIES = {
       { tab: "faults", label: "תקלות ובעיות" },
       { tab: "cleaning", label: "ציוד ניקיון" },
       /* ⚠ **המסך המרכזי של אב הבית**, ולכן ראשון בהמשך הרשימה. */
-      { tab: "chores", label: "תורניות" },
+      { tab: "chores", label: "תורנויות" },
     ],
   },
   [ROLE_SAFETY]: {

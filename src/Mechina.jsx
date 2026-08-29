@@ -19,6 +19,7 @@ import { testDate } from "./testDate.js";
 import { LessonsPage, LessonsBoard } from "./Lessons.jsx";
 import { MenuPage } from "./Menu.jsx";
 import { ROLE_INFO, LEADER_INFO } from "./roles-info.js";
+import { roleKey, LEADER_KEY } from "../shared/content.js";
 import { SafetyPage } from "./Safety.jsx";
 import { FaultsPage } from "./Faults.jsx";
 import { ContainerPage } from "./Container.jsx";
@@ -40,6 +41,7 @@ import { useExcel, downloadTable } from "./excel.js";
    לבוא ממקום אחד — ראו ההערה ב-shared/placements.js. */
 import { CATEGORIES, byCategory } from "../shared/placements.js";
 import { DUTIES, DUTY_LEADER } from "../shared/duties.js";
+import ScreenNote from "./ScreenNote.jsx";
 
 /* אותו אוצר צורות של האייקונים במטבח: 21px, stroke 2.1, קצוות עגולים */
 const MI = {
@@ -1209,7 +1211,7 @@ function StudentsList({ onOpen, say }) {
 }
 
 /* לוח שנתי של חניך אחד, כפי שהמנהל רואה אותו */
-function StudentDetail({ student, onBack, say }) {
+function StudentDetail({ student, onBack, say, isHead }) {
   const td = testDate();
   const { data, err, busy, reload } = useLoad(
     () => api.getStudentYear(student.id, td), [student.id, td]);
@@ -1304,7 +1306,7 @@ function StudentDetail({ student, onBack, say }) {
 
           {/* ⚠ התיק המלא לפני "שיבוץ ומיונים": העובדות לפני
               מה שהחניך כתב על עצמו. */}
-          <ProfileCard studentId={student.id} say={say} withDossier />
+          <ProfileCard studentId={student.id} say={say} withDossier isHead={isHead} />
 
           {/* ⚠ צוות בלבד — הרכיב אינו קיים אצל החניך */}
           <Incidents studentId={student.id} say={say} />
@@ -1527,8 +1529,106 @@ const TALK_LABELS = ["תחילת שנה", "אמצע שנה", "סוף שנה"];
      כי "לא הצלחנו לטעון שיבוצים" ו"אין שיבוצים" הם שני דברים
      שונים לגמרי, ואחד מהם דורש טלפון.
    ============================================================ */
-function StaffDossier({ f }) {
+/* ============================================================
+   עריכת נתוני החניך — ראש המכינה
+   ------------------------------------------------------------
+   ⚠ **מה שהצוות מנהל, ולא מה שהחניך הזין.** השיבוץ הצבאי
+     והמיונים ממולאים על ידי החניך עצמו ואינם כאן; חשבון
+     הכניסה שלו — שם משתמש, סיסמה ואימייל — אינו כאן מאותו
+     טעם, ובנוסף כי סיסמה לעולם אינה נערכת מבחוץ (4כח).
+
+   ⚠ **הכפתור מופיע לראש המכינה בלבד**, כי ת.ז היא סוד הכניסה
+     ושינוי שלה מנתק את החניך. הכפתור יודע מראש — אחרת הוא
+     נלחץ ומחזיר 403 אחרי שכבר מילאו טופס (4יד).
+   ============================================================ */
+function StudentEdit({ f, studentId, isHead, say, onSaved, onCancel }) {
+  const [v, setV] = useState(() => ({
+    name: f.name || "", tz: f.tz || "", dob: f.dob || "",
+    gender: f.gender || "", phone: f.phoneRaw || f.phone || "",
+    mail: f.mail || "", city: f.city || "", allergy: f.allergy || "",
+    religion: f.religion || "", shirt: f.shirt || "",
+  }));
+  const [busy, setBusy] = useState(false);
+  const set = (k, x) => setV((p) => ({ ...p, [k]: x }));
+  const tzChanged = String(v.tz).replace(/\D/g, "") !== String(f.tz || "").replace(/\D/g, "");
+
+  const save = () => {
+    if (busy) return;
+    setBusy(true);
+    api.editStudent({ studentId, ...v })
+      .then((r) => {
+        say(r.changed.length ? "עודכן: " + r.changed.join(" · ") : "לא היה מה לשנות");
+        if (r.signedOut) say("תעודת הזהות הוחלפה — החניך נותק וייכנס מחדש עם הסיסמה שלו");
+        onSaved();
+      })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  const F = ({ k, label, type, hint }) => (
+    <div className="fld">
+      <label>{label}</label>
+      <input value={v[k]} type={type || "text"} dir={type ? "ltr" : undefined}
+        onChange={(e) => set(k, e.target.value)} />
+      {hint && <div className="fld-hint">{hint}</div>}
+    </div>
+  );
+
+  return (
+    <div className="tm-editor card lift">
+      <div className="tm-form-h">עריכת {f.name || "החניך"}</div>
+      <F k="name" label="שם מלא" />
+      <div className="tm-row2">
+        <F k="tz" label="תעודת זהות" type="tel"
+          hint={tzChanged ? "⚠ שינוי ינתק את החניך מכל מכשיר" : "משמשת לכניסה הראשונה"} />
+        <F k="dob" label="תאריך לידה" type="date" />
+      </div>
+      <div className="tm-row2">
+        <F k="phone" label="טלפון" type="tel" />
+        <F k="mail" label="אימייל אישי" type="email" />
+      </div>
+      <div className="tm-row2">
+        <F k="city" label="עיר מגורים" />
+        <F k="shirt" label="מידת חולצה" hint="חייב להיות ערך שקיים ברשימה שבלוח" />
+      </div>
+      <div className="tm-row2">
+        <F k="gender" label="מין" hint="זכר או נקבה" />
+        <F k="religion" label="הגדרה דתית" hint="ערך מהרשימה שבלוח" />
+      </div>
+      <F k="allergy" label="אלרגיה או רגישות" />
+
+      {/* ⚠ נאמר לפני ולא אחרי. ניתוק שמתגלה בדיעבד נראה כמו תקלה. */}
+      {tzChanged && (
+        <div className="note-warn">
+          שינוי תעודת הזהות מנתק את החניך מכל מכשיר. הוא ייכנס מחדש
+          עם שם המשתמש והסיסמה שבחר, ואם טרם נרשם — עם התעודה החדשה.
+        </div>
+      )}
+
+      <div className="tm-editor-f">
+        <button className="btn btn-primary" disabled={busy || !v.name.trim()} onClick={save}>
+          {busy ? "שומר…" : "שמירה"}
+        </button>
+        <button className="btn btn-ghost" onClick={onCancel}>ביטול</button>
+      </div>
+      <div className="tm-esc-n">
+        השיבוץ הצבאי והמיונים ממולאים על ידי החניך עצמו ואינם נערכים כאן.
+        גם שם המשתמש והסיסמה שלו אינם — הם החשבון שלו.
+      </div>
+    </div>
+  );
+}
+
+function StaffDossier({ f, studentId, isHead, say, reload }) {
+  const [edit, setEdit] = useState(false);
   if (!f) return null;
+  if (edit) {
+    return (
+      <StudentEdit f={f} studentId={studentId} isHead={isHead} say={say}
+        onCancel={() => setEdit(false)}
+        onSaved={() => { setEdit(false); reload && reload(); }} />
+    );
+  }
 
   const fmtDate = (d) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : "—");
   /* גיל מתאריך לידה — המספר שמדריך באמת צריך, לא התאריך */
@@ -1591,6 +1691,11 @@ function StaffDossier({ f }) {
             <b>אלרגיה או רגישות</b>
             <span>{f.allergy}</span>
           </div>
+        )}
+        {/* ⚠ ראש המכינה בלבד — ת.ז היא סוד הכניסה. */}
+        {isHead && (
+          <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginTop: 12 }}
+            onClick={() => setEdit(true)}>עריכת הנתונים</button>
         )}
         {(f.leader || (f.roles || []).length > 0 || f.demo || !f.active) && (
           <div className="chips" style={{ marginTop: 4 }}>
@@ -1675,7 +1780,7 @@ const DOSSIER_NAMES = {
   identity: "פרטי הכניסה",
 };
 
-function ProfileCard({ studentId, say, withDossier = false }) {
+function ProfileCard({ studentId, say, withDossier = false, isHead = false }) {
   const { data, err, busy, reload } = useLoad(() => api.getProfile(studentId), [studentId]);
   const [f, setF] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -1708,7 +1813,10 @@ function ProfileCard({ studentId, say, withDossier = false }) {
       {/* ⚠ התיק המלא נטען באותה בקשה. מסך אחד = קריאה אחת,
           ולא שלוש קריאות שנוחתות בזו אחר זו וגורמות לתוכן
           לקפוץ מתחת לאצבע. */}
-      {withDossier && <StaffDossier f={data.staff} />}
+      {withDossier && (
+        <StaffDossier f={data.staff} studentId={studentId} isHead={isHead}
+          say={say} reload={reload} />
+      )}
 
       {withDossier && <div className="sec-label">שיבוץ ומיונים · מילוי החניך</div>}
       <div className="card" style={{ marginBottom: 12 }}>
@@ -1911,6 +2019,24 @@ function RateLessons({ say }) {
 export function RoleHolders({ say }) {
   useExcel();
   const { data, err, busy, reload } = useLoad(() => api.getStudents(), []);
+  /* ============================================================
+     ⚠ **שלוש שכבות, והספציפי גובר** — אותו דפוס בדיוק כמו טבלת
+       ההמרות (4לו):
+         1. `src/roles-info.js` — הנוסח שהמכינה מסרה, בקוד.
+         2. לוח הטקסטים — מה שראש המכינה שינה מהמסך.
+
+     ⚠ **הלוח מחזיק דריסות בלבד ואינו נזרע.** אילו כל התפקידים
+       היו בו, התג "נערך" היה מופיע על כולם ומאבד את משמעותו.
+
+     ⚠ **וכישלון בטעינת הטקסטים אינו מפיל את המסך** — הוא נופל
+       לנוסח המקורי, וזה בדיוק מה שהיה קודם.
+     ============================================================ */
+  const [over, setOver] = useState(new Map());
+  useEffect(() => {
+    api.getChores()
+      .then((r) => setOver(new Map((r.texts || []).map((t) => [t.key, t]))))
+      .catch(() => {});
+  }, []);
   const [patch, setPatch] = useState({});
   const [open, setOpen] = useState(null);   // התפקיד הפתוח לעריכה
   const [q, setQ] = useState("");
@@ -1974,10 +2100,25 @@ export function RoleHolders({ say }) {
 
             {isOpen && (
               <div className="rl-body">
+                {(() => {
+                  const ov = over.get(roleKey(role));
+                  const desc = ov ? ov.body : (info && info.desc);
+                  return desc ? (
+                    <>
+                      <div className="rl-k">
+                        תיאור התפקיד
+                        {/* ⚠ **המקור מסומן.** תיאור שנערך ותיאור
+                            שהגיע מהמכינה הם שני דברים, ומי שקורא
+                            צריך לדעת מה מולו (אותו כלל כמו
+                            `kgSource` ו-`source` בדירוגים). */}
+                        {ov && <span className="rl-edited">נערך</span>}
+                      </div>
+                      <div className="rl-desc">{desc}</div>
+                    </>
+                  ) : null;
+                })()}
                 {info && (
                   <>
-                    <div className="rl-k">תיאור התפקיד</div>
-                    <div className="rl-desc">{info.desc}</div>
                     <div className="rl-k">מה התפקיד פותח במערכת</div>
                     <ul className="rl-perms">
                       {info.perms.map((x, i) => <li key={i}>{x}</li>)}
@@ -2069,7 +2210,10 @@ const roleIcon = (name) => ROLE_ICON[name] || <MI.users />;
    ⚠ מנהל בלבד. תורן רואה את המטבח בלבד, והשרת אוכף את זה
      בכל נקודת קצה כאן.
    ============================================================ */
-export function MechinaStaff({ say, sub0, onSub }) {
+/* ⚠ isHead מגיע מהמעטפת ולא נגזר כאן — הוא נקרא טרי מהלוח
+   בכל בקשה (4מ), והשרת אוכף ממילא. כאן הוא רק כדי שהכפתור
+   יידע מראש. */
+export function MechinaStaff({ say, sub0, onSub, isHead = false }) {
   /* ⚠ החניכים הם ברירת המחדל ולא הסימון היומי. המסך הזה נקרא
      פעם "נוכחות", והסימון פתח אותו — אבל מי שנכנס לכאן מחפש
      בדרך כלל חניך, לא את הטופס של היום. */
@@ -2104,7 +2248,8 @@ export function MechinaStaff({ say, sub0, onSub }) {
       {sub === "mark" && <MarkDay say={say} allowPick />}
       {sub === "students" && (
         student
-          ? <StudentDetail student={student} say={say} onBack={() => setStudent(null)} />
+          ? <StudentDetail student={student} say={say} isHead={isHead}
+              onBack={() => setStudent(null)} />
           : <StudentsList onOpen={setStudent} say={say} />
       )}
       {sub === "requests" && <ManagerRequests say={say} />}
@@ -2127,6 +2272,17 @@ const weekDateInp = {
 };
 
 function WeekLeaders({ say }) {
+  /* ⚠ דריסת הנוסח מהלוח — ראו RoleHolders. */
+  const [leaderText, setLeaderText] = useState(null);
+  useEffect(() => {
+    api.getChores()
+      .then((r) => {
+        const t = (r.texts || []).find((x) => x.key === LEADER_KEY);
+        if (t) setLeaderText(t.body);
+      })
+      .catch(() => {});
+  }, []);
+
   const [info, setInfo] = useState(false);
   useExcel();
   const td = testDate();
@@ -2233,7 +2389,8 @@ function WeekLeaders({ say }) {
         </button>
         {info && (
           <div className="rl-body">
-            <div className="ld-info">{LEADER_INFO.purpose}</div>
+            {/* ⚠ אותה דריסה, אותו מקור. */}
+            <div className="ld-info">{leaderText || LEADER_INFO.purpose}</div>
             <div className="rl-k">משימות התפקיד</div>
             <ul className="ld-tasks">
               {LEADER_INFO.tasks.map((t, i) => <li key={i}>{t}</li>)}
@@ -2439,6 +2596,7 @@ function MyPlacements({ say }) {
   if (err && err.setupRequired) return (
     <>
       <div className="screen-title">השיבוצים שלי</div>
+      <ScreenNote name="note.placements" say={say} />
       <div className="attn-calm">
         <b>השיבוצים עוד לא פתוחים</b>
         <span>כשהצוות יגדיר אותם — הם יופיעו כאן</span>
@@ -2463,6 +2621,7 @@ function MyPlacements({ say }) {
   return (
     <>
       <div className="screen-title">השיבוצים שלי</div>
+      <ScreenNote name="note.placements" say={say} />
 
       {sorted.length === 0 ? (
         <div className="attn-calm">
@@ -2868,6 +3027,19 @@ export function MechinaApp({ auth, onSignedOut }) {
             { key: "home", label: "בית", icon: <MI.home />, active: tab === "home", onClick: () => setTab("home") },
             { key: "profile", label: "הפרופיל שלי", icon: <MI.users />,
               active: tab === "profile", onClick: () => setTab("profile") },
+            /* ⚠ **תורנויות ונהלים מיד אחרי הפרופיל.** שניהם
+               נוגעים לכל חניך בכל יום — התורנות שלו השבוע, והכללים
+               שהוא חי לפיהם — ולכן הם למעלה ולא בין דיווח תקלה
+               לגאנט השנתי.
+
+               ⚠ ותורנויות **באישי ולא בתפקידים**: כל חניך משובץ
+                 לגזרה ולתורנות מטבח, וכל חניך רואה את טבלת המעקב.
+                 אב הבית מגיע לאותו מסך בדיוק ורואה בו יותר, לפי
+                 mayChores (4יט). */
+            { key: "chores", label: "תורנויות", icon: <MI.tick />,
+              active: tab === "chores", onClick: () => setTab("chores") },
+            { key: "rules", label: "נהלים במכינה", icon: <MI.book />,
+              active: tab === "rules", onClick: () => setTab("rules") },
             { key: "year", label: "הנוכחות שלי", icon: <MI.cal />, active: tab === "year", onClick: () => setTab("year") },
             { key: "requests", label: "בקשות יציאה", icon: <MI.note />, badge: unseen,
               active: tab === "requests", onClick: () => setTab("requests") },
@@ -2887,16 +3059,6 @@ export function MechinaApp({ auth, onSignedOut }) {
                ============================================================ */
             { key: "teams", label: "ועדות וסדרות", icon: <MI.tick />,
               active: tab === "teams", onClick: () => setTab("teams") },
-            /* ⚠ **תורניות באישי ולא בתפקידים.** כל חניך משובץ
-               לגזרה ולתורנות מטבח, וכל חניך רואה את טבלת המעקב —
-               זו בקשה מפורשת של המכינה. אב הבית מגיע לאותו מסך
-               בדיוק ורואה בו יותר, לפי mayChores (4יט). */
-            { key: "chores", label: "תורניות", icon: <MI.tick />,
-              active: tab === "chores", onClick: () => setTab("chores") },
-            /* ⚠ חשוף לכל החניכים — זו התכלית. נוהל שרק הצוות
-               רואה הוא נוהל שאיש אינו יודע. */
-            { key: "rules", label: "נהלים במכינה", icon: <MI.book />,
-              active: tab === "rules", onClick: () => setTab("rules") },
             { key: "menu", label: "תפריט ארוחות", icon: <MI.book />, active: tab === "menu", onClick: () => setTab("menu") },
             { key: "report", label: "דיווח תקלה", icon: <MI.tool />, active: tab === "report", onClick: () => setTab("report") },
             { key: "agenda", label: "הלו״ז שלי", icon: <MI.cal />, active: tab === "agenda", onClick: () => setTab("agenda") },
@@ -2958,6 +3120,7 @@ export function MechinaApp({ auth, onSignedOut }) {
         {tab === "year" && (
           <>
             <div className="screen-title">הנוכחות שלי</div>
+      <ScreenNote name="note.attendance" say={say} />
             {year.busy && !year.data && <Loading what="טוען" />}
             {year.data && (
               <>
@@ -3048,6 +3211,7 @@ export function MechinaApp({ auth, onSignedOut }) {
               <MI.chev style={{ transform: "rotate(180deg)" }} />ביטול
             </button>
             <div className="screen-title">בקשת יציאה</div>
+      <ScreenNote name="note.requests" say={say} />
             {year.data ? (
               <RequestForm days={year.data.days} quota={year.data.summary.quota}
                 say={say} onDone={() => { refreshAll(); setTab("requests"); }} />
