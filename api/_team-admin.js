@@ -5,6 +5,7 @@
             יצירת ועדה או סדרה חדשה, ועריכת קיימת
      PUT    { id?, name, kind, order, closes, archived, remove }
             אוצר המילים — סטטוסים ושלבים
+     DELETE { id }   מחיקת צוות ריק. צוות עם תוכן מארכבים.
 
    ------------------------------------------------------------
    ⚠ **זה הקובץ שנועד לחיות בלי מפתח.** "קם צוות באמצע שנה,
@@ -220,6 +221,57 @@ async function handler(req, res, session) {
       return res.status(200).json({ ok: true, id, chairCleared });
     }
 
+    /* ============================================================
+       מחיקת צוות
+       ------------------------------------------------------------
+       ⚠ **מחיקה אמיתית, ולא ארכוב — אבל רק כשהצוות ריק.**
+         ארכוב קיים כבר (`archived`) והוא הדרך הנכונה לצוות
+         שהיה ונגמר: הוא שומר את המשימות, את השיבוצים ואת
+         ההיסטוריה. מחיקה נועדה לצוות שנוצר בטעות.
+
+       ⚠ **ולכן היא חוסמת כשיש מה לאבד.** צוות עם שיבוצים או
+         עם משימות אינו נמחק — הודעת השגיאה אומרת כמה יש ומה
+         לעשות במקום. מחיקה שקטה של 40 משימות ועדה היא בדיוק
+         סוג הפעולה שאי אפשר לתקן.
+
+       ⚠ **שלושה לוחות נבדקים ולא אחד**: הגדרות, שיבוצים
+         ומשימות. `deleteItem` שולחת `delete_item` בלי
+         `board_id`, ולכן המזהה מאומת מול לוח ההגדרות לפני
+         שנוגעים בו — אותו חור שנסגר בהצפות (4ס).
+       ============================================================ */
+    if (req.method === "DELETE") {
+      const body = req.body ?? (await readJson(req));
+      const id = String(body?.id || req.query?.id || "").trim();
+      if (!id) return res.status(400).json({ error: "לא צוין צוות" });
+
+      const defs = await loadDefinitions();
+      const def = defs.find((d) => d.id === id);
+      if (!def) return res.status(404).json({ error: "הצוות אינו נמצא" });
+
+      const [asg, tasks] = await Promise.all([
+        loadAssignments(),
+        teamsReady() ? loadTeamTasks() : Promise.resolve([]),
+      ]);
+      const rows = asg.filter((a) => a.placement === id);
+      const jobs = tasks.filter((t) => t.team === id);
+
+      if (rows.length || jobs.length) {
+        const bits = [];
+        if (rows.length) bits.push(`${rows.length} שיבוצים`);
+        if (jobs.length) bits.push(`${jobs.length} משימות`);
+        return res.status(400).json({
+          error: `ל"${def.name}" יש ${bits.join(" ו")}. מחיקה תאבד אותם — `
+            + "אפשר לסמן את הצוות כמוארכב במקום, וההיסטוריה תישמר",
+          blocked: { assignments: rows.length, tasks: jobs.length },
+        });
+      }
+
+      await gql(`mutation($i:ID!){ delete_item(item_id:$i){ id } }`, { i: id });
+      invalidatePlacements();
+      invalidateTeams();
+      return res.status(200).json({ ok: true, deleted: def.name });
+    }
+
     /* ============ אוצר המילים ============ */
     if (req.method === "PUT") {
       if (!teamsReady()) {
@@ -299,7 +351,7 @@ async function handler(req, res, session) {
       });
     }
 
-    return res.status(405).json({ error: "רק GET, POST ו-PUT נתמכים כאן" });
+    return res.status(405).json({ error: "רק GET, POST, PUT ו-DELETE נתמכים כאן" });
   } catch (e) {
     console.error("[team-admin]", e);
     res.status(502).json({ error: "שמירת ההגדרה נכשלה" });

@@ -77,12 +77,15 @@ function Tally({ rows, compact }) {
           )}
         </div>
       ))}
-      {/* ⚠ המקרא במילים, כי הצבע כאן הפוך לאינטואיציה. */}
-      <div className="ch-key">
+      {/* ⚠ המקרא במילים, כי הצבע כאן הפוך לאינטואיציה.
+          ⚠ ובגרסה הדחוסה הוא מושמט: הוא כבר מופיע בלשונית
+            המעקב, ושכפול שלו בכל אחת מחמש הגזרות הופך אותו
+            לרעש שמפסיקים לקרוא. */}
+      {!compact && <div className="ch-key">
         <i><b className="ch-dot t-over" />מעל הממוצע</i>
         <i><b className="ch-dot t-near" />בערך בממוצע</i>
         <i><b className="ch-dot t-under" />הרבה מתחת — <b className="ch-key-em">תורו הבא</b></i>
-      </div>
+      </div>}
     </div>
   );
 }
@@ -211,6 +214,19 @@ function Sectors({ d, say, reload }) {
                     <b key={x.id}>{x.name} <span>({x.count})</span></b>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* ============================================================
+                ⚠ **טבלת הגזרה בתוך הגזרה, ולא רק בלשונית נפרדת.**
+                  אב הבית בוחר **כאן**, ומספרים שיושבים בלשונית
+                  אחרת דורשים ממנו לזכור אותם בעל פה בזמן שהוא
+                  מסמן שמות. זו בדיוק הנקודה שבה הוא יפסיק
+                  להסתכל עליהם.
+                ============================================================ */}
+            {isOpen && (
+              <div className="ch-sec-t">
+                <Tally rows={d.tally.filter((t) => t.sector === s.id)} compact />
               </div>
             )}
 
@@ -345,6 +361,9 @@ function Daily({ d, say, reload }) {
    ============================================================ */
 function Checklist({ d, say, reload }) {
   const [busy, setBusy] = useState(null);
+  /* ⚠ העריכה נפתחת רק למי שרשאי, והכפתור עצמו מוסתר לשאר —
+     אחרת הוא נלחץ ומחזיר 403 אחרי שהמשתמש כבר הקליד (4יד). */
+  const [editing, setEditing] = useState(false);
   const c = d.checklist;
 
   const groups = useMemo(() => {
@@ -407,10 +426,170 @@ function Checklist({ d, say, reload }) {
         <div className="empty">
           <div className="e-ico"><CI.list /></div>
           <b>אין מטלות ליום הזה</b>
-          <span>אחראי המטבח מגדיר את המטלות בלשונית ההגדרות.</span>
+          <span>
+            {d.me.daily
+              ? "אפשר להוסיף מטלות בעריכת הרשימה, כאן למטה."
+              : "אחראי המטבח מגדיר את המטלות."}
+          </span>
         </div>
       )}
+
+      {/* ============================================================
+          עריכת הרשימה — אב הבית ואחראי המטבח
+          ------------------------------------------------------------
+          ⚠ **באותו מסך שבו רואים אותה, ולא בלשונית נפרדת.** מי
+            שקורא את המטלה ורוצה לנסח אותה מחדש לא צריך לעבור
+            מסך, למצוא אותה שוב ברשימה של 33 ולזכור מה רצה
+            לשנות — זו אותה טעות של מסך ההצפות (4ס).
+          ============================================================ */}
+      {d.me.daily && (
+        <>
+          <button className="btn btn-ghost tm-add" onClick={() => setEditing(!editing)}>
+            {editing ? "סיום העריכה" : "עריכת רשימת המטלות"}
+          </button>
+          {editing && <TaskEditor d={d} say={say} reload={reload} />}
+        </>
+      )}
+
+      {/* ============================================================
+          הנהלים — באותו דף
+          ------------------------------------------------------------
+          ⚠ **הנהלים והצ׳ק ליסט הם אותו דבר בשני מצבי צבירה.**
+            התורן שמסמן "ניקיון מקררים" צריך לדעת גם מה הכלל על
+            אחסון מזון — והוא לא יעזוב את המסך כדי לחפש אותו.
+          ============================================================ */}
+      {d.texts.length > 0 && (
+        <>
+          <div className="sec-label">נהלי המטבח והחד״א</div>
+          {d.texts.map((t) => (
+            <TextBlock key={t.key} block={t} canEdit={d.me.headText} say={say} onSaved={reload} />
+          ))}
+        </>
+      )}
     </>
+  );
+}
+
+/* ============================================================
+   עורך רשימת המטלות
+   ------------------------------------------------------------
+   ⚠ **מטלה נמחקת מארכבת ולא נמחקת.** שורות הביצוע נושאות את
+     המזהה, ומחיקה הייתה משאירה מעקב היסטורי עם שורות בלי שם.
+     המסך אומר "הסרה" כי זה מה שקורה מבחינת המשתמש, והשרת
+     עושה ארכוב.
+   ============================================================ */
+function TaskEditor({ d, say, reload }) {
+  const DAYS = ["כל יום", "א", "ב", "ג", "ד", "ה", "ו", "ש"];
+  const [day, setDay] = useState(d.checklist.dow);
+  const [f, setF] = useState({ task: "", area: "" });
+  const [edit, setEdit] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const tpl = (d.template || []).filter((t) => t.day === day)
+    .sort((a, b) => (a.order - b.order) || a.task.localeCompare(b.task, "he"));
+
+  const add = () => {
+    if (busy || !f.task.trim()) return;
+    setBusy(true);
+    api.saveChoreTask({ task: f.task, area: f.area, day, order: tpl.length + 1 })
+      .then(() => { setF({ task: "", area: "" }); say("נוספה"); reload(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+  const saveOne = (t) => {
+    if (busy) return;
+    setBusy(true);
+    api.saveChoreTask({ id: t.id, task: edit.task, area: edit.area, day: edit.day })
+      .then(() => { setEdit(null); say("נשמר"); reload(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+  const drop = (t) => {
+    if (busy) return;
+    setBusy(true);
+    api.deleteChoreTask(t.id)
+      .then(() => { say("הוסרה"); reload(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <div className="ch-edit card lift">
+      <div className="ch-note" style={{ marginTop: 0 }}>
+        <b>"כל יום"</b> היא השגרה שחוזרת בכל יום. שאר הימים נוספים עליה.
+      </div>
+
+      <div className="ch-days">
+        {DAYS.map((x) => (
+          <button key={x} className={"ch-dayb" + (day === x ? " on" : "")}
+            onClick={() => { setDay(x); setEdit(null); }}>
+            {x}
+            <i>{(d.template || []).filter((t) => t.day === x).length}</i>
+          </button>
+        ))}
+      </div>
+
+      {tpl.map((t) => (
+        <div className="ch-erow" key={t.id}>
+          {edit && edit.id === t.id ? (
+            <div className="ch-eform">
+              <div className="fld">
+                <label>המטלה</label>
+                <input value={edit.task} autoFocus
+                  onChange={(e) => setEdit((p) => ({ ...p, task: e.target.value }))} />
+              </div>
+              <div className="tm-row2">
+                <div className="fld">
+                  <label>אזור</label>
+                  <input value={edit.area || ""} placeholder="למשל: מחסן"
+                    onChange={(e) => setEdit((p) => ({ ...p, area: e.target.value }))} />
+                </div>
+                <div className="fld">
+                  <label>יום</label>
+                  <select value={edit.day} onChange={(e) => setEdit((p) => ({ ...p, day: e.target.value }))}>
+                    {DAYS.map((x) => <option key={x} value={x}>{x}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="tm-editor-f">
+                <button className="btn btn-primary btn-sm" disabled={busy || !edit.task.trim()}
+                  onClick={() => saveOne(t)}>שמירה</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setEdit(null)}>ביטול</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="ch-erow-m">
+                <b>{t.task}</b>
+                {t.area && <span>{t.area}</span>}
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setEdit({ ...t })}>עריכה</button>
+              <button className="esc-del" title="הסרה" onClick={() => drop(t)}>✕</button>
+            </>
+          )}
+        </div>
+      ))}
+
+      {!tpl.length && <div className="ch-tally-none">אין מטלות ליום {day}</div>}
+
+      <div className="ch-eadd">
+        <div className="tm-row2">
+          <div className="fld">
+            <label>מטלה חדשה</label>
+            <input value={f.task} placeholder="מה צריך לעשות"
+              onChange={(e) => setF((p) => ({ ...p, task: e.target.value }))} />
+          </div>
+          <div className="fld">
+            <label>אזור</label>
+            <input value={f.area} placeholder="רשות"
+              onChange={(e) => setF((p) => ({ ...p, area: e.target.value }))} />
+          </div>
+        </div>
+        <button className="btn btn-primary" disabled={busy || !f.task.trim()} onClick={add}>
+          הוספה ליום {day}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -432,7 +611,7 @@ export default function ChoresPage({ say }) {
   const TABS = [
     ["sectors", "גזרות", <CI.grid key="a" />],
     ["daily", "מטבח וחד״א", <CI.users key="b" />],
-    ["check", "צ׳ק ליסט", <CI.list key="c" />],
+    ["check", "צ׳ק ליסט ונהלים", <CI.list key="c" />],
     ["tally", "מעקב", <CI.grid key="d" />],
   ];
   if (d.me.sectors || d.me.daily) TABS.push(["setup", "הגדרות", <CI.cog key="e" />]);
@@ -600,11 +779,9 @@ function Setup({ d, say, reload }) {
         </>
       )}
 
-      {/* ---------- הנהלים ---------- */}
-      <div className="sec-label">נהלי המטבח והחד״א</div>
-      {d.texts.map((t) => (
-        <TextBlock key={t.key} block={t} canEdit={d.me.assign} say={say} onSaved={reload} />
-      ))}
+      {/* ⚠ הנהלים עברו ללשונית "צ׳ק ליסט ונהלים" — שם התורן
+          קורא אותם בזמן שהוא עובד, ולא בלשונית הגדרות שהוא
+          לא נכנס אליה. */}
     </>
   );
 }

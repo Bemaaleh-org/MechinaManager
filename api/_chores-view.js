@@ -120,6 +120,10 @@ async function handler(req, res, session) {
         ...perm,
         /* ⚠ הכפתור יודע מראש: רק תורן היום מסמן (4יד). */
         onDutyToday: onDutyToday.some((r) => r.student === String(session.itemId)),
+        /* ⚠ **עריכת נוסח היא ראש המכינה בלבד**, וזה שונה
+           מ-assign שכולל גם את אב הבית. אלה נהלים של המכינה,
+           לא הגדרות של מסך — ולכן דגל נפרד ולא שימוש חוזר. */
+        headText: Boolean(session.isHead),
       },
       today,
       sectors: sectors.list.map((s) => ({

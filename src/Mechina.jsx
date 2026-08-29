@@ -38,7 +38,7 @@ import { useExcel, downloadTable } from "./excel.js";
 /* ⚠ המסך היחיד שמייבא קטגוריות מ-shared. סדר התצוגה חייב
    לבוא ממקום אחד — ראו ההערה ב-shared/placements.js. */
 import { CATEGORIES, byCategory } from "../shared/placements.js";
-import { DUTY_LEADER } from "../shared/duties.js";
+import { DUTIES, DUTY_LEADER } from "../shared/duties.js";
 
 /* אותו אוצר צורות של האייקונים במטבח: 21px, stroke 2.1, קצוות עגולים */
 const MI = {
@@ -61,6 +61,18 @@ const MI = {
 
 /* ⚠ ראשון ראשון. `getUTCDay()` מחזיר 0 לראשון, וזה מה
    שהריפוד בתחילת החודש נשען עליו. */
+/* ⚠ אייקון לכל מסך, במקום אחד. `DUTIES[x].icon` מתאר את
+   **התפקיד** ולא את המסך, ושני מסכים של אותו תפקיד היו מקבלים
+   את אותו אייקון. מסך שאין לו ערך כאן מקבל ברירת מחדל ואינו
+   נעלם — אותו כלל כמו תפקיד בלי תיאור (4יא). */
+const TAB_ICON = {
+  mark: <MI.tick />, lessons: <MI.book />, gantt: <MI.cal />,
+  container: <MI.box />, loans: <MI.box />,
+  faults: <MI.box />, cleaning: <MI.box />, chores: <MI.tick />,
+  safety: <MI.note />, hosting: <MI.home />,
+  "k-all": <MI.box />, budget: <MI.tick />, menu: <MI.book />,
+};
+
 const DOW_HE = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
 
 const MON_HE = ["ינו׳","פבר׳","מרץ","אפר׳","מאי","יוני","יולי","אוג׳","ספט׳","אוק׳","נוב׳","דצמ׳"];
@@ -2737,6 +2749,25 @@ export function MechinaApp({ auth, onSignedOut }) {
   catch { seenIds = new Set(); }
   const unseen = decided.filter((r) => !seenIds.has(r.id)).length;
 
+  /* ⚠ נגזר מ-`DUTIES` בכל רינדור. התפקידים עצמם נקראים טרי
+     מהלוח בכל בקשה (4יט), ולכן הסרת תפקיד סוגרת את המסך מיד. */
+  const dutyTabs = useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    const add = (name) => {
+      const info = DUTIES[name];
+      if (!info) return;
+      for (const t of info.tabs || []) {
+        if (seen.has(t.tab)) continue;
+        seen.add(t.tab);
+        out.push(t);
+      }
+    };
+    if (auth.isLeader) add(DUTY_LEADER);
+    for (const r of auth.roles || []) add(r);
+    return out;
+  }, [auth.roles, auth.isLeader]);
+
   const [notifOpen, setNotifOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   /* ⚠ אותו מנגנון של המנהל. חניך בעל תפקיד מקבל בדיוק את
@@ -2821,53 +2852,33 @@ export function MechinaApp({ auth, onSignedOut }) {
             { key: "agenda", label: "הלו״ז שלי", icon: <MI.cal />, active: tab === "agenda", onClick: () => setTab("agenda") },
             { key: "gantt", label: "גאנט שנתי", icon: <MI.cal />, active: tab === "gantt", onClick: () => setTab("gantt") },
           ] },
-          ...(auth.isLeader || auth.isScheduler || auth.isContainer || auth.isSafety || auth.isHouse || auth.isKitchen ? [{
+          /* ============================================================
+             קבוצת "תפקידים" — **נגזרת מ-DUTIES ואינה כתובה ביד**
+             ------------------------------------------------------------
+             ⚠⚠ כאן ישבה רשימה ידנית של שישה תנאים
+               (`auth.isContainer ? [...] : []`), והיא הייתה **רשימה
+               שנייה** לצד `DUTIES[x].tabs` שמזינה את הקיצורים במרכז
+               התפקיד. ההערה בראש `shared/duties.js` מזהירה מזה
+               במפורש, ועיקרון 4יט נשבר בדיוק כך פעם אחת: המנהל קיבל
+               מסך והחניך לא, ושני המסכים "עבדו".
+
+               עכשיו יש **מקור אחד**: מסך שנוסף ל-`DUTIES` מופיע
+               מעצמו גם במגירה וגם במרכז התפקיד, בלי לגעת כאן.
+
+             ⚠ **איחוד לפי `tab`.** מוביל שבוע ואחראי לו״ז חולקים
+               את "שיעורים במכינה", וקישור כפול במגירה נראה כמו באג.
+
+             ⚠ **מרכז התפקיד נשאר ראשון ואינו ב-DUTIES** — הוא לא
+               מסך של תפקיד מסוים אלא הדלת אל כולם.
+             ============================================================ */
+          ...(dutyTabs.length ? [{
             label: "תפקידים", items: [
-              /* ⚠ **ראשון בקבוצה.** מרכז התפקיד הוא נקודת
-                 הכניסה: משם מגיעים לכל השאר, ושם יושבים מסמך
-                 החפיפה, המשימות וההצפות מהצוות. */
               { key: "duty", label: "מרכז התפקיד", icon: <MI.tick />,
                 active: tab === "duty", onClick: () => setTab("duty") },
-              ...(auth.isLeader ? [{ key: "mark", label: "סימון נוכחות", icon: <MI.tick />,
-                active: tab === "mark", onClick: () => setTab("mark") }] : []),
-              ...(auth.isScheduler || auth.isLeader ? [{ key: "lessons", label: "שיעורים במכינה", icon: <MI.book />,
-                active: tab === "lessons", onClick: () => setTab("lessons") }] : []),
-              /* ⚠ אותם מסכים בדיוק כמו אצל המנהל, ובאותו סדר.
-                 חניך שנושא תפקיד עושה את אותה עבודה, ומסך
-                 מקוצץ רק גורם לו לבקש מהמנהל לעשות בשבילו
-                 את מה שהתפקיד שלו. ההרשאה נאכפת בשרת ממילא. */
-              ...(auth.isContainer ? [
-                { key: "container", label: "מכולה", icon: <MI.box />,
-                  active: tab === "container", onClick: () => setTab("container") },
-                { key: "loans", label: "השאלת ציוד", icon: <MI.box />,
-                  active: tab === "loans", onClick: () => setTab("loans") },
-              ] : []),
-              ...(auth.isSafety ? [
-                { key: "safety", label: "אירועי בטיחות", icon: <MI.note />,
-                  active: tab === "safety", onClick: () => setTab("safety") },
-                { key: "hosting", label: "אירוח קבוצות", icon: <MI.home />,
-                  active: tab === "hosting", onClick: () => setTab("hosting") },
-              ] : []),
-              ...(auth.isHouse ? [
-                { key: "faults", label: "תקלות ובעיות", icon: <MI.box />,
-                  active: tab === "faults", onClick: () => setTab("faults") },
-                /* ⚠ ציוד הניקיון הוא של אב הבית ולא של אחראי
-                   המכולה. השרת אוכף לפי תחום — ראו mayArea. */
-                { key: "cleaning", label: "ציוד ניקיון", icon: <MI.box />,
-                  active: tab === "cleaning", onClick: () => setTab("cleaning") },
-              ] : []),
-              /* ⚠ הקוד המשותף לתורנים נגנז; אחראי המטבח הוא
-                 הדרך שבה חניך מגיע למסכי המטבח. */
-              ...(auth.isKitchen ? [
-                /* ⚠ פריט אחד ולא שניים, בדיוק כמו אצל המנהל.
-                   אוכל וחד״פ חולקים לוח אחד ורשימת קניות אחת,
-                   וההפרדה למסכים אילצה לעבור ביניהם באמצע
-                   ספירת מלאי. */
-                { key: "k-all", label: "אוכל וחד״פ", icon: <MI.box />,
-                  active: tab === "k-all", onClick: () => setTab("k-all") },
-                { key: "budget", label: "תקציב המטבח", icon: <MI.tick />,
-                  active: tab === "budget", onClick: () => setTab("budget") },
-              ] : []),
+              ...dutyTabs.map((t) => ({
+                key: t.tab, label: t.label, icon: TAB_ICON[t.tab] || <MI.box />,
+                active: tab === t.tab, onClick: () => setTab(t.tab),
+              })),
             ],
           }] : []),
         ]} />

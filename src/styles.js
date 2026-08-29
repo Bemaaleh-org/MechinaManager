@@ -2699,7 +2699,17 @@ html,body{margin:0;padding:0;background:#012E58}
 .ch-detail{font-size:12.5px;color:var(--muted);font-weight:600;line-height:1.7;
   background:var(--sand);border-radius:var(--r-sm);padding:10px 12px;margin:0 15px 12px;
   white-space:pre-wrap}
-.ch-pick{max-height:44vh;overflow-y:auto}
+/* ⚠ **.kx .rows.ch-pick ולא .ch-pick.**
+   .kx .rows{overflow:hidden} בשכבת ההרמה היא (0,2,0), ומחלקה
+   בודדת היא (0,1,0) — כלומר overflow:hidden גובר גם כשהכלל
+   שלנו מאוחר יותר בקובץ, והרשימה של 33 החניכים נחתכת בשמונה
+   בלי שום רמז שאפשר לגלול.
+
+   זו הפעם השלישית שהמלכודת הזו תופסת: .rl-pick ו-.scroll-y
+   כבר נתקלו בה. **רשימה גוללת חדשה בתוך .rows חייבת את
+   הקידומת המלאה, או להשתמש ב-.scroll-y הקיימת.** */
+.kx .rows.ch-pick{max-height:44vh;overflow-y:auto;
+  -webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .ch-cap{font-size:12px;font-weight:800;color:var(--muted);margin-bottom:8px}
 .ch-cap.over{color:var(--clay)}
 
@@ -2820,5 +2830,53 @@ html,body{margin:0;padding:0;background:#012E58}
   padding-top:10px;border-top:1px solid var(--line2)}
 .tb-f{display:flex;gap:8px}
 .tb-edit textarea{font-family:inherit;line-height:1.8}
+
+/* ---------- עריכת צוות ומחיקתו ---------- */
+.tm-top{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin-bottom:14px}
+/* ⚠ אישור מחיקה בתוך המסך ולא confirm() של הדפדפן: הוא
+   נראה זר, ובחלק מהדפדפנים במובייל הוא נחסם — כלומר הכפתור
+   פשוט לא עושה כלום. */
+.tm-danger{background:#F8E6E2;border:1px solid #EFCEC7;border-radius:var(--r-md);
+  padding:13px 14px;margin-top:12px}
+.tm-danger b{display:block;font-size:14px;font-weight:800;color:#9E3626;
+  margin-bottom:5px}
+.tm-danger span{display:block;font-size:12.5px;color:var(--muted);font-weight:600;
+  line-height:1.7;margin-bottom:12px}
+.kx .tm-del-go{background:#9E3626;box-shadow:none}
+.kx .tm-del-go:hover{background:#8A2F21}
+
+/* ---------- עריכת רשימת המטלות ---------- */
+/* ⚠ באותו מסך שבו רואים את הרשימה, ולא בלשונית נפרדת: מי
+   שקורא מטלה ורוצה לנסח אותה מחדש לא צריך לעבור מסך, למצוא
+   אותה שוב ברשימה של 33, ולזכור מה רצה לשנות. */
+.ch-edit{margin-top:6px}
+.ch-days{display:flex;gap:5px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px;
+  scrollbar-width:none}
+.ch-days::-webkit-scrollbar{display:none}
+.kx .ch-dayb{display:flex;align-items:center;gap:5px;flex:0 0 auto;min-width:52px;
+  justify-content:center;background:var(--sand);border:1px solid var(--line2);
+  border-radius:999px;padding:7px 12px;font-size:13px;font-weight:800;
+  color:var(--muted);transition:all .12s var(--ease)}
+.kx .ch-dayb.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.ch-dayb i{font-style:normal;font-size:10.5px;font-weight:900;opacity:.6;
+  font-variant-numeric:tabular-nums}
+.ch-erow{display:flex;align-items:center;gap:9px;padding:9px 0;
+  border-bottom:1px solid var(--line2)}
+.ch-erow:last-of-type{border-bottom:none}
+.ch-erow-m{flex:1;min-width:0}
+.ch-erow-m b{display:block;font-size:13.5px;font-weight:700;line-height:1.5}
+.ch-erow-m span{display:block;font-size:11px;color:var(--faint);font-weight:700;
+  margin-top:2px}
+.ch-eform{width:100%}
+.ch-eadd{margin-top:14px;padding-top:14px;border-top:1px solid var(--line2)}
+.ch-sec-t{padding:0 15px 4px}
+/* ⚠ הטבלה הדחוסה בתוך הגזרה — תאים קטנים יותר, כי היא
+   יושבת בתוך כרטיס ולא כמסך שלם. */
+.ch-tally.compact .ch-cells{grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:4px}
+.ch-tally.compact .ch-cell{padding:5px 4px}
+.ch-tally.compact .ch-cell b{font-size:14px}
+.ch-tally.compact .ch-cell span{font-size:9.5px}
+.ch-tally.compact .ch-tally-s{margin-bottom:6px}
 
 `;

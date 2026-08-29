@@ -323,6 +323,7 @@ function TeamHub({ id, say, onBack, go }) {
   const [view, setView] = useState("tasks");
   const [filter, setFilter] = useState("all");
   const [edit, setEdit] = useState(null);   /* משימה, "new", או null */
+  const [editTeam, setEditTeam] = useState(false);
 
   const load = useCallback(() => {
     api.getTeam(id)
@@ -394,9 +395,25 @@ function TeamHub({ id, say, onBack, go }) {
 
   return (
     <>
-      <button className="btn btn-ghost btn-sm" style={{ marginBottom: 14 }} onClick={onBack}>
-        <TI.chev />חזרה לצוותים
-      </button>
+      <div className="tm-top">
+        <button className="btn btn-ghost btn-sm" onClick={onBack}>
+          <TI.chev />חזרה לצוותים
+        </button>
+        {/* ⚠ הכפתור יודע מראש: team-admin הוא צוות בלבד,
+            ויו״ר שילחץ היה מקבל 403 אחרי שכבר פתח טופס (4יד). */}
+        {!d.me.role || d.me.role === "staff" ? (
+          <button className="btn btn-ghost btn-sm" onClick={() => setEditTeam(true)}>
+            עריכת הצוות
+          </button>
+        ) : null}
+      </div>
+
+      {editTeam && (
+        <TeamForm team={d.team} say={say}
+          onCancel={() => setEditTeam(false)}
+          onDone={() => { setEditTeam(false); load(); say("נשמר"); }}
+          onDeleted={() => { setEditTeam(false); onBack(); }} />
+      )}
 
       {/* ---------- הכותרת ---------- */}
       <div className={"tm-hero tone-" + t}>
@@ -572,26 +589,43 @@ function TeamHub({ id, say, onBack, go }) {
      הפרופיל של החניך, מסך המדריך. שדה חופשי היה נראה גמיש
      יותר ולא היה מגיע לאף מסך.
    ============================================================ */
-function TeamForm({ preset, say, onDone, onCancel }) {
-  const [f, setF] = useState({
-    name: "", category: preset || CATEGORY.adhoc,
-    period: PERIOD.yearly, capacity: "", desc: "", lead: "",
-  });
+function TeamForm({ preset, team, say, onDone, onCancel, onDeleted }) {
+  const [f, setF] = useState(() => ({
+    name: team ? team.name : "",
+    category: team ? team.category : (preset || CATEGORY.adhoc),
+    period: team ? team.period : PERIOD.yearly,
+    capacity: team && team.capacity != null ? String(team.capacity) : "",
+    desc: team ? (team.desc || "") : "",
+    lead: team ? (team.lead || "") : "",
+    archived: team ? Boolean(team.archived) : false,
+  }));
   const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState(false);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
 
   const save = () => {
     if (busy) return;
     if (!f.name.trim()) { say("אין צוות בלי שם"); return; }
     setBusy(true);
-    api.saveTeamDef(f)
-      .then((r) => onDone(r.id, f.name.trim(), f.category))
+    api.saveTeamDef({ ...f, id: team ? team.id : undefined })
+      .then((r) => onDone(team ? team.id : r.id, f.name.trim(), f.category))
       .catch((e) => { say(e.message); setBusy(false); });
+  };
+
+  /* ⚠ **אישור לפני מחיקה, ובלי `confirm()` של הדפדפן.** הוא
+     נראה זר, ובחלק מהדפדפנים במובייל הוא נחסם לגמרי — כלומר
+     הכפתור פשוט לא עושה כלום. */
+  const remove = () => {
+    if (busy) return;
+    setBusy(true);
+    api.deleteTeam(team.id)
+      .then(() => { say(`"${team.name}" נמחק`); onDeleted(); })
+      .catch((e) => { say(e.message); setBusy(false); setConfirm(false); });
   };
 
   return (
     <div className="tm-editor card lift">
-      <div className="tm-form-h">צוות חדש</div>
+      <div className="tm-form-h">{team ? "עריכת " + team.name : "צוות חדש"}</div>
 
       <div className="fld">
         <label>שם הצוות</label>
@@ -608,6 +642,7 @@ function TeamForm({ preset, say, onDone, onCancel }) {
           <select value={f.category} onChange={(e) => set("category", e.target.value)}>
             {TEAM_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
+          {team && <div className="fld-hint">שינוי סוג מעביר את הצוות ללשונית אחרת</div>}
         </div>
         <div className="fld">
           <label>תקופה</label>
@@ -640,16 +675,52 @@ function TeamForm({ preset, say, onDone, onCancel }) {
           placeholder="מה הצוות עושה" />
       </div>
 
+      {team && (
+        <label className="ch-chk">
+          <input type="checkbox" checked={Boolean(f.archived)}
+            onChange={(e) => set("archived", e.target.checked)} />
+          {/* ⚠ **ארכוב ולא מחיקה** הוא מה שעושים לצוות שהיה
+              ונגמר: המשימות, השיבוצים וההיסטוריה נשמרים,
+              והצוות פשוט יורד מהרשימה. */}
+          <span>מוארכב — יורד מהרשימה, וכל המשימות וההיסטוריה נשמרות</span>
+        </label>
+      )}
+
       <div className="tm-editor-f">
         <button className="btn btn-primary" disabled={busy} onClick={save}>
-          {busy ? "יוצר…" : "יצירת הצוות"}
+          {busy ? "שומר…" : team ? "שמירה" : "יצירת הצוות"}
         </button>
         <button className="btn btn-ghost" onClick={onCancel}>ביטול</button>
+        {team && !confirm && (
+          <button className="btn btn-ghost tm-del" onClick={() => setConfirm(true)}>מחיקה</button>
+        )}
       </div>
-      <div className="tm-esc-n">
-        אחרי היצירה: קובעים יו״ר ומשבצים חניכים במסך
-        <b> שיבוצי חניכים</b>, ואז מנהלים כאן את המשימות.
-      </div>
+
+      {/* ⚠ המחיקה נחסמת בשרת כשיש שיבוצים או משימות, וההודעה
+          אומרת כמה יש ומה לעשות במקום. האישור כאן הוא כדי שלא
+          תישלח בכלל בלחיצה אחת. */}
+      {team && confirm && (
+        <div className="tm-danger">
+          <b>למחוק את "{team.name}"?</b>
+          <span>
+            מחיקה אפשרית רק לצוות בלי שיבוצים ובלי משימות. אם יש בו תוכן,
+            השרת יעצור ויאמר כמה — ואז עדיף לארכב.
+          </span>
+          <div className="tm-editor-f">
+            <button className="btn btn-primary tm-del-go" disabled={busy} onClick={remove}>
+              {busy ? "מוחק…" : "כן, למחוק"}
+            </button>
+            <button className="btn btn-ghost" onClick={() => setConfirm(false)}>ביטול</button>
+          </div>
+        </div>
+      )}
+
+      {!team && (
+        <div className="tm-esc-n">
+          אחרי היצירה: קובעים יו״ר ומשבצים חניכים במסך
+          <b> שיבוצי חניכים</b>, ואז מנהלים כאן את המשימות.
+        </div>
+      )}
     </div>
   );
 }

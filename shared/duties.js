@@ -47,6 +47,9 @@ export const DUTIES = {
       { tab: "k-all", label: "אוכל וחד״פ" },
       { tab: "budget", label: "תקציב המטבח" },
       { tab: "menu", label: "תפריט ארוחות" },
+      /* ⚠ תורנות המטבח והחד״א היא שלו — הפירוט, הצ׳ק ליסט
+         והמעקב. השיבוץ עצמו נשאר אצל אב הבית. */
+      { tab: "chores", label: "תורנויות מטבח" },
     ],
   },
   [ROLE_CONTAINER]: {
@@ -63,6 +66,8 @@ export const DUTIES = {
     tabs: [
       { tab: "faults", label: "תקלות ובעיות" },
       { tab: "cleaning", label: "ציוד ניקיון" },
+      /* ⚠ **המסך המרכזי של אב הבית**, ולכן ראשון בהמשך הרשימה. */
+      { tab: "chores", label: "תורניות" },
     ],
   },
   [ROLE_SAFETY]: {

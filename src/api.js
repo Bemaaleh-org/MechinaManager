@@ -230,6 +230,9 @@ export const api = {
   saveTeamDef: ({ id, name, category, period, capacity, desc, hours, needs, lead, archived }) =>
     post("/api/students?action=team-admin",
       { id, name, category, period, capacity, desc, hours, needs, lead, archived }),
+  /* ⚠ מחיקה עובדת רק על צוות ריק — צוות עם תוכן מארכבים,
+     וההיסטוריה נשמרת. השרת מחזיר את המספרים בהודעה. */
+  deleteTeam: (id) => del("/api/students?action=team-admin", { id }),
   saveTeamVocab: ({ id, name, kind, order, closes, archived, remove }) =>
     put("/api/students?action=team-admin",
       { id, name, kind, order, closes, archived, remove }),
