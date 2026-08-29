@@ -20,6 +20,7 @@ import { withAuth } from "./_session.js";
 import { allItems, gql } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
 import { LESSON_BOARDS, LESSON_COLS } from "../shared/lessons-boards.js";
+import { mayEdit } from "../shared/edit-rights.js";
 
 /** סוגי האירוע. חייבים להיות זהים בתו לתוויות שבלוח. */
 const TYPES = ["פעילות", "שבת", "חג ומועד"];
@@ -53,11 +54,13 @@ async function handler(req, res, session) {
         events, count: events.length,
         /* התצוגה יודעת אם להציג כפתורי עריכה. ⚠ נוחות בלבד —
            האכיפה למטה, בשרת. */
-        canEdit: Boolean(session.isManager || session.isScheduler),
+        canEdit: mayEdit(session, "scheduler"),
       });
     }
 
-    if (!session.isManager && !session.isScheduler) {
+    /* ⚠ אותו כלל בדיוק כמו canEdit שלוש שורות מעליו.
+       שתי נוסחאות לאותה שאלה מתפצלות בתיקון הראשון. */
+    if (!mayEdit(session, "scheduler")) {
       return res.status(403).json({ error: "עריכת הלו״ז מותרת למנהל ולאחראי הלו״ז" });
     }
 

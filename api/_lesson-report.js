@@ -54,4 +54,4 @@ async function handler(req, res) {
   }
 }
 
-export default withAuth(handler, { scheduler: true });
+export default withAuth(handler, { scheduler: true, edit: "scheduler" });

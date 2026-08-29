@@ -10,6 +10,7 @@ import {
   loadSheets, loadMeetings, countFor, createSheet, invalidateLessons,
   loadEvals, loadRatings, evalForMeeting, ratingFor,
 } from "./_lessons-data.js";
+import { mayEdit } from "../shared/edit-rights.js";
 
 async function handler(req, res, session) {
   if (req.method === "GET") return read(req, res, session);
@@ -51,7 +52,7 @@ async function read(req, res, session) {
             votes: r ? r.votes : 0,
           };
         }),
-      canEdit: session.isManager || session.isScheduler,
+      canEdit: mayEdit(session, "scheduler"),
     });
   } catch (e) {
     console.error("[lesson-sheet:read]", e);
@@ -93,4 +94,4 @@ async function readJson(req) {
   return raw ? JSON.parse(raw) : {};
 }
 
-export default withAuth(handler, { scheduler: true });
+export default withAuth(handler, { scheduler: true, edit: "scheduler" });

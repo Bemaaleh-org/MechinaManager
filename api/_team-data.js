@@ -16,7 +16,7 @@ import { cached, invalidate } from "./_cache.js";
 import { TEAM_BOARDS, TEAM_COLS } from "../shared/team-ids.js";
 import { VOCAB_KIND, VOCAB_KINDS, isTeamCategory } from "../shared/team.js";
 import { loadDefinitions, membersOf } from "./_placements.js";
-import { activeStudents } from "./_student-rows.js";
+import { assignableStudents } from "./_student-rows.js";
 import { israelToday } from "./_attendance-data.js";
 
 export { setColumns, renameItem, createItem, deleteItem } from "./_items.js";
@@ -129,7 +129,9 @@ export async function teamContext(placementId) {
   if (!isTeamCategory(def.category)) return { def, unsupported: true };
 
   const [members, active] = await Promise.all([
-    membersOf(def.id), activeStudents(),
+    /* ⚠ אחרת חשבון הבדיקה משובץ לוועדה ומופיע בה
+       כ"אינו פעיל", ואי אפשר לשייך לו משימה. */
+    membersOf(def.id), assignableStudents(),
   ]);
   const live = new Map(active.map((s) => [s.id, s]));
 

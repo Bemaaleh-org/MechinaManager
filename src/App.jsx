@@ -200,7 +200,13 @@ function Staff({ auth, onSignedOut }) {
   const goContainer = (a) => { setCArea(a); setSection("container"); };
   const openRequests = () => { setNotifOpen(false); goStaff("requests"); };
 
-  const user = { name: auth.name || "תורן", role: isMgr ? "צוות" : "תורנות מטבח" };
+  /* ⚠ **החיווי במסך, לא רק בשרת.** מי שכל כפתור שילחץ עליו
+     יחזיר 403 צריך לדעת מראש שזה מכוון ולא תקלה — אחרת הוא
+     יסיק שהמערכת שבורה וידווח על באג. */
+  const user = {
+    name: auth.name || "תורן",
+    role: auth.viewOnly ? "צפייה בלבד" : (isMgr ? "צוות" : "תורנות מטבח"),
+  };
 
   const kitchenItems = [
     /* ⚠ פריט אחד ולא שניים. אוכל וחד״פ חולקים לוח אחד ורשימת
@@ -219,6 +225,14 @@ function Staff({ auth, onSignedOut }) {
     <>
       <style>{CSS}</style>
       <div className="kx">
+        {/* ⚠ רצועה קבועה ולא הודעה חד-פעמית: ההגבלה חלה בכל
+            מסך ובכל רגע, ומי שיגלול הלאה ישכח אותה. */}
+        {auth.viewOnly && (
+          <div className="ro-bar">
+            החשבון שלכם מוגדר <b>לצפייה בלבד</b> — כל המערכת פתוחה לקריאה,
+            ושמירה אינה אפשרית.
+          </div>
+        )}
         <header className="top">
           <div className="top-row">
             <Hamburger onClick={() => setDrawerOpen(true)} />

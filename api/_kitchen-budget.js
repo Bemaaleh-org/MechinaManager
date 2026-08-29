@@ -570,4 +570,4 @@ async function readJson(req) {
   return raw ? JSON.parse(raw) : {};
 }
 
-export default withAuth(handler, { kitchen: true });
+export default withAuth(handler, { kitchen: true, edit: "kitchen" });

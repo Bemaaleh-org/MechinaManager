@@ -17,7 +17,7 @@ import { withAuth } from "./_session.js";
 import { gql, allItems } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
 import { invalidateGuides } from "./_guides.js";
-import { activeStudents } from "./_student-rows.js";
+import { activeStudents, assignableStudents } from "./_student-rows.js";
 import {
   PLACEMENT_BOARDS, PLACEMENT_COLS, CATEGORIES, PERIOD, placementsReady, semestersFor,
   byCategory,
@@ -187,7 +187,10 @@ async function handler(req, res, session) {
         return res.status(200).json({ definitions: definitions.map(toStudentDef), mine });
       }
 
-      const roster = (await activeStudents()).map((r) => ({ id: r.id, name: r.name }));
+      /* ⚠ assignableStudents ולא activeStudents: חשבון הבדיקה
+         חייב להופיע ברשימת הבחירה כדי שאפשר יהיה לשבץ אותו
+         ולבדוק את המסכים. הוא עדיין אינו נספר בשום מונה. */
+      const roster = (await assignableStudents()).map((r) => ({ id: r.id, name: r.name }));
       return res.status(200).json({ definitions, assignments, roster });
     }
 

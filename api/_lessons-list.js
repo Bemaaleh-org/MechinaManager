@@ -9,6 +9,7 @@
 
 import { withAuth } from "./_session.js";
 import { loadSheets, loadMeetings, countFor } from "./_lessons-data.js";
+import { mayEdit } from "../shared/edit-rights.js";
 
 async function handler(req, res, session) {
   if (req.method !== "GET") {
@@ -33,7 +34,7 @@ async function handler(req, res, session) {
       sheets: list,
       count: list.length,
       totals,
-      canEdit: session.isManager || session.isScheduler,
+      canEdit: mayEdit(session, "scheduler"),
     });
   } catch (e) {
     console.error("[lessons-list]", e);
@@ -41,4 +42,4 @@ async function handler(req, res, session) {
   }
 }
 
-export default withAuth(handler, { scheduler: true });
+export default withAuth(handler, { scheduler: true, edit: "scheduler" });

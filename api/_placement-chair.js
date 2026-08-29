@@ -19,7 +19,7 @@
 import { withAuth } from "./_session.js";
 import { gql } from "./_monday.js";
 import { invalidate } from "./_cache.js";
-import { activeStudents } from "./_student-rows.js";
+import { assignableStudents } from "./_student-rows.js";
 import {
   PLACEMENT_BOARDS, PLACEMENT_COLS, CATEGORY, placementsReady,
 } from "../shared/placements.js";
@@ -64,7 +64,9 @@ async function handler(req, res, session) {
 
     let name = "";
     if (studentId) {
-      const st = (await activeStudents()).find((r) => r.id === studentId);
+      /* ⚠ אותה רשימה של עורך השיבוצים — אחרת אפשר לשבץ את
+     חשבון הבדיקה לוועדה ולא לקבוע אותו ליו״ר שלה. */
+      const st = (await assignableStudents()).find((r) => r.id === studentId);
       if (!st) return res.status(400).json({ error: "החניך אינו פעיל או אינו קיים" });
       name = st.name;
     }

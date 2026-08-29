@@ -2558,4 +2558,12 @@ html,body{margin:0;padding:0;background:#012E58}
   line-height:1.75;margin:0 0 14px}
 .tm-made p b{color:var(--ink);font-weight:800}
 
+/* ---------- חשבון צפייה בלבד ---------- */
+/* ⚠ רצועה ולא tooltip: ההגבלה חלה בכל מסך, ומי שלא יראה
+   אותה יסיק שהמערכת שבורה. */
+.ro-bar{background:#FBF3E4;color:#8A5A1E;font-size:12.5px;font-weight:700;
+  text-align:center;padding:7px 14px;line-height:1.5;
+  border-bottom:1px solid var(--line2)}
+.ro-bar b{font-weight:900}
+
 `;

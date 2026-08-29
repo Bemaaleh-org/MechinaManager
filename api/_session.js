@@ -25,6 +25,7 @@ import { ensureCycle } from "./_cycle.js";
 import { ROLE_CONTAINER, ROLE_KITCHEN, ROLE_SAFETY, ROLE_HOUSE } from "../shared/lessons-boards.js";
 import { leadersForDate } from "./_leader-weeks.js";
 import { parseTestDate } from "./_test-date.js";
+import { mayEdit, editHint, EDIT_AREA } from "../shared/edit-rights.js";
 
 const COOKIE = "mk_session";
 const TTL_DAYS = 7;
@@ -45,7 +46,8 @@ export const fingerprint = (code) => b64(hmac("code:" + code)).slice(0, 22);
 /* ---------- מטמון לוח המשתמשים ---------- */
 export async function authRows({ force = false } = {}) {
   return cached("auth-rows", async () => {
-    const cols = JSON.stringify([AUTH_COLS.kind, AUTH_COLS.code, AUTH_COLS.active, AUTH_COLS.role]);
+    const cols = JSON.stringify([AUTH_COLS.kind, AUTH_COLS.code, AUTH_COLS.active,
+      AUTH_COLS.role, AUTH_COLS.viewOnly]);
     const d = await gql(
       `{ boards(ids:[${AUTH_BOARD}]){ items_page(limit:500){ items {
            id name column_values(ids:${cols}){ id text } } } } }`
@@ -59,6 +61,8 @@ export async function authRows({ force = false } = {}) {
       active: val(i, AUTH_COLS.active) === "v",
       /* ריק = איש צוות רגיל. ראו STAFF_ROLE. */
       role: val(i, AUTH_COLS.role) || null,
+      /* ⚠ ריק = הרשאה מלאה. ראו shared/auth-board.js. */
+      viewOnly: val(i, AUTH_COLS.viewOnly) === "v",
     }));
   }, { force });
 }
@@ -171,6 +175,10 @@ export async function requireAuth(req, res) {
          כל נקודת קצה חוץ ממסך ההקמה. */
       setup: Boolean(payload.setup),
       isManager: false,
+      /* ⚠ חניך לעולם אינו "צפייה בלבד" — הדגל שייך ללוח
+         ההרשאות של הצוות. מוגדר במפורש כדי שלא יהיה undefined
+         בענף אחד ו-false בשני. */
+      viewOnly: false,
       isStudent: true,
       isLeader: scheduled || row.leader,
       roles: row.roles || [],
@@ -211,6 +219,9 @@ export async function requireAuth(req, res) {
        סוגרת את ההכרעה מיד ולא בכניסה הבאה. */
     isHead: row.role === STAFF_ROLE.head,
     isGuide: row.role === STAFF_ROLE.guide,
+    /* ⚠ נקרא טרי מהלוח בכל בקשה, כמו התפקיד. הסרת הסימון
+       פותחת כתיבה מיד ולא בכניסה הבאה. */
+    viewOnly: Boolean(row.viewOnly),
     roles: [],
     isScheduler: false,
     isContainer: false,
@@ -254,7 +265,7 @@ export async function requireManager(req, res) {
  */
 export function withAuth(
   handler,
-  { manager = false, marker = false, student = false, scheduler = false, container = false, safety = false, house = false, kitchen = false, setup = false } = {}
+  { manager = false, marker = false, student = false, scheduler = false, container = false, safety = false, house = false, kitchen = false, setup = false, edit = null } = {}
 ) {
   return async (req, res) => {
     let session;
@@ -273,6 +284,54 @@ export function withAuth(
          ============================================================ */
       if (session.setup && !setup) {
         throw new AuthError("יש לבחור שם משתמש וסיסמה לפני הכניסה למערכת", 403);
+      }
+
+      /* ============================================================
+         ⚠⚠ **צפייה בלבד — שער אחד לכל המערכת.**
+
+         מנכ״ל העמותה רואה הכול ואינו משנה דבר. האכיפה כאן ולא
+         בכל נקודת קצה בנפרד, משתי סיבות:
+
+         1. יש עשרות מסלולי כתיבה, ומי שיוסיף את הבא לא יזכור
+            להוסיף בדיקה. שער אחד מגן גם על מה שייכתב מחר.
+         2. הבחנה לפי `req.method` היא מדויקת: GET הוא קריאה,
+            וכל השאר משנה משהו.
+
+         ⚠ **`?action=logout` הוא POST ואינו עטוף ב-withAuth**
+           (ראו api/auth.js), ולכן הוא ממשיך לעבוד — מי שנחסם
+           חייב להיות מסוגל לצאת.
+
+         ⚠ והשגיאה אומרת **מה** ההרשאה ולא "אין הרשאה", כדי
+           שמי שנתקל בה יידע שזה מכוון ולא תקלה.
+         ============================================================ */
+      if (session.viewOnly && req.method && req.method !== "GET") {
+        throw new AuthError(
+          "החשבון הזה מוגדר לצפייה בלבד — רואה את כל המערכת ואינו משנה בה דבר", 403);
+      }
+
+      /* ============================================================
+         ⚠ **קריאה לכל הצוות, כתיבה לבעל התחום.**
+
+         `{ kitchen: true }` ו-`{ scheduler: true }` מרשים לכל
+         כניסת צוות (`isManager === kind === "manager"`), ולכן
+         **מדריך יכול היה לערוך את תקציב המטבח ואת גיליונות
+         המרצים** — לא כי מישהו החליט, אלא כי `isManager` הוא
+         הדגל הרחב ביותר במערכת.
+
+         `edit` מצמצם את **הכתיבה בלבד**: ראש המכינה (וזה כולל
+         את הסגנית, כי זו תווית בלוח ולא זהות בקוד — 4מ) ובעל
+         התחום. הקריאה נשארת פתוחה לכולם, וזו הכוונה: מדריך
+         צריך לראות את התקציב ואת מערכת השיעורים.
+
+         ⚠ **החלוקה לפי `req.method` ולא לפי `action`.** מסלול
+           חדש שייכתב מחר מוגן מעצמו.
+         ⚠ **וההודעה אומרת מי כן רשאי**, לא "אין הרשאה" — מי
+           שנחסם צריך לדעת למי לפנות (אותו כלל כמו 4כב).
+         ============================================================ */
+      if (edit && req.method && req.method !== "GET") {
+        /* ⚠ אותו `mayEdit` שהמסך קורא לו — לא העתק. */
+        if (!EDIT_AREA[edit]) throw new AuthError("הגדרת הרשאה שגויה בשרת", 500);
+        if (!mayEdit(session, edit)) throw new AuthError(editHint(edit), 403);
       }
 
       if (manager && !session.isManager) {

@@ -40,6 +40,9 @@ export default async function handler(req, res) {
            משמש את המסך כדי להסביר מי מכריע; ההרשאה עצמה נאכפת
            בשרת בכל הכרעה, לא כאן. */
         isHead: Boolean(session.isHead),
+        /* ⚠ המסך צריך לדעת מראש — כפתור שמופיע ומקבל 403 אחרי
+           שהמשתמש כבר הקליד הוא הדבר שהכלל הזה נועד למנוע (4יד). */
+        viewOnly: Boolean(session.viewOnly),
         isGuide: Boolean(session.isGuide),
         needsName: session.kind === "trainee" && !session.name,
         roster: session.kind === "trainee" ? await traineeRoster() : [],

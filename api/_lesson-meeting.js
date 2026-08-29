@@ -139,4 +139,4 @@ async function readJson(req) {
   return raw ? JSON.parse(raw) : {};
 }
 
-export default withAuth(handler, { scheduler: true });
+export default withAuth(handler, { scheduler: true, edit: "scheduler" });
