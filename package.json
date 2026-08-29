@@ -11,7 +11,10 @@
     "sync": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/watch-pull.ps1",
     "check:kitchen": "node --env-file=.env tools/check-kitchen.mjs",
     "seed:kitchen": "node --env-file=.env tools/seed-kitchen.mjs",
-    "seed:placements": "node --env-file=.env tools/seed-placements.mjs"
+    "seed:placements": "node --env-file=.env tools/seed-placements.mjs",
+    "test": "node --env-file=.env tools/tests/run.mjs",
+    "seed:chores": "node --env-file=.env tools/seed-chores.mjs",
+    "seed:teams": "node --env-file=.env tools/seed-teams.mjs"
   },
   "dependencies": {
     "nodemailer": "^9.0.5",
