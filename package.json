@@ -14,7 +14,8 @@
     "seed:placements": "node --env-file=.env tools/seed-placements.mjs",
     "test": "node --env-file=.env tools/tests/run.mjs",
     "seed:chores": "node --env-file=.env tools/seed-chores.mjs",
-    "seed:teams": "node --env-file=.env tools/seed-teams.mjs"
+    "seed:teams": "node --env-file=.env tools/seed-teams.mjs",
+    "codes": "node --env-file=.env tools/staff-codes.mjs"
   },
   "dependencies": {
     "nodemailer": "^9.0.5",
