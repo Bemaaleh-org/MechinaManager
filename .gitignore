@@ -6,6 +6,7 @@
 # תלויות ותוצרי בנייה
 node_modules/
 dist/
+dist-preview/
 build/
 .vercel/
 
