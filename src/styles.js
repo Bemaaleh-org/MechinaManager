@@ -871,6 +871,24 @@ html,body{margin:0;padding:0;background:#012E58}
 /* תמונת "אחרי התיקון" מסומנת, כדי שלא תיקרא כתמונת הבעיה. */
 /* "תורנות מטבח" ליד שם החניך בסימון האימון — עובדה על היום,
    נגזרת מלוח התורניות ואינה סימון של האימון. */
+/* מרצים של סדרה, וסיכום סדרה */
+.tm-note{font-size:12px;line-height:1.65;color:var(--muted);font-weight:600;
+  background:var(--bg);border-radius:var(--r-md);padding:10px 12px;margin-bottom:12px}
+.tm-lect{margin-bottom:10px}
+.tm-lect-h{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.tm-lect-h b{font-size:15px;font-weight:800;letter-spacing:-.2px}
+.tm-lect-m{display:flex;gap:5px;flex-wrap:wrap;font-size:11.5px;font-weight:700;
+  color:var(--muted);margin-top:3px}
+.tm-lect-o{font-size:13px;line-height:1.6;color:var(--ink);white-space:pre-wrap;margin-top:8px}
+.tm-lect-f{display:flex;align-items:center;gap:6px;margin-top:8px;
+  font-size:11px;font-weight:700;color:var(--faint)}
+.tm-lect-f>span:first-child{flex:1}
+.tm-sum-l{background:var(--bg);border-radius:var(--r-md);padding:10px 12px;margin-bottom:10px}
+.tm-sum-l i{display:block;font-style:normal;font-size:10.5px;font-weight:800;
+  color:var(--faint);margin-bottom:4px}
+.tm-sum-l span{display:inline-block;font-size:12.5px;font-weight:700;
+  background:var(--surface);border-radius:6px;padding:3px 8px;margin:0 0 4px 4px}
+
 /* בורר ימים מרובה בעורך הצ׳ק ליסט */
 .ch-dsel{display:flex;gap:5px;flex-wrap:wrap}
 .kx .ch-dsel-b{width:34px;height:34px;border-radius:9px;border:2px solid var(--line2);

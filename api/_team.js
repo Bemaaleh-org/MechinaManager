@@ -23,6 +23,7 @@ import {
   closingIds, israelToday,
 } from "./_team-data.js";
 import { loadDefinitions } from "./_placements.js";
+import { loadEvals } from "./_lessons-data.js";
 import { mayTeam, mayEditTask, progressOf, isLate, isTeamCategory } from "../shared/team.js";
 
 /* ⚠ מיפוי מפורש ולא השמטה: עמודה חדשה בלוח לא תדלוף מעצמה */
@@ -98,7 +99,9 @@ async function handler(req, res, session) {
       return res.status(403).json({ error: "הצוות הזה אינו שלך" });
     }
 
-    const [vocab, all] = await Promise.all([loadVocab(), loadTeamTasks()]);
+    const [vocab, all, evals] = await Promise.all([
+      loadVocab(), loadTeamTasks(), loadEvals().catch(() => []),
+    ]);
     const closing = closingIds(vocab);
     const today = israelToday();
     const rows = all.filter((t) => t.team === ctx.def.id);
@@ -171,6 +174,31 @@ async function handler(req, res, session) {
         unassigned: unassigned.length,
       },
       byOwner,
+      /* ============================================================
+         ⚠ **המרצים של הסדרה — אותו לוח חוות דעת, עם שיוך.**
+
+         מרצה שהגיע לסדרה הוא אותו מרצה שיכול להגיע לשיעור רגיל;
+         שני לוחות היו מייצרים שתי היסטוריות על אותו אדם.
+
+         ⚠ **כשלון בטעינת חוות הדעת אינו מפיל את המסך** — הוא
+           מחזיר רשימה ריקה, והמשימות עדיין עובדות. אותו כלל
+           כמו `partial` בתיק החניך (4מא).
+       ============================================================ */
+      lecturers: evals
+        .filter((e) => String(e.placement || "") === String(ctx.def.id))
+        .map((e) => ({
+          id: e.id, name: e.name, topic: e.topic, field: e.field,
+          phone: e.phone, opinion: e.opinion,
+          lessonDate: e.lessonDate, by: e.by, at: e.at,
+          /* ⚠ נגזר בשרת ולא מהשוואת שמות בלקוח — היא נשברת
+             ביום שמישהו משנה את שמו (4ס). */
+          mine: String(e.by || "") === String(session.name || ""),
+        }))
+        .sort((a, b) => (b.lessonDate || "").localeCompare(a.lessonDate || "")
+          || a.name.localeCompare(b.name, "he")),
+      /* ⚠ הסיכום נכתב על ידי **כל** חברי הסדרה, לא רק היו״ר. */
+      summary: ctx.def.summary || null,
+      summaryBy: ctx.def.summaryBy || null,
       warnings,
     });
   } catch (e) {

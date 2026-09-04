@@ -138,6 +138,18 @@ export const api = {
   addPurchase: (body) => post("/api/kitchen?action=budget", body),
   deletePurchase: (orderId) => del("/api/kitchen?action=budget", { orderId }),
 
+  /* ---------- מרצים של סדרה, וסיכום סדרה ----------
+     ⚠ כל חברי הסדרה כותבים, ולא רק היו״ר. */
+  addTeamLecturer: ({ team, name, topic, field, phone, opinion, lessonDate }) =>
+    post("/api/students?action=team-lecturer",
+      { team, name, topic, field, phone, opinion, lessonDate }),
+  editTeamLecturer: ({ id, name, topic, field, phone, opinion, lessonDate }) =>
+    put("/api/students?action=team-lecturer",
+      { id, name, topic, field, phone, opinion, lessonDate }),
+  deleteTeamLecturer: (id) => del("/api/students?action=team-lecturer", { id }),
+  saveTeamSummary: ({ team, summary }) =>
+    put("/api/students?action=team-lecturer", { team, summary }),
+
   /* ---------- דוח תשלום למרצים ----------
      ⚠ צוות בלבד. חודש יחיד, או השנה כולה כשלא נשלח חודש. */
   getLessonPay: (month) =>

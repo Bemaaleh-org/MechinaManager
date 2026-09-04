@@ -87,7 +87,7 @@ const setRoster = async (cols) => {
 };
 
 /* מה שהבדיקה יצרה — נמחק לפי מזהה, בכל לוח */
-const made = { defs: [], asg: [], tasks: [], vocab: [] };
+const made = { defs: [], asg: [], tasks: [], vocab: [], lect: [] };
 const NAME = "בדיקה — ועדת בדיקה אוטומטית";
 const ADHOC_NAME = "בדיקה — צוות מזדמן אוטומטי";
 
@@ -371,9 +371,79 @@ try {
   ok("נחסם ומסביר איפה יושבות השורות",
     r.s === 400 && /שיבוצים יושבים/.test(r.b.error || ""), r.s + " " + (r.b.error || ""));
 
+  /* ============ מרצים של הצוות, וסיכום ============ */
+  console.log("\n=== מרצים וסיכום ===");
+  {
+    /* ⚠ הבדיקה כותבת על הצוות שהיא יצרה, ומוחקת לפי מזהה.
+       `ST` הוא חשבון הבדיקה, שהוא **חבר הצוות והיו״ר** שלו. */
+    let r3 = await call(ST, "POST", "/api/students?action=team-lecturer",
+      { team: TEAM, name: "בדיקה — מרצה סדרה", topic: "נושא בדיקה",
+        opinion: "היה טוב", lessonDate: "2026-10-01" });
+    ok("חבר הצוות מוסיף מרצה", r3.s === 200 && r3.b.id, `${r3.s} ${r3.b.error || ""}`);
+    const lid = r3.b.id;
+    if (lid) made.lect.push(lid);
+
+    r3 = await call(ST, "POST", "/api/students?action=team-lecturer",
+      { team: TEAM, name: "בדיקה — תאריך שגוי", lessonDate: "1.10.2026" });
+    ok("תאריך בפורמט שגוי נדחה", r3.s === 400, `${r3.s} ${r3.b.error || ""}`);
+    if (r3.s === 200 && r3.b.id) made.lect.push(r3.b.id);
+
+    r3 = await call(ST, "GET", "/api/students?action=team&id=" + TEAM);
+    const lect = (r3.b.lecturers || []).find((x) => x.id === lid);
+    ok("והוא חוזר בצוות", Boolean(lect), String((r3.b.lecturers || []).length));
+    ok("עם התאריך והטקסט",
+      lect && lect.lessonDate === "2026-10-01" && lect.opinion === "היה טוב",
+      JSON.stringify(lect && [lect.lessonDate, lect.opinion]));
+    /* ⚠ `mine` נגזר בשרת ולא מהשוואת שמות בלקוח (4ס). */
+    ok("ומסומן כשלי", lect && lect.mine === true, String(lect && lect.mine));
+
+    /* ⚠⚠ **אותו לוח, ולא לוח שני.** חוות הדעת מופיעה גם ברשימה
+       הכללית של המרצים — שני לוחות היו מייצרים שתי היסטוריות
+       על אותו אדם, ואז "האם כבר עבדנו איתו" מקבלת שתי תשובות. */
+    r3 = await call(MGR, "GET", "/api/lessons?action=evals");
+    ok("ומופיע גם ברשימת חוות הדעת הכללית",
+      (r3.b.evals || []).some((e) => e.id === lid),
+      String((r3.b.evals || []).length));
+
+    /* ⚠ 404 ולא 403 על מזהה שאינו של סדרה — 403 מאשר קיום. */
+    const other = (await call(MGR, "GET", "/api/lessons?action=evals")).b.evals
+      .find((e) => !e.placement);
+    if (other) {
+      r3 = await call(ST, "PUT", "/api/students?action=team-lecturer",
+        { id: other.id, opinion: "בדיקה" });
+      ok("חוות דעת כללית אינה נגישה מכאן — 404", r3.s === 404,
+        `${r3.s} ${r3.b.error || ""}`);
+    }
+
+    /* ---- הסיכום ---- */
+    r3 = await call(ST, "PUT", "/api/students?action=team-lecturer",
+      { team: TEAM, summary: "בדיקה — סיכום הסדרה" });
+    ok("חבר הצוות כותב סיכום", r3.s === 200, `${r3.s} ${r3.b.error || ""}`);
+
+    await until("הסיכום נראה", async () => {
+      const x = await call(ST, "GET", "/api/students?action=team&id=" + TEAM);
+      return x.b.summary === "בדיקה — סיכום הסדרה";
+    });
+    r3 = await call(ST, "GET", "/api/students?action=team&id=" + TEAM);
+    ok("והוא חוזר", r3.b.summary === "בדיקה — סיכום הסדרה", String(r3.b.summary));
+    ok("ונרשם מי כתב", Boolean(r3.b.summaryBy), String(r3.b.summaryBy));
+
+    /* ⚠ צוות שאינו קיים — 404, ולא 500. */
+    r3 = await call(ST, "PUT", "/api/students?action=team-lecturer",
+      { team: "999999999", summary: "בדיקה" });
+    ok("צוות שאינו קיים מחזיר 404", r3.s === 404, `${r3.s} ${r3.b.error || ""}`);
+
+    /* ⚠ ומחיקה עובדת למי שכתב. */
+    if (lid) {
+      r3 = await call(ST, "DELETE", "/api/students?action=team-lecturer", { id: lid });
+      ok("ומי שכתב מוחק", r3.s === 200, `${r3.s} ${r3.b.error || ""}`);
+    }
+  }
+
 } catch (e) {
   console.error("\nנפילה:", e.message);
   fail++;
+
 } finally {
   /* ============================================================
      ניקוי — לפי מזהה, ובכל לוח שנגענו בו
@@ -386,8 +456,11 @@ try {
     .filter((i) => made.defs.includes(cv(i, A.placement)));
   const tasks = (await allItems(TEAM_BOARDS.tasks))
     .filter((i) => made.defs.includes(cv(i, T.team)));
+  /* ⚠ **וגם לוח חוות הדעת.** מרצה של סדרה יושב שם ולא בלוח
+     הצוותים, ובלי השורה הזו כל הרצה הייתה משאירה שם שורה. */
   const ids = [
     ...made.vocab,
+    ...made.lect,
     ...tasks.map((i) => String(i.id)),
     ...asg.map((i) => String(i.id)),
     ...made.defs,

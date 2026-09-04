@@ -288,6 +288,241 @@ function TaskCard({ t, statusName, onOpen }) {
      ומכאן יש אליה **קישור אחד בכיוון אחד** — כדי ששני המסכים
      לא ייראו כמו אותו מסך, וההבטחה של 4מה לא תיקרא כשקר.
    ============================================================ */
+/* ============================================================
+   מרצים של הצוות
+   ------------------------------------------------------------
+   ⚠ **אותו לוח חוות דעת של המרצים, ולא לוח שני.** מרצה שהגיע
+     לסדרה הוא אותו מרצה שיכול להגיע לשיעור רגיל, ושני לוחות
+     היו מייצרים שתי היסטוריות על אותו אדם — ואז "האם כבר
+     עבדנו איתו" מקבלת שתי תשובות.
+
+   ⚠ **כל חברי הצוות כותבים, ולא רק היו״ר** — בקשה מפורשת של
+     המכינה. מה שמצומצם הוא **עריכה ומחיקה**: של מי שכתב, או
+     של היו״ר והמדריך. חוות דעת היא טקסט שאדם כתב.
+   ============================================================ */
+const EMPTY_LECT = { name: "", topic: "", field: "", phone: "", opinion: "", lessonDate: "" };
+
+function Lecturers({ d, say, reload }) {
+  const [form, setForm] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [asking, setAsking] = useState(null);
+  const list = d.lecturers || [];
+
+  const save = () => {
+    if (busy || !form.name.trim()) return;
+    setBusy(true);
+    const body = {
+      name: form.name.trim(), topic: form.topic.trim(), field: form.field.trim(),
+      phone: form.phone.trim(), opinion: form.opinion.trim(),
+      lessonDate: form.lessonDate,
+    };
+    (form.id
+      ? api.editTeamLecturer({ ...body, id: form.id })
+      : api.addTeamLecturer({ ...body, team: d.team.id }))
+      .then(() => { say(form.id ? "עודכן" : "נוסף"); setForm(null); reload(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  if (form) {
+    return (
+      <div className="card lift">
+        <div className="fld">
+          <label>שם המרצה</label>
+          <input value={form.name} disabled={busy} autoFocus
+            onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        </div>
+        <div className="tm-row2">
+          <div className="fld">
+            <label>נושא</label>
+            <input value={form.topic} disabled={busy}
+              onChange={(e) => setForm({ ...form, topic: e.target.value })} />
+          </div>
+          <div className="fld">
+            <label>תאריך</label>
+            <input type="date" dir="ltr" value={form.lessonDate} disabled={busy}
+              onChange={(e) => setForm({ ...form, lessonDate: e.target.value })} />
+          </div>
+        </div>
+        <div className="tm-row2">
+          <div className="fld">
+            <label>תחום</label>
+            <input value={form.field} disabled={busy}
+              onChange={(e) => setForm({ ...form, field: e.target.value })} />
+          </div>
+          <div className="fld">
+            <label>טלפון</label>
+            <input value={form.phone} disabled={busy} inputMode="tel" dir="ltr"
+              onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </div>
+        </div>
+        <div className="fld">
+          <label>חוות דעת ופירוט</label>
+          <textarea rows={4} value={form.opinion} disabled={busy}
+            placeholder="מה היה, איך עבד מול הקבוצה, האם להזמין שוב"
+            onChange={(e) => setForm({ ...form, opinion: e.target.value })} />
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button className="btn btn-primary btn-sm" style={{ flex: 1 }}
+            disabled={busy || !form.name.trim()} onClick={save}>
+            {busy ? "שומר…" : "שמירה"}
+          </button>
+          <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} disabled={busy}
+            onClick={() => setForm(null)}>ביטול</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="tm-note">
+        המרצים שהגיעו לצוות הזה. מה שנכתב כאן מופיע גם ברשימת חוות הדעת
+        הכללית של המכינה — אותו מרצה, היסטוריה אחת.
+      </div>
+
+      {list.length === 0 ? (
+        <div className="empty">
+          <div className="e1">עוד לא נרשמו מרצים</div>
+          <div className="e2">כל מי שהגיע — עם מה שכדאי לזכור עליו לפעם הבאה.</div>
+        </div>
+      ) : list.map((x) => (
+        <div className="card tm-lect" key={x.id}>
+          <div className="tm-lect-h">
+            <b>{x.name}</b>
+            {x.field && <span className="pill p-new">{x.field}</span>}
+          </div>
+          <div className="tm-lect-m">
+            {x.topic && <span>{x.topic}</span>}
+            {x.lessonDate && <span>· {x.lessonDate}</span>}
+            {x.phone && <span dir="ltr">· {x.phone}</span>}
+          </div>
+          {x.opinion && <div className="tm-lect-o">{x.opinion}</div>}
+          <div className="tm-lect-f">
+            {x.by && <span>{x.by}</span>}
+            {/* ⚠ עריכה ומחיקה — מי שכתב, או היו״ר והמדריך. */}
+            {(x.mine || d.me.manage) && (
+              <>
+                <button className="btn btn-ghost btn-sm"
+                  onClick={() => setForm({
+                    ...x, topic: x.topic || "", field: x.field || "",
+                    phone: x.phone || "", opinion: x.opinion || "",
+                    lessonDate: x.lessonDate || "",
+                  })}>עריכה</button>
+                <button className="esc-del" title="מחיקה"
+                  onClick={() => setAsking(x.id)}>✕</button>
+              </>
+            )}
+          </div>
+          {asking === x.id && (
+            <div className="alert a-clay" style={{ marginTop: 8 }}>
+              <div style={{ flex: 1 }}>
+                <div className="ttl">למחוק את חוות הדעת על {x.name}?</div>
+                <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                  <button className="btn btn-clay btn-sm" style={{ flex: 1 }} disabled={busy}
+                    onClick={() => {
+                      setBusy(true);
+                      api.deleteTeamLecturer(x.id)
+                        .then(() => { say("נמחק"); setAsking(null); reload(); })
+                        .catch((e) => say(e.message))
+                        .finally(() => setBusy(false));
+                    }}>כן, למחוק</button>
+                  <button className="btn btn-ghost btn-sm" style={{ flex: 1 }}
+                    onClick={() => setAsking(null)}>ביטול</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {d.me.write && (
+        <button className="btn btn-primary tm-add" onClick={() => setForm({ ...EMPTY_LECT })}>
+          <TI.plus />מרצה חדש
+        </button>
+      )}
+    </>
+  );
+}
+
+/* ============================================================
+   סיכום הצוות
+   ------------------------------------------------------------
+   ⚠ **הנתונים נגזרים והטקסט נכתב.** המספרים למעלה מגיעים
+     מהמשימות ומהמרצים בזמן השליפה, והטקסט הוא מה שהקבוצה
+     רוצה לזכור. סיכום שהוא רק טקסט מאבד את המספרים, וסיכום
+     שהוא רק מספרים אינו סיכום.
+
+   ⚠ **כל חברי הצוות כותבים אותו** — בקשה מפורשת של המכינה.
+     סיכום שרק היו״ר יכול לגעת בו אינו סיכום של הסדרה.
+   ============================================================ */
+function TeamSummary({ d, say, reload }) {
+  const [edit, setEdit] = useState(false);
+  const [text, setText] = useState(d.summary || "");
+  const [busy, setBusy] = useState(false);
+  const lect = d.lecturers || [];
+
+  const save = () => {
+    if (busy) return;
+    setBusy(true);
+    api.saveTeamSummary({ team: d.team.id, summary: text })
+      .then(() => { say("נשמר"); setEdit(false); reload(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <>
+      <div className="ld-facts">
+        <div><b className="num">{d.counts.done}/{d.counts.total}</b><span>משימות שנסגרו</span></div>
+        <div><b className="num">{lect.length}</b><span>מרצים</span></div>
+        <div><b className="num">{d.members.length}</b><span>חברי צוות</span></div>
+      </div>
+      {/* ⚠ המספר שאומר כמה מהתמונה חסר — מוצג ולא מושמט (4יח). */}
+      {d.counts.late > 0 && (
+        <div className="ld-gap">{d.counts.late} משימות באיחור</div>
+      )}
+
+      {lect.length > 0 && (
+        <div className="tm-sum-l">
+          <i>מרצים</i>
+          {lect.map((x) => (
+            <span key={x.id}>{x.name}{x.lessonDate ? ` · ${x.lessonDate}` : ""}</span>
+          ))}
+        </div>
+      )}
+
+      <div className="sec-label">סיכום</div>
+      {edit ? (
+        <>
+          <textarea rows={8} value={text} disabled={busy}
+            placeholder="מה עבד, מה לא, מה כדאי לדעת לפעם הבאה"
+            onChange={(e) => setText(e.target.value)} />
+          <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+            <button className="btn btn-primary btn-sm" style={{ flex: 1 }} disabled={busy}
+              onClick={save}>{busy ? "שומר…" : "שמירה"}</button>
+            <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} disabled={busy}
+              onClick={() => { setText(d.summary || ""); setEdit(false); }}>ביטול</button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className={"ld-text" + (d.summary ? "" : " ld-empty")}>
+            {d.summary || "עוד לא נכתב סיכום."}
+          </div>
+          {d.summaryBy && <div className="ld-by">{d.summaryBy}</div>}
+          {d.me.write && (
+            <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginTop: 6 }}
+              onClick={() => setEdit(true)}>
+              {d.summary ? "עריכת הסיכום" : "כתיבת סיכום"}
+            </button>
+          )}
+        </>
+      )}
+    </>
+  );
+}
+
 function TeamNotes({ team, me, say, go }) {
   /* ⚠ **dutyKey ולא מחרוזת מוקלדת.** הגרש ב"יו״ר" הוא U+05F4
      בכל המאגר, אבל מפתח שנבנה ביד הוא בדיוק מה ש-shared/duties.js
@@ -465,6 +700,11 @@ function TeamHub({ id, say, onBack, go }) {
       <ScrollTabs className="tm-tabs">
         {[["tasks", "משימות", <TI.list key="a" />],
           ["people", "לפי אדם", <TI.users key="b" />],
+          /* ⚠ **מרצים וסיכום — בכל צוות, ולא רק בסדרה.** ועדה
+             שמביאה מרצה היא מצב אמיתי, ולשונית שמופיעה ונעלמת
+             לפי קטגוריה מלמדת את המשתמש לא לסמוך על הניווט. */
+          ["lect", "מרצים", <TI.users key="d" />],
+          ["sum", "סיכום", <TI.list key="e" />],
           ["notes", "הצפות", <TI.bell key="c" />]]
           .map(([k, label, ic]) => (
             <button key={k} className={"tm-tab" + (view === k ? " on" : "")}
@@ -474,6 +714,18 @@ function TeamHub({ id, say, onBack, go }) {
 
       {view === "notes" && (
         <TeamNotes team={d.team} me={d.me} say={say} go={go} />
+      )}
+
+      {/* ⚠ `load` ולא `reload` — הטוען כאן נקרא `load`.
+          `reload` שאינו קיים עובר את `vite build` בשלום ונופל
+          בדפדפן ב-ReferenceError, וזה בדיוק סוג השגיאה שהבנייה
+          לא תופסת (4ס). */}
+      {view === "lect" && (
+        <Lecturers d={d} say={say} reload={load} />
+      )}
+
+      {view === "sum" && (
+        <TeamSummary d={d} say={say} reload={load} />
       )}
 
       {view === "tasks" && (

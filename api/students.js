@@ -14,6 +14,8 @@
      ?action=team-task POST/PUT/DELETE  משימות הצוות
      ?action=team-admin GET/POST/PUT    הגדרות הצוותים ואוצר המילים
      ?action=edit    PUT    עריכת נתוני חניך ⚠ ראש מכינה בלבד
+     ?action=team-lecturer POST/PUT/DELETE  מרצים של סדרה,
+                     וסיכום הסדרה ⚠ כל חברי הסדרה
      ?action=leadership GET/PUT  דף המובילויות
                      ⚠ רק שבועות שכבר הסתיימו. משוב — הצוות;
                        סיכום — מי שהוביל.
@@ -64,10 +66,14 @@ import edit from "./_student-edit.js";
 import tryouts from "./_tryouts.js";
 /* ⚠ דף המובילויות — **רק מה שכבר עבר**, גם אם יש שיבוץ עתידי. */
 import leadership from "./_leadership.js";
+/* ⚠ מרצים של סדרה — **אותו לוח חוות דעת**, עם שיוך לסדרה.
+   כל חברי הסדרה כותבים, ולא רק היו״ר. */
+import teamLecturer from "./_team-lecturer.js";
 import team from "./_team.js";
 import teamTask from "./_team-task.js";
 import teamAdmin from "./_team-admin.js";
 
 export default router({ login, list, year, leader, weeks, role, profile, incident, placements, "placements-setup": placementsSetup, safety, "safety-setup": safetySetup, faults, "faults-setup": faultsSetup, alumni, hosting, cycles, import: importStep,
   duty, "duty-tasks": dutyTasks, "duty-notes": dutyNotes, chair,
-  team, "team-task": teamTask, "team-admin": teamAdmin, edit, tryouts, leadership });
+  team, "team-task": teamTask, "team-admin": teamAdmin, edit, tryouts, leadership,
+  "team-lecturer": teamLecturer });

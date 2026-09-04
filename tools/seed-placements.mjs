@@ -121,6 +121,9 @@ const D = {
   chairName: await createColumn(defsBoard, "יו״ר", "text"),
   /* ⚠ תיבה בלוח ולא שם מקובע — ראו shared/placements-ids.js */
   army: await createColumn(defsBoard, "ועדת גיוסים", "checkbox"),
+  /* ⚠ סיכום הסדרה — נכתב על ידי כל חברי הסדרה */
+  summary: await createColumn(defsBoard, "סיכום", "long_text"),
+  summaryBy: await createColumn(defsBoard, "סיכום מאת", "text"),
   /* ⚠ ריק = פעיל. ראו shared/placements-ids.js */
   archived: await createColumn(defsBoard, "מוארכב", "checkbox"),
 };
@@ -157,6 +160,7 @@ export const PLACEMENT_COLS = {
     desc: "${D.desc}", hours: "${D.hours}", needs: "${D.needs}", lead: "${D.lead}",
     chair: "${D.chair}", chairName: "${D.chairName}",
     army: "${D.army}",
+    summary: "${D.summary}", summaryBy: "${D.summaryBy}",
     archived: "${D.archived}",
   },
   assignments: { student: "${A.student}", studentName: "${A.studentName}", placement: "${A.placement}", placementName: "${A.placementName}", semester: "${A.semester}" },

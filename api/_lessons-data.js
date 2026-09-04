@@ -133,6 +133,9 @@ export async function loadEvals({ force = false } = {}) {
         at: val(i, E.at) || null,
         /* ⚠ תאריך השיעור, לא תאריך הכתיבה. ראו lessons-boards.js. */
         lessonDate: val(i, E.lessonDate) || null,
+        /* ⚠ שיוך לסדרה. ריק = חוות דעת כללית, וזה הרוב. */
+        placement: val(i, E.placement) || null,
+        placementName: val(i, E.placementName) || null,
         meetingId: val(i, E.meetingId) || null,
         avg: Number(val(i, E.avg)) || null,
         votes: Number(val(i, E.votes)) || null,

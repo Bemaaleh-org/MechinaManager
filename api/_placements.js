@@ -52,6 +52,9 @@ export async function loadDefinitions({ force = false } = {}) {
           /* ⚠ "זו ועדת הגיוסים" — תיבה בלוח ולא שם מקובע בקוד.
              ראו ההערה ב-shared/placements-ids.js. */
           army: val(i, D.army) === "v",
+          /* ⚠ סיכום הסדרה. נקרא כאן ונחשף רק במסך הצוות. */
+          summary: val(i, D.summary) || null,
+          summaryBy: val(i, D.summaryBy) || null,
           /* ⚠ **ריק פירושו פעיל.** הקוטביות הפוכה בכוונה: כל
              שורה שקיימת היום נכתבה לפני שהעמודה נוספה, ותיבה
              ריקה שמשמעותה "מוארכב" הייתה מעלימה את כולן
