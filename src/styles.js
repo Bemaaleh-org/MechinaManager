@@ -871,6 +871,17 @@ html,body{margin:0;padding:0;background:#012E58}
 /* תמונת "אחרי התיקון" מסומנת, כדי שלא תיקרא כתמונת הבעיה. */
 /* "תורנות מטבח" ליד שם החניך בסימון האימון — עובדה על היום,
    נגזרת מלוח התורניות ואינה סימון של האימון. */
+/* מסך שנתקל בתקלה — במקום דף לבן.
+   ⚠ דף לבן הוא הכשל הגרוע ביותר: אין בו הודעה, אין ממנו
+   יציאה, ואי אפשר לדווח עליו כי אין מה לתאר. */
+.eb{background:var(--surface);border:1px solid var(--line2);border-radius:var(--r-lg);
+  padding:18px 16px;margin:8px 0;box-shadow:var(--sh-1)}
+.eb-t{font-size:16px;font-weight:800;color:var(--clay);letter-spacing:-.2px}
+.eb-b{font-size:13px;font-weight:600;color:var(--muted);line-height:1.6;margin-top:6px}
+.eb-m{font-size:11px;font-weight:600;color:var(--faint);background:var(--bg);
+  border-radius:var(--r-sm);padding:8px 10px;margin-top:10px;direction:ltr;
+  text-align:left;word-break:break-word;font-family:ui-monospace,monospace}
+
 /* מפת ההרשאות */
 .ac-note{font-size:12px;line-height:1.7;color:var(--muted);font-weight:600;
   background:var(--bg);border-radius:var(--r-md);padding:11px 13px;margin-bottom:12px}
@@ -3073,6 +3084,19 @@ html,body{margin:0;padding:0;background:#012E58}
   scroll-behavior:smooth;padding-bottom:2px;margin-bottom:0}
 .stabs-in::-webkit-scrollbar{display:none}
 .stabs-in > *{flex:0 0 auto}
+/* ============================================================
+   WARN **הפעם הרביעית שמלכודת הסגוליות הזו מכה.**
+
+   .seg button הוא (0,1,1) ו-.stabs-in > * הוא (0,1,0) —
+   כלומר flex:1 של הרצועה הרגילה **גובר** על flex:0 0 auto
+   של הרצועה הנגללת, גם כשהאחרון מאוחר יותר בקובץ. התוצאה:
+   ScrollTabs עם המחלקה "seg" לעולם אינו נגלל, הלשוניות נדחסות,
+   וטקסט ארוך כמו "ספטמבר 2026" גולש החוצה ומזיז את כל המסך.
+
+   הכלל, כמו ב-4ק: כלל על ילד של רצועה חייב סגוליות **גבוהה
+   מזו של הרצועה עצמה** — כאן (0,2,1).
+   ============================================================ */
+.stabs-in.seg > button{flex:0 0 auto;padding:0 14px;white-space:nowrap}
 /* ⚠ החץ צף מעל הרצועה עם דהייה מאחוריו — בלי הדהייה
    הוא יושב על טקסט של לשונית וקשה לקרוא את שניהם. */
 .kx .stabs-a{position:absolute;top:0;bottom:2px;width:44px;z-index:2;

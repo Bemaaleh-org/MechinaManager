@@ -35,6 +35,7 @@ import ChoresPage from "./Chores.jsx";
 import RulesPage from "./Rules.jsx";
 import TryoutsPage from "./Tryouts.jsx";
 import LeadershipPage from "./Leadership.jsx";
+import ErrorBoundary from "./ErrorBoundary.jsx";
 import LessonPayPage from "./LessonPay.jsx";
 import { GanttPage } from "./Gantt.jsx";
 import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
@@ -2628,21 +2629,42 @@ function WeekLeaders({ say }) {
 /* ============================================================
    תפקידים במכינה — דף עצמאי, נפרד לגמרי מהנוכחות
    ============================================================ */
-export function MechinaRolesPage({ say, sub0 }) {
-  /* WARN **שתי לשוניות, לא שלוש.** "הצפות" הייתה השלישית והיא
-     הוסרה: ההצפה יושבת עכשיו בתוך כרטיס התפקיד ב-RoleHolders,
-     ובתוך מסך כל ועדה וסדרה. `sub0 === "notes"` שנשאר בקישור
-     ישן נופל ל"בעלי תפקידים" ולא למסך ריק. */
-  const [sub, setSub] = useState(sub0 === "notes" ? "roles" : (sub0 || "weeks"));
+/* ============================================================
+   ⚠ **שני מסכים נפרדים, ולא שתי לשוניות של מסך אחד.**
+
+   "מובילי שבוע" ו"בעלי תפקידים" נראו כמו שני צדדים של אותו
+   דבר ואינם: מוביל שבוע נגזר **משיבוץ בלוח השבועות** ומתחלף
+   כל שבוע, ובעל תפקיד נקבע **בעמודת התפקידים** ונשאר כל השנה.
+   מסך אחד עם לשוניות הכריח לבחור ביניהם בכל כניסה, ובפועל
+   הלשונית השנייה כמעט לא נפתחה.
+
+   ⚠ ולמובילי השבוע יש עכשיו לשונית שנייה משלהם — **סיכום
+     מובילי שבוע** — שהיא המקום שבו רואים מה היה בכל מובילות
+     שהסתיימה. היא שייכת לכאן ולא למסך נפרד בתפריט: מי שמסתכל
+     על השיבוץ הוא בדיוק מי ששואל "ומה היה בשבוע שעבר".
+   ============================================================ */
+export function WeekLeadersPage({ say, sub0 }) {
+  const [sub, setSub] = useState(sub0 === "summary" ? "summary" : "weeks");
   return (
     <>
-      <div className="screen-title">תפקידים במכינה</div>
+      <div className="screen-title">מובילי שבוע</div>
       <div className="seg">
-        <button className={sub === "weeks" ? "on" : ""} onClick={() => setSub("weeks")}>מובילי שבוע</button>
-        <button className={sub === "roles" ? "on" : ""} onClick={() => setSub("roles")}>בעלי תפקידים</button>
+        <button className={sub === "weeks" ? "on" : ""} onClick={() => setSub("weeks")}>שיבוץ</button>
+        <button className={sub === "summary" ? "on" : ""} onClick={() => setSub("summary")}>סיכום מובילי שבוע</button>
       </div>
       {sub === "weeks" && <WeekLeaders say={say} />}
-      {sub === "roles" && <RoleHolders say={say} />}
+      {/* ⚠ `staff` פותח את **כל** השבועות שהסתיימו ולא את של
+          המשתמש — איש צוות אינו מוביל שבוע. */}
+      {sub === "summary" && <LeadershipPage say={say} staff />}
+    </>
+  );
+}
+
+export function RoleHoldersPage({ say }) {
+  return (
+    <>
+      <div className="screen-title">בעלי תפקידים</div>
+      <RoleHolders say={say} />
     </>
   );
 }
@@ -3210,6 +3232,16 @@ export function MechinaApp({ auth, onSignedOut }) {
       )}
 
       <main className="wrap">
+        {/* ============================================================
+            ⚠⚠ **הגבול עוטף את גוף המסך ולא את האפליקציה.**
+              מסגרת שעוטפת הכול הייתה מחליפה דף לבן בדף שגיאה
+              לבן — עדיין בלי ניווט וללא מוצא. כאן המגירה
+              והכותרת נשארות חיות, ורק גוף המסך מוחלף.
+
+            ⚠ `resetKey={tab}` מנקה את השגיאה במעבר מסך:
+              בלעדיו קריסה אחת נראית כמו אפליקציה מתה.
+            ============================================================ */}
+        <ErrorBoundary resetKey={tab} what={tab}>
         {td && (
           <div className="test-banner">
             <MI.warn />
@@ -3336,6 +3368,7 @@ export function MechinaApp({ auth, onSignedOut }) {
             ) : <Loading what="טוען" />}
           </>
         )}
+        </ErrorBoundary>
       </main>
 
       {/* הסרגל התחתון הוסר — הניווט במגירת שלושת הקווים */}

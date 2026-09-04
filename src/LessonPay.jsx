@@ -14,6 +14,7 @@
    ============================================================ */
 import React, { useState, useEffect, useCallback } from "react";
 import { api } from "./api.js";
+import ScrollTabs from "./Tabs.jsx";
 import { monthLabel } from "../shared/budget-boards.js";
 
 const shekel = (n) => Math.round(n || 0).toLocaleString("he-IL");
@@ -43,13 +44,22 @@ export default function LessonPay({ say }) {
     <>
       <div className="screen-title">תשלום למרצים</div>
 
-      <div className="seg">
+      {/* ============================================================
+          ⚠ **רצועה נגללת, ולא `.seg` רגילה.**
+
+          `.seg` היא `display:flex` עם `flex:1` על כל כפתור —
+          ועם שנים־עשר חודשים כל כפתור נדחס עד ש"ספטמבר 2026"
+          גולש החוצה, והמסך זז הצידה. `ScrollTabs` נותן רוחב
+          טבעי לכל לשונית, גלילה אופקית, וחצים שמופיעים רק
+          כשיש מה לגלול (4ר).
+          ============================================================ */}
+      <ScrollTabs className="seg seg-scroll">
         <button className={!month ? "on" : ""} onClick={() => setMonth(null)}>כל השנה</button>
         {(data.months || []).map((m) => (
           <button key={m} className={month === m ? "on" : ""}
             onClick={() => setMonth(m)}>{monthLabel(m)}</button>
         ))}
-      </div>
+      </ScrollTabs>
 
       {month
         ? <MonthView data={data} say={say} onSaved={load} />

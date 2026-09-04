@@ -41,7 +41,16 @@ function objectBody(src, name) {
 }
 
 for (const f of files) {
-  const src = readFileSync("src/" + f, "utf8");
+  /* ⚠ **ההערות מוסרות לפני הסריקה.** ההערות כאן מתעדות באגים,
+     והן מצטטות את הקוד שגרם להם — למשל `<I.lock />`. סורק
+     שסופר ציטוט בהערה כהפניה אמיתית מדווח על תקלה שאינה
+     קיימת, ובדיקה שמתריעה לשווא מפסיקים להריץ. */
+  const raw = readFileSync("src/" + f, "utf8");
+  /* ⚠ הערה: `.` בלי הדגל s אינה תופסת שורה חדשה, ולכן
+     הביטוי לתגובת-שורה בטוח כאן. */
+  const src = raw
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*/gm, "$1");
   /* כל תחילית שמשמשת כרכיב: <I.x />, <MI.x />, <CI.x /> … */
   const prefixes = [...new Set([...src.matchAll(/<([A-Z][A-Za-z]*)\.[a-zA-Z]/g)].map((m) => m[1]))];
 

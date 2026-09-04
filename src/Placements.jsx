@@ -416,7 +416,6 @@ function GuideCard({ cat }) {
 export function PlacementsPage({ say }) {
   const { data, err, busy, reload } = useLoad(() => api.getPlacements(), []);
   const [cat, setCat] = useState(CATEGORIES[0]);
-  const [rolesTab, setRolesTab] = useState(false);
   const [editing, setEditing] = useState(null); // {def, semester, assigned}
 
   if (busy && !data) return (
@@ -450,20 +449,26 @@ export function PlacementsPage({ say }) {
 
       <ScrollTabs className="seg">
         {CATEGORIES.map((c) => (
-          <button key={c} className={!rolesTab && cat === c ? "on" : ""}
-            onClick={() => { setRolesTab(false); setCat(c); }}>
+          <button key={c} className={cat === c ? "on" : ""}
+            onClick={() => setCat(c)}>
             {/* ⚠ plural() ולא שרשרת טרנרי: היא נפלה ל-else,
                 וקטגוריה חמישית קיבלה את התווית "קבוצות" — שתי
                 לשוניות באותו שם ממש כאן. */}
             {plural(c)}
           </button>
         ))}
-        <button className={rolesTab ? "on" : ""} onClick={() => setRolesTab(true)}>תפקידים</button>
+        {/* ⚠ **לשונית "תפקידים" הוסרה מכאן.** בעלי התפקידים
+            הקבועים — אחראי מטבח, מכולה, לו״ז, בטיחות, אב בית —
+            הם דבר אחר משיבוץ לענף או לוועדה: הם נקבעים בעמודת
+            התפקידים בלוח החניכים ולא בלוח השיבוצים, והם אינם
+            מתחלפים בסמסטר.
+
+            שני מסכים שמציגים את אותו רכיב הם שני מקומות לחפש
+            בהם, ומי שערך באחד לא ידע שהשני מציג את אותו דבר.
+            הם יושבים עכשיו במסך "בעלי תפקידים" בלבד. */}
       </ScrollTabs>
 
-      {rolesTab ? (
-        <RoleHolders say={say} />
-      ) : (
+      {(
         <>
           <GuideCard cat={cat} />
 

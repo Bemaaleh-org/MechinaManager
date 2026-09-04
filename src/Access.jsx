@@ -34,7 +34,7 @@ export default function Access() {
 
   return (
     <>
-      <div className="screen-title">מי רשאי למה</div>
+      <div className="screen-title">הרשאות</div>
       <div className="ac-note">
         המסך הזה <b>נבנה מהכללים עצמם</b> ולא מטבלה שמישהו כתב: המסכים מגיעים
         מהגדרת התפקידים, והעריכה מכלל ההרשאות שהשרת אוכף. תפקיד שיתווסף —

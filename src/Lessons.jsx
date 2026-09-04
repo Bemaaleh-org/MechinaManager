@@ -12,6 +12,7 @@
    ============================================================ */
 
 import React, { useState, useMemo } from "react";
+import LessonPay from "./LessonPay.jsx";
 import { api } from "./api.js";
 import { testDate } from "./testDate.js";
 import { useExcel, downloadTable } from "./excel.js";
@@ -1344,6 +1345,10 @@ export function LessonsPage({ say, sub0, onSub }) {
           <button className={sub === "board" ? "on" : ""} onClick={() => setSub("board")}>הלוח שלי</button>
           <button className={sub === "sheets" ? "on" : ""} onClick={() => setSub("sheets")}>גיליונות</button>
           <button className={sub === "evals" ? "on" : ""} onClick={() => setSub("evals")}>חוות דעת</button>
+          {/* ⚠ **התשלום יושב כאן ולא כמסך נפרד בתפריט.** הוא
+              נגזר מהגיליונות — מחיר למפגש כפול מה שסומן שהתקיים
+              — ומי שמתקן דיווח הוא בדיוק מי ששואל כמה מגיע. */}
+          <button className={sub === "pay" ? "on" : ""} onClick={() => setSub("pay")}>תשלום למרצים</button>
         </div>
       )}
 
@@ -1370,6 +1375,7 @@ export function LessonsPage({ say, sub0, onSub }) {
       )}
 
       {sub === "evals" && <Evals say={say} />}
+      {sub === "pay" && <LessonPay say={say} />}
     </>
   );
 }

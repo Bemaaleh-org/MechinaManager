@@ -7,7 +7,7 @@ import Setup from "./Setup.jsx";
 import { CyclesPage } from "./Cycles.jsx";
 import { ProfilePage } from "./Profile.jsx";
 import ExportPage from "./Export.jsx";
-import { MechinaApp, MechinaStaff, MechinaRolesPage } from "./Mechina.jsx";
+import { MechinaApp, MechinaStaff, WeekLeadersPage, RoleHoldersPage } from "./Mechina.jsx";
 import { LessonsPage, LessonsBoard } from "./Lessons.jsx";
 import { AlumniPage, HostingPage, LoansPage } from "./Extras.jsx";
 import { MenuPage } from "./Menu.jsx";
@@ -20,9 +20,8 @@ import TeamsPage from "./Teams.jsx";
 import ChoresPage from "./Chores.jsx";
 import RulesPage from "./Rules.jsx";
 import TryoutsPage from "./Tryouts.jsx";
-import LeadershipPage from "./Leadership.jsx";
-import LessonPayPage from "./LessonPay.jsx";
 import AccessPage from "./Access.jsx";
+import ErrorBoundary from "./ErrorBoundary.jsx";
 import ContentPage from "./Content.jsx";
 import { SafetyPage } from "./Safety.jsx";
 import { FaultsPage } from "./Faults.jsx";
@@ -207,7 +206,9 @@ function Staff({ auth, onSignedOut }) {
 
   const goStaff = (sub) => { setSection("mechina"); setStaffNav((p) => ({ sub, n: p.n + 1 })); };
   const goLessons = (sub) => { setSection("lessons"); setLessonsNav((p) => ({ sub, n: p.n + 1 })); };
-  const goRoles = (sub) => { setSection("roles"); setRolesNav((p) => ({ sub, n: p.n + 1 })); };
+  /* ⚠ "leaders" ולא "roles": מובילי השבוע הם מסך עצמאי מאז
+     שהופרדו מבעלי התפקידים. */
+  const goRoles = (sub) => { setSection("leaders"); setRolesNav((p) => ({ sub, n: p.n + 1 })); };
   const goKitchen = (a) => { setKArea(a); setSection("kitchen"); };
   const goContainer = (a) => { setCArea(a); setSection("container"); };
   const openRequests = () => { setNotifOpen(false); goStaff("requests"); };
@@ -285,51 +286,59 @@ function Staff({ auth, onSignedOut }) {
                 active: section === "mechina" && staffSub === "requests",
                 onClick: () => goStaff("requests") },
             ] },
-            { label: "תפקידים ושיבוצים", items: [
-              { key: "a-leaders", label: "מובילי שבוע", icon: <I.day />, active: section === "roles", onClick: () => goRoles("weeks") },
-              /* ⚠ שתי הלשוניות האחרות של אותו דף לא היו נגישות
-                 מהתפריט כלל — מנהל שחיפש "בעלי תפקידים" לא מצא
-                 אותם, כי הפריט היחיד שלח תמיד ל"מובילי שבוע". */
+            /* ============================================================
+               ⚠ **"מובילי שבוע" ו"בעלי תפקידים" הופרדו לגמרי.**
+
+               הם נראו כמו שני צדדים של אותו דבר ואינם: מוביל
+               שבוע נגזר משיבוץ בלוח השבועות ומתחלף כל שבוע,
+               ובעל תפקיד נקבע בעמודת התפקידים ונשאר כל השנה.
+               עד עכשיו שניהם היו שתי לשוניות של מסך אחד בשם
+               "תפקידים במכינה", ובפועל השנייה כמעט לא נפתחה.
+               ============================================================ */
+            { label: "תפקידים", items: [
+              { key: "a-leaders", label: "מובילי שבוע", icon: <I.day />,
+                active: section === "leaders", onClick: () => goRoles("weeks") },
               { key: "a-roles", label: "בעלי תפקידים", icon: <I.users />,
-                active: false, onClick: () => goRoles("roles") },
-              /* ⚠ **היה כאן "הצפה לבעלי תפקידים" והוא הוסר.**
-                 ההצפה אינה מסך — היא יושבת בתוך כרטיס התפקיד
-                 שב"בעלי תפקידים", ובתוך מסך כל ועדה וסדרה.
-                 פריט תפריט שמוביל למסך שבו בוחרים מרשימה את מה
-                 שכבר היה מול העיניים הוא צעד מיותר. */
+                active: section === "roles", onClick: () => setSection("roles") },
+            ] },
+            { label: "חניכים ושיבוצים", items: [
+              /* ⚠ **התפקידים הקבועים כבר אינם כאן.** הייתה
+                 במסך הזה לשונית "תפקידים" שהציגה את אותו רכיב
+                 בדיוק — שני מקומות לחפש בהם את אותו דבר. */
               { key: "a-place", label: "שיבוצי חניכים", icon: <I.users />, active: section === "placements",
                 onClick: () => setSection("placements") },
-              /* ⚠ אותו מסך בדיוק של החניך, ולא גרסה מקוצצת —
-                 עיקרון 4יט. ההבדל היחיד הוא ההרשאה, ו-mayTeam
-                 בשרת היא שקובעת אותה. */
               /* ⚠ אב הבית ואחראי המטבח מגיעים לאותו מסך בדיוק
                  מהמעטפת שלהם ב-Mechina.jsx — עיקרון 4יט. */
               { key: "a-chores", label: "תורנויות", icon: <I.check />, active: section === "chores",
                 onClick: () => setSection("chores") },
               { key: "a-rules", label: "נהלים במכינה", icon: <I.book />, active: section === "rules",
                 onClick: () => setSection("rules") },
+            ] },
+            /* ⚠ קטגוריה משלה: הצבא הוא נושא שלם ולא פריט תחת
+               "חניכים". היום יש בו מסך אחד, ומחר יהיו בו יותר. */
+            { label: "צבא", items: [
               /* ⚠ **גלוי לכל הצוות, ולא רק ליו״ר הוועדה.** המסך
-                 עצמו קורא בלבד, והשרת הוא שקובע מי רואה את
-                 הכול — לפי תיבה בלוח ולא לפי שם בקוד. */
+                 קורא בלבד, והשרת קובע מי רואה את הכול — לפי
+                 תיבה בלוח ולא לפי שם בקוד. */
               { key: "a-tryouts", label: "מיונים לצבא", icon: <I.users />,
                 active: section === "tryouts", onClick: () => setSection("tryouts") },
-              /* ⚠ `staff` פותח את **כל** השבועות שהסתיימו, ולא
-                 את אלה של המשתמש — הוא אינו מוביל שבוע. */
-              { key: "a-leadership", label: "מובילויות", icon: <I.check />,
-                active: section === "leadership", onClick: () => setSection("leadership") },
-              /* ⚠ צוות בלבד — עלויות אינן נתון של חניך (עיקרון 4). */
-              { key: "a-pay", label: "תשלום למרצים", icon: <I.note />,
-                active: section === "pay", onClick: () => setSection("pay") },
+            ] },
+            /* ============================================================
+               ⚠ **"ניהול" — מה שמגדיר את המערכת, ולא מה שמפעיל
+                 אותה.** שלושת המסכים כאן אינם עבודה יומיומית:
+                 מי בצוותים, מי רשאי למה, ומה כתוב במסכים.
+               ============================================================ */
+            { label: "ניהול", items: [
+              { key: "a-teams", label: "ניהול צוותים", icon: <I.users />, active: section === "teams",
+                onClick: () => setSection("teams") },
               /* ⚠ **צוות בלבד.** אין כאן סוד — כל שורה גלויה
                  ממילא — אבל זה מסך תפעולי של הצוות. */
-              { key: "a-access", label: "מי רשאי למה", icon: <I.lock />,
+              { key: "a-access", label: "הרשאות", icon: <I.lock />,
                 active: section === "access", onClick: () => setSection("access") },
               /* ⚠ ראש המכינה בלבד — עריכת נוסח היא שינוי של
                  מה שכתוב במכינה, לא של מסך. */
               ...(auth.isHead ? [{ key: "a-content", label: "ניהול תוכן", icon: <I.note />,
                 active: section === "content", onClick: () => setSection("content") }] : []),
-              { key: "a-teams", label: "ניהול צוותים", icon: <I.users />, active: section === "teams",
-                onClick: () => setSection("teams") },
             ] },
             { label: "לו״ז", items: [
               { key: "agenda", label: "הלו״ז שלי", icon: <I.day />,
@@ -403,6 +412,16 @@ function Staff({ auth, onSignedOut }) {
         )}
 
         <main className="wrap">
+          {/* ============================================================
+              ⚠⚠ **הגבול עוטף את גוף המסך ולא את האפליקציה.**
+                מסגרת שעוטפת הכול הייתה מחליפה דף לבן בדף שגיאה
+                לבן — עדיין בלי ניווט וללא מוצא. כאן המגירה,
+                הכותרת והפעמון נשארים חיים, ורק גוף המסך מוחלף.
+
+              ⚠ `resetKey={section}` מנקה את השגיאה במעבר מסך:
+                בלעדיו קריסה אחת הייתה נראית כמו אפליקציה מתה.
+              ============================================================ */}
+          <ErrorBoundary resetKey={section} what={section}>
           {section === "dash" && isMgr && (
             <ManagerDash pendingList={pendingList} cycle={auth.cycle} goStaff={goStaff} goLessons={goLessons}
               goKitchen={goKitchen} goContainer={goContainer}
@@ -433,9 +452,11 @@ function Staff({ auth, onSignedOut }) {
             <LessonsPage say={say} key={lessonsNav.n} sub0={lessonsNav.sub || undefined}
               onSub={setLessonsSub} />
           )}
-          {section === "roles" && isMgr && (
-            <MechinaRolesPage say={say} key={rolesNav.n} sub0={rolesNav.sub || undefined} />
+          {/* ⚠ שני מסכים נפרדים, ולא שתי לשוניות של אחד. */}
+          {section === "leaders" && isMgr && (
+            <WeekLeadersPage say={say} key={rolesNav.n} sub0={rolesNav.sub || undefined} />
           )}
+          {section === "roles" && isMgr && <RoleHoldersPage say={say} />}
           {section === "placements" && isMgr && <PlacementsPage say={say} />}
           {/* ⚠ go מועבר: בלעדיו הכפתור "למרכז התפקיד" במסך
               הצוות לא עושה כלום, **בלי שגיאה** — Teams.jsx מגן
@@ -444,8 +465,10 @@ function Staff({ auth, onSignedOut }) {
           {section === "chores" && <ChoresPage say={say} />}
           {section === "rules" && <RulesPage say={say} />}
           {section === "tryouts" && <TryoutsPage say={say} />}
-          {section === "leadership" && <LeadershipPage say={say} staff />}
-          {section === "pay" && <LessonPayPage say={say} />}
+          {/* ⚠ **"מובילויות" ו"תשלום למרצים" כבר אינם מסכים
+              עצמאיים בתפריט.** הראשון הוא לשונית של "מובילי
+              שבוע", והשני לשונית של "שיעורים במכינה" — כל אחד
+              נשען על המסך שממנו נגזרים הנתונים שלו. */}
           {section === "access" && <AccessPage />}
           {section === "content" && auth.isHead && <ContentPage say={say} />}
           {section === "teams" && isMgr && <TeamsPage say={say} go={() => setSection("roles")} />}
@@ -458,6 +481,7 @@ function Staff({ auth, onSignedOut }) {
           {section === "budget" && isMgr && <BudgetPage say={say} />}
 
           {section === "container" && isMgr && <ContainerPage say={say} area={cArea} />}
+          </ErrorBoundary>
         </main>
 
         {toast && <div className="toast">{toast}</div>}
