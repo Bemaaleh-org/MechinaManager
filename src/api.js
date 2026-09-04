@@ -138,6 +138,14 @@ export const api = {
   addPurchase: (body) => post("/api/kitchen?action=budget", body),
   deletePurchase: (orderId) => del("/api/kitchen?action=budget", { orderId }),
 
+  /* ---------- דוח תשלום למרצים ----------
+     ⚠ צוות בלבד. חודש יחיד, או השנה כולה כשלא נשלח חודש. */
+  getLessonPay: (month) =>
+    get("/api/lessons?action=pay" + (month ? `&month=${encodeURIComponent(month)}` : "")),
+  /* ⚠ price: מספר, או מחרוזת ריקה כדי להחזיר ל"לא סוכם". */
+  setLessonPrice: ({ id, price, payNote }) =>
+    put("/api/lessons?action=pay", { id, price, payNote }),
+
   /* ---------- דף המובילויות ----------
      ⚠ מחזיר **רק שבועות שכבר הסתיימו**. `all=1` פותח לצוות
        את כל השבועות שהיו. */

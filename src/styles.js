@@ -871,6 +871,34 @@ html,body{margin:0;padding:0;background:#012E58}
 /* תמונת "אחרי התיקון" מסומנת, כדי שלא תיקרא כתמונת הבעיה. */
 /* "תורנות מטבח" ליד שם החניך בסימון האימון — עובדה על היום,
    נגזרת מלוח התורניות ואינה סימון של האימון. */
+/* דוח תשלום למרצים — אותה שפה של תקציב המטבח */
+.pay-warn{font-size:11.5px;font-weight:700;color:var(--amber);background:var(--amber-soft);
+  border-radius:var(--r-md);padding:9px 12px;margin:-4px 0 12px;line-height:1.6}
+.kx .pay-m{display:flex;align-items:center;gap:9px;width:100%;padding:12px 13px;
+  border-bottom:1px solid var(--line);background:none;text-align:right}
+.kx .pay-m:last-child{border-bottom:none}
+.pay-m-n{font-size:14px;font-weight:800;flex:0 0 auto}
+.pay-m-f{flex:1;display:flex;gap:5px;flex-wrap:wrap}
+.kx .pay-m b{font-size:15px;font-weight:800;letter-spacing:-.3px}
+.pay-r{padding:11px 13px;border-bottom:1px solid var(--line)}
+.pay-r:last-child{border-bottom:none}
+.pay-r-t{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.pay-r-t b{font-size:14.5px;font-weight:800}
+.pay-r-t span{font-size:15px;font-weight:800;letter-spacing:-.3px}
+.pay-r-m{display:flex;gap:6px;flex-wrap:wrap;font-size:11.5px;font-weight:700;
+  color:var(--muted);margin-top:4px}
+.pay-miss{color:var(--clay)}
+.pay-pend{color:var(--amber)}
+.pay-r-note{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.5}
+.pay-p{display:flex;align-items:center;gap:10px;padding:9px 13px;
+  border-bottom:1px solid var(--line)}
+.pay-p:last-child{border-bottom:none}
+.pay-p-n{flex:1;min-width:0;font-size:13.5px;font-weight:700;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.kx .pay-p input{flex:0 0 108px;background:var(--surface);border:1px solid var(--line2);
+  border-radius:9px;padding:7px 9px;font-size:13.5px;font-weight:700;outline:none;
+  text-align:center;font-family:inherit}
+
 /* דף המובילויות */
 .ld{margin-bottom:10px;padding:0;overflow:hidden}
 .kx .ld-h{display:flex;align-items:center;gap:9px;width:100%;padding:12px 13px;

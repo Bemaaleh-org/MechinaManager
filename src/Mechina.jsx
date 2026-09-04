@@ -35,6 +35,7 @@ import ChoresPage from "./Chores.jsx";
 import RulesPage from "./Rules.jsx";
 import TryoutsPage from "./Tryouts.jsx";
 import LeadershipPage from "./Leadership.jsx";
+import LessonPayPage from "./LessonPay.jsx";
 import { GanttPage } from "./Gantt.jsx";
 import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
@@ -80,6 +81,9 @@ const TAB_ICON = {
   faults: <MI.box />, cleaning: <MI.box />, chores: <MI.tick />,
   safety: <MI.note />, hosting: <MI.home />,
   "k-all": <MI.box />, budget: <MI.tick />, menu: <MI.book />,
+  /* ⚠ מסך בלי ערך במפה מקבל ברירת מחדל ואינו נעלם (4יא) —
+     אבל תשלום למרצים הוא כסף, ואייקון של קופסה מטעה. */
+  pay: <MI.note />,
 };
 
 const DOW_HE = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
@@ -3292,6 +3296,9 @@ export function MechinaApp({ auth, onSignedOut }) {
         {tab === "rules" && <RulesPage say={say} />}
         {tab === "tryouts" && <TryoutsPage say={say} />}
         {tab === "leadership" && <LeadershipPage say={say} />}
+        {/* ⚠ אחראי הלו״ז בלבד — הכניסה נגזרת מ-DUTIES ונאכפת
+            בשרת ב-{scheduler:true}. */}
+        {tab === "pay" && <LessonPayPage say={say} />}
 
         {/* ⚠ area={null} — התצוגה המאוחדת, אותה אחת של המנהל. */}
         {tab === "k-all" && auth.isKitchen && <KitchenPage say={say} area={null} />}

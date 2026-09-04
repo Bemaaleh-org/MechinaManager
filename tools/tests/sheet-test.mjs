@@ -125,6 +125,66 @@ try {
     ok("ואין בו פרטי קשר של מרצה", !leak);
   }
 
+  console.log("\n=== דוח תשלום למרצים ===");
+  /* ⚠ הבדיקה עובדת על הגיליון שהיא יצרה. אין לו מפגשים, ולכן
+     היא בודקת את **הכללים** — מה נספר, מה מדווח כחסר, ומי
+     רשאי — ולא סכום על נתונים אמיתיים. */
+  r = await call(M, "PUT", "/api/lessons?action=pay", { id, price: 450 });
+  ok("מחיר למפגש נשמר", r.s === 200, `${r.s} ${r.b.error || ""}`);
+
+  d = await mine();
+  ok("והוא חוזר בגיליון", d.sheet.price === 450, String(d.sheet.price));
+
+  /* ⚠⚠ **ריק אינו אפס.** 0 הוא מתנדב, וריק הוא "לא סוכם" —
+     שני מצבים שונים לגמרי, ואיחודם מסתיר בדיוק את מה שהדוח
+     צריך לצעוק. */
+  r = await call(M, "PUT", "/api/lessons?action=pay", { id, price: 0 });
+  ok("מחיר אפס מתקבל", r.s === 200, `${r.s} ${r.b.error || ""}`);
+  d = await mine();
+  ok("והוא אפס ולא ריק", d.sheet.price === 0, JSON.stringify(d.sheet.price));
+
+  r = await call(M, "PUT", "/api/lessons?action=pay", { id, price: "" });
+  ok("וריק מחזיר ל'לא סוכם'", r.s === 200, r.b.error);
+  d = await mine();
+  ok("והוא null ולא אפס", d.sheet.price === null, JSON.stringify(d.sheet.price));
+
+  r = await call(M, "PUT", "/api/lessons?action=pay", { id, price: "בערך 400" });
+  ok("מחיר לא-מספרי נדחה", r.s === 400, `${r.s} ${r.b.error || ""}`);
+  r = await call(M, "PUT", "/api/lessons?action=pay", { id, price: -5 });
+  ok("ומחיר שלילי נדחה", r.s === 400, `${r.s} ${r.b.error || ""}`);
+
+  r = await call(M, "GET", "/api/lessons?action=pay");
+  ok("הדוח השנתי נטען", r.s === 200 && r.b.year, `${r.s} ${r.b.error || ""}`);
+  ok("ויש בו סך הכול", typeof r.b.year.total === "number", String(r.b.year.total));
+  /* ⚠ שני המספרים שאומרים כמה מהתמונה חסר — הם הסיבה שהמסך
+     אינו מציג סכום שנראה סופי (4ח, 4יח). */
+  ok("וכמה מפגשים טרם דווחו", typeof r.b.year.unreported === "number",
+    String(r.b.year.unreported));
+  ok("וכמה שיעורים בלי מחיר", typeof r.b.year.unpriced === "number",
+    String(r.b.year.unpriced));
+
+  const someMonth = (r.b.months || [])[0];
+  if (someMonth) {
+    const mr = await call(M, "GET", "/api/lessons?action=pay&month=" + someMonth);
+    ok("ודוח חודשי נטען", mr.s === 200 && Array.isArray(mr.b.rows),
+      `${mr.s} ${mr.b.error || ""}`);
+  }
+  r = await call(M, "GET", "/api/lessons?action=pay&month=2026");
+  ok("חודש בפורמט שגוי נדחה", r.s === 400, `${r.s} ${r.b.error || ""}`);
+
+  /* ⚠⚠ **עלויות אינן נתון של חניך** (עיקרון 4). */
+  if (demo) {
+    const S2 = jar();
+    await call(S2, "POST", "/api/auth?action=signin",
+      { user: DEMO_USER, password: DEMO_PASS });
+    r = await call(S2, "GET", "/api/lessons?action=pay");
+    ok("חניך אינו רואה את דוח התשלום", r.s === 403, `${r.s} ${r.b.error || ""}`);
+  }
+  r = await call(G, "PUT", "/api/lessons?action=pay", { id, price: 100 });
+  ok("ומדריך אינו קובע מחיר", r.s === 403, `${r.s} ${r.b.error || ""}`);
+  r = await call(G, "GET", "/api/lessons?action=pay");
+  ok("אבל כן קורא את הדוח", r.s === 200, String(r.s));
+
   console.log("\n=== ניקוי ===");
   await cleanup();
   const left = (await allItems(LB.sheets)).filter((x) => x.name.includes("בדיקה"));

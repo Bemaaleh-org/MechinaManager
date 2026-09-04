@@ -26,7 +26,10 @@ import agenda from "./_agenda.js";
 import report from "./_lesson-report.js";
 import rate from "./_lesson-rate.js";
 import board from "./_lessons-board.js";
+/* ⚠ דוח תשלום למרצים — מחיר למפגש × מפגשים שדווחו שהתקיימו.
+   צוות בלבד; עלויות אינן נתון של חניך. */
+import pay from "./_lesson-pay.js";
 import exportSheet from "./_sheet-export.js";
 
 export default router({ list, sheet, mark, meeting, evals, gantt, report, rate, agenda, board,
-  export: exportSheet });
+  export: exportSheet, pay });

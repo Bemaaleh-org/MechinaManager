@@ -40,6 +40,10 @@ export async function loadSheets({ force = false } = {}) {
         guestLecturer: val(i, S.guestLecturer) === "v",
         /* מפגשיו מוצגים גם במסך סימון הנוכחות (אימונים) */
         inDaily: val(i, S.inDaily) === "v",
+        /* ⚠ מחיר למפגש — לדוח התשלום. **ריק אינו אפס**: 0 הוא
+           מתנדב, וריק הוא "לא סוכם". */
+        price: val(i, S.price) === "" ? null : Number(val(i, S.price)),
+        payNote: val(i, S.payNote) || null,
         /* ⚠⚠ פרטי אדם חיצוני. נקראים כאן, ו**אינם יוצאים לחניך** —
            ראו `toStudentSheet` ב-api/_lessons-list.js. */
         phone: val(i, S.phone) || null,

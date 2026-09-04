@@ -21,6 +21,7 @@ import ChoresPage from "./Chores.jsx";
 import RulesPage from "./Rules.jsx";
 import TryoutsPage from "./Tryouts.jsx";
 import LeadershipPage from "./Leadership.jsx";
+import LessonPayPage from "./LessonPay.jsx";
 import ContentPage from "./Content.jsx";
 import { SafetyPage } from "./Safety.jsx";
 import { FaultsPage } from "./Faults.jsx";
@@ -310,6 +311,9 @@ function Staff({ auth, onSignedOut }) {
                  את אלה של המשתמש — הוא אינו מוביל שבוע. */
               { key: "a-leadership", label: "מובילויות", icon: <I.check />,
                 active: section === "leadership", onClick: () => setSection("leadership") },
+              /* ⚠ צוות בלבד — עלויות אינן נתון של חניך (עיקרון 4). */
+              { key: "a-pay", label: "תשלום למרצים", icon: <I.note />,
+                active: section === "pay", onClick: () => setSection("pay") },
               /* ⚠ ראש המכינה בלבד — עריכת נוסח היא שינוי של
                  מה שכתוב במכינה, לא של מסך. */
               ...(auth.isHead ? [{ key: "a-content", label: "ניהול תוכן", icon: <I.note />,
@@ -431,6 +435,7 @@ function Staff({ auth, onSignedOut }) {
           {section === "rules" && <RulesPage say={say} />}
           {section === "tryouts" && <TryoutsPage say={say} />}
           {section === "leadership" && <LeadershipPage say={say} staff />}
+          {section === "pay" && <LessonPayPage say={say} />}
           {section === "content" && auth.isHead && <ContentPage say={say} />}
           {section === "teams" && isMgr && <TeamsPage say={say} go={() => setSection("roles")} />}
           {section === "safety" && isMgr && <SafetyPage say={say} />}
