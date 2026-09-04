@@ -5,8 +5,15 @@
      המובילים המקוריים ב-finally. היא אינה נוגעת בחניך אמיתי
      ואינה יוצרת שבועות.
 
-   ⚠ ואינה מסמנת נוכחות באף יום: הסימון נבדק ב-quota-test,
-     וכאן נבדק **מי רשאי** — כלומר סטטוסים בלבד.
+   ⚠⚠ **ואינה מסמנת נוכחות באף יום.** כאן נבדק **מי רשאי**,
+     כלומר סטטוסים בלבד — כל POST ל-`?action=mark` בבדיקה הזו
+     אמור לחזור 403. גרסה ראשונה שלה סימנה יום בתוך השבוע
+     וקיבלה 200, והשאירה בלוח האמיתי יום נוכחות ריק. הסימון
+     עצמו נבדק ב-quota-test, שבוחר ימים שאיש לא נגע בהם.
+
+   ⚠ הניקוי שבסוף מוודא שלא נשאר יום סימון חדש. אם כן — הוא
+     **אומר את זה** ולא מוחק בשקט: יום עם נוכחים הוא נתון של
+     המכינה, ומחיקה שלו אינה ניתנת לתיקון.
    ============================================================ */
 import { gql, allItems } from "../../api/_monday.js";
 import { tempRegister } from "./_auth.mjs";
@@ -14,7 +21,7 @@ import { AUTH_BOARD, AUTH_COLS } from "../../shared/auth-board.js";
 import { studentRows } from "../../api/_student-rows.js";
 import { invalidate } from "../../api/_cache.js";
 import { MECHINA_BOARDS, MECHINA_COLS } from "../../shared/mechina-boards.js";
-import { loadCalendar, isSchoolDay } from "../../api/_attendance-data.js";
+import { loadCalendar, isSchoolDay, loadMarked } from "../../api/_attendance-data.js";
 
 const B = "http://localhost:5173";
 const DEMO_USER = "bdika";
@@ -49,6 +56,10 @@ const inside = schoolIn(week).map((d) => d.date);
 /* יום לימוד שאינו בשבוע הזה */
 const outsideDay = cal.days.find((d) => isSchoolDay(d)
   && (d.date < cv(week, W.start) || d.date > cv(week, W.end)));
+
+/* ⚠ צילום ימי הסימון **לפני** כל פעולה — כדי שהניקוי יידע
+   מה הבדיקה יצרה, ומה כבר היה כאן. */
+const marksBefore = new Set((await loadMarked({ force: true })).keys());
 
 const before = linked(week, W.leaders);
 const setLeaders = (ids) => gql(
@@ -155,6 +166,27 @@ try {
   ok("ו-myWeeks ריק לאיש צוות", (mg.b.myWeeks || []).length === 0,
     JSON.stringify(mg.b.myWeeks));
 } finally {
+  /* ⚠ **לספור מה נוצר בלוח שהפעולה נוגעת בו, ולא רק בלוח
+     הראשי.** `?action=mark` יוצר שורה בלוח ימי הסימון לכל
+     תאריך שנוגעים בו, וגרסה ראשונה של הבדיקה השאירה שם יום
+     ריק בלוח האמיתי. */
+  try {
+    const after = await loadMarked({ force: true });
+    const extra = [...after.keys()].filter((d) => !marksBefore.has(d));
+    if (extra.length) {
+      console.log("  !! הבדיקה יצרה ימי סימון חדשים: " + extra.join(", "));
+      for (const d of extra) {
+        const st = after.get(d);
+        if (st.present.size > 0) {
+          console.log("     " + d + " — יש בו נוכחים, לא נמחק. לבדוק בלוח.");
+          continue;
+        }
+        await gql("mutation($i:ID!){ delete_item(item_id:$i){id} }", { i: st.id });
+        console.log("     " + d + " — ריק, נמחק");
+      }
+    }
+  } catch (e) { console.log("  ! בדיקת ימי הסימון נכשלה: " + e.message); }
+
   await setLeaders(before);
   invalidate("leader-weeks");
   const back = (await allItems(MECHINA_BOARDS.leaderWeeks)).find((w) => String(w.id) === String(week.id));
