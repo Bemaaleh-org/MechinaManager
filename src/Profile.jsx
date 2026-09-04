@@ -16,6 +16,7 @@
    ============================================================ */
 
 import React, { useState, useEffect } from "react";
+import { enablePush, disablePush, pushBlocker } from "./push.js";
 import { api } from "./api.js";
 
 const PI = {
@@ -187,6 +188,9 @@ export function ProfilePage({ say }) {
         </button>
       </div>
 
+      {/* ---------- התראות לטלפון ---------- */}
+      <PushCard say={say} />
+
       {/* ---------- סיסמה ---------- */}
       <div className="sec-label">החלפת סיסמה</div>
       <div className="card lift">
@@ -208,6 +212,93 @@ export function ProfilePage({ say }) {
         )}
       </div>
       <div style={{ height: 40 }} />
+    </>
+  );
+}
+
+
+/* ============================================================
+   התראות לטלפון
+   ------------------------------------------------------------
+   ⚠ **כל כישלון כאן מקבל הסבר משלו.** "לא עבד" אינו מידע:
+     הדפדפן לא תומך, המשתמש חסם בהגדרות, ה-PWA לא מותקן
+     ב-iPhone, או שהמערכת עוד לא הוגדרה — ארבע בעיות עם ארבע
+     פעולות שונות, ורק אחת מהן היא באמת תקלה.
+
+   ⚠ **המסך אומר מראש מה חסר, ולא אחרי שהמשתמש כבר לחץ.**
+     בקשת אישור שתיכשל ממילא היא בדיוק מה ש-4יד אוסר.
+
+   ⚠ **וההסבר על הפרטיות מוצג.** אנשים מהססים לאשר התראות,
+     ובצדק. כאן הדחיפה ריקה ושום נתון אינו עובר דרך גוגל או
+     אפל — וזו עובדה ששווה לומר, לא להסתיר.
+   ============================================================ */
+function PushCard({ say }) {
+  const [state, setState] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [blocker, setBlocker] = useState(null);
+
+  useEffect(() => {
+    setBlocker(pushBlocker());
+    api.getPush().then(setState).catch(() => setState({ ready: false, devices: 0 }));
+  }, []);
+
+  if (!state) return null;
+
+  const on = state.devices > 0;
+
+  const toggle = async () => {
+    if (busy) return;
+    setBusy(true);
+    const r = on ? await disablePush() : await enablePush();
+    if (r.ok) {
+      say(on ? "ההתראות כובו במכשיר הזה" : "ההתראות הופעלו");
+      api.getPush().then(setState).catch(() => {});
+      setBlocker(pushBlocker());
+    } else {
+      say(r.why || "לא הצלחנו");
+    }
+    setBusy(false);
+  };
+
+  return (
+    <>
+      <div className="sec-label">התראות לטלפון</div>
+      <div className="card lift">
+        <div className="pn-b">
+          כשמשהו חדש מחכה לכם במערכת, הטלפון יצלצל — גם כשהאפליקציה סגורה.
+        </div>
+
+        {/* ⚠ **עיקרון 6:** "לא הוגדר במערכת" שונה מ"לא נרשמת",
+            ושונה מ"הדפדפן חוסם". שלושה מצבים, שלוש הודעות. */}
+        {!state.ready ? (
+          <div className="pn-w">
+            ההתראות טרם הופעלו במערכת. צריך להוסיף מפתחות VAPID למשתני
+            הסביבה — ראו <code>tools/seed-push.mjs</code>.
+          </div>
+        ) : blocker ? (
+          <div className="pn-w">{blocker}</div>
+        ) : (
+          <>
+            <div className="pn-s">
+              {on
+                ? `פעיל ב-${state.devices} ${state.devices === 1 ? "מכשיר" : "מכשירים"}`
+                : "כבוי במכשיר הזה"}
+            </div>
+            <button className={"btn btn-sm " + (on ? "btn-ghost" : "btn-primary")}
+              style={{ width: "100%", marginTop: 8 }} disabled={busy} onClick={toggle}>
+              {busy ? "רגע…" : on ? "כיבוי במכשיר הזה" : "הפעלת התראות"}
+            </button>
+          </>
+        )}
+
+        {/* ⚠ נאמר תמיד, גם כשההתראות כבויות — זה מה שגורם
+            לאנשים לאשר. */}
+        <div className="pn-p">
+          ההתראה שנשלחת <b>ריקה</b>: היא רק אומרת לטלפון "יש משהו חדש",
+          והאפליקציה היא זו ששולפת מה. שום נתון של חניך אינו עובר דרך
+          גוגל או אפל.
+        </div>
+      </div>
     </>
   );
 }

@@ -21,6 +21,14 @@ const GO = process.argv.includes("--go");
 /* מה נמחק, ומאיזה לוח כל מזהה חייב להגיע */
 const PLAN = [
   {
+    /* ⚠ שארית מהרצת בדיקה שנקטעה: produce-test יוצר שורת
+       "בדיקה — פטריות שמפיניון" ומוחק אותה בסוף, והרצה שנפלה
+       באמצע השאירה אותה. השורה חוסמת את ההרצה הבאה ב-409. */
+    board: (await import("../shared/kitchen-ids.js")).KITCHEN_BOARDS.produce,
+    what: "שארית של produce-test בלוח ההמרות",
+    ids: ["3206841964"],
+  },
+  {
     board: MECHINA_BOARDS.requests,
     what: "בקשות יציאה שנבדקו בהרצה",
     ids: ["3171947074", "3172925894", "3172944476", "3185467550"],

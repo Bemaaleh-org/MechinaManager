@@ -168,6 +168,13 @@ export const api = {
   saveLeadership: ({ weekId, feedback, summary }) =>
     put("/api/students?action=leadership", { weekId, feedback, summary }),
 
+  /* ---------- התראות לטלפון ----------
+     ⚠ הדחיפה נשלחת **ריקה**, וה-Service Worker שואל את השרת
+       מה חדש. שום נתון של חניך אינו עובר דרך גוגל או אפל. */
+  getPush: () => get("/api/auth?action=push"),
+  setPush: (subscription) => post("/api/auth?action=push", { subscription }),
+  clearPush: (endpoint) => del("/api/auth?action=push", { endpoint }),
+
   /* ---------- מיונים לצבא ----------
      ⚠ כתיבה — החניך על עצמו בלבד. קריאה של כולם — צוות
        ויו״ר ועדת הגיוסים, לפי תיבה בלוח ולא לפי שם בקוד. */

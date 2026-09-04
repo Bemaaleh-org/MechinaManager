@@ -871,6 +871,15 @@ html,body{margin:0;padding:0;background:#012E58}
 /* תמונת "אחרי התיקון" מסומנת, כדי שלא תיקרא כתמונת הבעיה. */
 /* "תורנות מטבח" ליד שם החניך בסימון האימון — עובדה על היום,
    נגזרת מלוח התורניות ואינה סימון של האימון. */
+/* התראות לטלפון */
+.pn-b{font-size:13px;line-height:1.6;color:var(--ink);font-weight:600}
+.pn-s{font-size:12px;font-weight:800;color:var(--muted);margin-top:9px}
+.pn-w{font-size:12px;line-height:1.65;font-weight:700;color:var(--amber);
+  background:var(--amber-soft);border-radius:var(--r-sm);padding:9px 11px;margin-top:9px}
+.pn-w code{font-family:ui-monospace,monospace;font-size:11px;direction:ltr;display:inline-block}
+.pn-p{font-size:11.5px;line-height:1.6;color:var(--faint);font-weight:600;
+  border-top:1px solid var(--line);margin-top:11px;padding-top:9px}
+
 /* מסך שנתקל בתקלה — במקום דף לבן.
    ⚠ דף לבן הוא הכשל הגרוע ביותר: אין בו הודעה, אין ממנו
    יציאה, ואי אפשר לדווח עליו כי אין מה לתאר. */

@@ -626,20 +626,20 @@ async function readSeen(session) {
   return { col, board, at: (d.items?.[0]?.column_values?.[0]?.text || "").trim() };
 }
 
-async function handler(req, res, session) {
-  try {
-    const today = israelToday();
 
-    if (req.method === "POST") {
-      const { col, board } = await readSeen(session);
-      const now = new Date().toISOString();
-      await gql(
-        `mutation($b:ID!,$i:ID!,$v:JSON!){ change_multiple_column_values(board_id:$b,item_id:$i,column_values:$v,create_labels_if_missing:false){ id } }`,
-        { b: board, i: String(session.itemId), v: JSON.stringify({ [col]: now }) });
-      return res.status(200).json({ ok: true, seenAt: now });
-    }
+/* ============================================================
+   בניית ההתראות של משתמש אחד
+   ------------------------------------------------------------
+   ⚠⚠ **מיוצאת כי גם סבב הדחיפה קורא לה** (`_push-run.js`).
+     שני מקומות שבונים התראות בנפרד היו מתפצלים ביום הראשון,
+     והדחיפה הייתה מודיעה על משהו שהמסך אינו מראה — או להפך.
 
-    /* ---------- מי מקבל מה ---------- */
+   ⚠ **אינה נוגעת בחותמת "נקרא".** היא בונה **מה יש**, ולא
+     "מה חדש"; מי שקורא לה מחליט מול מה להשוות. הפעמון משווה
+     מול החותמת, והדחיפה מול הדחיפה הקודמת — שתי שאלות שונות
+     על אותם נתונים.
+   ============================================================ */
+export async function buildNotes(session, today = israelToday()) {
     const jobs = [];
     const mgr = Boolean(session.isManager);
 
@@ -672,14 +672,13 @@ async function handler(req, res, session) {
     }
     if (mgr || session.isScheduler) jobs.push(lessonNotes(today));
 
-    const [lists, seen] = await Promise.all([
+    const [lists] = await Promise.all([
       Promise.all(jobs.map((p) => p.catch((e) => {
         /* ⚠ תחום שנופל אינו מפיל את הפעמון. התראה חסרה עדיפה
            על מסך שבור, והשגיאה נרשמת. */
         console.error("[notify] מקור נכשל:", e && e.message);
         return [];
       }))),
-      readSeen(session).catch(() => ({ at: "" })),
     ]);
 
     /* ⚠ מפתח ייחודי: אותה התראה עשויה להגיע משני מקורות אצל
@@ -688,8 +687,30 @@ async function handler(req, res, session) {
     for (const n of lists.flat()) if (!byId.has(n.id)) byId.set(n.id, n);
 
     const RANK = { "גבוה": 0, "רגיל": 1, "נמוך": 2 };
-    const notes = [...byId.values()].sort((a, b) =>
+    return [...byId.values()].sort((a, b) =>
       RANK[a.level] - RANK[b.level] || (b.when || "").localeCompare(a.when || ""));
+}
+
+async function handler(req, res, session) {
+  try {
+    const today = israelToday();
+
+    if (req.method === "POST") {
+      const { col, board } = await readSeen(session);
+      const now = new Date().toISOString();
+      await gql(
+        `mutation($b:ID!,$i:ID!,$v:JSON!){ change_multiple_column_values(board_id:$b,item_id:$i,column_values:$v,create_labels_if_missing:false){ id } }`,
+        { b: board, i: String(session.itemId), v: JSON.stringify({ [col]: now }) });
+      return res.status(200).json({ ok: true, seenAt: now });
+    }
+
+    /* ⚠ **הבנייה משותפת לפעמון ולסבב הדחיפה** (`buildNotes`).
+       שני מקומות שבונים התראות היו מתפצלים ביום הראשון, ואז
+       הדחיפה מודיעה על משהו שהמסך אינו מראה. */
+    const [notes, seen] = await Promise.all([
+      buildNotes(session, today),
+      readSeen(session).catch(() => ({ at: "" })),
+    ]);
 
     /* ⚠ "חדש" = נוצר אחרי החותמת. התראה בלי תאריך נחשבת חדשה
        רק אם מעולם לא נלחץ "נקראו" — אחרת התג לעולם לא היה

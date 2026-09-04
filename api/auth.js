@@ -10,6 +10,8 @@
      ?action=account  GET/POST  קביעת שם משתמש וסיסמה
      ?action=recover  GET/POST  שכחתי סיסמה
      ?action=mailtest GET/POST  אבחון שירות הדואר ⚠ מנהל בלבד
+     ?action=push     GET/POST/DELETE  התראות לטלפון
+     ?action=push-run GET   סבב הדחיפה ⚠ CRON_SECRET, לא סשן
 
    ⚠ ההתראות יושבות כאן ולא בקובץ משלהן בגלל מגבלת 12
      הפונקציות של Vercel — וגם כי הן שאלה על **מי שמחובר**,
@@ -30,5 +32,11 @@ import signin from "./_signin.js";
 import account from "./_account.js";
 import recover from "./_recover.js";
 import mailtest from "./_mailtest.js";
+/* ⚠ התראות דחיפה — כאן ולא בקובץ משלהן, מאותה סיבה כמו
+   notify: מגבלת 12 הפונקציות, וגם כי זו שאלה על מי שמחובר. */
+import push from "./_push.js";
+/* ⚠ הסבב ששולח את הנקישות. מוגן ב-CRON_SECRET ולא בסשן —
+   אין כאן משתמש. ראו api/_push-run.js. */
+import pushRun from "./_push-run.js";
 
-export default router({ login, logout, me, notify, signin, account, recover, mailtest });
+export default router({ login, logout, me, notify, signin, account, recover, mailtest, push, "push-run": pushRun });

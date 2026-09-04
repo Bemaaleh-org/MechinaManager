@@ -15,7 +15,8 @@
     "test": "node --env-file=.env tools/tests/run.mjs",
     "seed:chores": "node --env-file=.env tools/seed-chores.mjs",
     "seed:teams": "node --env-file=.env tools/seed-teams.mjs",
-    "seed:tryouts": "node --env-file=.env tools/seed-tryouts.mjs"
+    "seed:tryouts": "node --env-file=.env tools/seed-tryouts.mjs",
+    "seed:push": "node tools/seed-push-env.mjs"
   },
   "dependencies": {
     "nodemailer": "^9.0.5",
