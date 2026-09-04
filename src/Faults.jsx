@@ -106,13 +106,18 @@ function FaultForm({ initial, say, onDone, onCancel }) {
     if (busy || !canSave) return;
     setBusy(true);
     const body = { ...f, ...(editing ? { id: initial.id } : {}) };
-    if (!editing && photo) {
+    /* ⚠ אותם שדות בשני המסלולים, ומשמעותם שונה לפי המסלול:
+       ביצירה זו תמונת **הבעיה**, בעריכה זו תמונת **התיקון**,
+       והשרת מפנה אותן לשתי עמודות נפרדות. */
+    if (photo) {
       body.photoName = photo.name; body.photoMime = photo.mime; body.photoData = photo.data;
     }
     (editing ? api.editFault(body) : api.addFault(body))
       .then((r) => {
-        if (r && r.photoUploaded === false) say("התקלה נרשמה, אבל העלאת התמונה נכשלה");
-        else say(editing ? "התקלה עודכנה" : "התקלה נרשמה");
+        if (r && r.photoUploaded === false) {
+          say(editing ? "התקלה עודכנה, אבל העלאת התמונה נכשלה"
+                      : "התקלה נרשמה, אבל העלאת התמונה נכשלה");
+        } else say(editing ? "התקלה עודכנה" : "התקלה נרשמה");
         onDone();
       })
       .catch((e) => say(e.message))
@@ -177,14 +182,60 @@ function FaultForm({ initial, say, onDone, onCancel }) {
               </label>
             )}
           </div>
-        ) : initial.photoUrl ? (
-          <div className="fld">
-            <label>התמונה שצורפה</label>
-            <a href={initial.photoUrl} target="_blank" rel="noreferrer" className="photo-pick">
-              <img src={initial.photoUrl} alt="תמונת התקלה" />
-            </a>
-          </div>
-        ) : null}
+        ) : (
+          <>
+            {initial.photoUrl && (
+              <div className="fld">
+                <label>התמונה מהדיווח</label>
+                <a href={initial.photoUrl} target="_blank" rel="noreferrer" className="photo-pick">
+                  <img src={initial.photoUrl} alt="תמונת התקלה" />
+                </a>
+              </div>
+            )}
+
+            {/* ============================================================
+                ⚠ **תמונה של התקלה אחרי שתוקנה — עמודה נפרדת.**
+
+                תמונת הדיווח מראה איך נראתה הבעיה; זו מראה איך זה
+                נראה עכשיו. עמודה אחת לשתיהן הייתה מוחקת את הראיה
+                לבעיה ברגע שמישהו מתעד את הפתרון — וההשוואה בין
+                השתיים היא כל התכלית.
+
+                ⚠ **ואינה חובה כדי לסמן "טופלה".** יש תקלות שאין
+                  מה לצלם בהן, ודרישה כזו הייתה משאירה אותן פתוחות
+                  או שולחת את אב הבית לסמן ב-monday במקום כאן.
+                ============================================================ */}
+            <div className="fld">
+              <label>תמונה אחרי התיקון (לא חובה)</label>
+              {photo ? (
+                <div className="photo-pick">
+                  <img src={photo.preview} alt="התמונה שנבחרה" />
+                  <button type="button" className="btn btn-ghost btn-sm" disabled={busy}
+                    onClick={() => setPhoto(null)}>הסרת התמונה</button>
+                </div>
+              ) : initial.photoDoneUrl ? (
+                <a href={initial.photoDoneUrl} target="_blank" rel="noreferrer" className="photo-pick">
+                  <img src={initial.photoDoneUrl} alt="התקלה אחרי התיקון" />
+                </a>
+              ) : (
+                <label className="file-drop">
+                  <FI.camera />
+                  <span>צילום או בחירת תמונה</span>
+                  <input type="file" accept="image/*" disabled={busy} onChange={pickPhoto} />
+                </label>
+              )}
+              {/* ⚠ הסטטוס אינו משתנה מעצמו בהעלאת תמונה — סימון
+                  "טופלה" הוא החלטה של אדם, ותמונה היא ראיה. */}
+              {photo && f.status !== FAULT_STATUS.done && (
+                <button type="button" className="btn btn-ok btn-sm"
+                  style={{ width: "100%", marginTop: 8 }} disabled={busy}
+                  onClick={() => setF((p2) => ({ ...p2, status: FAULT_STATUS.done }))}>
+                  לסמן גם כטופלה
+                </button>
+              )}
+            </div>
+          </>
+        )}
 
         {/* ---- מעקב הטיפול — צוות בלבד ---- */}
         {editing && (
@@ -380,9 +431,19 @@ export function FaultReportPage({ say }) {
                     <span className="num">{heDate(x.date)}</span>
                   </div>
                 </div>
+                {/* ⚠ שתי התמונות זו לצד זו — "כך זה נראה" מול
+                    "כך זה נראה עכשיו". התמונה שמראה שהתקלה תוקנה
+                    היא התשובה לדיווח של החניך, וזה מה שגורם לאנשים
+                    להמשיך לדווח. */}
                 {x.photoUrl && (
                   <a href={x.photoUrl} target="_blank" rel="noreferrer" className="thumb">
                     <img src={x.photoUrl} alt="" />
+                  </a>
+                )}
+                {x.photoDoneUrl && (
+                  <a href={x.photoDoneUrl} target="_blank" rel="noreferrer" className="thumb thumb-done">
+                    <img src={x.photoDoneUrl} alt="" />
+                    <i>אחרי</i>
                   </a>
                 )}
               </div>

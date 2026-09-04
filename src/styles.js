@@ -868,6 +868,16 @@ html,body{margin:0;padding:0;background:#012E58}
 /* בוררי החודשים בקנייה רב-חודשית.
    ⚠ רשת ולא select multiple — בחירה מרובה במגע נשברת. */
 /* תיבת "לשבץ גם ביום שישי" — מוצגת רק ביום שלישי. */
+/* תמונת "אחרי התיקון" מסומנת, כדי שלא תיקרא כתמונת הבעיה. */
+/* "תורנות מטבח" ליד שם החניך בסימון האימון — עובדה על היום,
+   נגזרת מלוח התורניות ואינה סימון של האימון. */
+.tr-duty{display:inline-block;font-style:normal;font-size:9.5px;font-weight:800;
+  background:var(--amber-soft);color:var(--amber);padding:1px 5px;
+  border-radius:5px;margin-inline-start:6px;vertical-align:middle}
+.thumb-done{position:relative}
+.thumb-done i{position:absolute;inset-inline-end:2px;bottom:2px;font-style:normal;
+  font-size:9px;font-weight:800;background:var(--ok);color:#fff;
+  padding:1px 5px;border-radius:5px}
 .kx .ch-mirror{display:flex;align-items:flex-start;gap:9px;margin-top:10px;
   padding:10px 11px;background:var(--bg);border-radius:var(--r-sm);
   font-size:13px;font-weight:700;color:var(--ink);cursor:pointer}

@@ -217,3 +217,34 @@ export async function weekOfDate(iso) {
 }
 
 export { loadLeaderWeeks };
+
+/* ============================================================
+   מי בתורנות המטבח בתאריך נתון
+   ------------------------------------------------------------
+   נקרא ממסך סימון הנוכחות: תורן מטבח אינו נעדר מהאימון, הוא
+   פשוט נשלח למטבח (4ז). עד עכשיו המסמן היה צריך לזכור מי
+   בתורנות — ולזכור נכון — בכל אימון מחדש.
+
+   ⚠ **מחזירה רשימה ריקה כשהלוחות לא הוקמו, ואינה זורקת.**
+     מסך הנוכחות הוא הפעולה היומית של המכינה, ותקלה בלוח עזר
+     אינה סיבה להפיל אותו. הכיוון ההפוך — לוח שלא הוקם שמפיל
+     מסך — הוא בדיוק מה ש-4לו מזהיר מפניו.
+
+   ⚠ **מזהים בלבד ולא שמות.** המסך כבר מחזיק את השמות, וכפילות
+     ביניהם היא שני מקורות שיתפצלו ביום שמישהו משנה שם.
+   ============================================================ */
+export async function kitchenDutyOn(iso) {
+  if (!choresReady()) return [];
+  try {
+    const sectors = await loadSectors();
+    const daily = dailySector(sectors);
+    if (!daily) return [];
+    const roster = await loadRoster();
+    return [...new Set(roster.list
+      .filter((r) => r.sector === daily.id && r.date === iso)
+      .map((r) => String(r.student)))];
+  } catch (e) {
+    console.error("[chores:kitchenDutyOn]", e);
+    return [];
+  }
+}

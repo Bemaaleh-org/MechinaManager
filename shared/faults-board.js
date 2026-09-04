@@ -58,5 +58,9 @@ export function toStudentFault(f) {
     desc: f.desc,
     hasPhoto: Boolean(f.photoUrl),
     photoUrl: f.photoUrl || null,
+    /* ⚠ גם תמונת "אחרי" גלויה לחניך. הוא זה שדיווח, והתמונה
+       שמראה שהתקלה תוקנה היא התשובה לדיווח שלו — בדיוק מה
+       שגורם לאנשים להמשיך לדווח. */
+    photoDoneUrl: f.photoDoneUrl || null,
   };
 }

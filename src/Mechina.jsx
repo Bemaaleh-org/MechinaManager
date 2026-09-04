@@ -874,7 +874,8 @@ function MarkDay({ say, allowPick = false }) {
       {/* מפגשי היום שסומנו להצגה כאן — אימונים, עם נוכחות פרטנית */}
       {data.trainings && data.trainings.length > 0 && canMark && data.trainings.map((t) => (
         <TrainingCard key={t.id} training={t} students={students} say={say}
-          today={td} happenedState={trainState(t)} onHappened={(v) => markTraining(t, v)} />
+          today={td} happenedState={trainState(t)} onHappened={(v) => markTraining(t, v)}
+          kitchenDuty={data.kitchenDuty || []} />
       ))}
 
       <div className="grp-h">
@@ -991,15 +992,31 @@ function MarkDay({ say, allowPick = false }) {
    ⚠ הנוכחות באימון עצמאית מהנוכחות היומית: תורן אוכל נעדר
      מהאימון ועדיין נוכח באותו יום. שני רישומים, שתי אמיתות.
    ============================================================ */
-function TrainingCard({ training: t, students, say, today, happenedState, onHappened }) {
+function TrainingCard({ training: t, students, say, today, happenedState, onHappened,
+                       kitchenDuty = [] }) {
   const [open, setOpen] = useState(false);
+  /* ============================================================
+     ⚠ **תורני המטבח מסומנים מראש — ורק כשעוד לא דווח דבר.**
+
+     מי שאב הבית שיבץ לתורנות המטבח באותו יום אינו נעדר מהאימון:
+     המכינה שלחה אותו למטבח (4ז). עד עכשיו המסמן היה צריך לזכור
+     מי בתורנות, בכל אימון מחדש, והמידע כבר יושב בלוח התורניות.
+
+     ⚠⚠ **ורק כשהאימון עוד לא סומן בכלל.** אחרי שדווח משהו זו
+       הכרעה של אדם, ודריסה שלה הייתה משנה נוכחות שמישהו כבר
+       קבע — בשקט, בכל פתיחה של המסך. תורן שבכל זאת הגיע לאימון
+       הוא מצב אמיתי, והמסמן הוא שיודע.
+     ============================================================ */
   const [state, setState] = useState(() => {
     const m = {};
     for (const id of t.present) m[id] = "here";
     for (const id of t.absent) m[id] = "absent";
     for (const id of t.kitchen) m[id] = "kitchen";
+    const nothingMarked = !t.present.length && !t.absent.length && !t.kitchen.length;
+    if (nothingMarked) for (const id of kitchenDuty) m[String(id)] = "kitchen";
     return m;
   });
+  const onDuty = new Set(kitchenDuty.map(String));
   const [saving, setSaving] = useState(false);
 
   const setOne = (id, v) =>
@@ -1063,6 +1080,9 @@ function TrainingCard({ training: t, students, say, today, happenedState, onHapp
                   <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 700,
                                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {s.name}
+                    {/* ⚠ התגית נשארת גם אם המסמן שינה את הבחירה —
+                        היא עובדה על היום ולא סימון של האימון. */}
+                    {onDuty.has(String(s.id)) && <i className="tr-duty">תורנות מטבח</i>}
                   </div>
                   <div className="tr-pick">
                     <button className={v === "here" ? "on here" : ""}

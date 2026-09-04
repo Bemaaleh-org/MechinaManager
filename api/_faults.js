@@ -28,6 +28,33 @@ import {
 
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
 
+/* ============================================================
+   ⚠ **`assets` מחזיר את כל הקבצים של השורה, מכל עמודות הקובץ.**
+
+   כל עוד הייתה עמודת תמונה אחת, `assets[0]` היה נכון במקרה.
+   מרגע שיש שתיים — תמונת הדיווח ותמונת התיקון — הוא מחזיר
+   את מה שקרה להיות ראשון, והמסך היה מציג את תמונת הבעיה
+   כתמונת התיקון ולהפך.
+
+   השיוך הנכון עובר דרך `value` של עמודת הקובץ עצמה, שהוא
+   JSON ובו `assetId` לכל קובץ.
+
+   ⚠ ו-`value` פסול או ריק אינו מפיל את המסך — הוא מחזיר null,
+     בדיוק כמו תקלה בלי תמונה.
+   ============================================================ */
+function photoOf(item, colId) {
+  const col = (item.column_values || []).find((x) => x.id === colId);
+  if (!col || !col.value) return null;
+  let ids = [];
+  try {
+    const files = JSON.parse(col.value).files || [];
+    ids = files.map((f) => String(f.assetId ?? f.asset_id ?? "")).filter(Boolean);
+  } catch { return null; }
+  if (!ids.length) return null;
+  const hit = (item.assets || []).find((a) => ids.includes(String(a.id)));
+  return hit ? hit.public_url : null;
+}
+
 const STATUS_ORDER = { [FAULT_STATUS.open]: 0, [FAULT_STATUS.working]: 1, [FAULT_STATUS.done]: 2 };
 
 export async function loadFaults({ force = false } = {}) {
@@ -54,7 +81,9 @@ export async function loadFaults({ force = false } = {}) {
           doneDate: val(i, C.doneDate),
           reporter: val(i, C.reporter),
           reporterId: val(i, C.reporterId),
-          photoUrl: (i.assets && i.assets[0] && i.assets[0].public_url) || null,
+          photoUrl: photoOf(i, C.photo),
+          /* ⚠ תמונת "אחרי" — נפרדת מתמונת הדיווח, ראו photoOf. */
+          photoDoneUrl: photoOf(i, C.photoDone),
         };
       })
       .filter((x) => x.title)
@@ -221,8 +250,40 @@ async function handler(req, res, session) {
         if (!title) return res.status(400).json({ error: "כותרת ריקה" });
         await renameItem(FAULTS.board, id, title);
       }
+
+      /* ============================================================
+         ⚠ **תמונה של התקלה אחרי שתוקנה.**
+
+         עולה לעמודה **נפרדת** מתמונת הדיווח, כדי ששתיהן יישארו
+         זו לצד זו — "כך זה נראה" מול "כך זה נראה עכשיו".
+
+         ⚠ **כישלון בהעלאה אינו מפיל את השמירה.** שאר השדות כבר
+           נכתבו, ו-502 כאן היה נראה כאילו כלום לא נשמר. מוחזר
+           `photoUploaded: false` והמסך אומר זאת — אותו דפוס
+           כמו ביצירה.
+
+         ⚠ **וסימון "טופלה" אינו דורש תמונה.** יש תקלות שאין מה
+           לצלם בהן, ודרישה כזו הייתה משאירה אותן פתוחות לנצח —
+           או שולחת את אב הבית לסמן ב-monday במקום כאן.
+         ============================================================ */
+      let photoUploaded = null;
+      if (body.photoData) {
+        photoUploaded = false;
+        try {
+          const buf = Buffer.from(String(body.photoData), "base64");
+          if (buf.length) {
+            await uploadFile(id, C.photoDone,
+              String(body.photoName || "אחרי-התיקון.jpg"), buf,
+              String(body.photoMime || "image/jpeg"));
+            photoUploaded = true;
+          }
+        } catch (e) {
+          console.error("[faults:photo-done]", e);
+        }
+      }
+
       invalidate("faults");
-      return res.status(200).json({ ok: true, id });
+      return res.status(200).json({ ok: true, id, photoUploaded });
     }
 
     if (req.method === "DELETE") {

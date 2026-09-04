@@ -285,6 +285,19 @@ try {
     r = await call(ST, "GET", "/api/chores?action=view");
     ok("והמסך שלו יודע שהוא תורן", r.b.me.onDutyToday === true);
 
+    /* ============================================================
+       ⚠ **תורן המטבח מגיע גם למסך סימון הנוכחות.**
+         תורן מטבח אינו נעדר מהאימון — המכינה שלחה אותו למטבח
+         (4ז). עד עכשיו המסמן היה צריך לזכור מי בתורנות בכל
+         אימון מחדש, והמידע כבר יושב בלוח התורניות.
+       ============================================================ */
+    const dayR = await call(MGR, "GET", "/api/attendance?action=day&date=" + today);
+    ok("מסך היום מחזיר את תורני המטבח",
+      Array.isArray(dayR.b.kitchenDuty), JSON.stringify(dayR.b.kitchenDuty));
+    ok("וחשבון הבדיקה ברשימה",
+      (dayR.b.kitchenDuty || []).map(String).includes(String(demo.id)),
+      (dayR.b.kitchenDuty || []).join(","));
+
     r = await call(ST, "POST", "/api/chores?action=tick", { item: item.id, done: true });
     ok("תורן היום מסמן", r.s === 200, r.s + " " + (r.b.error || ""));
 
