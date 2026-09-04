@@ -34,6 +34,7 @@ import TeamsPage from "./Teams.jsx";
 import ChoresPage from "./Chores.jsx";
 import RulesPage from "./Rules.jsx";
 import TryoutsPage from "./Tryouts.jsx";
+import LeadershipPage from "./Leadership.jsx";
 import { GanttPage } from "./Gantt.jsx";
 import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
@@ -46,6 +47,10 @@ import ScreenNote from "./ScreenNote.jsx";
 
 /* אותו אוצר צורות של האייקונים במטבח: 21px, stroke 2.1, קצוות עגולים */
 const MI = {
+  /* ⚠ נוסף עבור דף המובילויות. `<MI.flag />` על מפתח שאינו
+     קיים אינו נופל ב-vite build — הוא נופל בדפדפן ב"Element
+     type is invalid", וזה בדיוק סוג השגיאה שהבנייה לא תופסת. */
+  flag: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M5 21V4"/><path d="M5 4.5h11l-2 3.5 2 3.5H5"/></svg>,
   home: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>,
   cal: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="3" y="5" width="18" height="16" rx="2.4"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>,
   note: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M5 3h14v18l-7-4-7 4V3z"/></svg>,
@@ -3134,6 +3139,11 @@ export function MechinaApp({ auth, onSignedOut }) {
                מה שהשרת מרשה (4יט). */
             { key: "tryouts", label: "מיונים לצבא", icon: <MI.users />,
               active: tab === "tryouts", onClick: () => setTab("tryouts") },
+            /* ⚠ **רק אחרי שהמובילות עברה.** המסך עצמו אומר מתי
+               הוא ייפתח, ולכן הקישור קיים תמיד — קישור שנעלם
+               ומופיע נראה כמו תקלה. */
+            { key: "leadership", label: "המובילויות שלי", icon: <MI.flag />,
+              active: tab === "leadership", onClick: () => setTab("leadership") },
             { key: "year", label: "הנוכחות שלי", icon: <MI.cal />, active: tab === "year", onClick: () => setTab("year") },
             { key: "requests", label: "בקשות יציאה", icon: <MI.note />, badge: unseen,
               active: tab === "requests", onClick: () => setTab("requests") },
@@ -3281,6 +3291,7 @@ export function MechinaApp({ auth, onSignedOut }) {
         {tab === "chores" && <ChoresPage say={say} />}
         {tab === "rules" && <RulesPage say={say} />}
         {tab === "tryouts" && <TryoutsPage say={say} />}
+        {tab === "leadership" && <LeadershipPage say={say} />}
 
         {/* ⚠ area={null} — התצוגה המאוחדת, אותה אחת של המנהל. */}
         {tab === "k-all" && auth.isKitchen && <KitchenPage say={say} area={null} />}

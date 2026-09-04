@@ -871,6 +871,35 @@ html,body{margin:0;padding:0;background:#012E58}
 /* תמונת "אחרי התיקון" מסומנת, כדי שלא תיקרא כתמונת הבעיה. */
 /* "תורנות מטבח" ליד שם החניך בסימון האימון — עובדה על היום,
    נגזרת מלוח התורניות ואינה סימון של האימון. */
+/* דף המובילויות */
+.ld{margin-bottom:10px;padding:0;overflow:hidden}
+.kx .ld-h{display:flex;align-items:center;gap:9px;width:100%;padding:12px 13px;
+  background:none;text-align:right}
+.ld-t{flex:1;min-width:0}
+.ld-t b{display:block;font-size:15px;font-weight:800;letter-spacing:-.2px}
+.ld-t span{display:block;font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px}
+.ld-b{padding:0 13px 13px}
+.ld-with{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px}
+.ld-facts{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:8px}
+.ld-facts>div{background:var(--bg);border-radius:var(--r-sm);padding:9px 7px;text-align:center}
+.ld-facts b{display:block;font-size:17px;font-weight:800;letter-spacing:-.4px}
+.ld-facts span{display:block;font-size:10px;font-weight:700;color:var(--muted);margin-top:2px}
+.ld-gap{font-size:11.5px;font-weight:700;color:var(--amber);background:var(--amber-soft);
+  border-radius:var(--r-sm);padding:7px 10px;margin-bottom:8px}
+.ld-abs{font-size:11.5px;font-weight:700;color:var(--muted);display:flex;gap:6px;
+  flex-wrap:wrap;margin-bottom:8px}
+.ld-abs span{background:var(--bg);border-radius:5px;padding:2px 6px}
+.ld-note{font-size:12.5px;line-height:1.6;color:var(--ink);margin-bottom:8px}
+.ld-note i{display:block;font-style:normal;font-size:10.5px;font-weight:800;
+  color:var(--faint);margin-bottom:2px}
+.ld-text{font-size:13.5px;line-height:1.65;color:var(--ink);white-space:pre-wrap;
+  background:var(--bg);border-radius:var(--r-sm);padding:10px 12px}
+.ld-text.ld-empty{color:var(--faint);font-weight:600}
+.ld-by{font-size:11px;font-weight:700;color:var(--faint);margin-top:4px;text-align:left}
+.kx .ld-b textarea{width:100%;background:var(--surface);border:1px solid var(--line2);
+  border-radius:11px;padding:9px 12px;font-size:14px;outline:none;
+  font-family:inherit;resize:vertical}
+
 /* צ׳יפים של שבועות ההובלה בבורר התאריך */
 .lw-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .kx .lw-chip{padding:7px 10px;border-radius:9px;border:2px solid var(--line2);

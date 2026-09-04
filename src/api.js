@@ -138,6 +138,16 @@ export const api = {
   addPurchase: (body) => post("/api/kitchen?action=budget", body),
   deletePurchase: (orderId) => del("/api/kitchen?action=budget", { orderId }),
 
+  /* ---------- דף המובילויות ----------
+     ⚠ מחזיר **רק שבועות שכבר הסתיימו**. `all=1` פותח לצוות
+       את כל השבועות שהיו. */
+  getLeadership: (all) =>
+    get("/api/students?action=leadership" + (all ? "&all=1" : "")),
+  /* ⚠ שני שדות ושני קולות: `feedback` — הצוות, `summary` —
+     מי שהוביל. השרת חוסם כל אחד מהם לצד השני. */
+  saveLeadership: ({ weekId, feedback, summary }) =>
+    put("/api/students?action=leadership", { weekId, feedback, summary }),
+
   /* ---------- מיונים לצבא ----------
      ⚠ כתיבה — החניך על עצמו בלבד. קריאה של כולם — צוות
        ויו״ר ועדת הגיוסים, לפי תיבה בלוח ולא לפי שם בקוד. */

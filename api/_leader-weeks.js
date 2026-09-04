@@ -47,6 +47,12 @@ export async function loadLeaderWeeks({ force = false } = {}) {
         escort: val(i, W.escort) || null,
         assignable: val(i, W.open) === "v",
         leaderIds: linkedAll(i, W.leaders),
+        /* ⚠ דף המובילויות. שני קולות ושני שדות — ראו
+           shared/mechina-boards.js. */
+        feedback: val(i, W.feedback) || null,
+        feedbackBy: val(i, W.feedbackBy) || null,
+        feedbackAt: val(i, W.feedbackAt) || null,
+        summary: val(i, W.summary) || null,
       }))
       .filter((w) => w.start && w.end)
       .sort((a, b) => a.start.localeCompare(b.start) || a.num - b.num);
