@@ -257,6 +257,11 @@ html,body{margin:0;padding:0;background:#012E58}
 .p-low{background:var(--clay-soft);color:var(--clay)}
 .p-ok{background:var(--ok-soft);color:var(--ok)}
 .p-new{background:var(--amber-soft);color:var(--amber)}
+/* ⚠ שני גוונים שנוספו לרצועת המספרים בשורת החניך.
+   p-cool — יום חופש, שהוא זכות במכסה ולא בעיה, ולכן אינו אדום.
+   p-idle — "לא סומן", שהוא היעדר נתון ולא מצב, ולכן אפור. */
+.p-cool{background:var(--accent-soft);color:var(--accent)}
+.p-idle{background:var(--bg);color:var(--faint)}
 .p-mid{background:var(--accent-soft);color:var(--accent)}
 
 /* stepper */
@@ -413,9 +418,14 @@ html,body{margin:0;padding:0;background:#012E58}
 .st-main{flex:1;min-width:0}
 .st-n{font-size:14.5px;font-weight:700;letter-spacing:-.2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .st-m{font-size:11.5px;color:var(--muted);margin-top:2px;font-weight:600;display:flex;gap:6px;align-items:center}
-.st-fig{display:flex;gap:4px;flex:0 0 auto}
-.st-fig b{font-size:11px;font-weight:800;padding:3px 6px;border-radius:6px;font-variant-numeric:tabular-nums;
-  min-width:22px;text-align:center}
+/* ⚠ הריבוע נושא **תווית ומספר**, ולא מספר לבדו. שלושה מספרים
+   צבעוניים בלי מילה נקראים כרעש, ומי שאינו מבחין בין הגוונים
+   אינו מקבל מהם דבר — אותו כלל כמו בגרפים (4ו). */
+.st-fig{display:flex;gap:4px;flex:0 0 auto;flex-wrap:wrap;justify-content:flex-end;max-width:52%}
+.st-fig b{font-size:11px;font-weight:800;padding:2px 6px 3px;border-radius:6px;
+  font-variant-numeric:tabular-nums;min-width:26px;text-align:center;
+  display:flex;flex-direction:column;align-items:center;line-height:1.15}
+.st-fig b i{font-size:8.5px;font-style:normal;font-weight:700;opacity:.72;letter-spacing:-.1px}
 
 /* בורר מצב בשורת סימון.
    ⚠ הצבעים במלוא העוצמה בכוונה — המסמן סורק 33 שורות במהירות,

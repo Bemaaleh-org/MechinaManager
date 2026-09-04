@@ -1187,11 +1187,39 @@ function StudentsList({ onOpen, say }) {
                   {s.today.absent ? <span>חסר/ה היום · {s.today.type}</span> : <span>נוכח/ת</span>}
                 </div>
               </div>
-              <div className="st-fig">
-                <b className="p-low num">{s.summary.sick}</b>
-                <b className="p-new num">{s.summary.justified}</b>
-                <b className="p-ok num">{s.summary.vacation}</b>
-              </div>
+              {/* ============================================================
+                  ⚠ **שלושה מספרים בלי מילה אינם נתון.**
+
+                  כאן ישבו שלושה ריבועים צבעוניים בלי תווית, ובלי
+                  המספר שהמסך הזה קיים בשבילו — **כמה ימים החניך
+                  היה נוכח**. מי שהסתכל ראה `0 0 0` והסיק שהמערכת
+                  אינה מציגה את המספרים שקיימים; היא הציגה שלושה
+                  מספרים נכונים של דברים אחרים.
+
+                  ⚠ **נוכחות היא יחס ולא מספר** — "12" לבדו אינו
+                    אומר דבר בלי לדעת מתוך כמה, ובתחילת שנה ההפרש
+                    בין 3/3 ל-3/40 הוא כל התמונה.
+
+                  ⚠ **וכשעוד לא סומן יום, הרצועה אינה מוצגת בכלל.**
+                    `0/0` נראה כמו חניך שלא הגיע מעולם. אותו כלל
+                    כמו אחוז הנוכחות (4ג): מספר בלי מה שמאחוריו
+                    גרוע ממספר חסר.
+                  ============================================================ */}
+              {s.summary.schoolDays > 0 && (
+                <div className="st-fig">
+                  <b className="p-ok num" title="ימים שנכח, מתוך הימים שסומנו">
+                    <i>נכח</i>{s.summary.present}/{s.summary.schoolDays}</b>
+                  {s.summary.sick > 0 && (
+                    <b className="p-low num" title="ימי מחלה"><i>מחלה</i>{s.summary.sick}</b>)}
+                  {s.summary.justified > 0 && (
+                    <b className="p-new num" title="היעדרות מוצדקת"><i>מוצדק</i>{s.summary.justified}</b>)}
+                  {s.summary.vacation > 0 && (
+                    <b className="p-cool num" title="ימי חופש שנוצלו"><i>חופש</i>{s.summary.vacation}</b>)}
+                  {s.summary.unmarked > 0 && (
+                    <b className="p-idle num" title="ימים שסומנו במכינה, והחניך לא סומן בהם — לא נוכח ולא נעדר">
+                      <i>לא סומן</i>{s.summary.unmarked}</b>)}
+                </div>
+              )}
               {/* ⚠ נוכחות אימון נפרדת מהיומית — ראו
                   _training-summary.js. מוצגת רק כשיש מה להציג. */}
               {s.training && s.training.marked > 0 && (

@@ -60,11 +60,35 @@ const cal = await loadCalendar();
    חיפשה "שגרה" בעוד שבלוח כתוב "רגיל", והבדיקה דילגה על עצמה
    בשקט במקום להיכשל. */
 const usable = (d) => VACATION_ALLOWED_ON.includes(d.kind);
-const firstDays = cal.days.filter((d) => d.half === HALF.first && usable(d));
-const secondDays = cal.days.filter((d) => d.half === HALF.second && usable(d));
+
+/* ============================================================
+   ⚠⚠ **יום שכבר סומנה בו נוכחות אינו יום שאפשר לבדוק עליו.**
+
+   הבדיקה בחרה את ימי השגרה **הראשונים** של כל מחצית — שהם
+   בדיוק הימים הראשונים של שנת המכינה, כלומר בדיוק הימים
+   שהצוות סימן ראשונים. שתי פגיעות נבעו מזה, ושתיהן בנתונים
+   אמיתיים:
+
+   1. הניקוי מחק את שורת יום הסימון לפי **תאריך** — ואיתה
+      נוכחות אמיתית של 33 חניכים בשלושה ימים.
+   2. `?action=mark` **דורס** את רשימת הנוכחים של אותו יום,
+      ולכן אפילו בלי מחיקה היום נשאר בלוח עם אפס נוכחים.
+
+   הפתרון הוא בבחירה ולא בניקוי: הבדיקה עובדת רק על ימים
+   שאיש עוד לא סימן. `marksBefore` מצולם **לפני** הבחירה,
+   ומשמש גם כאן וגם בניקוי שבסוף.
+   ============================================================ */
+const marksBefore = new Set((await loadMarked({ force: true })).keys());
+const free = (d) => usable(d) && !marksBefore.has(d.date);
+
+const firstDays = cal.days.filter((d) => d.half === HALF.first && free(d));
+const secondDays = cal.days.filter((d) => d.half === HALF.second && free(d));
 if (firstDays.length < 6 || secondDays.length < 2) {
-  console.log("אין מספיק ימי שגרה בשתי המחציות — אי אפשר לבדוק");
+  console.log("אין מספיק ימי שגרה שטרם סומנו בשתי המחציות — אי אפשר לבדוק");
   process.exit(1);
+}
+if (marksBefore.size) {
+  console.log(`  (${marksBefore.size} ימים כבר מסומנים בלוח — הבדיקה מדלגת עליהם)`);
 }
 
 const us = (await gql(`{ boards(ids:[${AUTH_BOARD}]){ items_page(limit:100){items{id name column_values(ids:["${AUTH_COLS.code}"]){id text}}} } }`))
@@ -224,12 +248,17 @@ try {
     ...secondDays.slice(0, VACATION_PER_HALF + 1).map((d) => d.date),
   ]);
   const marks = await loadMarked({ force: true });
-  let mk = 0;
+  let mk = 0, kept = 0;
   for (const [date, stamp] of marks.entries()) {
     if (!touched.has(date)) continue;
+    /* ⚠⚠ **יום שכבר היה מסומן לפני ההרצה אינו שלנו.** הבדיקה
+       נגעה בתאריך, אבל השורה נכתבה על ידי המכינה — ומחיקתה
+       מוחקת נוכחות אמיתית של כל החניכים. */
+    if (marksBefore.has(date)) { kept++; continue; }
     await gql(`mutation($i:ID!){ delete_item(item_id:$i){id} }`, { i: stamp.id });
     mk++;
   }
+  if (kept) console.log(`  (${kept} ימי סימון היו קיימים מראש ולא נגענו בהם)`);
   invalidateAttendance();
   if (mk) console.log(`  (נמחקו ${mk} ימי סימון שהבדיקה יצרה)`);
   /* ⚠ דגל הבדיקה חוזר תמיד. בלעדיו חשבון הבדיקה נספר בנוכחות
