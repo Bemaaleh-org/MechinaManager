@@ -138,6 +138,16 @@ export const api = {
   addPurchase: (body) => post("/api/kitchen?action=budget", body),
   deletePurchase: (orderId) => del("/api/kitchen?action=budget", { orderId }),
 
+  /* ---------- מיונים לצבא ----------
+     ⚠ כתיבה — החניך על עצמו בלבד. קריאה של כולם — צוות
+       ויו״ר ועדת הגיוסים, לפי תיבה בלוח ולא לפי שם בקוד. */
+  getTryouts: () => get("/api/students?action=tryouts"),
+  addTryout: ({ name, date, status, track, note }) =>
+    post("/api/students?action=tryouts", { name, date, status, track, note }),
+  editTryout: ({ id, name, date, status, track, note }) =>
+    put("/api/students?action=tryouts", { id, name, date, status, track, note }),
+  deleteTryout: (id) => del("/api/students?action=tryouts", { id }),
+
   /* ---------- בוגרים · אירוח · השאלות · תפריט ---------- */
   /* ---------- התראות ----------
      ⚠ נגזרות בשרת מהמצב הנוכחי ואינן תור שמור. ראו api/_notify.js. */

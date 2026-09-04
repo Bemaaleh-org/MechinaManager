@@ -19,6 +19,7 @@ import { PlacementsPage } from "./Placements.jsx";
 import TeamsPage from "./Teams.jsx";
 import ChoresPage from "./Chores.jsx";
 import RulesPage from "./Rules.jsx";
+import TryoutsPage from "./Tryouts.jsx";
 import ContentPage from "./Content.jsx";
 import { SafetyPage } from "./Safety.jsx";
 import { FaultsPage } from "./Faults.jsx";
@@ -299,6 +300,11 @@ function Staff({ auth, onSignedOut }) {
                 onClick: () => setSection("chores") },
               { key: "a-rules", label: "נהלים במכינה", icon: <I.book />, active: section === "rules",
                 onClick: () => setSection("rules") },
+              /* ⚠ **גלוי לכל הצוות, ולא רק ליו״ר הוועדה.** המסך
+                 עצמו קורא בלבד, והשרת הוא שקובע מי רואה את
+                 הכול — לפי תיבה בלוח ולא לפי שם בקוד. */
+              { key: "a-tryouts", label: "מיונים לצבא", icon: <I.users />,
+                active: section === "tryouts", onClick: () => setSection("tryouts") },
               /* ⚠ ראש המכינה בלבד — עריכת נוסח היא שינוי של
                  מה שכתוב במכינה, לא של מסך. */
               ...(auth.isHead ? [{ key: "a-content", label: "ניהול תוכן", icon: <I.note />,
@@ -418,6 +424,7 @@ function Staff({ auth, onSignedOut }) {
               לשם, אבל תנאי שמסתיר כשל הוא בדיוק מה שנשכח. */}
           {section === "chores" && <ChoresPage say={say} />}
           {section === "rules" && <RulesPage say={say} />}
+          {section === "tryouts" && <TryoutsPage say={say} />}
           {section === "content" && auth.isHead && <ContentPage say={say} />}
           {section === "teams" && isMgr && <TeamsPage say={say} go={() => setSection("roles")} />}
           {section === "safety" && isMgr && <SafetyPage say={say} />}

@@ -49,6 +49,9 @@ export async function loadDefinitions({ force = false } = {}) {
              שתי עמודות ולא אחת — ראו shared/placements-ids.js */
           chair: val(i, D.chair) || null,
           chairName: val(i, D.chairName) || null,
+          /* ⚠ "זו ועדת הגיוסים" — תיבה בלוח ולא שם מקובע בקוד.
+             ראו ההערה ב-shared/placements-ids.js. */
+          army: val(i, D.army) === "v",
           /* ⚠ **ריק פירושו פעיל.** הקוטביות הפוכה בכוונה: כל
              שורה שקיימת היום נכתבה לפני שהעמודה נוספה, ותיבה
              ריקה שמשמעותה "מוארכב" הייתה מעלימה את כולן

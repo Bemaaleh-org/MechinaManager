@@ -871,6 +871,22 @@ html,body{margin:0;padding:0;background:#012E58}
 /* תמונת "אחרי התיקון" מסומנת, כדי שלא תיקרא כתמונת הבעיה. */
 /* "תורנות מטבח" ליד שם החניך בסימון האימון — עובדה על היום,
    נגזרת מלוח התורניות ואינה סימון של האימון. */
+/* מיונים לצבא */
+.ty-note{font-size:12px;line-height:1.65;color:var(--muted);font-weight:600;
+  background:var(--bg);border-radius:var(--r-md);padding:10px 12px;margin-bottom:12px}
+.ty-card{margin-bottom:10px}
+.ty-top{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.ty-top b{font-size:15px;font-weight:800;letter-spacing:-.2px}
+.ty-meta{font-size:11.5px;color:var(--muted);font-weight:700;margin-top:3px;
+  display:flex;gap:5px;flex-wrap:wrap}
+.ty-note-b{font-size:13px;line-height:1.6;color:var(--ink);white-space:pre-wrap;margin-top:7px}
+.ty-status{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
+.ty-row{padding:11px 13px;border-bottom:1px solid var(--line)}
+.ty-row:last-child{border-bottom:none}
+.ty-row-n{font-size:14px;font-weight:800;display:flex;align-items:center;gap:7px;
+  justify-content:space-between}
+.ty-row-f{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.ty-row-l{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:4px}
 .tr-duty{display:inline-block;font-style:normal;font-size:9.5px;font-weight:800;
   background:var(--amber-soft);color:var(--amber);padding:1px 5px;
   border-radius:5px;margin-inline-start:6px;vertical-align:middle}

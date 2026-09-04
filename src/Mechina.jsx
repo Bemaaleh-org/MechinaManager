@@ -33,6 +33,7 @@ import DutyPage from "./Duty.jsx";
 import TeamsPage from "./Teams.jsx";
 import ChoresPage from "./Chores.jsx";
 import RulesPage from "./Rules.jsx";
+import TryoutsPage from "./Tryouts.jsx";
 import { GanttPage } from "./Gantt.jsx";
 import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
@@ -3088,6 +3089,11 @@ export function MechinaApp({ auth, onSignedOut }) {
               active: tab === "chores", onClick: () => setTab("chores") },
             { key: "rules", label: "נהלים במכינה", icon: <MI.book />,
               active: tab === "rules", onClick: () => setTab("rules") },
+            /* ⚠ **באישי, כי זה נתון של החניך על עצמו.** יו״ר ועדת
+               הגיוסים רואה מכאן את של כולם — אותו מסך בדיוק, לפי
+               מה שהשרת מרשה (4יט). */
+            { key: "tryouts", label: "מיונים לצבא", icon: <MI.users />,
+              active: tab === "tryouts", onClick: () => setTab("tryouts") },
             { key: "year", label: "הנוכחות שלי", icon: <MI.cal />, active: tab === "year", onClick: () => setTab("year") },
             { key: "requests", label: "בקשות יציאה", icon: <MI.note />, badge: unseen,
               active: tab === "requests", onClick: () => setTab("requests") },
@@ -3234,6 +3240,7 @@ export function MechinaApp({ auth, onSignedOut }) {
         {tab === "teams" && <TeamsPage say={say} go={(t) => setTab(t)} />}
         {tab === "chores" && <ChoresPage say={say} />}
         {tab === "rules" && <RulesPage say={say} />}
+        {tab === "tryouts" && <TryoutsPage say={say} />}
 
         {/* ⚠ area={null} — התצוגה המאוחדת, אותה אחת של המנהל. */}
         {tab === "k-all" && auth.isKitchen && <KitchenPage say={say} area={null} />}
