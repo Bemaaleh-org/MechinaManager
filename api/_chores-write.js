@@ -17,6 +17,7 @@ import { gql } from "./_monday.js";
 import { CHORE_BOARDS, CHORE_COLS } from "../shared/chores-ids.js";
 import {
   mayChores, choreHint, KIND, KINDS, SAME_SECTOR_WARN,
+  fridayAfterTuesday,
 } from "../shared/chores.js";
 import {
   choresReady, loadSectors, loadRoster, loadAdjusts, loadChecklist, loadDone,
@@ -164,9 +165,73 @@ export const assign = withAuth(async (req, res, session) => {
       [R.by]: who, [R.at]: stamp,
     });
   }
+  /* ============================================================
+     ⚠ יום ג׳ גורר את יום ו׳ — ברירת מחדל, לא כלל
+     ------------------------------------------------------------
+     בקשת המכינה: מי שמשובץ לתורנות המטבח ביום שלישי משובץ
+     אוטומטית גם ביום שישי, והאחראי משנה אחר כך כרצונו.
+
+     ⚠⚠ **רק כשיום שישי ריק לגמרי.** אחרת עריכה חוזרת של יום
+       שלישי הייתה **מוחקת בשקט** שיבוץ שמישהו עשה ביד ביום
+       שישי. פעולה שמוחקת עבודה של אדם אחר בלי לומר מילה היא
+       בדיוק מה שאי אפשר לתקן — איש לא רואה שהיא קרתה.
+
+     ⚠ **וכל בדיקה נעשית שוב על יום שישי, ולא מועתקת.** יום
+       שישי עשוי ליפול בשבוע הובלה אחר (שבועות ההובלה הם טווחים
+       של המכינה ואינם בהכרח ראשון–שבת), ומוביל שבוע שם פטור
+       גם הוא. העתקה עיוורת הייתה שוברת בדיוק את הכלל שהמסלול
+       הראשי אוכף.
+
+     ⚠ **וכישלון במראה אינו מפיל את השיבוץ שהצליח.** יום שלישי
+       כבר נשמר; אם שישי לא הסתדר, זה מדווח ב-`mirror` והמסך
+       אומר זאת. 500 כאן היה נראה כאילו כלום לא נשמר.
+
+     ⚠ `mirror: false` מכבה — כדי שעריכה של יום שישי עצמו, או
+       אחראי שאינו רוצה את ההתנהגות, לא ייאלצו להילחם בה.
+     ============================================================ */
+  let mirror = null;
+  const friday = sector.kind === KIND.daily && body?.mirror !== false
+    ? fridayAfterTuesday(date) : null;
+
+  if (friday) {
+    try {
+      const taken = all.list.filter((r) => r.sector === sector.id && r.date === friday);
+      if (taken.length) {
+        mirror = { date: friday, done: false, why: "כבר משובץ" };
+      } else {
+        const fWeek = await weekFor(weeks, friday);
+        const fLeaders = new Set((fWeek ? fWeek.leaderIds : []).map(String));
+        const keep = ids.filter((i) => !fLeaders.has(i));
+        const skipped = ids.filter((i) => fLeaders.has(i)).map((i) => byId.get(i).name);
+
+        for (const id of keep) {
+          const st = byId.get(id);
+          await createItem(CHORE_BOARDS.roster, `${st.name} · ${sector.name} · ${friday}`, {
+            [R.student]: id, [R.studentName]: st.name,
+            [R.sector]: sector.id, [R.sectorName]: sector.name,
+            [R.date]: { date: friday },
+            [R.by]: who, [R.at]: stamp,
+          });
+        }
+        mirror = {
+          date: friday, done: true, added: keep.length,
+          skipped: skipped.length ? skipped : undefined,
+        };
+        if (skipped.length) {
+          warnings.push(`${skipped.join(" · ")} מוביל/ים את השבוע של ${friday} `
+            + "ולכן לא שובצו ליום שישי");
+        }
+      }
+    } catch (e) {
+      console.error("[chores:mirror-friday]", e);
+      mirror = { date: friday, done: false, why: "השיבוץ ליום שישי נכשל" };
+    }
+  }
+
   invalidateChores();
   return res.status(200).json({
-    ok: true, added: add.length, removed: drop.length, total: ids.length, warnings,
+    ok: true, added: add.length, removed: drop.length, total: ids.length,
+    warnings, mirror,
   });
 }, { student: true });
 

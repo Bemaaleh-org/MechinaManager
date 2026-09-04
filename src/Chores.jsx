@@ -24,7 +24,9 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { api } from "./api.js";
 import TextBlock from "./TextBlock.jsx";
 import ScrollTabs from "./Tabs.jsx";
-import { KIND, SAME_SECTOR_WARN } from "../shared/chores.js";
+import { KIND, SAME_SECTOR_WARN,
+  fridayAfterTuesday, dowOf, TUESDAY,
+} from "../shared/chores.js";
 
 const CI = {
   chev: (p) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
@@ -303,6 +305,12 @@ function Sectors({ d, say, reload, goWeek }) {
 /* ============================================================
    לשונית המטבח והחד״א
    ============================================================ */
+/* ⚠ נגזר מהתאריך ולא מהתווית `day.dow` שמגיעה מהשרת — תווית
+   היא טקסט להצגה, ותנאי שנשען על מחרוזת עברית נשבר ברגע
+   שמישהו משנה את הניסוח. */
+const isTuesday = (iso) => dowOf(iso) === TUESDAY;
+const fridayOf = (iso) => fridayAfterTuesday(iso);
+
 function Daily({ d, say, reload, goWeek }) {
   const [pi, setPi] = useState(0);
   const [open, setOpen] = useState(null);
@@ -322,14 +330,35 @@ function Daily({ d, say, reload, goWeek }) {
     return m;
   }, [p]);
 
+  /* ============================================================
+     ⚠ **יום ג׳ גורר את יום ו׳ — ברירת מחדל שאפשר לכבות בלחיצה.**
+
+     המכינה ביקשה שמי שמשובץ ביום שלישי ישובץ אוטומטית גם ביום
+     שישי. התיבה נשארת דלוקה, והאחראי מכבה אותה כשהוא לא רוצה.
+
+     ⚠ **ומה שקרה בפועל נאמר במסך.** השרת מדלג על יום שישי אם
+       הוא כבר משובץ — הוא לא ידרוס עבודה של מישהו — ואם המסך
+       לא יאמר זאת, האחראי יניח ששישי סודר והוא לא.
+     ============================================================ */
+  const [mirror, setMirror] = useState(true);
+
   const save = (day) => {
     if (busy) return;
     setBusy(true);
-    api.assignChore({ sector: daily.id, date: day.date, students: picked })
+    api.assignChore({
+      sector: daily.id, date: day.date, students: picked,
+      ...(isTuesday(day.date) ? { mirror } : {}),
+    })
       .then((r) => {
         setOpen(null);
         (r.warnings || []).forEach(say);
-        say(`נשמר — ${r.total} תורנים`);
+        if (r.mirror) {
+          say(r.mirror.done
+            ? `נשמר, ויום שישי (${dmy(r.mirror.date)}) שובץ גם הוא`
+            : `נשמר. יום שישי (${dmy(r.mirror.date)}) לא שובץ — ${r.mirror.why}`);
+        } else {
+          say(`נשמר — ${r.total} תורנים`);
+        }
         reload();
       })
       .catch((e) => say(e.message))
@@ -414,6 +443,20 @@ function Daily({ d, say, reload, goWeek }) {
                 }))} leaders={p.leaders} picked={picked} cap={daily.cap} busy={busy}
                   onToggle={(id) => setPicked((v) =>
                     v.includes(id) ? v.filter((x) => x !== id) : [...v, id])} />
+                {/* ============================================================
+                    ⚠ **מוצג רק ביום שלישי.** תיבה שמופיעה בכל יום
+                      ואינה עושה דבר בארבעה מהם מלמדת להתעלם ממנה.
+                    ============================================================ */}
+                {isTuesday(day.date) && (
+                  <label className="ch-mirror">
+                    <input type="checkbox" checked={mirror} disabled={busy}
+                      onChange={(e) => setMirror(e.target.checked)} />
+                    <span>
+                      לשבץ את אותם תורנים גם ביום שישי
+                      <i>{fridayOf(day.date) ? dmy(fridayOf(day.date)) : ""} · רק אם הוא עדיין ריק</i>
+                    </span>
+                  </label>
+                )}
                 <button className="btn btn-primary" style={{ width: "100%", marginTop: 10 }}
                   disabled={busy} onClick={() => save(day)}>
                   {busy ? "שומר…" : `שמירת התורנות (${picked.length})`}

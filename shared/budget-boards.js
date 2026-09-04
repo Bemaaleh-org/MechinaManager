@@ -153,15 +153,49 @@ export const ORDER_KINDS = [ORDER_KIND.quarterly, ORDER_KIND.weekly];
 
 export const ORDER_MONTHS = 3;
 
-export function orderMonths(startMonth) {
+const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/** שלושה חודשים רצופים מחודש פתיחה — ברירת המחדל ההיסטורית */
+export function consecutiveMonths(startMonth, count = ORDER_MONTHS) {
   const [y, m] = String(startMonth || "").split("-").map(Number);
   if (!y || !m) return [];
   const out = [];
-  for (let i = 0; i < ORDER_MONTHS; i++) {
+  for (let i = 0; i < count; i++) {
     const d = new Date(Date.UTC(y, m - 1 + i, 1));
     out.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
   }
   return out;
+}
+
+/**
+ * ============================================================
+ * החודשים שקנייה רב-חודשית מתחלקת עליהם.
+ * ------------------------------------------------------------
+ * ⚠ **רשימה מפורשת גוברת על גזירה מחודש הפתיחה.** עד עכשיו
+ *   כל קנייה רבעונית נפרשה על שלושה חודשים **רצופים** מחודש
+ *   הפתיחה, וזו הנחה שאינה תמיד נכונה — קנייה יכולה לכסות
+ *   ספטמבר ואוקטובר ולדלג על חודש שאין בו פעילות. אותו כלל
+ *   כמו "מתוכנן" שבגיליון (4כה).
+ *
+ * ⚠ **שורה ישנה ממשיכה לעבוד.** רשימה ריקה נופלת חזרה
+ *   לשלושה רצופים, ואף שורה קיימת אינה צריכה לזוז.
+ *
+ * ⚠ **ערך פסול מסונן ואינו מפיל.** חודש שמישהו הקליד ביד
+ *   ב-monday בפורמט אחר יורד מהרשימה; אם לא נשאר כלום —
+ *   נפילה לאחור. טבלת תקציב שנופלת בגלל תא אחד גרועה
+ *   מטבלה שמתעלמת ממנו (4לו).
+ * ============================================================
+ */
+export function orderMonths(startMonthOrOrder) {
+  /* תאימות לאחור: הפונקציה נקראה עם מחרוזת בלבד */
+  if (typeof startMonthOrOrder === "string" || startMonthOrOrder == null) {
+    return consecutiveMonths(startMonthOrOrder);
+  }
+  const o = startMonthOrOrder;
+  const listed = String(o.months || "")
+    .split(",").map((x) => x.trim()).filter((x) => MONTH_RE.test(x));
+  const uniq = [...new Set(listed)].sort();
+  return uniq.length ? uniq : consecutiveMonths(o.startMonth);
 }
 
 /**
@@ -173,16 +207,20 @@ export function orderShareFor(order, month) {
   if (order.kind === ORDER_KIND.weekly) {
     return String(order.date || "").startsWith(month) ? (Number(order.amount) || 0) : 0;
   }
-  return orderMonths(order.startMonth).includes(month)
-    ? (Number(order.amount) || 0) / ORDER_MONTHS
-    : 0;
+  /* ⚠ **מחלקים במספר החודשים שנבחרו בפועל, לא ב-3 קבוע.**
+     קנייה שנפרשת על שני חודשים היא חצי בכל אחד, ו-1/3 קשיח
+     היה מאבד שליש מהסכום בלי שאיש יראה — הטבלה עדיין מסתכמת
+     למספר סביר, והוא פשוט שגוי. */
+  const ms = orderMonths(order);
+  if (!ms.length || !ms.includes(month)) return 0;
+  return (Number(order.amount) || 0) / ms.length;
 }
 
 /** החודשים שקנייה נוגעת בהם — לתצוגה */
 export const monthsOf = (order) =>
   order.kind === ORDER_KIND.weekly
     ? [String(order.date || "").slice(0, 7)].filter(Boolean)
-    : orderMonths(order.startMonth);
+    : orderMonths(order);
 
 export const MONTHS_HE = [
   "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",

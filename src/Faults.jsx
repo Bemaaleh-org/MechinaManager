@@ -211,7 +211,7 @@ function FaultForm({ initial, say, onDone, onCancel }) {
               <div className="fld">
                 <label>עלות הטיפול (₪)</label>
                 <input value={f.cost} onChange={setT("cost")} disabled={busy}
-                  inputMode="numeric" placeholder="ריק = טרם ידוע" />
+                  inputMode="decimal" placeholder="ריק = טרם ידוע" />
               </div>
               <div className="fld">
                 <label>תאריך סיום הטיפול</label>

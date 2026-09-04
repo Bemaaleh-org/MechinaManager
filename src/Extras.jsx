@@ -608,8 +608,9 @@ function HostingForm({ initial, options, say, onDone, onCancel }) {
           onChange={(v) => setF({ ...f, paid: f.paid === v ? "" : v })} disabled={busy} />
         {f.paid === "בתשלום" && (
           <Field label="סכום" hint="ריק = טרם סוכם. ההכנסות מסוכמות לפי תאריך תחילת האירוח.">
+            {/* ⚠ decimal ולא numeric — כסף. ראו ההערה ב-src/Budget.jsx. */}
             <input value={f.amount} onChange={set("amount")} disabled={busy}
-              inputMode="numeric" placeholder="₪" />
+              inputMode="decimal" placeholder="₪" />
           </Field>
         )}
 

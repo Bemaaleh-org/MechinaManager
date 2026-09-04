@@ -32,6 +32,17 @@ export const BUDGET_COLS = {
        cost דורס, flat מוסיף. */
     flat: "numeric_mm6kqpxv",
   },
-  orders: { amount: "numeric_mm6jnhh2", startMonth: "text_mm6j7pqm", date: "date_mm6jp9as", note: "text_mm6jv2xv", kind: "color_mm6jtyvv" },
+  orders: {
+    amount: "numeric_mm6jnhh2", startMonth: "text_mm6j7pqm",
+    date: "date_mm6jp9as", note: "text_mm6jv2xv", kind: "color_mm6jtyvv",
+    /* ⚠ **החודשים שהקנייה מתחלקת עליהם, מפורשים.** "YYYY-MM,…"
+       ⚠ גובר על startMonth כשהוא מלא. השדה הישן פרש שלושה
+         חודשים **רצופים** ממנו והלאה, וזו הנחה שלא תמיד נכונה:
+         קנייה יכולה לכסות ספטמבר–אוקטובר ואז לדלג על חופשת
+         סוכות. הצהרה מפורשת על הפריט גוברת על גזירה מהקשר (4כה).
+       ⚠ ושורות ישנות ממשיכות לעבוד — ריק נופל חזרה לשלושה
+         רצופים, ואין צורך לגעת באף שורה קיימת. */
+    months: "text_mm6wz3ba",
+  },
   settings: { value: "numeric_mm6jkeme", from: "date_mm6jb0xz" },
 };

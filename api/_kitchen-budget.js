@@ -75,6 +75,9 @@ async function loadOrders({ force = false } = {}) {
         name: String(i.name || "").trim(),
         amount: num(i, C.orders.amount) || 0,
         startMonth: val(i, C.orders.startMonth),
+        /* ⚠ רשימה מפורשת של חודשים; ריק נופל לשלושה רצופים
+           מחודש הפתיחה. ראו orderMonths ב-shared/budget-boards.js. */
+        months: val(i, C.orders.months) || "",
         date: val(i, C.orders.date) || null,
         note: val(i, C.orders.note) || null,
         kind: val(i, C.orders.kind) || ORDER_KIND.quarterly,
@@ -494,9 +497,35 @@ async function handler(req, res, session) {
         cols[C.orders.date] = { date };
         cols[C.orders.startMonth] = date.slice(0, 7);
       } else {
-        const startMonth = String(body?.startMonth || "").trim();
-        if (!/^\d{4}-\d{2}$/.test(startMonth)) return res.status(400).json({ error: "חודש פתיחה לא תקין" });
-        cols[C.orders.startMonth] = startMonth;
+        /* ============================================================
+           ⚠ **החודשים נבחרים במפורש ואינם נגזרים מחודש פתיחה.**
+
+           עד עכשיו כל קנייה רבעונית נפרשה על שלושה חודשים
+           **רצופים** מחודש הפתיחה. זו הנחה שאינה תמיד נכונה —
+           קנייה יכולה לכסות ספטמבר ונובמבר ולדלג על חודש שאין
+           בו פעילות, והחלוקה השווה לשלושה רצופים זקפה סכום
+           לחודש שלא נגע בו.
+
+           ⚠ **חודש פתיחה עדיין נשמר**, כי הוא מה שמסדר את
+             הרשימה ומה ששורות ישנות נשענות עליו.
+
+           ⚠ **וקנייה חייבת לפחות חודש אחד.** רשימה ריקה הייתה
+             נופלת לאחור לשלושה רצופים ומייצרת בשקט חלוקה
+             שהמשתמש לא ביקש.
+           ============================================================ */
+        const raw = Array.isArray(body?.months) ? body.months : [];
+        const months = [...new Set(raw.map((x) => String(x).trim()))]
+          .filter((x) => /^\d{4}-(0[1-9]|1[0-2])$/.test(x)).sort();
+
+        if (!months.length) {
+          return res.status(400).json({ error: "יש לבחור לפחות חודש אחד שהקנייה מתחלקת עליו" });
+        }
+        if (months.length > 12) {
+          return res.status(400).json({ error: "אי אפשר לפרוס קנייה על יותר מ-12 חודשים" });
+        }
+
+        cols[C.orders.months] = months.join(",");
+        cols[C.orders.startMonth] = months[0];
         if (body.date) cols[C.orders.date] = { date: String(body.date) };
       }
 
@@ -504,7 +533,12 @@ async function handler(req, res, session) {
       invalidateBudget();
       return res.status(200).json({
         ok: true, kind,
-        months: monthsOf({ kind, startMonth: cols[C.orders.startMonth], date: body.date }),
+        months: monthsOf({
+          kind,
+          startMonth: cols[C.orders.startMonth],
+          months: cols[C.orders.months] || "",
+          date: body.date,
+        }),
       });
     }
 

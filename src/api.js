@@ -205,8 +205,11 @@ export const api = {
     + (week ? "&week=" + encodeURIComponent(week) : "")),
   /* ⚠ פירוק מפורש: שדה שלא נכתב כאן נשמט בשקט ונראה עובד
      במסך בלי להגיע לשרת (4לג). */
-  assignChore: ({ sector, week, date, students }) =>
-    post("/api/chores?action=assign", { sector, week, date, students }),
+  /* ⚠ `mirror: false` מכבה את גרירת יום ג׳ ליום ו׳. השמטה =
+     ברירת המחדל, כלומר **כן** גורר. ⚠ והשדה חייב להופיע כאן
+     במפורש — שדה שאינו נכתב בדלת נשמט בשקט (4לג). */
+  assignChore: ({ sector, week, date, students, mirror }) =>
+    post("/api/chores?action=assign", { sector, week, date, students, mirror }),
   saveSector: ({ id, name, kind, cap, detail, order, archived }) =>
     post("/api/chores?action=sector", { id, name, kind, cap, detail, order, archived }),
   addChoreAdjust: ({ student, sector, delta, reason }) =>

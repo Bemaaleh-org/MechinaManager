@@ -865,6 +865,20 @@ html,body{margin:0;padding:0;background:#012E58}
    על חוות דעת, ולא מי כתב אותה או מתי. */
 /* פרטי הקשר עם המרצה — כרטיס מתקפל בראש הגיליון.
    ⚠ סגור כברירת מחדל: נכנסים לגיליון כדי לסמן מפגשים. */
+/* בוררי החודשים בקנייה רב-חודשית.
+   ⚠ רשת ולא select multiple — בחירה מרובה במגע נשברת. */
+/* תיבת "לשבץ גם ביום שישי" — מוצגת רק ביום שלישי. */
+.kx .ch-mirror{display:flex;align-items:flex-start;gap:9px;margin-top:10px;
+  padding:10px 11px;background:var(--bg);border-radius:var(--r-sm);
+  font-size:13px;font-weight:700;color:var(--ink);cursor:pointer}
+.ch-mirror input{width:19px;height:19px;flex:0 0 19px;margin-top:1px;accent-color:var(--accent)}
+.ch-mirror i{display:block;font-style:normal;font-size:11px;font-weight:600;
+  color:var(--faint);margin-top:2px}
+.mo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px}
+.kx .mo-c{padding:9px 6px;border-radius:9px;border:2px solid var(--line2);
+  background:var(--surface);font-size:12.5px;font-weight:700;color:var(--muted);
+  min-height:42px}
+.kx .mo-c.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
 .lc{margin:0 0 12px}
 .kx .lc-top{display:flex;align-items:center;gap:7px;width:100%;padding:9px 12px;
   background:var(--surface);border:1px solid var(--line2);border-radius:var(--r-md);

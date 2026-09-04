@@ -14,7 +14,7 @@
 import React, { useState } from "react";
 import { api } from "./api.js";
 import { useExcel, downloadTable } from "./excel.js";
-import { monthLabel, ORDER_KIND } from "../shared/budget-boards.js";
+import { monthLabel, ORDER_KIND, consecutiveMonths } from "../shared/budget-boards.js";
 
 const BI = {
   chev: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
@@ -132,9 +132,16 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
         </div>
 
         <div className="fld">
+          {/* ⚠ **decimal ולא numeric.** `inputMode="numeric"` פותח בטלפון
+    מקלדת ספרות **בלי נקודה עשרונית** — כלומר שדה כסף שאי אפשר
+    להקליד בו 12.5. זה לא היה כלל מוצהר אלא ברירת מחדל שהועתקה
+    משדות של כמות, ושם היא נכונה: מפתח מלאי ומספר סועדים הם
+    מספרים שלמים.
+
+    הכלל: **כמות → numeric · כסף → decimal.** */}
           <label>סכום מיוחד לאדם (לא חובה)</label>
           <input value={cost} onChange={(e) => setCost(e.target.value)} disabled={busy}
-            inputMode="numeric" placeholder="ריק = לפי סוג היום" />
+            inputMode="decimal" placeholder="ריק = לפי סוג היום" />
           <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 600, marginTop: 4 }}>
             סכום מיוחד נזקף כולו לקניות — הוא הוצאה נקודתית ולא שינוי בהסכם הקייטרינג.
             {(chosen || chosen2) && " ⚠ הוא דורס את סוגי היום שנבחרו למעלה."}
@@ -149,7 +156,7 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
         <div className="fld">
           <label>סכום מדויק ליום (לא חובה)</label>
           <input value={flat} onChange={(e) => setFlat(e.target.value)} disabled={busy}
-            inputMode="numeric" placeholder="ריק = אין" />
+            inputMode="decimal" placeholder="ריק = אין" />
           <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 600, marginTop: 4 }}>
             סכום של היום כולו, לא לאדם — <b>מתווסף</b> ואינו מחליף.
           </div>
@@ -188,15 +195,29 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
 
 /* ---------- קנייה חדשה ----------
    ⚠ הקנייה יורדת מהתקציב ואינה מוסיפה לו. שבועית נזקפת כולה
-     לחודש שבו נעשתה; רבעונית מתחלקת לשלושה חודשים. */
+     לחודש שבו נעשתה; רבעונית מתחלקת על החודשים שנבחרו. */
 function OrderForm({ months, defaultMonth, today, say, onDone, onCancel }) {
   const [kind, setKind] = useState(ORDER_KIND.weekly);
-  const [f, setF] = useState({ name: "", amount: "", startMonth: defaultMonth, date: today, note: "" });
+  /* ============================================================
+     ⚠ **החודשים נבחרים, ואינם נגזרים מחודש פתיחה.**
+
+     קודם נבחר "חודש פתיחה" והקנייה נפרשה על שלושה חודשים
+     **רצופים** ממנו. זו הנחה שאינה תמיד נכונה — קנייה יכולה
+     לכסות ספטמבר ונובמבר ולדלג על חודש שאין בו פעילות, ואז
+     שליש מהסכום נזקף לחודש שלא נגע בו.
+
+     ⚠ ברירת המחדל נשארת שלושה רצופים מהחודש הנוכחי, כי זה
+       המקרה השכיח — משנים רק כשצריך.
+     ============================================================ */
+  const [f, setF] = useState({ name: "", amount: "", date: today, note: "" });
+  const [picked, setPicked] = useState(() =>
+    consecutiveMonths(defaultMonth).filter((m) => months.includes(m)));
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
   const quarterly = kind === ORDER_KIND.quarterly;
-  const ok = f.name.trim() && Number(f.amount) > 0 && (quarterly ? f.startMonth : f.date);
+  const ok = f.name.trim() && Number(f.amount) > 0
+    && (quarterly ? picked.length > 0 : f.date);
   const amount = Number(f.amount) || 0;
 
   const save = () => {
@@ -204,7 +225,7 @@ function OrderForm({ months, defaultMonth, today, say, onDone, onCancel }) {
     setBusy(true);
     api.addPurchase({
       name: f.name.trim(), amount, kind,
-      ...(quarterly ? { startMonth: f.startMonth } : { date: f.date }),
+      ...(quarterly ? { months: [...picked].sort() } : { date: f.date }),
       note: f.note.trim(),
     })
       .then((r) => {
@@ -233,7 +254,7 @@ function OrderForm({ months, defaultMonth, today, say, onDone, onCancel }) {
           </div>
           <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 600, marginTop: 4 }}>
             {quarterly
-              ? "מתחלקת על שלושה חודשים ויורדת מכל אחד מהם"
+              ? "מתחלקת על החודשים שתבחרו, ויורדת מכל אחד מהם"
               : "יורדת כולה מתקציב החודש שבו נעשתה"}
           </div>
         </div>
@@ -247,16 +268,9 @@ function OrderForm({ months, defaultMonth, today, say, onDone, onCancel }) {
         <div className="two">
           <div className="fld">
             <label>סכום (₪)</label>
-            <input value={f.amount} onChange={set("amount")} disabled={busy} inputMode="numeric" />
+            <input value={f.amount} onChange={set("amount")} disabled={busy} inputMode="decimal" />
           </div>
-          {quarterly ? (
-            <div className="fld">
-              <label>חודש פתיחה</label>
-              <select value={f.startMonth} onChange={set("startMonth")} disabled={busy}>
-                {months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
-              </select>
-            </div>
-          ) : (
+          {!quarterly && (
             <div className="fld">
               <label>תאריך הקנייה</label>
               <input type="date" value={f.date} onChange={set("date")} disabled={busy} />
@@ -264,15 +278,46 @@ function OrderForm({ months, defaultMonth, today, say, onDone, onCancel }) {
           )}
         </div>
 
+        {quarterly && (
+          <div className="fld">
+            <label>על אילו חודשים היא מתחלקת</label>
+            {/* ⚠ **רשת ולא רשימה נפתחת.** בחירה מרובה ב-<select multiple>
+                אינה עובדת במגע — נגיעה שנייה מבטלת את הראשונה, וזה
+                בדיוק המקום שבו מישהו יבחר חודש אחד בלי לשים לב. */}
+            <div className="mo-grid">
+              {months.map((m) => {
+                const on = picked.includes(m);
+                return (
+                  <button key={m} type="button" disabled={busy}
+                    className={"mo-c" + (on ? " on" : "")}
+                    onClick={() => setPicked((p) =>
+                      on ? p.filter((x) => x !== m) : [...p, m].sort())}>
+                    {monthLabel(m)}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 600, marginTop: 6 }}>
+              {picked.length
+                ? `הסכום מתחלק שווה בשווה על ${picked.length} חודשים`
+                : "יש לבחור לפחות חודש אחד"}
+            </div>
+          </div>
+        )}
+
         <div className="fld">
           <label>הערה</label>
           <input value={f.note} onChange={set("note")} disabled={busy} />
         </div>
 
-        {amount > 0 && (
+        {/* ⚠ מחלקים במספר שנבחר בפועל ולא ב-3 קבוע — קנייה על
+            שני חודשים היא חצי בכל אחד. */}
+        {amount > 0 && (!quarterly || picked.length > 0) && (
           <div className="bg-calc">
-            <span>{quarterly ? "יורד מכל אחד משלושת החודשים" : "יורד מתקציב החודש"}</span>
-            <b className="num">{shekel(quarterly ? amount / 3 : amount)} ₪</b>
+            <span>{quarterly
+              ? `יורד מכל אחד מ-${picked.length} החודשים`
+              : "יורד מתקציב החודש"}</span>
+            <b className="num">{shekel(quarterly ? amount / picked.length : amount)} ₪</b>
           </div>
         )}
 
@@ -316,7 +361,7 @@ function PriceTab({ types, headcount, say, onChanged }) {
   const field = (t, f, label) => (
     <label className="bg-f">
       <span>{label}</span>
-      <input value={valueOf(t, f)} inputMode="numeric" disabled={busyId === t.id}
+      <input value={valueOf(t, f)} inputMode="decimal" disabled={busyId === t.id}
         onChange={(e) => setDraft((d) => ({ ...d, [key(t, f)]: e.target.value }))}
         onBlur={() => commit(t, f)}
         onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} />

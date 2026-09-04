@@ -13,7 +13,7 @@ import { tempRegister } from "./_auth.mjs";
 import { AUTH_BOARD, AUTH_COLS } from "../../shared/auth-board.js";
 import { studentRows } from "../../api/_student-rows.js";
 import { CHORE_BOARDS, CHORE_COLS } from "../../shared/chores-ids.js";
-import { KIND } from "../../shared/chores.js";
+import { KIND, fridayAfterTuesday, dowOf, TUESDAY } from "../../shared/chores.js";
 
 const B = "http://localhost:5173";
 const DEMO_USER = "bdika";
@@ -195,6 +195,73 @@ try {
 
     r = await call(PLAIN, "POST", "/api/chores?action=tick", { item: item.id, done: true });
     ok("וחניך שאינו תורן היום גם לא", r.s === 403, r.s + " " + (r.b.error || ""));
+  }
+
+  /* ============ 6ב · יום ג׳ גורר את יום ו׳ ============ */
+  console.log("\n6ב · יום שלישי גורר את יום שישי");
+  {
+    const v = await call(MGR, "GET", "/api/chores?action=view&admin=1");
+    const dSec = v.b.sectors.find((x) => x.kind === KIND.daily);
+
+    /* ⚠ יום שלישי **פנוי** מתוך הימים שהמסך מציג, ולא תאריך
+       מומצא: תאריך מחוץ לתקופה שהשרת מכיר נדחה מסיבה אחרת
+       לגמרי, והבדיקה הייתה עוברת בלי לבדוק כלום. */
+    const days = (v.b.periods || []).flatMap((pp) => pp.days || []);
+    const tue = days.find((x) => dowOf(x.date) === TUESDAY && !(x.on || []).length
+      && days.some((y) => y.date === fridayAfterTuesday(x.date) && !(y.on || []).length));
+
+    if (!dSec || !tue) {
+      console.log("  (אין יום שלישי פנוי שגם יום שישי שאחריו פנוי — מדולג)");
+    } else {
+      const fri = fridayAfterTuesday(tue.date);
+      ok("יום שישי מחושב נכון", dowOf(fri) === 5, `${tue.date} → ${fri}`);
+
+      /* ⚠ חניך שאינו מוביל את אף אחד משני השבועות — אחרת
+         החסימה הלגיטימית של מובילי שבוע נראית ככישלון המראה. */
+      const leaders = new Set((v.b.periods || []).flatMap((pp) => (pp.leaders || []).map(String)));
+      const cand = (v.b.admin.students || []).find((x) => !leaders.has(String(x.id)));
+      if (!cand) { console.log("  (כל החניכים מובילים — מדולג)"); }
+      else {
+        r = await call(MGR, "POST", "/api/chores?action=assign",
+          { sector: dSec.id, date: tue.date, students: [cand.id] });
+        ok("שיבוץ ליום שלישי נשמר", r.s === 200, `${r.s} ${r.b.error || ""}`);
+        ok("והמראה ליום שישי דווחה",
+          r.b.mirror && r.b.mirror.done === true && r.b.mirror.date === fri,
+          JSON.stringify(r.b.mirror));
+
+        const rows = (await allItems(CHORE_BOARDS.roster))
+          .filter((i) => cv(i, R.sector) === String(dSec.id)
+            && cv(i, R.student) === String(cand.id)
+            && [tue.date, fri].includes(cv(i, R.date)));
+        for (const x of rows) made.rows.push(String(x.id));
+        ok("ושתי שורות בלוח — שלישי ושישי", rows.length === 2, String(rows.length));
+
+        /* ⚠⚠ **הטענה החשובה: שיבוץ חוזר אינו דורס את יום שישי.**
+           בלעדיה, עריכה של יום שלישי הייתה מוחקת בשקט שיבוץ
+           שמישהו עשה ביד ביום שישי — פעולה שאיש לא רואה שקרתה. */
+        r = await call(MGR, "POST", "/api/chores?action=assign",
+          { sector: dSec.id, date: tue.date, students: [cand.id] });
+        ok("שיבוץ חוזר אינו נוגע ביום שישי",
+          r.b.mirror && r.b.mirror.done === false && /כבר משובץ/.test(r.b.mirror.why || ""),
+          JSON.stringify(r.b.mirror));
+
+        /* ⚠ ואפשר לכבות. */
+        const tue2 = days.find((x) => x.date !== tue.date && dowOf(x.date) === TUESDAY
+          && !(x.on || []).length);
+        if (tue2) {
+          r = await call(MGR, "POST", "/api/chores?action=assign",
+            { sector: dSec.id, date: tue2.date, students: [cand.id], mirror: false });
+          ok("mirror:false מכבה את הגרירה", r.s === 200 && r.b.mirror === null,
+            JSON.stringify(r.b.mirror));
+          const extra = (await allItems(CHORE_BOARDS.roster))
+            .filter((i) => cv(i, R.sector) === String(dSec.id)
+              && cv(i, R.student) === String(cand.id)
+              && [tue2.date, fridayAfterTuesday(tue2.date)].includes(cv(i, R.date)));
+          for (const x of extra) made.rows.push(String(x.id));
+          ok("ונוצרה שורה אחת בלבד", extra.length === 1, String(extra.length));
+        }
+      }
+    }
   }
 
   /* ============ 7 · תורן היום כן מסמן ============ */
