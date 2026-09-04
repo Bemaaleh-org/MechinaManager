@@ -400,6 +400,8 @@ function SheetDetail({ sheet, onBack, say }) {
         {data.sheet.lecturer || "ללא מרצה"}{data.sheet.dayTime ? " · " + data.sheet.dayTime : ""}
       </div>
 
+      <LecturerContact sheet={data.sheet} canEdit={data.canEdit} say={say} onSaved={reload} />
+
       <div className="stats" style={{ marginBottom: 12 }}>
         <div className="stat ok">
           <div className="k">התקיימו בפועל</div>
@@ -970,6 +972,130 @@ function EvalCard({ e, say, onSaved }) {
         {/* ⚠ מוצג גם כשההצבעות גוברות — כדי שלא ייעלם בשקט */}
         {e.manual != null && <span>· דירוג ידני {e.manual}</span>}
       </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   פרטי הקשר של המרצה — בתוך הגיליון שלו
+   ------------------------------------------------------------
+   ⚠ **כאן ולא בחוות הדעת.** חוות דעת היא אירוע — "המרצה הזה
+     הגיע פעם אחת והיה טוב". הגיליון הוא הקשר המתמשך, וזה
+     המקום שבו מחפשים מספר כדי לתאם את המפגש הבא.
+
+   ⚠ **נסגר כברירת מחדל.** אחראי הלו״ז נכנס לגיליון כדי לסמן
+     מפגשים, לא כדי לקרוא טלפון. כרטיס פתוח שדוחף את רשימת
+     המפגשים למטה הופך את הפעולה השכיחה ליקרה יותר.
+
+   ⚠ **`tel:` ו-`mailto:` ולא טקסט.** במכשיר נייד זו הפעולה
+     עצמה — להקליד ידנית מספר שכבר על המסך זו עבודה מיותרת.
+
+   ⚠ **`dir="ltr"` על המספר ועל הכתובת.** בלי זה
+     "052-1234567" מוצג הפוך, וזה נראה כמו נתון שגוי.
+   ============================================================ */
+function LecturerContact({ sheet, canEdit, say, onSaved }) {
+  const [open, setOpen] = useState(false);
+  const [edit, setEdit] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [f, setF] = useState({
+    lecturer: sheet.lecturer || "", phone: sheet.phone || "",
+    mail: sheet.mail || "", contact: sheet.contact || "",
+  });
+
+  const has = Boolean(sheet.phone || sheet.mail || sheet.contact);
+
+  const save = () => {
+    if (busy) return;
+    setBusy(true);
+    api.editLessonSheet({ id: sheet.id, ...f })
+      .then((r) => {
+        /* ⚠ אומרים מה השתנה בפועל, ולא "נשמר" על שמירה ריקה. */
+        say(r.changed && r.changed.length ? "עודכן: " + r.changed.join(", ") : "לא היה מה לשנות");
+        setEdit(false); onSaved();
+      })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <div className="lc">
+      <button className="lc-top" onClick={() => setOpen(!open)}>
+        <LI.chev style={{ transform: open ? "rotate(90deg)" : "rotate(-90deg)" }} />
+        <span className="lc-ttl">פרטי קשר עם המרצה</span>
+        {!has && <span className="pill p-idle">טרם הוזנו</span>}
+      </button>
+
+      {open && (
+        <div className="lc-body">
+          {edit ? (
+            <>
+              <div className="fld">
+                <label>שם המרצה</label>
+                <input value={f.lecturer} disabled={busy}
+                  onChange={(e) => setF({ ...f, lecturer: e.target.value })} />
+              </div>
+              <div className="two">
+                <div className="fld">
+                  <label>טלפון</label>
+                  <input value={f.phone} disabled={busy} inputMode="tel" dir="ltr"
+                    onChange={(e) => setF({ ...f, phone: e.target.value })} />
+                </div>
+                <div className="fld">
+                  <label>אימייל</label>
+                  <input value={f.mail} disabled={busy} inputMode="email" dir="ltr"
+                    onChange={(e) => setF({ ...f, mail: e.target.value })} />
+                </div>
+              </div>
+              <div className="fld">
+                <label>פרטי קשר נוספים</label>
+                <textarea value={f.contact} disabled={busy} rows={3}
+                  placeholder="דרך מי מתאמים, שעות נוחות, ארגון, כל מה שצריך כדי להשיג אותו"
+                  style={{ width: "100%", background: "var(--surface)",
+                           border: "1px solid var(--line2)", borderRadius: 11,
+                           padding: "9px 12px", fontSize: 14.5, outline: "none",
+                           fontFamily: "inherit", resize: "vertical" }}
+                  onChange={(e) => setF({ ...f, contact: e.target.value })} />
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button className="btn btn-primary btn-sm" style={{ flex: 1 }}
+                  disabled={busy} onClick={save}>{busy ? "שומר…" : "שמירה"}</button>
+                <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} disabled={busy}
+                  onClick={() => {
+                    setF({ lecturer: sheet.lecturer || "", phone: sheet.phone || "",
+                           mail: sheet.mail || "", contact: sheet.contact || "" });
+                    setEdit(false);
+                  }}>ביטול</button>
+              </div>
+            </>
+          ) : (
+            <>
+              {sheet.phone && (
+                <a className="lc-row" href={"tel:" + sheet.phone.replace(/[^\d+]/g, "")}>
+                  <span className="lc-k">טלפון</span>
+                  <span className="lc-v" dir="ltr">{sheet.phone}</span>
+                </a>
+              )}
+              {sheet.mail && (
+                <a className="lc-row" href={"mailto:" + sheet.mail}>
+                  <span className="lc-k">אימייל</span>
+                  <span className="lc-v" dir="ltr">{sheet.mail}</span>
+                </a>
+              )}
+              {sheet.contact && <div className="lc-note">{sheet.contact}</div>}
+              {/* ⚠ מצב ריק אומר מה חסר, ולא נראה כמו תקלה (עיקרון 6). */}
+              {!has && (
+                <div className="lc-note" style={{ color: "var(--faint)" }}>
+                  אין עדיין פרטי קשר לשיעור הזה.
+                </div>
+              )}
+              {canEdit && (
+                <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginTop: 8 }}
+                  onClick={() => setEdit(true)}>{has ? "עריכה" : "הוספת פרטי קשר"}</button>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

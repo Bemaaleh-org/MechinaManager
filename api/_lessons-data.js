@@ -40,6 +40,11 @@ export async function loadSheets({ force = false } = {}) {
         guestLecturer: val(i, S.guestLecturer) === "v",
         /* מפגשיו מוצגים גם במסך סימון הנוכחות (אימונים) */
         inDaily: val(i, S.inDaily) === "v",
+        /* ⚠⚠ פרטי אדם חיצוני. נקראים כאן, ו**אינם יוצאים לחניך** —
+           ראו `toStudentSheet` ב-api/_lessons-list.js. */
+        phone: val(i, S.phone) || null,
+        mail: val(i, S.mail) || null,
+        contact: val(i, S.contact) || null,
       }))
       .sort((a, b) => a.subject.localeCompare(b.subject, "he"));
   }, { force, ttl: 5 * 60_000 });

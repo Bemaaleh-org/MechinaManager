@@ -863,6 +863,21 @@ html,body{margin:0;padding:0;background:#012E58}
 .sc-low{background:var(--clay-soft);color:var(--clay)}
 /* ⚠ תאריך השיעור מודגש משאר שורת המטא — הוא השאלה שנשאלת
    על חוות דעת, ולא מי כתב אותה או מתי. */
+/* פרטי הקשר עם המרצה — כרטיס מתקפל בראש הגיליון.
+   ⚠ סגור כברירת מחדל: נכנסים לגיליון כדי לסמן מפגשים. */
+.lc{margin:0 0 12px}
+.kx .lc-top{display:flex;align-items:center;gap:7px;width:100%;padding:9px 12px;
+  background:var(--surface);border:1px solid var(--line2);border-radius:var(--r-md);
+  font-size:13px;font-weight:800;color:var(--ink);text-align:right}
+.lc-ttl{flex:1}
+.lc-body{padding:11px 12px 12px;background:var(--surface);border:1px solid var(--line2);
+  border-top:none;border-radius:0 0 var(--r-md) var(--r-md);margin-top:-8px;padding-top:16px}
+.kx .lc-row{display:flex;align-items:center;gap:9px;padding:8px 0;
+  border-bottom:1px solid var(--line);text-decoration:none;color:inherit}
+.kx .lc-row:last-of-type{border-bottom:none}
+.lc-k{font-size:11.5px;font-weight:700;color:var(--muted);flex:0 0 54px}
+.lc-v{font-size:14px;font-weight:700;color:var(--accent)}
+.lc-note{font-size:13px;line-height:1.6;color:var(--ink);white-space:pre-wrap;margin-top:8px}
 .ev-date{font-weight:800;color:var(--ink)}
 .kx .ev-del{flex:0 0 auto;color:var(--clay)}
 .ev-note{font-size:11px;font-weight:700;color:var(--muted);line-height:1.55;

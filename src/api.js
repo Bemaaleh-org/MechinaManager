@@ -488,6 +488,15 @@ export const api = {
   rateLesson: ({ meetingId, score }) =>
     post("/api/lessons?action=rate", { meetingId, score }),
 
+  /** ============================================================
+   *  עריכת גיליון — שם המרצה, יום ושעה, ופרטי הקשר אליו.
+   *  ⚠ שדה שלא נשלח אינו נוגע בערך הקיים; שדה ריק **כן** מנקה.
+   *     לכן הפירוק כאן מפורש ולא `...patch` — שדה שאינו נכתב
+   *     כאן נשמט בשקט ואינו מגיע לשרת (4לג).
+   *  ============================================================ */
+  editLessonSheet: ({ id, lecturer, dayTime, phone, mail, contact }) =>
+    put("/api/lessons?action=sheet", { id, lecturer, dayTime, phone, mail, contact }),
+
   /** חוות דעת על מרצים */
   getLessonEvals: (cycle) =>
     get("/api/lessons?action=evals" + (cycle ? `&cycle=${encodeURIComponent(cycle)}` : "")),
