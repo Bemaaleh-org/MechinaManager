@@ -740,15 +740,16 @@ function Evals({ say }) {
               file: "חוות-דעת" + (cycle ? "-" + cycle.replace(" ", "-") : ""),
               sheet: "חוות דעת",
               title: "חוות דעת על מרצים — " + (cycle || "כל המחזורים"),
-              header: ["מרצה", "תחום", "נושא", "מחזור", "טלפון", "דירוג", "מקור הדירוג",
-                       "מדרגים", "חוות דעת", "נכתב על ידי"],
+              header: ["מרצה", "תחום", "נושא", "תאריך השיעור", "מחזור", "טלפון",
+                       "דירוג", "מקור הדירוג", "מדרגים", "חוות דעת", "נכתב על ידי"],
               rows: list.map((e) => [
-                e.name, e.field || "", e.topic || "", e.cycle || "", e.phone || "",
+                e.name, e.field || "", e.topic || "", e.lessonDate || "",
+                e.cycle || "", e.phone || "",
                 e.score != null ? e.score : "",
                 e.source === "students" ? "חניכים" : e.source === "manual" ? "ידני" : "",
                 e.votes || "", e.opinion || "", e.by || "",
               ]),
-              widths: [18, 14, 22, 11, 13, 8, 12, 8, 50, 14],
+              widths: [18, 14, 22, 13, 11, 13, 8, 12, 8, 50, 14],
             });
             say("הקובץ ירד");
           }}><LI.dl />הורדה לאקסל ({list.length})</button>
@@ -803,9 +804,16 @@ function EvalCard({ e, say, onSaved }) {
   const [f, setF] = useState({
     name: e.name, opinion: e.opinion || "",
     manual: e.manual == null ? "" : String(e.manual),
+    lessonDate: e.lessonDate || "",
   });
   const [busy, setBusy] = useState(false);
+  /* ⚠ אישור בתוך המסך ולא confirm() של הדפדפן — הוא נראה זר,
+     ובחלק מהדפדפנים במובייל נחסם לגמרי (4ק). */
+  const [asking, setAsking] = useState(false);
   const auto = Boolean(e.meetingId);
+  /* ⚠ הכלל זהה למה שהשרת אוכף (`remove` ב-api/_lesson-evals.js).
+     כפתור שמופיע ומקבל 403 הוא בדיוק מה ש-4יד אוסר. */
+  const canDelete = e.cycle === "מחזור ב׳";
   /* הצבעות חניכים גוברות. הציון הידני עדיין ניתן לעריכה, אבל
      המסך אומר במפורש שהוא אינו מה שמוצג. */
   const byStudents = e.source === "students";
@@ -820,6 +828,9 @@ function EvalCard({ e, say, onSaved }) {
     api.editLessonEval({
       evalId: e.id, name: f.name.trim(), opinion: f.opinion.trim(),
       manualScore: raw === "" ? null : Number(raw),
+      /* ⚠ נשלח רק כשאין מפגש מאחורי השורה. כשיש — התאריך נגזר
+         מהמפגש, והשדה נעול. */
+      ...(auto ? {} : { lessonDate: f.lessonDate }),
     })
       .then(() => { say("נשמר"); setEdit(false); onSaved(); })
       .catch((err) => say(err.message))
@@ -851,6 +862,24 @@ function EvalCard({ e, say, onSaved }) {
                 placeholder="ריק = בלי דירוג"
                 onChange={(ev) => setF({ ...f, manual: ev.target.value })} />
             </div>
+          </div>
+          {/* ============================================================
+              ⚠ **תאריך השיעור נעול כשהוא נגזר מהמפגש.**
+
+              חוות דעת שנפתחה מסימון "התקיים" כבר יודעת מתי השיעור
+              היה. שדה פתוח שם מזמין הקלדה של תאריך שני, והמסך היה
+              מציג מספר שסותר את המפגש שממנו הוא נולד.
+              ============================================================ */}
+          <div className="fld">
+            <label>תאריך השיעור</label>
+            {auto ? (
+              <div className="ev-note" style={{ marginTop: 0 }}>
+                {e.lessonDate || "לא נרשם במפגש"} — נגזר מהשיעור ואינו נערך כאן.
+              </div>
+            ) : (
+              <input type="date" dir="ltr" value={f.lessonDate} disabled={busy}
+                onChange={(ev) => setF({ ...f, lessonDate: ev.target.value })} />
+            )}
           </div>
           {byStudents && (
             <div className="ev-note">
@@ -888,14 +917,52 @@ function EvalCard({ e, say, onSaved }) {
                            : "נפתחה מהשיעור — ממתינה לדירוגי החניכים ולהערה"}
                 </div>
               )}
-          <button className="btn btn-ghost btn-sm" style={{ marginTop: 8, width: "100%" }}
-            onClick={() => setEdit(true)}>
-            {e.opinion ? "עריכה" : e.source ? "הוספת הערה" : "הוספת הערה ודירוג"}
-          </button>
+          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+            <button className="btn btn-ghost btn-sm" style={{ flex: 1 }}
+              onClick={() => setEdit(true)}>
+              {e.opinion ? "עריכה" : e.source ? "הוספת הערה" : "הוספת הערה ודירוג"}
+            </button>
+            {/* ============================================================
+                ⚠⚠ **מחיקה מוצעת למחזור ב׳ בלבד.**
+
+                31 חוות הדעת של מחזור א׳ יובאו ממקור שאינו קיים
+                עוד — השיעורים התקיימו לפני שהיה מנגנון דירוג,
+                והטקסט שבשורה הוא כל מה שנשאר מהם.
+
+                ⚠ הכפתור אינו מוצג, **והשרת חוסם בכל מקרה** —
+                  הסתרה במסך היא נוחות ולא הגנה (עיקרון 3).
+                ============================================================ */}
+            {canDelete && (
+              <button className="btn btn-ghost btn-sm ev-del" disabled={busy}
+                onClick={() => setAsking(true)}>מחיקה</button>
+            )}
+          </div>
+          {asking && (
+            <div className="alert a-clay" style={{ marginTop: 8 }}>
+              <div style={{ flex: 1 }}>
+                <div className="ttl">למחוק את חוות הדעת על {e.name}?</div>
+                <div className="sub">הטקסט לא ניתן לשחזור.</div>
+                <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                  <button className="btn btn-clay btn-sm" style={{ flex: 1 }} disabled={busy}
+                    onClick={() => {
+                      setBusy(true);
+                      api.deleteLessonEval(e.id)
+                        .then(() => { say("נמחק"); onSaved(); })
+                        .catch((err) => { say(err.message); setBusy(false); setAsking(false); });
+                    }}>{busy ? "מוחק…" : "כן, למחוק"}</button>
+                  <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} disabled={busy}
+                    onClick={() => setAsking(false)}>ביטול</button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
       <div className="rq-meta" style={{ marginTop: 9 }}>
+        {/* ⚠ תאריך השיעור ראשון — הוא השאלה שנשאלת על חוות דעת
+            ("מתי זה היה"), והתאריך שבו נכתבה אינו. */}
+        {e.lessonDate && <span className="ev-date">השיעור: {e.lessonDate}</span>}
         {e.cycle && <span>{e.cycle}</span>}
         {e.phone && <span>· {e.phone}</span>}
         {e.by && <span>· {e.by}</span>}
@@ -909,7 +976,8 @@ function EvalCard({ e, say, onSaved }) {
 
 function NewEval({ fields, onDone, onCancel, say, preset }) {
   const [f, setF] = useState({
-    name: "", topic: "", field: "", phone: "", opinion: "", ...(preset || {}),
+    name: "", topic: "", field: "", phone: "", opinion: "", lessonDate: "",
+    ...(preset || {}),
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -954,6 +1022,16 @@ function NewEval({ fields, onDone, onCancel, say, preset }) {
             {fields.map((x) => <option value={x} key={x} />)}
           </datalist>
         </div>
+        {/* ⚠ כשחוות הדעת נפתחת מתוך מפגש, `preset.meetingId` קיים
+            והשרת גוזר את התאריך מהמפגש — השדה לא מוצג כדי שלא
+            יוקלד ערך שיתעלמו ממנו. */}
+        {!(preset && preset.meetingId) && (
+          <div className="fld">
+            <label htmlFor="ev-date">תאריך השיעור (לא חובה)</label>
+            <input id="ev-date" type="date" dir="ltr" value={f.lessonDate}
+              disabled={busy} onChange={set("lessonDate")} />
+          </div>
+        )}
         <div className="fld">
           <label htmlFor="ev-phone">טלפון (לא חובה)</label>
           <input id="ev-phone" value={f.phone} disabled={busy} onChange={set("phone")} inputMode="tel" />

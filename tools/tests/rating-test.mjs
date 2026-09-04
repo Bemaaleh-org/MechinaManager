@@ -110,10 +110,77 @@ console.log("\n=== הרשאה ===");
 const G = jar();
 await call(G, "POST", "/api/auth?action=login", { code: codeOf("נעם") });
 r = await call(G, "PUT", "/api/lessons?action=evals", { evalId: id, manualScore: 5 });
-ok("מדריך כן רשאי (צוות)", r.status === 200, `${r.status} ${r.b.error || ""}`);
+/* ============================================================
+   ⚠ **מדריך קורא ואינו כותב.** הטענה כאן אמרה עד עכשיו
+     "מדריך כן רשאי (צוות)", והיא נכתבה לפני 4ע — כשכל כניסת
+     צוות יכלה לערוך גיליונות מרצים ותקציב, לא כי מישהו החליט
+     אלא כי `isManager` הוא הדגל הרחב ביותר במערכת.
+
+   `edit: "scheduler"` צמצם את **הכתיבה בלבד** לראש המכינה
+   ולאחראי הלו״ז, והטענה נשארה מאחור. היא נכשלה בשקט במשך סשן
+   שלם כי החבילה לא יצאה בקוד שגיאה.
+
+   ⚠ ובודקים גם את **תוכן ההודעה**: 403 לבדו יכול להגיע משורה
+     אחרת לגמרי, וההודעה היא מה שאומר למשתמש למי לפנות.
+   ============================================================ */
+ok("מדריך נחסם בכתיבה", r.status === 403, `${r.status} ${r.b.error || ""}`);
+ok("וההודעה אומרת מי כן רשאי",
+  /ראש המכינה|אחראי הלו/.test(r.b.error || ""), r.b.error);
+r = await call(G, "GET", "/api/lessons?action=evals");
+ok("אבל קורא בלי בעיה", r.status === 200, String(r.status));
 const OUT = jar();
 r = await call(OUT, "PUT", "/api/lessons?action=evals", { evalId: id, manualScore: 5 });
 ok("מנותק נחסם", r.status === 401, `${r.status} ${r.b.error || ""}`);
+
+console.log("\n=== תאריך השיעור ===");
+/* ⚠ שונה מהתאריך שבו נכתבה חוות הדעת. ראו shared/lessons-boards.js. */
+r = await call(M, "PUT", "/api/lessons?action=evals",
+  { evalId: id, lessonDate: "2026-09-10" });
+ok("תאריך שיעור נשמר", r.status === 200, r.b.error);
+e = await mine();
+ok("והוא חוזר", e.lessonDate === "2026-09-10", String(e.lessonDate));
+ok("ואינו דורס את תאריך הכתיבה", Boolean(e.at) && e.at !== e.lessonDate,
+  `${e.at} מול ${e.lessonDate}`);
+
+r = await call(M, "PUT", "/api/lessons?action=evals",
+  { evalId: id, lessonDate: "10/09/2026" });
+ok("פורמט שגוי נדחה", r.status === 400 && /YYYY-MM-DD/.test(r.b.error || ""),
+  `${r.status} ${r.b.error || ""}`);
+
+r = await call(M, "PUT", "/api/lessons?action=evals", { evalId: id, lessonDate: "" });
+ok("וריק מנקה", r.status === 200, r.b.error);
+e = await mine();
+ok("התאריך נוקה", e.lessonDate === null, String(e.lessonDate));
+
+console.log("\n=== מחיקה: מחזור ב׳ בלבד ===");
+/* ⚠⚠ **הטענה החשובה כאן היא החסימה, לא המחיקה.** 31 חוות הדעת
+   של מחזור א׳ יובאו ממקור שאינו קיים עוד, והטקסט שבשורה הוא כל
+   מה שנשאר מהשיעור. הבדיקה בוחרת שורה אמיתית של מחזור א׳,
+   מנסה למחוק אותה, ומוודאת **גם שהיא נדחתה וגם שהשורה שרדה** —
+   בלי הטענה השנייה, 404 שמגיע אחרי מחיקה מוצלחת נראה כמו הצלחה. */
+const firstCycle = (await list()).find((x) => x.cycle === "מחזור א׳");
+if (!firstCycle) {
+  console.log("  (אין חוות דעת ממחזור א׳ — מדולג)");
+} else {
+  r = await call(M, "DELETE",
+    "/api/lessons?action=evals&evalId=" + encodeURIComponent(firstCycle.id));
+  ok("מחזור א׳ נחסם", r.status === 403, `${r.status} ${r.b.error || ""}`);
+  ok("וההודעה אומרת למה", /אינה נמחקת/.test(r.b.error || ""), r.b.error);
+  const survived = (await allItems(LB.evals)).some((x) => String(x.id) === firstCycle.id);
+  ok("והשורה האמיתית שרדה", survived);
+}
+
+const OUT2 = jar();
+r = await call(OUT2, "DELETE", "/api/lessons?action=evals&evalId=" + id);
+ok("מנותק נחסם במחיקה", r.status === 401, String(r.status));
+
+r = await call(M, "DELETE", "/api/lessons?action=evals&evalId=999999999");
+ok("מזהה שאינו קיים מחזיר 404", r.status === 404, `${r.status} ${r.b.error || ""}`);
+
+r = await call(M, "DELETE", "/api/lessons?action=evals&evalId=" + id);
+ok("ומחזור ב׳ נמחק", r.status === 200, `${r.status} ${r.b.error || ""}`);
+ok("והשורה אינה בלוח",
+  !(await allItems(LB.evals)).some((x) => String(x.id) === String(id)));
 
 console.log("\n=== ניקוי ===");
 await cleanup();
@@ -122,6 +189,22 @@ ok("שורת הבדיקה נמחקה", !left);
 const names = (await allItems(LB.evals)).filter((x) => x.name.includes("בדיקה"));
 ok("ולא נשארה שום שורת בדיקה", names.length === 0, names.map((x) => x.name).join(","));
 
-console.log(`\nעברו ${pass} · נכשלו ${fail}`);
+/* ============================================================
+   ⚠⚠ **הסיכום בסדר המילים שהמריץ מנתח, והיציאה בקוד שגיאה.**
+
+   שמונה חבילות הדפיסו "עברו N · נכשלו M" — סדר הפוך לזה
+   ש-`run.mjs` מחפש — **ולא יצאו בקוד שגיאה**. התוצאה הייתה
+   כפולה וגרועה משתי הסיבות בנפרד:
+
+     · הטענות שלהן לא נספרו בסך הכול בכלל.
+     · וטענה שנכשלה בהן הוצגה כ-V ירוק, כי המריץ קובע
+       לפי קוד היציאה בלבד.
+
+   כלומר "423 טענות עברו" היה מספר של שתים־עשרה חבילות, ושמונה
+   חבילות יכלו להיכשל בלי שאיש יראה. זה בדיוק סוג הכשל שהבדיקות
+   קיימות כדי למנוע.
+   ============================================================ */
+console.log(`\n${pass} עברו, ${fail} נכשלו`);
+process.exit(fail ? 1 : 0);
 
 await reg.restore();

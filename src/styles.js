@@ -861,6 +861,10 @@ html,body{margin:0;padding:0;background:#012E58}
 .sc-good{background:var(--accent-soft);color:var(--accent)}
 .sc-ok{background:var(--amber-soft);color:var(--amber)}
 .sc-low{background:var(--clay-soft);color:var(--clay)}
+/* ⚠ תאריך השיעור מודגש משאר שורת המטא — הוא השאלה שנשאלת
+   על חוות דעת, ולא מי כתב אותה או מתי. */
+.ev-date{font-weight:800;color:var(--ink)}
+.kx .ev-del{flex:0 0 auto;color:var(--clay)}
 .ev-note{font-size:11px;font-weight:700;color:var(--muted);line-height:1.55;
   background:var(--bg);border-radius:9px;padding:7px 9px;margin:2px 0 8px}
 .rq-skip{font-size:11px;font-weight:700;color:var(--amber);line-height:1.5;

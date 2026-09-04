@@ -122,6 +122,8 @@ export async function loadEvals({ force = false } = {}) {
         cycle: val(i, E.cycle) || null,
         by: val(i, E.by) || null,
         at: val(i, E.at) || null,
+        /* ⚠ תאריך השיעור, לא תאריך הכתיבה. ראו lessons-boards.js. */
+        lessonDate: val(i, E.lessonDate) || null,
         meetingId: val(i, E.meetingId) || null,
         avg: Number(val(i, E.avg)) || null,
         votes: Number(val(i, E.votes)) || null,
@@ -169,6 +171,9 @@ export async function ensureEvalForMeeting({ meeting, sheet, by }) {
     [E.by]: String(by || "").slice(0, 120),
     [E.at]: { date: israelDate() },
   };
+  /* ⚠ **התאריך נגזר מהמפגש ואינו נשאל.** זו כל הסיבה שהעמודה
+     קיימת: השורה נפתחת מסימון "התקיים", והתאריך כבר ידוע. */
+  if (meeting.date) cols[E.lessonDate] = { date: meeting.date };
   const r = ratingFor(meeting.id, await loadRatings());
   if (r) { cols[E.avg] = String(r.avg); cols[E.votes] = String(r.votes); }
 

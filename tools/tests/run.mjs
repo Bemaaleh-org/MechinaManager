@@ -32,19 +32,32 @@ try {
 
 let pass = 0, fail = 0;
 const bad = [];
+const noCount = [];
 for (const f of all) {
   const t = Date.now();
   const r = spawnSync(process.execPath, ["--env-file=.env", "tools/tests/" + f],
     { encoding: "utf8" });
   const out = (r.stdout || "") + (r.stderr || "");
-  const m = out.match(/(\d+)\s+עברו[^\d]*(\d+)\s+נכשלו/);
+  /* ⚠ שני סדרי מילים, כי שתי משפחות של חבילות נכתבו אחרת.
+     ⚠ וחבילה שאין לה שורת סיכום כלל **מדווחת** — "—" בעמודה
+       פירושו שהטענות שלה אינן בסך הכול, וזה נראה בדיוק כמו
+       חבילה שהכול בה עבר. */
+  const m = out.match(/(\d+)\s+עברו[^\d]*?(\d+)\s+נכשלו/)
+    || out.match(/עברו\s+(\d+)[^\d]*?נכשלו\s+(\d+)/);
   const ok = r.status === 0;
   if (!ok) bad.push({ f, out: out.split("\n").slice(-14).join("\n") });
   if (m) { pass += Number(m[1]); fail += Number(m[2]); }
+  else noCount.push(f);
   console.log(`${ok ? "V" : "X"} ${f.padEnd(24)} ${m ? m[1] + "/" + (Number(m[1]) + Number(m[2])) : "—"}  ${Math.round((Date.now() - t) / 1000)}s`);
 }
 
 console.log(`\nסה״כ ${pass} טענות עברו · ${fail} נכשלו · ${bad.length} חבילות נפלו`);
+/* ⚠ חבילה בלי שורת סיכום אינה נספרת, ושתיקה על כך היא בדיוק
+   האופן שבו שמונה חבילות נעדרו מהמניין במשך סשן שלם. */
+if (noCount.length) {
+  console.log(`⚠ ${noCount.length} חבילות בלי שורת סיכום — הטענות שלהן אינן במניין: ` +
+    noCount.join(", "));
+}
 /* ⚠ הפלט של מי שנפל מודפס — "נכשל" בלי מה נכשל אינו מידע. */
 for (const b of bad) console.log(`\n--- ${b.f} ---\n${b.out}`);
 process.exit(bad.length ? 1 : 0);

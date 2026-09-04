@@ -22,15 +22,22 @@
 import { withAuth, actorName } from "./_session.js";
 import { gql } from "./_monday.js";
 import { LESSON_BOARDS, LESSON_COLS, CYCLE } from "../shared/lessons-boards.js";
-import { loadEvals, invalidateEvals, loadRatings, ratingFor } from "./_lessons-data.js";
+import {
+  loadEvals, invalidateEvals, loadRatings, ratingFor, loadMeetings,
+} from "./_lessons-data.js";
 
 const E = LESSON_COLS.evals;
+
+/* ⚠ תאריך נשמר כ-{date:"YYYY-MM-DD"}. מחרוזת גולמית לעמודת
+   date נדחית על ידי monday **בשקט** ואינה כותבת דבר (4ש). */
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 async function handler(req, res, session) {
   if (req.method === "GET") return list(req, res);
   if (req.method === "POST") return add(req, res, session);
   if (req.method === "PUT") return edit(req, res, session);
-  return res.status(405).json({ error: "רק GET, POST ו-PUT נתמכים כאן" });
+  if (req.method === "DELETE") return remove(req, res, session);
+  return res.status(405).json({ error: "רק GET, POST, PUT ו-DELETE נתמכים כאן" });
 }
 
 async function list(req, res) {
@@ -101,6 +108,19 @@ async function add(req, res, session) {
       cols[E.meetingId] = String(body.meetingId);
       const r = ratingFor(String(body.meetingId), await loadRatings());
       if (r) { cols[E.avg] = String(r.avg); cols[E.votes] = String(r.votes); }
+      /* ⚠ **התאריך נגזר מהמפגש וגובר על מה שנשלח.** הצהרה
+         מפורשת על הפריט גוברת על קלט — וכאן המפגש הוא הפריט. */
+      const m = (await loadMeetings()).find((x) => x.id === String(body.meetingId));
+      if (m?.date) cols[E.lessonDate] = { date: m.date };
+    }
+
+    /* ידני, רק כשאין מפגש מאחורי חוות הדעת */
+    if (!cols[E.lessonDate] && body?.lessonDate) {
+      const d = String(body.lessonDate).trim();
+      if (!DATE_RE.test(d)) {
+        return res.status(400).json({ error: "תאריך השיעור חייב להיות בפורמט YYYY-MM-DD" });
+      }
+      cols[E.lessonDate] = { date: d };
     }
 
     const d = await gql(
@@ -136,6 +156,17 @@ async function edit(req, res, session) {
     if (body.topic !== undefined) cols[E.topic] = String(body.topic).slice(0, 200);
     if (body.phone !== undefined) cols[E.phone] = String(body.phone).slice(0, 40);
     if (body.field !== undefined && body.field) cols[E.field] = { label: String(body.field) };
+
+    /* ---------- תאריך השיעור ----------
+       ⚠ ריק מנקה, ומחרוזת ריקה היא הדרך היחידה לנקות עמודת
+         date ב-monday. */
+    if (body.lessonDate !== undefined) {
+      const d = String(body.lessonDate || "").trim();
+      if (!d) cols[E.lessonDate] = "";
+      else if (!DATE_RE.test(d)) {
+        return res.status(400).json({ error: "תאריך השיעור חייב להיות בפורמט YYYY-MM-DD" });
+      } else cols[E.lessonDate] = { date: d };
+    }
 
     /* ---------- דירוג ידני ----------
        ⚠ null מנקה. הסולם זהה לזה של החניכים (1–10) כדי ששני
@@ -176,6 +207,50 @@ async function edit(req, res, session) {
   } catch (e) {
     console.error("[lesson-evals:edit]", e);
     res.status(502).json({ error: "עדכון חוות הדעת נכשל" });
+  }
+}
+
+/* ============================================================
+   מחיקת חוות דעת — מחזור ב׳ בלבד
+   ------------------------------------------------------------
+   ⚠⚠ **31 חוות הדעת של מחזור א׳ אינן ניתנות למחיקה.** הן יובאו
+     ממקור שכבר אינו קיים: השיעורים התקיימו לפני שהיה מנגנון
+     דירוג, והציון והטקסט קיימים רק בשורה הזו. מחיקה שלהן היא
+     אובדן ידע שאין ממנו דרך חזרה, ולא "שורה מיותרת".
+
+   מחזור ב׳ נכתב מתוך האפליקציה, על ידי מי שיושב כאן עכשיו,
+   והוא זה שיודע שהשורה מיותרת או כפולה.
+
+   ⚠ **הגבול נבדק בשרת מול הערך שבלוח**, ולא לפי מה שהדפדפן
+     שולח — אחרת אפשר היה למחוק שורה של מחזור א׳ בטענה שהיא
+     של מחזור ב׳.
+
+   ⚠ **וגם מזהה מאומת מול הלוח לפני `delete_item`**, שנשלחת
+     בלי `board_id` (4ס).
+   ============================================================ */
+async function remove(req, res, session) {
+  try {
+    const body = req.body ?? (await readJson(req));
+    const evalId = String(body?.evalId || req.query?.evalId || "").trim();
+    if (!evalId) return res.status(400).json({ error: "לא צוינה חוות דעת" });
+
+    const row = (await loadEvals()).find((e) => e.id === evalId);
+    if (!row) return res.status(404).json({ error: "חוות הדעת אינה נמצאת" });
+
+    if (row.cycle !== CYCLE.second) {
+      return res.status(403).json({
+        error: `חוות דעת מ${row.cycle || "מחזור קודם"} אינה נמחקת — ` +
+          "היא יובאה ממקור שאינו קיים עוד, והטקסט שבה הוא הידע היחיד שנשאר. " +
+          "אפשר לערוך אותה.",
+      });
+    }
+
+    await gql(`mutation($i:ID!){ delete_item(item_id:$i){ id } }`, { i: evalId });
+    invalidateEvals();
+    res.status(200).json({ ok: true, id: evalId, name: row.name });
+  } catch (e) {
+    console.error("[lesson-evals:remove]", e);
+    res.status(502).json({ error: "מחיקת חוות הדעת נכשלה" });
   }
 }
 

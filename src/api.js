@@ -493,12 +493,20 @@ export const api = {
     get("/api/lessons?action=evals" + (cycle ? `&cycle=${encodeURIComponent(cycle)}` : "")),
 
   /** הוספת חוות דעת חדשה. meetingId מצמיד אליה את דירוג החניכים. */
-  addLessonEval: ({ name, topic, field, phone, opinion, cycle, meetingId }) =>
-    post("/api/lessons?action=evals", { name, topic, field, phone, opinion, cycle, meetingId }),
+  /* ⚠ lessonDate — תאריך שבו התקיים השיעור, ולא תאריך הכתיבה.
+     כשיש meetingId הוא **נגזר בשרת מהמפגש** ומה שנשלח כאן
+     מתעלמים ממנו. */
+  addLessonEval: ({ name, topic, field, phone, opinion, cycle, meetingId, lessonDate }) =>
+    post("/api/lessons?action=evals",
+      { name, topic, field, phone, opinion, cycle, meetingId, lessonDate }),
 
   /** עריכת חוות דעת — בעיקר ההערה על שורה שנפתחה אוטומטית */
   /** ⚠ manualScore: מספר 1–10, או null לניקוי. השמטה = בלי שינוי. */
-  editLessonEval: ({ evalId, name, topic, field, phone, opinion, manualScore }) =>
+  editLessonEval: ({ evalId, name, topic, field, phone, opinion, manualScore, lessonDate }) =>
     put("/api/lessons?action=evals",
-      { evalId, name, topic, field, phone, opinion, manualScore }),
+      { evalId, name, topic, field, phone, opinion, manualScore, lessonDate }),
+
+  /** ⚠ מחזור ב׳ בלבד. השרת דוחה מחיקה של מחזור א׳ ב-403 ואומר למה. */
+  deleteLessonEval: (evalId) =>
+    del("/api/lessons?action=evals&evalId=" + encodeURIComponent(evalId)),
 };
