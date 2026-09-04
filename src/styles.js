@@ -871,6 +871,28 @@ html,body{margin:0;padding:0;background:#012E58}
 /* תמונת "אחרי התיקון" מסומנת, כדי שלא תיקרא כתמונת הבעיה. */
 /* "תורנות מטבח" ליד שם החניך בסימון האימון — עובדה על היום,
    נגזרת מלוח התורניות ואינה סימון של האימון. */
+/* מפת ההרשאות */
+.ac-note{font-size:12px;line-height:1.7;color:var(--muted);font-weight:600;
+  background:var(--bg);border-radius:var(--r-md);padding:11px 13px;margin-bottom:12px}
+.ac-c{margin-bottom:10px}
+.ac-h{display:flex;align-items:center;gap:9px}
+.ac-h b{font-size:15px;font-weight:800;letter-spacing:-.2px;flex:0 0 auto}
+.ac-h span{flex:1;font-size:11px;font-weight:700;color:var(--faint);text-align:left}
+.kx .ac-btn{width:100%;background:none;text-align:right;padding:0}
+.ac-note-s{font-size:11.5px;line-height:1.6;color:var(--amber);background:var(--amber-soft);
+  border-radius:var(--r-sm);padding:8px 10px;margin-top:8px;font-weight:700}
+.ac-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
+.ac-l{list-style:none;margin:10px 0 0;padding:0}
+.ac-l li{display:flex;align-items:flex-start;gap:7px;font-size:12.5px;font-weight:600;
+  line-height:1.55;padding:4px 0;color:var(--ink)}
+.ac-l li svg{flex:0 0 auto;margin-top:2px}
+.ac-l li.yes svg{color:var(--ok)}
+.ac-l li.no{color:var(--muted)}
+.ac-l li.no svg{color:var(--clay)}
+.ac-open{margin-top:10px;border-top:1px solid var(--line);padding-top:10px}
+.ac-sub{font-size:10.5px;font-weight:800;color:var(--faint);margin:8px 0 4px}
+.ac-body{font-size:13px;line-height:1.7;color:var(--ink);white-space:pre-wrap}
+
 /* מרצים של סדרה, וסיכום סדרה */
 .tm-note{font-size:12px;line-height:1.65;color:var(--muted);font-weight:600;
   background:var(--bg);border-radius:var(--r-md);padding:10px 12px;margin-bottom:12px}
