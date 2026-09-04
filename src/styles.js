@@ -871,6 +871,15 @@ html,body{margin:0;padding:0;background:#012E58}
 /* תמונת "אחרי התיקון" מסומנת, כדי שלא תיקרא כתמונת הבעיה. */
 /* "תורנות מטבח" ליד שם החניך בסימון האימון — עובדה על היום,
    נגזרת מלוח התורניות ואינה סימון של האימון. */
+/* בורר ימים מרובה בעורך הצ׳ק ליסט */
+.ch-dsel{display:flex;gap:5px;flex-wrap:wrap}
+.kx .ch-dsel-b{width:34px;height:34px;border-radius:9px;border:2px solid var(--line2);
+  background:var(--surface);font-size:13px;font-weight:800;color:var(--muted)}
+.kx .ch-dsel-b.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.ch-hint{font-size:11px;font-weight:700;color:var(--faint);margin-top:5px}
+.ch-task-a{font-style:normal;font-size:9.5px;font-weight:800;background:var(--bg);
+  color:var(--muted);padding:2px 6px;border-radius:5px;flex:0 0 auto}
+
 /* דוח תשלום למרצים — אותה שפה של תקציב המטבח */
 .pay-warn{font-size:11.5px;font-weight:700;color:var(--amber);background:var(--amber-soft);
   border-radius:var(--r-md);padding:9px 12px;margin:-4px 0 12px;line-height:1.6}

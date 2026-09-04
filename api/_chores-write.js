@@ -18,6 +18,7 @@ import { CHORE_BOARDS, CHORE_COLS } from "../shared/chores-ids.js";
 import {
   mayChores, choreHint, KIND, KINDS, SAME_SECTOR_WARN,
   fridayAfterTuesday,
+  WHEN, DOW_LETTERS,
 } from "../shared/chores.js";
 import {
   choresReady, loadSectors, loadRoster, loadAdjusts, loadChecklist, loadDone,
@@ -395,12 +396,41 @@ export const task = withAuth(async (req, res, session) => {
   const id = String(body?.id || "").trim();
   const taskName = clip(body?.task, 300);
   if (!taskName) return res.status(400).json({ error: "אין מטלה בלי טקסט" });
-  const day = clip(body?.day, 10);
+  /* ============================================================
+     ⚠ **ימים מרובים, ולא יום אחד.**
+
+     `day` הישן יכול לשאת "כל יום" או יום בודד, ומטלה שמתקיימת
+     בימים א׳ ו-ד׳ בלבד לא הייתה ניתנת לביטוי בו — היה צריך
+     לשכפל אותה לשתי שורות, ואז שינוי ניסוח דורש לזכור את
+     שתיהן.
+
+     ⚠ **הישן נכתב לצד החדש ולא נזנח**, כדי ששורה שנוצרת כאן
+       תיראה נכון גם למי שפותח את הלוח ב-monday.
+     ============================================================ */
+  const rawDays = Array.isArray(body?.days) ? body.days : null;
+  const days = rawDays
+    ? [...new Set(rawDays.map((x) => String(x).trim()))].filter((x) => DOW_LETTERS.includes(x))
+    : null;
+
+  /* ⚠ רשימה ריקה **מפורשת** פירושה "כל יום", ולא "אף יום" —
+     מטלה בלי אף יום אינה מצב שקיים, והיא הייתה נעלמת מכל מסך. */
+  const everyDay = !days || days.length === 0 || days.length === DOW_LETTERS.length;
+
+  const day = clip(body?.day, 10) || (everyDay ? "כל יום" : days[0]);
   if (!DAYS.includes(day)) {
     return res.status(400).json({ error: `יום לא מוכר. האפשרויות: ${DAYS.join(" · ")}` });
   }
+
+  /* ⚠ תווית שאינה בלוח נדחית ברעש ואינה נוצרת בשקט. */
+  const when = clip(body?.when, 40);
+  if (when && !WHEN.includes(when)) {
+    return res.status(400).json({ error: `"${when}" אינו זמן מוכר. האפשרויות: ${WHEN.join(" · ")}` });
+  }
+
   const cols = {
     [C.day]: { label: day },
+    [C.days]: everyDay ? "" : days.join(","),
+    [C.when]: when ? { label: when } : { label: WHEN[0] },
     [C.area]: clip(body?.area, 120),
     [C.archived]: { checked: body?.archived ? "true" : "false" },
   };

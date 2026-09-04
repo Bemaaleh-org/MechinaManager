@@ -72,7 +72,7 @@ const PLAIN = jar();
 await call(PLAIN, "POST", "/api/students?action=login", { tz: plainRow.tz });
 console.log("חניך רגיל: " + plainRow.name);
 
-const made = { sectors: [], rows: [], adjusts: [], done: [] };
+const made = { sectors: [], rows: [], adjusts: [], done: [], tasks: [] };
 const EV = "בדיקה — גזרת בדיקה";
 
 try {
@@ -264,6 +264,55 @@ try {
     }
   }
 
+  /* ============ 6ג · תזמון מטלות הצ׳ק ליסט ============ */
+  console.log("\n6ג · ימים מרובים ומתי ביום");
+  {
+    /* ⚠ המטלות שהבדיקה יוצרת מארכבות ולא נמחקות (שורות ביצוע
+       נושאות את המזהה), ולכן הן נושאות "בדיקה —" בשם ומסוננות
+       בסוף לפי מזהה. */
+    let r2 = await call(MGR, "POST", "/api/chores?action=task",
+      { task: "בדיקה — מטלה בימים א ו-ד", days: ["א", "ד"], when: "אחרי ארוחת בוקר" });
+    ok("מטלה עם שני ימים נשמרת", r2.s === 200 && r2.b.id, `${r2.s} ${r2.b.error || ""}`);
+    const tid = r2.b.id;
+    if (tid) made.tasks = (made.tasks || []).concat(tid);
+
+    /* ⚠ תווית שאינה בלוח נדחית ברעש ואינה נוצרת בשקט. */
+    r2 = await call(MGR, "POST", "/api/chores?action=task",
+      { id: tid, task: "בדיקה — מטלה בימים א ו-ד", days: ["א"], when: "אחרי הצהריים" });
+    ok("זמן שאינו מוכר נדחה",
+      r2.s === 400 && /אינו זמן מוכר/.test(r2.b.error || ""), `${r2.s} ${r2.b.error || ""}`);
+
+    const tpl = async () => {
+      const x = await call(MGR, "GET", "/api/chores?action=view&admin=1");
+      return (x.b.template || []).find((t) => t.id === tid);
+    };
+    await until("המטלה נראית", async () => Boolean(await tpl()));
+    const row = await tpl();
+    ok("שני הימים נשמרו", row && row.days === "א,ד", row && row.days);
+    ok("והזמן נשמר", row && row.when === "אחרי ארוחת בוקר", row && row.when);
+    /* ⚠ `day` הישן נכתב לצד החדש, כדי שהלוח ב-monday ייקרא נכון. */
+    ok("ו-day הישן נשמר לצידו", row && ["א", "ד"].includes(row.day), row && row.day);
+
+    /* ⚠⚠ **רשימה ריקה פירושה כל יום, ולא אף יום.** מטלה בלי
+       אף יום אינה מצב שקיים, והיא הייתה נעלמת מכל מסך. */
+    r2 = await call(MGR, "POST", "/api/chores?action=task",
+      { id: tid, task: "בדיקה — מטלה בימים א ו-ד", days: [], when: "בסוף היום" });
+    ok("רשימת ימים ריקה מתקבלת", r2.s === 200, `${r2.s} ${r2.b.error || ""}`);
+    await until("העדכון נראה", async () => { const t = await tpl(); return t && t.days === ""; });
+    const row2 = await tpl();
+    ok("והמטלה הפכה ליומית", row2 && row2.days === "" && row2.day === "כל יום",
+      `${row2 && row2.days}|${row2 && row2.day}`);
+
+    /* ⚠ והמסך של התורן מקבל את אוצר המילים מהשרת ולא מקליד אותו. */
+    const v2 = await call(MGR, "GET", "/api/chores?action=view&admin=1");
+    ok("אוצר הזמנים מגיע מהשרת",
+      Array.isArray(v2.b.checklist.whenOptions) && v2.b.checklist.whenOptions.length >= 4,
+      (v2.b.checklist.whenOptions || []).join(" · "));
+    ok("והמטלה היומית מופיעה ברשימת היום",
+      (v2.b.checklist.items || []).some((i) => i.id === tid),
+      String((v2.b.checklist.items || []).length));
+  }
+
   /* ============ 7 · תורן היום כן מסמן ============ */
   console.log("\n7 · תורן היום");
   /* ⚠  כאן הוא התשובה של ה-403 מסעיף 6, לא של view.
@@ -398,7 +447,12 @@ try {
   const adj = (await allItems(CHORE_BOARDS.adjust))
     .filter((i) => made.adjusts.includes(String(i.id)) || made.sectors.includes(cv(i, A.sector)));
   const dn = (await allItems(CHORE_BOARDS.done)).filter((i) => made.done.includes(String(i.id)));
-  const ids = [...rows, ...adj, ...dn].map((i) => String(i.id)).concat(made.sectors);
+  /* ⚠ **מטלות הצ׳ק ליסט נמחקות כאן במפורש.** נקודת הקצה
+     *מארכבת* אותן (שורות ביצוע נושאות את המזהה), ולכן שורה
+     מארכבת שהבדיקה יצרה הייתה נשארת בלוח לנצח ומצטברת בכל
+     הרצה. הבדיקה יצרה אותן ולכן היא זו שמוחקת. */
+  const ids = [...rows, ...adj, ...dn].map((i) => String(i.id))
+    .concat(made.sectors).concat(made.tasks || []);
 
   /* ⚠ ובנוסף: התורנות היומית שהבדיקה יצרה לחשבון הבדיקה. */
   const daily = (await allItems(CHORE_BOARDS.sectors))

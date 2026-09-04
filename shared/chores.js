@@ -189,3 +189,42 @@ export function fridayAfterTuesday(iso) {
   d.setUTCDate(d.getUTCDate() + 3);
   return d.toISOString().slice(0, 10);
 }
+
+/* ============================================================
+   מתי ביום מבוצעת מטלת הצ׳ק ליסט
+   ------------------------------------------------------------
+   ⚠ **זהות בתו לתוויות שבלוח.** תווית שאינה כאן נדחית ברעש
+     ואינה נוצרת בשקט (`create_labels_if_missing:false`).
+
+   ⚠ **הסדר כאן הוא סדר היום**, והמסך מקבץ לפיו. זו כל הנקודה:
+     תורן שרואה 33 מטלות ברשימה אחת אינו יודע מה לעשות עכשיו,
+     ותורן שרואה "אחרי ארוחת בוקר — ארבע מטלות" יודע.
+   ============================================================ */
+export const WHEN = [
+  "בכל זמן",
+  "אחרי ארוחת בוקר",
+  "אחרי ארוחת צהריים",
+  "אחרי ארוחת ערב",
+  "בסוף היום",
+];
+
+export const DOW_LETTERS = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
+
+/**
+ * הימים שבהם המטלה מתקיימת.
+ * ⚠ רשימה מפורשת גוברת; ריקה נופלת ל-`day` הישן; "כל יום"
+ *   מוחזר כ-null, שפירושו "בלי סינון".
+ */
+export function daysOf(item) {
+  const listed = String(item.days || "")
+    .split(",").map((x) => x.trim()).filter((x) => DOW_LETTERS.includes(x));
+  if (listed.length) return [...new Set(listed)];
+  if (!item.day || item.day === "כל יום") return null;
+  return DOW_LETTERS.includes(item.day) ? [item.day] : null;
+}
+
+/** האם המטלה מתקיימת ביום־בשבוע הזה (אות עברית) */
+export function onDay(item, letter) {
+  const d = daysOf(item);
+  return d === null || d.includes(letter);
+}

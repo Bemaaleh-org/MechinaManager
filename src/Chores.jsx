@@ -480,15 +480,31 @@ function Checklist({ d, say, reload }) {
   const [editing, setEditing] = useState(false);
   const c = d.checklist;
 
+  /* ============================================================
+     ⚠ **מקובץ לפי *מתי ביום*, ולא לפי אזור.**
+
+     תורן שרואה 33 מטלות ברשימה אחת אינו יודע מה לעשות עכשיו.
+     קיבוץ לפי אזור עונה על "איפה", וזו שאלה שנשאלת רק אחרי
+     שיודעים **מתי** — ובפועל היא פיצלה את השגרה של אחרי ארוחת
+     הבוקר לחמישה מקומות במסך.
+
+     האזור לא ירד; הוא עבר לתגית על השורה עצמה.
+
+     ⚠ **הסדר מגיע מהשרת** (`whenOptions`), ואינו מוקלד כאן —
+       תווית שתשתנה בלוח לא תשבור את הקיבוץ.
+     ============================================================ */
+  const order = c.whenOptions || [];
   const groups = useMemo(() => {
     const m = new Map();
     for (const it of c.items) {
-      const k = it.area || "כללי";
+      const k = it.when || (order[0] || "בכל זמן");
       if (!m.has(k)) m.set(k, []);
       m.get(k).push(it);
     }
-    return [...m.entries()];
-  }, [c.items]);
+    /* ⚠ ערך שאינו ברשימה יורד לסוף ואינו נעלם (4ס). */
+    const rank = (k) => { const i = order.indexOf(k); return i < 0 ? 99 : i; };
+    return [...m.entries()].sort((a, b) => rank(a[0]) - rank(b[0]));
+  }, [c.items, c.whenOptions]);
 
   const toggle = (it) => {
     if (busy) return;
@@ -530,7 +546,12 @@ function Checklist({ d, say, reload }) {
                 {it.done && <CI.check style={{ color: "#fff" }} />}
               </div>
               <span>{it.task}</span>
-              {it.day !== "כל יום" && <i className="ch-task-d">יום {it.day}</i>}
+              {it.area && <i className="ch-task-a">{it.area}</i>}
+              {/* ⚠ מוצג רק כשהמטלה אינה יומית — תגית "כל יום"
+                  על שלושים שורות היא רעש. */}
+              {(it.days || (it.day && it.day !== "כל יום")) && (
+                <i className="ch-task-d">{it.days ? it.days.split(",").join(" ") : it.day}</i>
+              )}
             </button>
           ))}
         </div>
@@ -594,26 +615,52 @@ function Checklist({ d, say, reload }) {
    ============================================================ */
 function TaskEditor({ d, say, reload }) {
   const DAYS = ["כל יום", "א", "ב", "ג", "ד", "ה", "ו", "ש"];
+  const LETTERS = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
+  /* ⚠ מהשרת ולא מוקלד — ראו ההערה בקיבוץ. */
+  const WHENS = d.checklist.whenOptions || ["בכל זמן"];
   const [day, setDay] = useState(d.checklist.dow);
-  const [f, setF] = useState({ task: "", area: "" });
+  const [f, setF] = useState({ task: "", area: "", days: [], when: WHENS[0] });
   const [edit, setEdit] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const tpl = (d.template || []).filter((t) => t.day === day)
-    .sort((a, b) => (a.order - b.order) || a.task.localeCompare(b.task, "he"));
+  /* days גובר על day: מטלה שנשמרה עם רשימת ימים מופיעה בכל
+     אחד מהם, ומטלה ישנה עם יום בודד מתנהגת כמו קודם. אותו כלל
+     בדיוק שהשרת מסנן לפיו. */
+  const onThisDay = (t) => {
+    const list = String(t.days || "").split(",").map((x) => x.trim()).filter(Boolean);
+    if (day === "כל יום") return !list.length && t.day === "כל יום";
+    if (list.length) return list.includes(day);
+    return t.day === day;
+  };
+  const tpl = (d.template || []).filter(onThisDay)
+    .sort((a, b) => {
+      const r = (x) => { const i = WHENS.indexOf(x.when || WHENS[0]); return i < 0 ? 99 : i; };
+      return r(a) - r(b) || (a.order - b.order) || a.task.localeCompare(b.task, "he");
+    });
 
   const add = () => {
     if (busy || !f.task.trim()) return;
     setBusy(true);
-    api.saveChoreTask({ task: f.task, area: f.area, day, order: tpl.length + 1 })
-      .then(() => { setF({ task: "", area: "" }); say("נוספה"); reload(); })
+    api.saveChoreTask({
+      task: f.task, area: f.area, order: tpl.length + 1,
+      /* ⚠ כשלא נבחרו ימים, הימים הם היום שנבחר בלשונית — כך
+         שהתנהגות ברירת המחדל זהה למה שהייתה. */
+      days: f.days.length ? f.days : (day === "כל יום" ? [] : [day]),
+      day: f.days.length ? undefined : day,
+      when: f.when,
+    })
+      .then(() => { setF({ task: "", area: "", days: [], when: WHENS[0] }); say("נוספה"); reload(); })
       .catch((e) => say(e.message))
       .finally(() => setBusy(false));
   };
   const saveOne = (t) => {
     if (busy) return;
     setBusy(true);
-    api.saveChoreTask({ id: t.id, task: edit.task, area: edit.area, day: edit.day })
+    api.saveChoreTask({
+      id: t.id, task: edit.task, area: edit.area,
+      days: edit.dayList, day: edit.dayList.length ? undefined : edit.day,
+      when: edit.when,
+    })
       .then(() => { setEdit(null); say("נשמר"); reload(); })
       .catch((e) => say(e.message))
       .finally(() => setBusy(false));
@@ -659,10 +706,38 @@ function TaskEditor({ d, say, reload }) {
                     onChange={(e) => setEdit((p) => ({ ...p, area: e.target.value }))} />
                 </div>
                 <div className="fld">
-                  <label>יום</label>
-                  <select value={edit.day} onChange={(e) => setEdit((p) => ({ ...p, day: e.target.value }))}>
-                    {DAYS.map((x) => <option key={x} value={x}>{x}</option>)}
+                  <label>מתי ביום</label>
+                  <select value={edit.when}
+                    onChange={(e) => setEdit((p) => ({ ...p, when: e.target.value }))}>
+                    {WHENS.map((x) => <option key={x} value={x}>{x}</option>)}
                   </select>
+                </div>
+              </div>
+              {/* ============================================================
+                  ⚠ **ימים מרובים, ולא רשימה נפתחת של יום אחד.**
+                    מטלה שמתקיימת בימים א׳ ו-ד׳ דרשה קודם שתי שורות
+                    נפרדות — ואז שינוי ניסוח מחייב לזכור את שתיהן.
+
+                  ⚠ ובחירה ריקה פירושה **כל יום**, ולא "אף יום":
+                    מטלה בלי אף יום אינה מצב שקיים.
+                  ============================================================ */}
+              <div className="fld">
+                <label>באילו ימים</label>
+                <div className="ch-dsel">
+                  {LETTERS.map((x) => {
+                    const on = edit.dayList.includes(x);
+                    return (
+                      <button key={x} type="button"
+                        className={"ch-dsel-b" + (on ? " on" : "")}
+                        onClick={() => setEdit((p) => ({
+                          ...p,
+                          dayList: on ? p.dayList.filter((y) => y !== x) : [...p.dayList, x],
+                        }))}>{x}</button>
+                    );
+                  })}
+                </div>
+                <div className="ch-hint">
+                  {edit.dayList.length ? `בימים ${edit.dayList.join(" · ")}` : "בכל יום"}
                 </div>
               </div>
               <div className="tm-editor-f">
@@ -677,7 +752,11 @@ function TaskEditor({ d, say, reload }) {
                 <b>{t.task}</b>
                 {t.area && <span>{t.area}</span>}
               </div>
-              <button className="btn btn-ghost btn-sm" onClick={() => setEdit({ ...t })}>עריכה</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setEdit({
+                ...t,
+                dayList: String(t.days || "").split(",").map((x) => x.trim()).filter(Boolean),
+                when: t.when || WHENS[0],
+              })}>עריכה</button>
               <button className="esc-del" title="הסרה" onClick={() => drop(t)}>✕</button>
             </>
           )}
@@ -697,6 +776,29 @@ function TaskEditor({ d, say, reload }) {
             <label>אזור</label>
             <input value={f.area} placeholder="רשות"
               onChange={(e) => setF((p) => ({ ...p, area: e.target.value }))} />
+          </div>
+        </div>
+        <div className="tm-row2">
+          <div className="fld">
+            <label>מתי ביום</label>
+            <select value={f.when} onChange={(e) => setF((p) => ({ ...p, when: e.target.value }))}>
+              {WHENS.map((x) => <option key={x} value={x}>{x}</option>)}
+            </select>
+          </div>
+          <div className="fld">
+            <label>באילו ימים</label>
+            <div className="ch-dsel">
+              {LETTERS.map((x) => {
+                const on = f.days.includes(x);
+                return (
+                  <button key={x} type="button" className={"ch-dsel-b" + (on ? " on" : "")}
+                    onClick={() => setF((p) => ({
+                      ...p,
+                      days: on ? p.days.filter((y) => y !== x) : [...p.days, x],
+                    }))}>{x}</button>
+                );
+              })}
+            </div>
           </div>
         </div>
         <button className="btn btn-primary" disabled={busy || !f.task.trim()} onClick={add}>

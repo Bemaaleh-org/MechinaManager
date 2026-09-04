@@ -18,6 +18,7 @@ import {
 } from "./_chores-data.js";
 import {
   mayChores, tallySector, suggestFor, KIND, SAME_SECTOR_WARN,
+  onDay, WHEN,
 } from "../shared/chores.js";
 import { israelToday } from "./_attendance-data.js";
 
@@ -125,7 +126,20 @@ async function handler(req, res, session) {
 
     /* ---------- הצ׳ק ליסט של היום ---------- */
     const live = checklist.filter((c) => !c.archived);
-    const todayItems = live.filter((c) => c.day === "כל יום" || c.day === dowOf(today));
+    /* ⚠ **הסדר הוא סדר היום.** תורן שרואה 33 מטלות ברשימה אחת
+       אינו יודע מה לעשות עכשיו; תורן שרואה "אחרי ארוחת בוקר —
+       ארבע מטלות" יודע. */
+    const whenRank = (c) => {
+      const i = WHEN.indexOf(c.when || WHEN[0]);
+      return i < 0 ? WHEN.length : i;
+    };
+    /* ⚠ **`onDay` ולא השוואת מחרוזת.** מטלה יכולה לשאת רשימת
+       ימים ("א,ד") ולא יום אחד, וההשוואה הישנה הייתה מעלימה
+       אותה מכל יום. הכלל יושב ב-shared כדי שהמסך יסנן בדיוק
+       כמו השרת. */
+    const todayItems = live.filter((c) => onDay(c, dowOf(today)))
+      .sort((a, b) => whenRank(a) - whenRank(b) || (a.order - b.order)
+        || a.task.localeCompare(b.task, "he"));
     const doneToday = new Set(doneRows.filter((d) => d.date === today).map((d) => d.item));
     const onDutyToday = daily
       ? roster.list.filter((r) => r.date === today && r.sector === daily.id)
@@ -165,10 +179,16 @@ async function handler(req, res, session) {
       })),
       checklist: {
         dow: dowOf(today),
+        /* ⚠ מיפוי מפורש: `days` ו-`when` נשלחים כדי שהעורך
+           יציג את מה שנשמר, והמסך יקבץ לפי סדר היום. */
         items: todayItems.map((c) => ({
           id: c.id, task: c.task, area: c.area, day: c.day,
+          days: c.days || "", when: c.when || WHEN[0],
           done: doneToday.has(c.id),
         })),
+        /* ⚠ אוצר המילים מגיע מהשרת ואינו מוקלד במסך — תווית
+           שתשתנה בלוח לא תשבור את העורך. */
+        whenOptions: WHEN,
         onDuty: onDutyToday.map((r) => ({ id: r.student, name: r.studentName })),
       },
       texts: [...texts.values()].map((t) => ({
@@ -231,8 +251,11 @@ async function handler(req, res, session) {
 
     /* ---------- הצ׳ק ליסט המלא, למי שעורך אותו ---------- */
     if (req.query?.admin && perm.daily) {
+      /* ⚠ מיפוי מפורש: `days` ו-`when` נשלחים כדי שהעורך יציג
+         את מה שנשמר. עמודה חדשה בלוח לא תדלוף מעצמה (עיקרון 4). */
       body.template = live.map((c) => ({
-        id: c.id, task: c.task, day: c.day, area: c.area, order: c.order,
+        id: c.id, task: c.task, day: c.day, days: c.days || "",
+        when: c.when || WHEN[0], area: c.area, order: c.order,
       }));
       body.archivedTemplate = checklist.filter((c) => c.archived)
         .map((c) => ({ id: c.id, task: c.task, day: c.day, area: c.area }));

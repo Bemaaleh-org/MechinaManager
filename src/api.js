@@ -243,8 +243,11 @@ export const api = {
   addChoreAdjust: ({ student, sector, delta, reason }) =>
     post("/api/chores?action=adjust", { student, sector, delta, reason }),
   deleteChoreAdjust: (id) => del("/api/chores?action=adjust", { id }),
-  saveChoreTask: ({ id, task, day, area, order, archived }) =>
-    post("/api/chores?action=task", { id, task, day, area, order, archived }),
+  /* ⚠ `days` הוא מערך של אותיות ("א","ד") ו**גובר** על `day`;
+     ריק פירושו כל יום. `when` הוא מתי ביום. שניהם חייבים
+     להופיע כאן במפורש — שדה שאינו נכתב בדלת נשמט בשקט (4לג). */
+  saveChoreTask: ({ id, task, day, days, when, area, order, archived }) =>
+    post("/api/chores?action=task", { id, task, day, days, when, area, order, archived }),
   deleteChoreTask: (id) => del("/api/chores?action=task", { id }),
   tickChore: ({ item, done, date }) => post("/api/chores?action=tick", { item, done, date }),
   saveText: ({ key, title, body }) => put("/api/chores?action=text", { key, title, body }),

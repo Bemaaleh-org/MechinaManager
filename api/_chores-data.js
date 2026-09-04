@@ -135,10 +135,16 @@ export async function loadChecklist({ force = false } = {}) {
       id: String(i.id),
       task: String(i.name || "").trim(),
       day: val(i, C.day),
+      /* ⚠ רשימה מפורשת; ריקה נופלת ל-`day`. ראו daysOf. */
+      days: val(i, C.days) || "",
+      /* ⚠ מתי ביום — שאלה אחרת מ"באיזה יום". */
+      when: val(i, C.when) || null,
       area: val(i, C.area) || null,
       order: Number(val(i, C.order) || 0),
       archived: val(i, C.archived) === "v",
-    })).filter((r) => r.task && r.day)
+    /* ⚠ **`day` כבר אינו חובה** — מטלה יכולה לשאת `days` בלבד.
+       הסינון הישן היה מעלים בשקט כל מטלה שנוצרה בממשק החדש. */
+    })).filter((r) => r.task && (r.day || r.days))
       .sort((a, b) => (a.order - b.order) || a.task.localeCompare(b.task, "he"));
   }, { force });
 }
