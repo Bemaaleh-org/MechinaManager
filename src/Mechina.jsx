@@ -669,8 +669,18 @@ function RequestCard({ r, onDecide, busyId }) {
 
 /* ============================================================
    סימון נוכחות יומי — מנהל או מוביל שבוע
-   ⚠ ההגבלה של מוביל שבוע ליום הנוכחי נאכפת בשרת. כאן היא רק
-     מוסברת, כדי שלא ילחץ לחינם.
+   ------------------------------------------------------------
+   ⚠ **מוביל שבוע מסמן כל יום שבאחריותו** — מראש ובדיעבד — ולא
+     את היום הנוכחי בלבד. הטווח נגזר מלוח מובילי השבוע, ולכן
+     הוא מתחלף מעצמו: כשהשבוע נגמר הוא מפסיק לסמן ימים חדשים
+     בלי שאיש יעשה דבר, וממשיך לתקן את מה שכן היה שלו.
+
+   ⚠ **ההגבלה נאכפת בשרת** (`_attendance-mark.js`), וכאן היא
+     מוסברת בלבד — כדי שלא ילחץ לחינם (4יד).
+
+   ⚠ **שבועות אינם בהכרח רצופים**, ו-`<input type="date">` אינו
+     יודע לבטא חורים. לכן min/max הם הקצוות, ולצידם צ׳יפים לכל
+     שבוע — והמסך אומר במפורש כשהתאריך שנבחר אינו באחריותו.
    ============================================================ */
 function MarkDay({ say, allowPick = false }) {
   useExcel();
@@ -704,14 +714,44 @@ function MarkDay({ say, allowPick = false }) {
      היום, לפני תחילת השנה — החליף את כל המסך בבאנר אדום ולא
      נשארה שום דרך לקפוץ לתאריך אחר. הבורר הוא בדיוק המוצא
      מהמצב הזה, ולכן הוא חייב לשרוד אותו. */
+  /* השבועות שהמשתמש מוביל. ריק לאיש צוות — הרשאתו רחבה ממילא. */
+  const mine = (data && data.myWeeks) || [];
+  const bounded = mine.length > 0 && data && data.canOverride === false;
+  const lo = mine.length ? mine.map((w) => w.start).sort()[0] : null;
+  const hi = mine.length ? mine.map((w) => w.end).sort().slice(-1)[0] : null;
+  const shown = date || (data && data.day ? data.day.date : "");
+  const outside = bounded && shown
+    && !mine.some((w) => w.start <= shown && shown <= w.end);
+
   const picker = allowPick ? (
     <div className="fld">
       <label htmlFor="mk-date">תאריך הסימון</label>
-      <input id="mk-date" type="date"
-        value={date || (data && data.day ? data.day.date : "")}
-        min={range ? range.from : undefined}
-        max={range ? range.to : undefined}
+      <input id="mk-date" type="date" value={shown}
+        min={bounded ? lo : (range ? range.from : undefined)}
+        max={bounded ? hi : (range ? range.to : undefined)}
         onChange={(e) => { setDate(e.target.value); setOpen(null); }} />
+
+      {/* ⚠ צ׳יפ לכל שבוע — כי טווח אחד אינו יכול לבטא שבועות
+          שאינם רצופים, וקפיצה לשבוע היא הפעולה השכיחה. */}
+      {mine.length > 0 && (
+        <div className="lw-chips">
+          {mine.map((w) => (
+            <button key={w.id} className={"lw-chip" + (shown >= w.start && shown <= w.end ? " on" : "")}
+              onClick={() => { setDate(w.start); setOpen(null); }}>
+              שבוע {w.num}<i>{w.start.slice(8)}.{w.start.slice(5, 7)}–{w.end.slice(8)}.{w.end.slice(5, 7)}</i>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ⚠ אומר מה קורה, ולא רק חוסם. מסך שמחזיר 403 בלי הסבר
+          נקרא כמו תקלה. */}
+      {outside && (
+        <div className="lw-out">
+          {shown} אינו באחד השבועות שאתם מובילים — אפשר לצפות, לא לסמן.
+        </div>
+      )}
+
       {date && (
         <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}
           onClick={() => setDate(null)}>חזרה להיום</button>
@@ -3253,7 +3293,12 @@ export function MechinaApp({ auth, onSignedOut }) {
         {tab === "hosting" && auth.isSafety && <HostingPage say={say} />}
         {tab === "faults" && auth.isHouse && <FaultsPage say={say} />}
 
-        {tab === "mark" && auth.isLeader && <MarkDay say={say} />}
+        {/* ⚠ **גם מוביל שבוע מדפדף.** קודם הבורר היה של המנהל
+            בלבד, ומוביל שבוע יכול היה לסמן את היום הנוכחי בלבד —
+            כלומר לזכור לסמן בכל ערב, ולעבור דרך המנהל כדי לתקן
+            את אתמול. הטווח שלו הוא **השבועות שהוא מוביל**, והשרת
+            אוכף בדיוק את זה. */}
+        {tab === "mark" && auth.isLeader && <MarkDay say={say} allowPick />}
 
         {/* ⚠ אחראי לו״ז בלבד. השרת אוכף בכל נקודת קצה של השיעורים,
             והתפקיד נקרא טרי מהלוח — הסרתו סוגרת את הטאב מיד. */}

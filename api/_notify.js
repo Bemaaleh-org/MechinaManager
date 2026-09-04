@@ -34,7 +34,8 @@ import {
   handoverFor, handoverStamp,
 } from "./_duty-data.js";
 import { dutyKey } from "../shared/duties.js";
-import { israelToday } from "./_attendance-data.js";
+import { israelToday, loadMarked, loadCalendar, isSchoolDay } from "./_attendance-data.js";
+import { weeksOfStudent } from "./_leader-weeks.js";
 import { AUTH_BOARD, AUTH_COLS } from "../shared/auth-board.js";
 import { MECHINA_BOARDS, MECHINA_COLS } from "../shared/mechina-boards.js";
 import { invalidate } from "./_cache.js";
@@ -61,6 +62,21 @@ import {
 
 /** כמה ימים קדימה נחשבים "קרוב" */
 const SOON = 7;
+
+/* ============================================================
+   ⚠ **השעה בשעון ישראל, ולא בשעון השרת.**
+
+   Vercel רצה ב-UTC. "ערב" שנמדד בשעון השרת מגיע בישראל
+   בשלוש לפנות בוקר בקיץ — כלומר תזכורת שנועדה לסוף היום
+   מופיעה בלילה שאחריו, ומי שקיבל אותה כבר מאחר.
+   ============================================================ */
+const israelHour = (at = new Date()) => Number(
+  new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Jerusalem", hour: "2-digit", hour12: false,
+  }).format(at));
+
+/** מאיזו שעה תזכורת "סוף היום" מופיעה */
+const EVENING_FROM = 18;
 
 const shift = (iso, n) => {
   const d = new Date(iso + "T12:00:00Z");
@@ -200,6 +216,68 @@ async function hostingNotes(today) {
   }));
 }
 
+/* ============================================================
+   תזכורת למוביל השבוע — נוכחות שלא סומנה
+   ------------------------------------------------------------
+   ⚠ **נגזרת מהמצב ואינה תור.** ברגע שמישהו סימן את היום היא
+     נעלמת מעצמה, גם אם הסימון נעשה ב-monday (4כו).
+
+   ⚠ **מופיעה בערב ולא בבוקר.** תזכורת שמלווה את המוביל כל
+     היום היא רעש: הוא באמת עוד לא סימן, ובצדק. מ-18:00 היא
+     הופכת לפעולה.
+
+   ⚠ **ורק בימים שהמכינה סופרת.** יום חופש, סדרה או "לא
+     התקיימה שגרת מכינה" אינם ימים שמסמנים בהם, ותזכורת
+     עליהם מלמדת להתעלם מהפעמון.
+
+   ⚠ אלה התראות **בתוך האפליקציה**. דחיפה לטלפון או במייל
+     דורשת שירות חיצוני ולא נבנתה — ראו 4כו.
+   ============================================================ */
+async function leaderMarkNotes(session, today) {
+  /* ⚠ שער זול ראשון: רוב החניכים אינם מובילים, ובלעדיו כל
+     אחד מהם היה שולף שלושה לוחות כל שלוש דקות. */
+  if (!session.isStudent) return [];
+  const weeks = await weeksOfStudent(session.itemId);
+  if (!weeks.length) return [];
+
+  const cal = await loadCalendar();
+  const out = [];
+
+  /* ⚠ **כל יום שכבר עבר בשבוע שלו וטרם סומן** — ולא רק היום.
+     מוביל שפספס יום שני יגלה את זה ביום חמישי, וזה בדיוק
+     הרגע שבו עוד אפשר לתקן. */
+  const marked = await loadMarked();
+  const missed = [];
+  for (const w of weeks) {
+    for (const d of cal.days) {
+      if (d.date < w.start || d.date > w.end) continue;
+      if (d.date > today) continue;
+      if (!isSchoolDay(d)) continue;
+      /* היום עצמו נחשב רק מהערב */
+      if (d.date === today && israelHour() < EVENING_FROM) continue;
+      if (!marked.has(d.date)) missed.push(d.date);
+    }
+  }
+  if (!missed.length) return out;
+
+  missed.sort();
+  const isToday = missed.includes(today);
+  out.push(note({
+    /* ⚠ מזהה נגזר מהתוכן ולא מספר רץ — אחרת "נקרא" מתאפס
+       בכל רענון (4כו). */
+    id: `leader:unmarked:${missed.join(",")}`,
+    kind: "נוכחות", level: "גבוה",
+    title: isToday && missed.length === 1
+      ? "טרם סומנה נוכחות היום"
+      : `${missed.length} ימים בשבוע שלכם טרם סומנו`,
+    body: missed.length === 1 ? missed[0] : missed.slice(0, 4).join(" · ")
+      + (missed.length > 4 ? ` ועוד ${missed.length - 4}` : ""),
+    tab: "mark",
+    when: missed[missed.length - 1],
+  }));
+  return out;
+}
+
 async function lessonNotes(today) {
   const [sheets, meetings, evals, gantt] = await Promise.all([
     loadSheets(), loadMeetings(), loadEvals(), loadGantt()]);
@@ -211,14 +289,54 @@ async function lessonNotes(today) {
 
   const out = [];
 
-  /* ⚠ מה שהתקיים וטרם דווח — המטלה האמיתית של אחראי הלו״ז,
-     והדבר שנשכח בדיוק כשלא רואים אותו. */
-  const unreported = live.filter((m) => m.date < today
+  /* ============================================================
+     ⚠ **שתי תזכורות ולא אחת, ובשתי נקודות זמן.**
+
+     "12 שיעורים טרם דווחו" הוא מספר שמלמדים להתעלם ממנו תוך
+     שבוע. מה שדורש פעולה **עכשיו** הוא מה שקרה היום ומה שקרה
+     אתמול, וזה מה שנשלף בנפרד ובעדיפות גבוהה:
+
+       · **בערב** — שיעורי היום שטרם דווחו. מ-18:00, כי לפני
+         כן הם עוד מתקיימים.
+       · **למחרת** — שיעורי אתמול. זה הרגע שבו עוד זוכרים מה
+         היה, ואחריו הדיווח הופך לניחוש.
+
+     הרשימה הארוכה נשארת, ויורדת לעדיפות רגילה — היא הזנב,
+     לא המטלה.
+     ============================================================ */
+  const todayLive = live.filter((m) => m.date === today && !m.happened);
+  if (todayLive.length && israelHour() >= EVENING_FROM) {
+    const names = [...new Set(todayLive.map((m) => (byId.get(m.sheetId) || {}).subject))];
+    out.push(note({
+      id: `lessons:today:${today}:${todayLive.length}`, kind: "שיעורים", level: "גבוה",
+      title: `${todayLive.length} שיעורים של היום טרם דווחו`,
+      body: names.slice(0, 3).join(" · "),
+      tab: "lessons", when: today,
+    }));
+  }
+
+  const yst = shift(today, -1);
+  const ystLive = live.filter((m) => m.date === yst && !m.happened);
+  if (ystLive.length) {
+    const names = [...new Set(ystLive.map((m) => (byId.get(m.sheetId) || {}).subject))];
+    out.push(note({
+      id: `lessons:yesterday:${yst}:${ystLive.length}`, kind: "שיעורים", level: "גבוה",
+      title: `${ystLive.length} שיעורים של אתמול טרם דווחו`,
+      body: names.slice(0, 3).join(" · ") + " · עוד זוכרים מה היה",
+      tab: "lessons", when: yst,
+    }));
+  }
+
+  /* ⚠ מה שהתקיים וטרם דווח — הזנב הארוך. **היום ואתמול יורדים
+     ממנו**, כדי שאותה מטלה לא תופיע פעמיים בשני ניסוחים. */
+  const unreported = live.filter((m) => m.date < yst
     && m.date >= shift(today, -14) && !m.happened);
   if (unreported.length) {
     const names = [...new Set(unreported.map((m) => (byId.get(m.sheetId) || {}).subject))];
     out.push(note({
-      id: `lessons:unreported:${unreported.length}`, kind: "שיעורים", level: "גבוה",
+      /* ⚠ "רגיל" ולא "גבוה": המטלה הדחופה היא היום ואתמול,
+         ורשימה של שבועיים שצועקת מאמנת להתעלם. */
+      id: `lessons:unreported:${unreported.length}`, kind: "שיעורים", level: "רגיל",
       title: `${unreported.length} שיעורים טרם דווחו`,
       body: names.slice(0, 3).join(" · ") + (names.length > 3 ? ` ועוד ${names.length - 3}` : ""),
       tab: "lessons",
@@ -531,6 +649,8 @@ async function handler(req, res, session) {
          זה, 33 חניכים היו שולפים ארבעה לוחות כל שלוש דקות. */
       jobs.push(dutyNotes(session));
       jobs.push(choreNotes(session, today));
+      /* ⚠ הבונה עוצר מיד כשהחניך אינו מוביל שבוע. */
+      jobs.push(leaderMarkNotes(session, today));
     } else {
       jobs.push(requestNotes(session, today));
     }

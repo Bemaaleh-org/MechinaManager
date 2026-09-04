@@ -871,6 +871,16 @@ html,body{margin:0;padding:0;background:#012E58}
 /* תמונת "אחרי התיקון" מסומנת, כדי שלא תיקרא כתמונת הבעיה. */
 /* "תורנות מטבח" ליד שם החניך בסימון האימון — עובדה על היום,
    נגזרת מלוח התורניות ואינה סימון של האימון. */
+/* צ׳יפים של שבועות ההובלה בבורר התאריך */
+.lw-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.kx .lw-chip{padding:7px 10px;border-radius:9px;border:2px solid var(--line2);
+  background:var(--surface);font-size:12px;font-weight:800;color:var(--muted);
+  display:flex;flex-direction:column;align-items:center;line-height:1.25}
+.kx .lw-chip.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.lw-chip i{font-style:normal;font-size:9.5px;font-weight:700;opacity:.75}
+.lw-out{margin-top:8px;font-size:11.5px;font-weight:700;color:var(--clay);
+  background:var(--clay-soft);border-radius:var(--r-sm);padding:8px 10px;line-height:1.5}
+
 /* מיונים לצבא */
 .ty-note{font-size:12px;line-height:1.65;color:var(--muted);font-weight:600;
   background:var(--bg);border-radius:var(--r-md);padding:10px 12px;margin-bottom:12px}

@@ -18,6 +18,7 @@ import {
 } from "./_attendance-data.js";
 import { loadSheets, loadMeetings } from "./_lessons-data.js";
 import { kitchenDutyOn } from "./_chores-data.js";
+import { weeksOfStudent } from "./_leader-weeks.js";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -28,13 +29,32 @@ async function handler(req, res, session) {
 
   try {
     const today = todayFor(req);
+
+    /* ⚠ ריק לאיש צוות — הוא אינו מוביל שבוע, וההרשאה שלו
+       רחבה ממילא. */
+    const myWeeks = session.isStudent ? await weeksOfStudent(session.itemId) : [];
     const asked = req.query?.date ? String(req.query.date) : today;
 
     if (!DATE_RE.test(asked)) {
       return res.status(400).json({ error: "תאריך לא תקין. הפורמט: YYYY-MM-DD" });
     }
-    if (!session.isManager && asked !== today) {
-      return res.status(403).json({ error: "מוביל שבוע מסמן את היום הנוכחי בלבד" });
+    /* ============================================================
+       ⚠ **שער הקריאה מתיישר עם שער הכתיבה.**
+
+       כאן ישבה בדיקה שנייה, "היום בלבד", והיא הייתה חוסמת את
+       הדפדוף עוד לפני שהכתיבה נבדקת — כלומר מוביל שבוע לא היה
+       יכול אפילו **לראות** את יום המחר שלו. שני שערים שאומרים
+       דברים שונים על אותה שאלה הם בדיוק המקום שבו תכונה נראית
+       שבורה בלי סיבה נראית לעין.
+       ============================================================ */
+    if (!session.isManager
+        && asked !== today
+        && !myWeeks.some((w) => w.start <= asked && asked <= w.end)) {
+      return res.status(403).json({
+        error: myWeeks.length
+          ? "אפשר לפתוח את הימים שבשבועות שאתם מובילים, ואת היום הנוכחי"
+          : "מוביל שבוע פותח את הימים שבאחריותו",
+      });
     }
 
     const [students, cal, absences, marked, sheets, meetings] = await Promise.all([
@@ -100,7 +120,22 @@ async function handler(req, res, session) {
         unmarked: stamp && stamp.present
           ? Math.max(0, students.length - stamp.present.size - onDate.size) : null,
       },
-      canMark: session.isManager || (session.isLeader && asked === today),
+      /* ============================================================
+         ⚠ **מוביל שבוע מסמן כל יום שבאחריותו, ולא רק היום.**
+           אותו כלל בדיוק שהשרת אוכף ב-_attendance-mark.js —
+           כפתור שמופיע ומקבל 403 הוא בדיוק מה ש-4יד אוסר.
+
+         ⚠ הסימון הידני בלוח החניכים נשאר "היום בלבד": הוא
+           עוקף חירום בלי טווח.
+         ============================================================ */
+      canMark: session.isManager
+        || myWeeks.some((w) => w.start <= asked && asked <= w.end)
+        || (session.isLeader && asked === today),
+
+      /* ⚠ הטווחים נשלחים למסך כדי שידע **לאילו ימים** לתת
+         לדפדף, ויסמן את מה שמחוץ להם ולא יסתיר אותו: חניך
+         שלא יראה את היום שלו יחשוב שנשכח (4צ). */
+      myWeeks,
 
       /* ⚠ תיקון שורה שמקורה בבקשה מאושרת — מנהל בלבד.
          מוביל שבוע רואה אותה נעולה. ראו api/_attendance-mark.js. */

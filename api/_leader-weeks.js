@@ -60,6 +60,39 @@ export async function leadersForDate(dateIso) {
   return hit ? hit.leaderIds : [];
 }
 
+/* ============================================================
+   השבועות שחניך מוביל — **כולם**, לא רק הנוכחי
+   ------------------------------------------------------------
+   ⚠ **זה מה שמחליף את "היום בלבד".** מוביל שבוע יכול לסמן
+     נוכחות מראש ולחזור ולתקן — אבל **רק בימים שהם באחריותו**.
+     "היום בלבד" הכריח אותו לזכור לסמן בכל ערב, ותיקון של אתמול
+     חייב לעבור דרך המנהל.
+
+   ⚠⚠ **וזה גם מה שמעביר את ההרשאה בזמן.** הטווח נגזר מהשבוע
+     שבלוח, ולכן ברגע שהשבוע נגמר החניך מפסיק לסמן ימים חדשים
+     מעצמו — בלי שאיש יעשה דבר. הוא ממשיך לתקן את **הימים שלו**,
+     וזה נכון: הם באחריותו גם בדיעבד.
+
+   ⚠ **הסימון הידני בלוח החניכים אינו נכנס לכאן.** הוא עוקף
+     חירום בלי טווח, ולכן הוא נשאר "היום בלבד" — ראו
+     api/_attendance-day.js. אחרת חניך שסומן פעם אחת היה מקבל
+     הרשאה על **כל** ימי השנה, לנצח.
+   ============================================================ */
+export async function weeksOfStudent(studentId) {
+  if (!studentId) return [];
+  const id = String(studentId);
+  return (await loadLeaderWeeks())
+    .filter((w) => (w.leaderIds || []).map(String).includes(id))
+    .map((w) => ({ id: w.id, num: w.num, start: w.start, end: w.end, name: w.name }));
+}
+
+/** האם התאריך נופל באחד השבועות שהחניך מוביל */
+export async function leadsOn(studentId, dateIso) {
+  if (!studentId || !dateIso) return false;
+  return (await weeksOfStudent(studentId))
+    .some((w) => w.start <= dateIso && dateIso <= w.end);
+}
+
 async function handler(req, res, session) {
   if (req.method === "GET") return list(req, res, session);
   if (req.method === "POST") return assign(req, res, session);

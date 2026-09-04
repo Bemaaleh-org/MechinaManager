@@ -48,6 +48,7 @@ import {
   loadCalendar, loadAbsences, todayFor, isSchoolDay, vacationRule,
   createAbsence, deleteAbsence, stampMarked, invalidateAttendance,
 } from "./_attendance-data.js";
+import { leadsOn, weeksOfStudent } from "./_leader-weeks.js";
 import {
   ABSENCE, ABSENCE_SOURCE, HALF, VACATION_PER_HALF,
 } from "../shared/mechina-boards.js";
@@ -71,9 +72,36 @@ async function handler(req, res, session) {
     }
     if (!wanted) return res.status(400).json({ error: "לא נשלחה רשימת היעדרויות" });
 
+    /* ============================================================
+       ⚠ **מוביל שבוע מסמן כל יום שהוא באחריותו — ולא רק היום.**
+
+       "היום בלבד" הכריח אותו לזכור לסמן בכל ערב, ותיקון של
+       אתמול חייב לעבור דרך המנהל. הטווח נגזר מהשבוע שבלוח
+       מובילי השבוע, ולכן הוא **מתחלף מעצמו**: כשהשבוע נגמר,
+       החניך מפסיק לסמן ימים חדשים בלי שאיש יעשה דבר, וממשיך
+       לתקן את הימים שכן היו באחריותו.
+
+       ⚠⚠ **הסימון הידני בלוח החניכים נשאר "היום בלבד".** הוא
+         עוקף חירום ואין לו טווח, ולכן חניך שסומן פעם אחת היה
+         מקבל אחרת הרשאה על **כל** ימי השנה, לנצח. שתי הרשאות
+         שנראות זהות ואינן: אחת נגזרת מטווח, השנייה מתיבה.
+
+       ⚠ **וזה השער האמיתי — הכתיבה.** מסך שיציג תאריך אינו
+         הרשאה; זו הבדיקה שאי אפשר לעקוף (עיקרון 3).
+       ============================================================ */
     const today = todayFor(req);
-    if (!session.isManager && date !== today) {
-      return res.status(403).json({ error: "מוביל שבוע מסמן את היום הנוכחי בלבד" });
+    if (!session.isManager) {
+      const inMyWeek = await leadsOn(session.itemId, date);
+      const emergencyToday = date === today && session.isLeader;
+      if (!inMyWeek && !emergencyToday) {
+        const mine = await weeksOfStudent(session.itemId);
+        return res.status(403).json({
+          error: mine.length
+            ? `${date} אינו באחד השבועות שאתם מובילים `
+              + `(${mine.map((w) => `${w.start}–${w.end}`).join(" · ")})`
+            : "סימון נוכחות נעשה על ידי מובילי השבוע, בימים שבאחריותם",
+        });
+      }
     }
 
     const [students, cal] = await Promise.all([activeStudents(), loadCalendar()]);

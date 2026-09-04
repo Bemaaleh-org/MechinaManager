@@ -23,7 +23,7 @@ import { cached } from "./_cache.js";
 import { studentRows } from "./_student-rows.js";
 import { ensureCycle } from "./_cycle.js";
 import { ROLE_CONTAINER, ROLE_KITCHEN, ROLE_SAFETY, ROLE_HOUSE } from "../shared/lessons-boards.js";
-import { leadersForDate } from "./_leader-weeks.js";
+import { leadersForDate, weeksOfStudent } from "./_leader-weeks.js";
 import { parseTestDate } from "./_test-date.js";
 import { mayEdit, editHint, EDIT_AREA } from "../shared/edit-rights.js";
 
@@ -164,7 +164,27 @@ export async function requireAuth(req, res) {
       timeZone: "Asia/Jerusalem", year: "numeric", month: "2-digit", day: "2-digit",
     }).format(testAt || new Date());
     let scheduled = false;
-    try { scheduled = (await leadersForDate(todayIso)).includes(row.id); }
+    /* ============================================================
+       ⚠ **שתי שאלות שונות, ולא אחת.**
+
+         `isLeader`      — מוביל **היום**. זה מה שפותח את המסך
+                           בניווט ואת דיווח השיעורים.
+         `leadsAnyWeek`  — משובץ לשבוע כלשהו בשנה, גם אם הוא
+                           עוד לא התחיל או שכבר נגמר.
+
+       השנייה נוספה כי `marker` חסם את מוביל השבוע **לפני**
+       שנקודת הקצה הספיקה לבדוק תאריך: מוביל של השבוע הבא לא
+       יכול היה אפילו לפתוח את הימים שלו, והשגיאה שקיבל אמרה
+       "מותר למוביל שבוע" — כלומר סתרה את עצמו.
+
+       ⚠ **שתיהן מאותה קריאה מטמונית.** `loadLeaderWeeks` נשלף
+         פעם אחת ל-5 דקות, ולכן זו אינה קריאה נוספת ללוח.
+       ============================================================ */
+    let leadsAnyWeek = false;
+    try {
+      scheduled = (await leadersForDate(todayIso)).includes(row.id);
+      leadsAnyWeek = (await weeksOfStudent(row.id)).length > 0;
+    }
     catch { /* כשל בשליפת השיבוץ לא מפיל את הכניסה — נשאר העוקף הידני */ }
 
     return {
@@ -181,6 +201,9 @@ export async function requireAuth(req, res) {
       viewOnly: false,
       isStudent: true,
       isLeader: scheduled || row.leader,
+      /* ⚠ **רחב מ-isLeader, ובכוונה.** הוא פותח את השער, והתאריך
+         המדויק נבדק בתוך נקודת הקצה. ראו ההערה למעלה. */
+      leadsAnyWeek,
       roles: row.roles || [],
       /* ⚠ אחראי לו״ז — התפקיד היחיד שפותח מסך. נקרא טרי מהלוח
          בכל בקשה, ולכן הסרת התפקיד סוגרת את הגישה מיד. */
@@ -215,6 +238,7 @@ export async function requireAuth(req, res) {
     isManager: payload.kind === "manager",
     isStudent: false,
     isLeader: false,
+    leadsAnyWeek: false,
     /* ⚠ נקרא טרי מהלוח בכל בקשה, כמו "אחראי לו״ז" — הסרת התפקיד
        סוגרת את ההכרעה מיד ולא בכניסה הבאה. */
     isHead: row.role === STAFF_ROLE.head,
@@ -337,7 +361,12 @@ export function withAuth(
       if (manager && !session.isManager) {
         throw new AuthError("הפעולה מותרת למנהל בלבד", 403);
       }
-      if (marker && !session.isManager && !session.isLeader) {
+      /* ⚠ **`leadsAnyWeek` ולא `isLeader`.** השער כאן שואל "האם
+         אתה בכלל מוביל שבוע השנה"; **איזה תאריך** מותר לך נבדק
+         בתוך נקודת הקצה, מול השבועות שלך. שער שבדק "מוביל היום"
+         חסם מוביל של השבוע הבא מלפתוח את הימים שלו — והודעת
+         השגיאה שקיבל אמרה "מותר למוביל שבוע", כלומר סתרה את עצמה. */
+      if (marker && !session.isManager && !session.isLeader && !session.leadsAnyWeek) {
         throw new AuthError("הפעולה מותרת למנהל או למוביל שבוע בלבד", 403);
       }
       /* ⚠ מובילי השבוע נוספו להרשאת השיעורים בהחלטת המכינה:
