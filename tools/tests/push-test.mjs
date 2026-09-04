@@ -64,6 +64,15 @@ try {
   r = await call(jar(), "GET", "/api/auth?action=push-run&key=לא-נכון");
   ok("וסוד שגוי נדחה", r.s === 401, String(r.s));
 
+  /* ⚠⚠ **הנתיב האמיתי של המשימה המתוזמנת הוא `/api/cron`.**
+     Vercel Cron מקבל נתיב בלבד ולא query string, ולכן משימה
+     מתוזמנת חייבת פונקציה נספרת משלה — השמינית מתוך 12. */
+  r = await call(jar(), "GET", "/api/cron");
+  ok("הנתיב המתוזמן קיים ומוגן", r.s === 401, r.s + " " + (r.b.error || ""));
+  r = await call(jar(), "GET", "/api/cron?job=nope");
+  /* ⚠ משימה בשם שגוי מחזירה 404 ואינה רצה כברירת מחדל בשקט. */
+  ok("ומשימה בשם שגוי מחזירה 404", r.s === 404, r.s + " " + (r.b.error || ""));
+
   if (ready) {
     console.log("\n=== הרשמה ===");
     r = await call(M, "POST", "/api/auth?action=push", { subscription: { endpoint: "לא-כתובת" } });
