@@ -24,6 +24,9 @@
      ?action=project-task  POST/PUT/DELETE     משימה בפרויקט
      ?action=project-money POST/PUT/DELETE     תנועת תקציב בפרויקט
      ?action=project-entry POST/PUT/DELETE     שלב או רשומת יומן
+     ?action=team-entry    POST/PUT/DELETE     רשומת צוות
+     ?action=team-poll     POST/PUT/DELETE     סקר והצבעה
+     ?action=team-feedback POST/DELETE         משוב אנונימי לצוות
                      ⚠ כתיבה — החניך על עצמו בלבד. קריאה של
                        כולם — צוות ויו״ר ועדת הגיוסים.
 
@@ -77,6 +80,7 @@ import leadership from "./_leadership.js";
 import projects from "./_projects.js";
 import { projectTask, projectMoney } from "./_project-items.js";
 import projectEntry from "./_project-entries.js";
+import { teamEntry, teamPoll, teamFeedback } from "./_team-extras.js";
 /* ⚠ מרצים של סדרה — **אותו לוח חוות דעת**, עם שיוך לסדרה.
    כל חברי הסדרה כותבים, ולא רק היו״ר. */
 import teamLecturer from "./_team-lecturer.js";
@@ -89,4 +93,5 @@ export default router({ login, list, year, leader, weeks, role, profile, inciden
   team, "team-task": teamTask, "team-admin": teamAdmin, edit, tryouts, leadership,
   projects, "project-task": projectTask, "project-money": projectMoney,
   "project-entry": projectEntry,
+  "team-entry": teamEntry, "team-poll": teamPoll, "team-feedback": teamFeedback,
   "team-lecturer": teamLecturer });

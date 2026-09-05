@@ -3392,4 +3392,76 @@ html,body{margin:0;padding:0;background:#012E58}
    כאן נוגע רק למרווח כשהוא כן קיים. */
 .scr-note{margin-bottom:14px}
 
+
+/* ============================================================
+   רשומות הצוות — פרוטוקולים, אירועים, תקציב, קישורים, סקרים
+   ------------------------------------------------------------
+   ⚠ **קידומת .kx על כל מה שהוא <button>.** .kx button
+     מאפסת רקע ומסגרת בסגוליות (0,2,0), וכלל בלי הקידומת נבלע
+     בלי שום סימן (4מח, 4ק).
+   ============================================================ */
+.tm-entry{background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-md);box-shadow:var(--sh-1);margin-bottom:8px;
+  overflow:hidden}
+.kx .tm-entry-h{display:flex;align-items:center;justify-content:space-between;
+  gap:10px;width:100%;background:none;border:0;padding:12px 14px;
+  text-align:right;cursor:pointer;color:inherit}
+.kx .tm-entry-h:hover{background:var(--sand)}
+.kx .tm-entry-h svg{flex:none;color:var(--faint);transition:transform var(--ease)}
+.tm-entry-b{padding:0 14px 13px;border-top:1px solid var(--line2)}
+.tm-entry-t{font-size:14.5px;font-weight:800;color:var(--ink);line-height:1.4}
+a.tm-entry-t.tm-link{color:var(--navy);text-decoration:underline;
+  text-underline-offset:3px}
+.tm-entry-m{display:flex;flex-wrap:wrap;gap:2px 6px;margin-top:3px;
+  font-size:12px;font-weight:700;color:var(--muted)}
+.tm-entry-row{display:flex;align-items:flex-start;gap:11px;
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-md);box-shadow:var(--sh-1);padding:12px 14px;
+  margin-bottom:8px}
+
+/* ⚠ הטקסט נשמר עם שבירות השורה שמישהו כתב בכוונה — פרוטוקול
+   הוא שורה לכל החלטה, ורינדור שמוחק אותן הופך אותו לפסקה (4צ). */
+.tm-pre{white-space:pre-wrap;font-size:13.5px;line-height:1.8;
+  color:var(--ink);font-weight:600;padding-top:11px}
+
+.tm-date{flex:none;min-width:52px;font-size:12.5px;font-weight:800;
+  color:var(--navy);padding-top:1px}
+.tm-date.past{color:var(--faint)}
+.tm-next{font-size:13px;font-weight:700;color:var(--muted);
+  margin:-4px 0 14px;padding:0 2px}
+.tm-next b{color:var(--ink);font-weight:800}
+.tm-in{color:#177A45}
+.tm-out{color:var(--clay)}
+
+/* ⚠ הפסקאות הקצרות כאן אינן הפסקה הסוגרת — היא נושאת
+   margin-top:22px, שנראה כמו חור באמצע רשימה. */
+.tm-entry-row .tm-note,.tm-poll .tm-note{margin-top:7px;padding:9px 11px}
+
+/* ---------- סקרים ---------- */
+.tm-poll{margin-bottom:10px}
+.tm-opts{display:flex;flex-direction:column;gap:6px;margin-top:11px}
+.kx .tm-opt{position:relative;display:flex;align-items:center;
+  justify-content:space-between;gap:10px;width:100%;padding:11px 13px;
+  background:var(--sand);border:1px solid var(--line2);
+  border-radius:var(--r-sm);cursor:pointer;overflow:hidden;
+  color:inherit;text-align:right;transition:border-color var(--ease)}
+.kx .tm-opt:disabled{cursor:default}
+.kx .tm-opt.on{border-color:var(--navy);box-shadow:inset 0 0 0 1px var(--navy)}
+/* ⚠ הפס הוא רקע ולא רוחב האלמנט — טקסט שמשנה רוחב לפי אחוזים
+   קופץ בכל הצבעה. */
+.tm-opt-bar{position:absolute;inset-block:0;inset-inline-start:0;
+  background:var(--navy);opacity:.13;transition:width var(--ease)}
+.tm-opt-t{position:relative;font-size:13.5px;font-weight:700;color:var(--ink)}
+.tm-opt b{position:relative;font-size:13.5px;font-weight:800;color:var(--muted)}
+
+/* ---------- משוב אנונימי ---------- */
+/* ⚠ ההבטחה נאמרת במסך ולא רק בקוד. מי שאינו יודע שזה אנונימי
+   כותב כאילו לא — וזה מה שהופך את הערוץ לחסר תועלת (4מה). */
+.tm-anon{display:flex;gap:11px;align-items:flex-start;
+  background:var(--sand);border:1px solid var(--line2);
+  border-radius:var(--r-md);padding:13px 15px;margin-bottom:14px;
+  font-size:13px;font-weight:600;color:var(--muted);line-height:1.7}
+.tm-anon svg{flex:none;color:var(--navy);margin-top:2px}
+.tm-anon b{color:var(--ink);font-weight:800}
+
 `;

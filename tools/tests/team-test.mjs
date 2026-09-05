@@ -21,7 +21,7 @@ import { MECHINA_BOARDS, MECHINA_COLS } from "../../shared/mechina-boards.js";
 import {
   PLACEMENT_BOARDS, PLACEMENT_COLS, CATEGORY, PERIOD, SEM,
 } from "../../shared/placements.js";
-import { TEAM_BOARDS, TEAM_COLS } from "../../shared/team-ids.js";
+import { TEAM_BOARDS, TEAM_COLS, teamExtrasReady } from "../../shared/team-ids.js";
 
 const B = "http://localhost:5173";
 /* WARN חשבון הבדיקה של החניכים. הסיסמה כאן היא של חשבון
@@ -87,7 +87,8 @@ const setRoster = async (cols) => {
 };
 
 /* מה שהבדיקה יצרה — נמחק לפי מזהה, בכל לוח */
-const made = { defs: [], asg: [], tasks: [], vocab: [], lect: [] };
+const made = { defs: [], asg: [], tasks: [], vocab: [], lect: [],
+  entries: [], polls: [], votes: [], fb: [] };
 const NAME = "בדיקה — ועדת בדיקה אוטומטית";
 const ADHOC_NAME = "בדיקה — צוות מזדמן אוטומטי";
 
@@ -440,6 +441,151 @@ try {
     }
   }
 
+  /* ============================================================
+     8 · רשומות, סקרים ומשוב אנונימי
+     ------------------------------------------------------------
+     ⚠ **הטענה החשובה כאן היא מה שאין**: ללוח המשוב אין עמודת
+       כותב, והתשובה אינה מחזירה מזהה של מי כתב. אנונימיות
+       שנשענת על "השדה נשאר ריק" נשברת בעדכון אחד — כאן אין מה
+       לשבור, והבדיקה נועלת את זה.
+     ============================================================ */
+  if (!teamExtrasReady()) {
+    console.log("\n8 · לוחות הרשומות טרם הוקמו — מדלג");
+  } else {
+    console.log("\n8 · רשומות, סקרים ומשוב");
+
+    /* --- רשומה: פרוטוקול --- */
+    let r8 = await call(ST, "POST", "/api/students?action=team-entry", {
+      team: TEAM, kind: "פרוטוקול", title: "בדיקה — ישיבה",
+      date: "2026-09-05", body: "שורה ראשונה\nשורה שנייה",
+    });
+    ok("חבר הצוות כותב פרוטוקול", r8.s === 200 && r8.b.id, r8.s + " " + (r8.b.error || ""));
+    const ENT = r8.b.id;
+    if (ENT) made.entries.push(ENT);
+
+    /* ⚠ סוג שאינו ברשימה נדחה ואינו נכתב כ"פרוטוקול" בשקט. */
+    r8 = await call(ST, "POST", "/api/students?action=team-entry", {
+      team: TEAM, kind: "משהו אחר", title: "בדיקה — סוג לא מוכר",
+    });
+    ok("סוג רשומה לא מוכר נדחה", r8.s === 400, r8.s + " " + (r8.b.error || ""));
+    if (r8.s === 200 && r8.b.id) made.entries.push(r8.b.id);
+
+    /* --- הוצאה, וריק שאינו אפס --- */
+    r8 = await call(ST, "POST", "/api/students?action=team-entry", {
+      team: TEAM, kind: "הוצאה", title: "בדיקה — הגברה", amount: "250",
+    });
+    ok("הוצאה נרשמת", r8.s === 200, r8.s + " " + (r8.b.error || ""));
+    if (r8.b.id) made.entries.push(r8.b.id);
+
+    r8 = await call(ST, "POST", "/api/students?action=team-entry", {
+      team: TEAM, kind: "הוצאה", title: "בדיקה — טרם תומחר",
+    });
+    ok("הוצאה בלי סכום מתקבלת", r8.s === 200, r8.s + " " + (r8.b.error || ""));
+    if (r8.b.id) made.entries.push(r8.b.id);
+
+    await until("הרשומות נראות בשרת", async () => {
+      const x = await call(ST, "GET", "/api/students?action=team&id=" + TEAM);
+      return x.s === 200 && ((x.b.extras || {}).minutes || []).length >= 1
+        && ((x.b.extras || {}).money || []).length >= 2;
+    });
+
+    r8 = await call(ST, "GET", "/api/students?action=team&id=" + TEAM);
+    ok("הסכום נגזר ואינו נשמר", r8.b.extras.sum.spent === 250,
+      "spent=" + r8.b.extras.sum.spent);
+    /* ⚠ ריק אינו אפס, והוא **מדווח** ואינו מושמט בשקט (4ט). */
+    ok("הוצאה בלי סכום נספרת ומדווחת", r8.b.extras.sum.noAmount >= 1,
+      "noAmount=" + r8.b.extras.sum.noAmount);
+
+    /* --- סקר --- */
+    r8 = await call(ST, "POST", "/api/students?action=team-poll", {
+      team: TEAM, question: "בדיקה — איזה תאריך", options: ["ראשון", "שלישי"],
+    });
+    ok("נפתח סקר", r8.s === 200 && r8.b.id, r8.s + " " + (r8.b.error || ""));
+    const POLL = r8.b.id;
+    if (POLL) made.polls.push(POLL);
+
+    /* ⚠ סקר בלי שתי אפשרויות אינו סקר. */
+    r8 = await call(ST, "POST", "/api/students?action=team-poll", {
+      team: TEAM, question: "בדיקה — אפשרות אחת", options: ["רק זו"],
+    });
+    ok("סקר עם אפשרות אחת נדחה", r8.s === 400, r8.s + " " + (r8.b.error || ""));
+    if (r8.s === 200 && r8.b.id) made.polls.push(r8.b.id);
+
+    if (POLL) {
+      /* ⚠ ההצבעה היא POST-עם-`poll` ולא PUT: PUT הוא סגירה
+         ופתיחה של הסקר, ושתי הפעולות היו נבדלות רק בגוף. */
+      r8 = await call(ST, "POST", "/api/students?action=team-poll",
+        { poll: POLL, choice: "ראשון" });
+      ok("הצבעה נקלטת", r8.s === 200, r8.s + " " + (r8.b.error || ""));
+
+      /* ⚠⚠ **הצבעה שנייה מחליפה ואינה מוסיפה.** אחרת מי
+         שמשנה דעה נספר פעמיים, והסקר מציג יותר מצביעים מחברים. */
+      r8 = await call(ST, "POST", "/api/students?action=team-poll",
+        { poll: POLL, choice: "שלישי" });
+      ok("שינוי הצבעה מחליף", r8.s === 200, r8.s + " " + (r8.b.error || ""));
+
+      /* ⚠ אפשרות שאינה ברשימת הסקר נדחית. */
+      r8 = await call(ST, "POST", "/api/students?action=team-poll",
+        { poll: POLL, choice: "רביעי" });
+      ok("אפשרות שאינה בסקר נדחית", r8.s === 400, r8.s + " " + (r8.b.error || ""));
+
+      await until("ההצבעה נראית", async () => {
+        const x = await call(ST, "GET", "/api/students?action=team&id=" + TEAM);
+        return (x.b.polls || []).some((p) => p.id === POLL && p.total === 1);
+      });
+      r8 = await call(ST, "GET", "/api/students?action=team&id=" + TEAM);
+      const pl = (r8.b.polls || []).find((p) => p.id === POLL) || {};
+      ok("מצביע אחד ולא שניים", pl.total === 1, "total=" + pl.total);
+      ok("הבחירה שלי מוחזרת", pl.mine === "שלישי", "mine=" + pl.mine);
+      /* ⚠ מי טרם הצביע — זו כל התועלת של סקר תיאום. */
+      ok("מי טרם הצביע מוחזר בשמו", Array.isArray(pl.missing), "missing=" + pl.missing);
+    }
+
+    /* --- משוב אנונימי --- */
+    r8 = await call(ST, "POST", "/api/students?action=team-feedback", {
+      team: TEAM, text: "בדיקה — משוב אנונימי",
+    });
+    ok("משוב אנונימי נשלח", r8.s === 200, r8.s + " " + (r8.b.error || ""));
+    /* ⚠⚠ **והתשובה אינה מחזירה מזהה שורה.** מזהה שחוזר בתשובה
+       מופיע בלוג הרשת לצד הסשן ששלח אותה, ומאפשר לקשר בין
+       השניים — כלומר הוא שובר את האנונימיות מחוץ ל-monday. */
+    ok("ואין מזהה בתשובה", r8.b.id === undefined, "id=" + r8.b.id);
+
+    await until("המשוב נראה", async () => {
+      const x = await call(ST, "GET", "/api/students?action=team&id=" + TEAM);
+      return (x.b.feedback || []).some((f) => f.text === "בדיקה — משוב אנונימי");
+    });
+
+    r8 = await call(ST, "GET", "/api/students?action=team&id=" + TEAM);
+    const fb = (r8.b.feedback || []).find((f) => f.text === "בדיקה — משוב אנונימי") || {};
+    /* ⚠⚠ **הטענה המרכזית**: אין שדה כותב באף שם אפשרי. שדה
+       שיתווסף בעתיד ייפול כאן ולא ידלוף בשקט. */
+    ok("למשוב אין שום שדה שמזהה כותב",
+      !("by" in fb) && !("byId" in fb) && !("author" in fb) && !("mine" in fb),
+      Object.keys(fb).join(","));
+
+    /* ⚠ ואין עמודת כותב **בלוח עצמו**, לא רק בתשובה. */
+    ok("ואין עמודת כותב בהגדרת הלוח",
+      !Object.keys(TEAM_COLS.feedback).some((k) => /by|author|voter|student/i.test(k)),
+      Object.keys(TEAM_COLS.feedback).join(","));
+
+    /* --- הגבול: צוות אחר --- */
+    r8 = await call(ST, "POST", "/api/students?action=team-entry", {
+      team: "999999999", kind: "פרוטוקול", title: "בדיקה — צוות שאינו קיים",
+    });
+    ok("צוות שאינו קיים מחזיר 404", r8.s === 404, r8.s + " " + (r8.b.error || ""));
+
+    /* ⚠ **404 ולא 403** על מזהה שורה של צוות אחר — 403 מאשר
+       שהשורה קיימת (4נ). */
+    r8 = await call(ST, "DELETE", "/api/students?action=team-entry", { id: "999999999" });
+    ok("מזהה רשומה שאינו שלי מחזיר 404", r8.s === 404, r8.s + " " + (r8.b.error || ""));
+
+    /* ⚠ ואיש צוות כן קורא — הוועדה מנוהלת מול הצוות. */
+    r8 = await call(MGR, "GET", "/api/students?action=team&id=" + TEAM);
+    ok("איש צוות רואה את הרשומות", r8.s === 200 && Boolean(r8.b.extras),
+      r8.s + " " + (r8.b.error || ""));
+  }
+
 } catch (e) {
   console.error("\nנפילה:", e.message);
   fail++;
@@ -458,7 +604,39 @@ try {
     .filter((i) => made.defs.includes(cv(i, T.team)));
   /* ⚠ **וגם לוח חוות הדעת.** מרצה של סדרה יושב שם ולא בלוח
      הצוותים, ובלי השורה הזו כל הרצה הייתה משאירה שם שורה. */
+  /* ============================================================
+     ⚠ **וארבעת הלוחות החדשים.** בדיקה שסופרת לוח אחד מתוך
+       שמונה משאירה שורות אמיתיות בשבעה.
+
+     ⚠ **ההצבעות והמשוב מזוהים דרך הצוות שהבדיקה יצרה** ולא
+       לפי ערך: המשוב אינו מחזיר מזהה (וזו התכונה), וההצבעה
+       אינה מחזירה מזהה כי אין לה שימוש בו. `made.defs` הוא
+       עדיין מזהה שחזר מיצירה — הסינון הוא **דרכו** ולא לפי
+       שם או תוכן, ולכן אינו יכול לתפוס שורה שלא יצרנו.
+     ============================================================ */
+  let extraIds = [];
+  if (teamExtrasReady()) {
+    const E = TEAM_COLS.entries, P = TEAM_COLS.polls, F = TEAM_COLS.feedback;
+    const ents = (await allItems(TEAM_BOARDS.entries))
+      .filter((i) => made.defs.includes(cv(i, E.team)));
+    const pls = (await allItems(TEAM_BOARDS.polls))
+      .filter((i) => made.defs.includes(cv(i, P.team)));
+    const fbs = (await allItems(TEAM_BOARDS.feedback))
+      .filter((i) => made.defs.includes(cv(i, F.team)));
+    /* ⚠ ההצבעות תלויות בסקר, ולכן מזוהות דרכו ולא דרך הצוות. */
+    const pIds = pls.map((i) => String(i.id));
+    const vts = (await allItems(TEAM_BOARDS.votes))
+      .filter((i) => pIds.includes(cv(i, TEAM_COLS.votes.poll)));
+    extraIds = [
+      ...vts.map((i) => String(i.id)),
+      ...pIds,
+      ...fbs.map((i) => String(i.id)),
+      ...ents.map((i) => String(i.id)),
+    ];
+  }
+
   const ids = [
+    ...extraIds,
     ...made.vocab,
     ...made.lect,
     ...tasks.map((i) => String(i.id)),
@@ -481,9 +659,23 @@ try {
     .filter((i) => String(i.name || "").startsWith("בדיקה — "));
   const leftVocab = (await allItems(TEAM_BOARDS.vocab))
     .filter((i) => String(i.name || "").startsWith("בדיקה — "));
-  ok("לא נשארו שאריות בשלושת הלוחות",
-    !leftDefs.length && !leftTasks.length && !leftVocab.length,
-    "defs=" + leftDefs.length + " tasks=" + leftTasks.length + " vocab=" + leftVocab.length);
+  /* ⚠ האימות לפי **הצוות** ולא לפי שם: המשוב האנונימי אינו
+     נושא את הקידומת "בדיקה — " בהכרח, ובדיקה שמחפשת שם
+     מדווחת "נקי" על לוח שנשארו בו שורות. */
+  let leftX = 0;
+  if (teamExtrasReady()) {
+    for (const [b, c] of [
+      [TEAM_BOARDS.entries, TEAM_COLS.entries.team],
+      [TEAM_BOARDS.polls, TEAM_COLS.polls.team],
+      [TEAM_BOARDS.feedback, TEAM_COLS.feedback.team],
+    ]) {
+      leftX += (await allItems(b)).filter((i) => made.defs.includes(cv(i, c))).length;
+    }
+  }
+  ok("לא נשארו שאריות באף לוח",
+    !leftDefs.length && !leftTasks.length && !leftVocab.length && !leftX,
+    "defs=" + leftDefs.length + " tasks=" + leftTasks.length
+    + " vocab=" + leftVocab.length + " extras=" + leftX);
 }
 
 console.log("\n" + pass + " עברו · " + fail + " נכשלו");

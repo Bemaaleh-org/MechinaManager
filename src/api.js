@@ -147,6 +147,33 @@ export const api = {
     put("/api/students?action=team-lecturer",
       { id, name, topic, field, phone, opinion, lessonDate }),
   deleteTeamLecturer: (id) => del("/api/students?action=team-lecturer", { id }),
+  /* ---------- רשומות הצוות ----------
+     ⚠ סוג אחד מ-TEAM_ENTRY_KIND: פרוטוקול · אירוע · קישור ·
+       ציוד · חפיפה · הוצאה · הכנסה. לוח אחד, נבדלים ב-kind. */
+  addTeamEntry: ({ team, kind, title, date, body, extra, qty, amount }) =>
+    post("/api/students?action=team-entry",
+      { team, kind, title, date, body, extra, qty, amount }),
+  editTeamEntry: ({ id, kind, title, date, body, extra, qty, amount, done }) =>
+    put("/api/students?action=team-entry",
+      { id, kind, title, date, body, extra, qty, amount, done }),
+  deleteTeamEntry: (id) => del("/api/students?action=team-entry", { id }),
+
+  /* ⚠ סקר אינו חשאי — ראו api/_team-extras.js. */
+  addTeamPoll: ({ team, question, options, closes }) =>
+    post("/api/students?action=team-poll", { team, question, options, closes }),
+  voteTeamPoll: ({ poll, choice }) =>
+    post("/api/students?action=team-poll", { poll, choice }),
+  closeTeamPoll: ({ id, closed }) =>
+    put("/api/students?action=team-poll", { id, closed }),
+  deleteTeamPoll: (id) => del("/api/students?action=team-poll", { id }),
+
+  /* ⚠⚠ **משוב אנונימי — ואין כאן מזהה שולח, בשום צורה.**
+     הלוח שבו הוא נשמר אינו מחזיק עמודת כותב, והתשובה אינה
+     מחזירה מזהה שורה. ראו api/_team-extras.js. */
+  sendTeamFeedback: ({ team, text }) =>
+    post("/api/students?action=team-feedback", { team, text }),
+  deleteTeamFeedback: (id) => del("/api/students?action=team-feedback", { id }),
+
   saveTeamSummary: ({ team, summary }) =>
     put("/api/students?action=team-lecturer", { team, summary }),
 

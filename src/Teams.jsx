@@ -700,11 +700,18 @@ function TeamHub({ id, say, onBack, go }) {
       <ScrollTabs className="tm-tabs">
         {[["tasks", "משימות", <TI.list key="a" />],
           ["people", "לפי אדם", <TI.users key="b" />],
-          /* ⚠ **מרצים וסיכום — בכל צוות, ולא רק בסדרה.** ועדה
-             שמביאה מרצה היא מצב אמיתי, ולשונית שמופיעה ונעלמת
-             לפי קטגוריה מלמדת את המשתמש לא לסמוך על הניווט. */
+          /* ⚠ **הלשוניות קבועות ואינן משתנות לפי קטגוריה.**
+             ועדה שמביאה מרצה היא מצב אמיתי, וּועדה שמנהלת כסף
+             גם — ולשונית שמופיעה ונעלמת מלמדת לא לסמוך על
+             הניווט. מה שאין בו תוכן אומר זאת בתוכו. */
+          ["log", "ישיבות", <TI.list key="f" />],
+          ["plan", "אירועים", <TI.cal key="g" />],
+          ["money", "תקציב", <TI.list key="h" />],
+          ["poll", "סקרים", <TI.users key="i" />],
           ["lect", "מרצים", <TI.users key="d" />],
           ["sum", "סיכום", <TI.list key="e" />],
+          ["files", "קישורים וציוד", <TI.link key="j" />],
+          ["fb", "משוב", <TI.bell key="k" />],
           ["notes", "הצפות", <TI.bell key="c" />]]
           .map(([k, label, ic]) => (
             <button key={k} className={"tm-tab" + (view === k ? " on" : "")}
@@ -715,6 +722,22 @@ function TeamHub({ id, say, onBack, go }) {
       {view === "notes" && (
         <TeamNotes team={d.team} me={d.me} say={say} go={go} />
       )}
+
+      {/* ⚠ כל אלה מוצגים רק כשהלוחות הוקמו. עיקרון 6: כשל הקמה
+          נראה אחרת מ"אין תוכן". */}
+      {!d.extrasReady && ["log", "plan", "money", "poll", "files", "fb"].includes(view) && (
+        <div className="empty">
+          <div className="e1">הלוחות של החלק הזה טרם הוקמו</div>
+          <div className="e2">מריצים <code>npm run seed:teams2</code> פעם אחת.</div>
+        </div>
+      )}
+
+      {d.extrasReady && view === "log" && <Minutes d={d} say={say} reload={load} />}
+      {d.extrasReady && view === "plan" && <Events d={d} say={say} reload={load} />}
+      {d.extrasReady && view === "money" && <TeamMoney d={d} say={say} reload={load} />}
+      {d.extrasReady && view === "poll" && <Polls d={d} say={say} reload={load} />}
+      {d.extrasReady && view === "files" && <LinksGear d={d} say={say} reload={load} />}
+      {d.extrasReady && view === "fb" && <Feedback d={d} say={say} reload={load} />}
 
       {/* ⚠ `load` ולא `reload` — הטוען כאן נקרא `load`.
           `reload` שאינו קיים עובר את `vite build` בשלום ונופל
@@ -1145,4 +1168,603 @@ function emptyHint(cat, canManage) {
   return canManage
     ? "השיבוצים מוגדרים במסך שיבוצי חניכים."
     : "שיבוץ נעשה על ידי הצוות.";
+}
+
+/* ============================================================
+   רשומות הצוות — רכיב אחד לחמישה סוגים
+   ------------------------------------------------------------
+   ⚠ **טופס אחד ולא חמישה.** פרוטוקול, אירוע, קישור, ציוד והוצאה
+     נבדלים בשדות שהם ממלאים ולא במבנה — וחמישה טפסים היו
+     מתפצלים זה מזה בתיקון הראשון. `fields` אומר מה מוצג.
+
+   ⚠ **וכל אחד מוצג רק כשהוא רלוונטי לסוג**: שדה סכום על
+     פרוטוקול הוא רעש שמלמד לדלג על הטופס.
+   ============================================================ */
+const dmy2 = (iso) => {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}.${m}.${y.slice(2)}`;
+};
+const ils = (n) => (Math.round((n || 0) * 100) / 100).toLocaleString("he-IL");
+
+function EntryForm({ team, kind, fields, labels, say, onDone, onCancel }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [f, setF] = useState({
+    title: "", date: fields.includes("date") ? today : "",
+    body: "", extra: "", qty: "", amount: "",
+  });
+  const [busy, setBusy] = useState(false);
+
+  const save = () => {
+    if (!f.title.trim() || busy) return;
+    setBusy(true);
+    api.addTeamEntry({ team, kind, ...f, title: f.title.trim() })
+      .then(() => { say("נשמר"); onDone(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <div className="card lift" style={{ marginTop: 10 }}>
+      <div className="fld">
+        <label>{labels.title}</label>
+        <input value={f.title} autoFocus disabled={busy}
+          placeholder={labels.hint || ""}
+          onChange={(e) => setF({ ...f, title: e.target.value })} />
+      </div>
+      {fields.includes("date") && (
+        <div className="fld">
+          <label>{labels.date || "תאריך"}</label>
+          <input type="date" dir="ltr" value={f.date} disabled={busy}
+            onChange={(e) => setF({ ...f, date: e.target.value })} />
+        </div>
+      )}
+      {fields.includes("extra") && (
+        <div className="fld">
+          <label>{labels.extra}</label>
+          <input value={f.extra} disabled={busy} dir={labels.ltr ? "ltr" : "rtl"}
+            onChange={(e) => setF({ ...f, extra: e.target.value })} />
+        </div>
+      )}
+      {fields.includes("qty") && (
+        <div className="fld">
+          <label>כמות</label>
+          <input inputMode="numeric" value={f.qty} disabled={busy}
+            onChange={(e) => setF({ ...f, qty: e.target.value })} />
+        </div>
+      )}
+      {fields.includes("amount") && (
+        <div className="fld">
+          <label>סכום ₪</label>
+          {/* ⚠ decimal ולא numeric — זה כסף. */}
+          <input inputMode="decimal" value={f.amount} disabled={busy}
+            placeholder="ריק = טרם ידוע"
+            onChange={(e) => setF({ ...f, amount: e.target.value })} />
+        </div>
+      )}
+      {fields.includes("body") && (
+        <div className="fld">
+          <label>{labels.body}</label>
+          <textarea rows={labels.rows || 4} value={f.body} disabled={busy}
+            placeholder={labels.bodyHint || ""}
+            onChange={(e) => setF({ ...f, body: e.target.value })} />
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 6 }}>
+        <button className="btn btn-primary" style={{ flex: 1 }}
+          disabled={busy || !f.title.trim()} onClick={save}>שמירה</button>
+        <button className="btn btn-ghost" style={{ flex: 1 }}
+          disabled={busy} onClick={onCancel}>ביטול</button>
+      </div>
+    </div>
+  );
+}
+
+function useEntryActions(say, reload) {
+  const [busy, setBusy] = useState(null);
+  const del = (row) => {
+    setBusy(row.id);
+    api.deleteTeamEntry(row.id)
+      .then(() => { say("נמחק"); reload(); })
+      .catch((e) => say(e.message)).finally(() => setBusy(null));
+  };
+  return { busy, del };
+}
+
+/* ============================================================
+   פרוטוקולי ישיבה
+   ------------------------------------------------------------
+   ⚠ **ההחלטות הופכות למשימות בלחיצה.** פרוטוקול שנשאר טקסט
+     נקרא פעם אחת ואז נשכח; מה שהופך אותו לכלי הוא שהשורות
+     שבו ממשיכות לחיות ברשימת המשימות.
+
+   ⚠ **שורה לכל החלטה, ולא פסקה.** הפיצול הוא לפי שורות הטקסט,
+     ומי שכתב פסקה מקבל משימה אחת — וזה נכון: הוא לא הפריד.
+   ============================================================ */
+function Minutes({ d, say, reload }) {
+  const [adding, setAdding] = useState(false);
+  const [open, setOpen] = useState(null);
+  const [made, setMade] = useState({});
+  const { busy, del } = useEntryActions(say, reload);
+  const rows = d.extras.minutes;
+
+  const toTasks = (m) => {
+    const lines = String(m.body || "").split("\n").map((x) => x.trim()).filter(Boolean);
+    if (!lines.length) { say("אין שורות בפרוטוקול"); return; }
+    setMade((x) => ({ ...x, [m.id]: "…" }));
+    Promise.all(lines.slice(0, 20).map((t) =>
+      api.addTeamTask({ teamId: d.team.id, title: t.slice(0, 200) })))
+      .then(() => { setMade((x) => ({ ...x, [m.id]: lines.length })); say(`נוצרו ${lines.length} משימות`); reload(); })
+      .catch((e) => { setMade((x) => ({ ...x, [m.id]: null })); say(e.message); });
+  };
+
+  return (
+    <>
+      {rows.length === 0 && !adding && (
+        <div className="empty">
+          <div className="e1">אין עדיין פרוטוקולים</div>
+          <div className="e2">
+            מי היה, מה הוחלט, מה נשאר. שורה לכל החלטה — ואז אפשר להפוך את
+            כולן למשימות בלחיצה.
+          </div>
+        </div>
+      )}
+      <div className="rows">
+        {rows.map((m) => (
+          <div className="tm-entry" key={m.id}>
+            <button className="tm-entry-h" onClick={() => setOpen(open === m.id ? null : m.id)}>
+              <div>
+                <div className="tm-entry-t">{m.title}</div>
+                <div className="tm-entry-m">
+                  {m.date && <span>{dmy2(m.date)}</span>}
+                  {m.by && <span>· {m.by}</span>}
+                </div>
+              </div>
+              <TI.chev style={{ transform: open === m.id ? "rotate(-90deg)" : "none" }} />
+            </button>
+            {open === m.id && (
+              <div className="tm-entry-b">
+                {m.body && <div className="tm-pre">{m.body}</div>}
+                <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                  {d.me.write && (
+                    <button className="btn btn-ghost btn-sm" style={{ flex: 1 }}
+                      disabled={made[m.id] === "…"} onClick={() => toTasks(m)}>
+                      {made[m.id] && made[m.id] !== "…"
+                        ? `נוצרו ${made[m.id]} משימות` : "להפוך את השורות למשימות"}
+                    </button>
+                  )}
+                  {d.me.write && (
+                    <button className="btn btn-ghost btn-sm ev-del" disabled={busy === m.id}
+                      onClick={() => del(m)}>מחיקה</button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      {d.me.write && (adding ? (
+        <EntryForm team={d.team.id} kind="פרוטוקול" fields={["date", "body"]}
+          labels={{ title: "נושא הישיבה", date: "מתי", body: "מה הוחלט — שורה לכל החלטה",
+            bodyHint: "לקבוע תאריך לאירוע\nלבדוק מחירים של הגברה\nלדבר עם אב הבית", rows: 6 }}
+          say={say} onDone={() => { setAdding(false); reload(); }}
+          onCancel={() => setAdding(false)} />
+      ) : (
+        <button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }}
+          onClick={() => setAdding(true)}><TI.plus />פרוטוקול חדש</button>
+      ))}
+    </>
+  );
+}
+
+/* ============================================================
+   אירועים וספירה לאחור
+   ------------------------------------------------------------
+   ⚠ **הספירה היא לאירוע הקרוב שטרם עבר.** אירוע שעבר אינו
+     "בעוד מינוס שלושה ימים", והוא פשוט אינו הספירה.
+
+   ⚠ **ומה שנספר לצידה הוא המשימות הפתוחות** — מי שמסתכל על
+     ספירה שואל "מה נשאר", לא "כמה עשינו".
+   ============================================================ */
+function Events({ d, say, reload }) {
+  const [adding, setAdding] = useState(false);
+  const { busy, del } = useEntryActions(say, reload);
+  const rows = d.extras.events;
+  const s = d.extras.sum;
+  const today = new Date().toISOString().slice(0, 10);
+
+  return (
+    <>
+      {s.nextEvent && (
+        <div className="band">
+          <div className="band-grid">
+            <div className="band-c">
+              <div className={"band-n" + (s.daysToEvent <= 3 ? " warn" : "")}>
+                {s.daysToEvent === 0 ? "היום" : s.daysToEvent}
+              </div>
+              <div className="band-l">{s.daysToEvent === 0 ? s.nextEvent.title : "ימים לאירוע"}</div>
+            </div>
+            <div className="band-c">
+              <div className={"band-n" + (d.counts.open ? " warn" : " ok")}>{d.counts.open}</div>
+              <div className="band-l">משימות פתוחות</div>
+            </div>
+            <div className="band-c">
+              <div className="band-n">{d.counts.late}</div>
+              <div className="band-l">עבר היעד</div>
+            </div>
+          </div>
+        </div>
+      )}
+      {s.nextEvent && s.daysToEvent !== 0 && (
+        <div className="tm-next">
+          הקרוב: <b>{s.nextEvent.title}</b> · {dmy2(s.nextEvent.date)}
+          {s.nextEvent.extra ? ` · ${s.nextEvent.extra}` : ""}
+        </div>
+      )}
+
+      {rows.length === 0 && !adding && (
+        <div className="empty">
+          <div className="e1">אין אירועים בלוח</div>
+          <div className="e2">אירוע עם תאריך נותן לצוות ספירה לאחור ומקום לתלות בו משימות.</div>
+        </div>
+      )}
+      <div className="rows">
+        {rows.map((e) => (
+          <div className="tm-entry-row" key={e.id}>
+            <div className={"tm-date num" + (e.date && e.date < today ? " past" : "")}>
+              {dmy2(e.date)}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="tm-entry-t">{e.title}</div>
+              <div className="tm-entry-m">
+                {e.extra && <span>{e.extra}</span>}
+                {e.date && e.date < today && <span>· עבר</span>}
+              </div>
+              {e.body && <div className="tm-note">{e.body}</div>}
+            </div>
+            {d.me.write && (
+              <button className="btn btn-ghost btn-sm ev-del" disabled={busy === e.id}
+                onClick={() => del(e)}>מחיקה</button>
+            )}
+          </div>
+        ))}
+      </div>
+      {d.me.write && (adding ? (
+        <EntryForm team={d.team.id} kind="אירוע" fields={["date", "extra", "body"]}
+          labels={{ title: "שם האירוע", date: "מתי", extra: "איפה", body: "פרטים", rows: 3 }}
+          say={say} onDone={() => { setAdding(false); reload(); }}
+          onCancel={() => setAdding(false)} />
+      ) : (
+        <button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }}
+          onClick={() => setAdding(true)}><TI.plus />אירוע חדש</button>
+      ))}
+    </>
+  );
+}
+
+/* ============================================================
+   תקציב הוועדה
+   ⚠ אותם כללים של תקציב הפרויקט: הכנסה והוצאה הן שני מספרים,
+     ריק אינו אפס, ומה שאין לו סכום מדווח ואינו מושמט (4ט).
+   ============================================================ */
+function TeamMoney({ d, say, reload }) {
+  const [adding, setAdding] = useState(null);
+  const { busy, del } = useEntryActions(say, reload);
+  const s = d.extras.sum;
+
+  return (
+    <>
+      <div className="band">
+        <div className="band-grid">
+          <div className="band-c">
+            <div className="band-n">{ils(s.spent)} ₪</div>
+            <div className="band-l">הוצאות</div>
+          </div>
+          <div className="band-c">
+            <div className="band-n">{ils(s.income)} ₪</div>
+            <div className="band-l">הכנסות</div>
+          </div>
+          <div className="band-c">
+            <div className={"band-n" + (s.spent - s.income > 0 ? "" : " ok")}>
+              {ils(s.income - s.spent)} ₪
+            </div>
+            <div className="band-l">מאזן</div>
+          </div>
+        </div>
+      </div>
+
+      {s.noAmount > 0 && (
+        <div className="note-warn">
+          <TI.warn />ל-{s.noAmount} רשומות לא הוזן סכום, ולכן הן אינן בחשבון.
+        </div>
+      )}
+
+      {d.extras.money.length === 0 && !adding && (
+        <div className="empty"><div className="e1">אין תנועות תקציב</div></div>
+      )}
+      <div className="rows">
+        {d.extras.money.map((m) => (
+          <div className="tm-entry-row" key={m.id}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="tm-entry-t">{m.title}</div>
+              <div className="tm-entry-m">
+                <span>{m.kind}</span>
+                {m.date && <span>· {dmy2(m.date)}</span>}
+                {m.extra && <span>· {m.extra}</span>}
+              </div>
+            </div>
+            <b className={"num " + (m.kind === "הכנסה" ? "tm-in" : "tm-out")}>
+              {m.amount == null ? "—" : (m.kind === "הכנסה" ? "+" : "−") + ils(m.amount) + " ₪"}
+            </b>
+            {d.me.write && (
+              <button className="btn btn-ghost btn-sm ev-del" disabled={busy === m.id}
+                onClick={() => del(m)}>מחיקה</button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {d.me.write && (adding ? (
+        <EntryForm team={d.team.id} kind={adding} fields={["date", "amount", "extra"]}
+          labels={{ title: "על מה", date: "תאריך", extra: "הערה" }}
+          say={say} onDone={() => { setAdding(null); reload(); }}
+          onCancel={() => setAdding(null)} />
+      ) : (
+        <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+          <button className="btn btn-ghost btn-sm" style={{ flex: 1 }}
+            onClick={() => setAdding("הוצאה")}><TI.plus />הוצאה</button>
+          <button className="btn btn-ghost btn-sm" style={{ flex: 1 }}
+            onClick={() => setAdding("הכנסה")}><TI.plus />הכנסה</button>
+        </div>
+      ))}
+    </>
+  );
+}
+
+/* ============================================================
+   קישורים וציוד — שני סוגים באותה לשונית
+   ⚠ **קישורים ולא קבצים.** דרייב, טופס, מצגת — זה עוקף את כל
+     שאלת האחסון ופותר את רוב הצורך.
+   ============================================================ */
+function LinksGear({ d, say, reload }) {
+  const [adding, setAdding] = useState(null);
+  const { busy, del } = useEntryActions(say, reload);
+
+  const Section = ({ title, rows, kind, empty }) => (
+    <>
+      <div className="grp-h"><span>{title}</span></div>
+      {rows.length === 0 ? <div className="tm-note" style={{ padding: "0 0 8px" }}>{empty}</div> : (
+        <div className="rows">
+          {rows.map((r) => (
+            <div className="tm-entry-row" key={r.id}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {kind === "קישור" && r.extra
+                  ? <a className="tm-entry-t tm-link" href={r.extra} target="_blank" rel="noreferrer">{r.title}</a>
+                  : <div className="tm-entry-t">{r.title}</div>}
+                <div className="tm-entry-m">
+                  {kind === "ציוד" && r.qty != null && <span>{r.qty} יחידות</span>}
+                  {kind === "ציוד" && r.extra && <span>· {r.extra}</span>}
+                </div>
+                {r.body && <div className="tm-note">{r.body}</div>}
+              </div>
+              {d.me.write && (
+                <button className="btn btn-ghost btn-sm ev-del" disabled={busy === r.id}
+                  onClick={() => del(r)}>מחיקה</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {d.me.write && adding !== kind && (
+        <button className="btn btn-ghost btn-sm" style={{ marginTop: 8, marginBottom: 12 }}
+          onClick={() => setAdding(kind)}><TI.plus />הוספה</button>
+      )}
+      {adding === kind && (
+        <EntryForm team={d.team.id} kind={kind}
+          fields={kind === "קישור" ? ["extra", "body"] : ["qty", "extra", "body"]}
+          labels={kind === "קישור"
+            ? { title: "שם", extra: "כתובת", ltr: true, body: "למה זה", rows: 2 }
+            : { title: "פריט", extra: "איפה נמצא", body: "הערות", rows: 2 }}
+          say={say} onDone={() => { setAdding(null); reload(); }}
+          onCancel={() => setAdding(null)} />
+      )}
+    </>
+  );
+
+  return (
+    <>
+      <Section title="קישורים ומסמכים" rows={d.extras.links} kind="קישור"
+        empty="דרייב, טופס, מצגת — כל מה שהצוות צריך למצוא שוב." />
+      <Section title="ציוד באחריות הצוות" rows={d.extras.gear} kind="ציוד"
+        empty="מה שהצוות אחראי עליו, וכמה יש." />
+      <Section title="חפיפה למחזור הבא" rows={d.extras.handover} kind="חפיפה"
+        empty="מה שכדאי שמי שיבוא אחרינו יידע. בלי זה כל ועדה מתחילה מאפס." />
+    </>
+  );
+}
+
+/* ============================================================
+   סקרים
+   ⚠ **אינם חשאיים, ונאמר במסך.** "איזה תאריך מתאים" היא שאלת
+     תיאום, ולדעת את מי צריך להזכיר זו כל התועלת.
+   ============================================================ */
+function Polls({ d, say, reload }) {
+  const [adding, setAdding] = useState(false);
+  const [q, setQ] = useState("");
+  const [opts, setOpts] = useState("");
+  const [busy, setBusy] = useState(null);
+
+  const create = () => {
+    const options = opts.split("\n").map((x) => x.trim()).filter(Boolean);
+    if (!q.trim() || options.length < 2) { say("צריך שאלה ולפחות שתי אפשרויות"); return; }
+    setBusy("new");
+    api.addTeamPoll({ team: d.team.id, question: q.trim(), options })
+      .then(() => { say("הסקר נפתח"); setQ(""); setOpts(""); setAdding(false); reload(); })
+      .catch((e) => say(e.message)).finally(() => setBusy(null));
+  };
+
+  const vote = (poll, choice) => {
+    setBusy(poll.id);
+    api.voteTeamPoll({ poll: poll.id, choice })
+      .then(() => reload()).catch((e) => say(e.message)).finally(() => setBusy(null));
+  };
+
+  return (
+    <>
+      <div className="tm-note" style={{ marginBottom: 10 }}>
+        הסקר גלוי לחברי הצוות — רואים מי בחר במה ומי טרם הצביע. משוב
+        אנונימי נמצא בלשונית "משוב".
+      </div>
+
+      {d.polls.length === 0 && !adding && (
+        <div className="empty"><div className="e1">אין סקרים</div>
+          <div className="e2">"איזה תאריך מתאים", "איזו הצעה" — בלי לצאת לוואטסאפ.</div></div>
+      )}
+
+      {d.polls.map((p) => (
+        <div className="card tm-poll" key={p.id}>
+          <div className="tm-entry-t">{p.question}</div>
+          <div className="tm-entry-m">
+            {p.by && <span>{p.by}</span>}
+            <span>· {p.total} הצביעו</span>
+            {p.closed && <span className="pill p-idle">סגור</span>}
+          </div>
+          <div className="tm-opts">
+            {p.results.map((r) => {
+              const pct = p.total ? Math.round((r.n / p.total) * 100) : 0;
+              return (
+                <button key={r.option} disabled={p.closed || busy === p.id}
+                  className={"tm-opt" + (p.mine === r.option ? " on" : "")}
+                  onClick={() => vote(p, r.option)}>
+                  <span className="tm-opt-bar" style={{ width: pct + "%" }} />
+                  <span className="tm-opt-t">{r.option}</span>
+                  <b className="num">{r.n}</b>
+                </button>
+              );
+            })}
+          </div>
+          {/* ⚠ מי טרם הצביע — זו כל התועלת של סקר תיאום. */}
+          {p.missing.length > 0 && !p.closed && (
+            <div className="tm-note">טרם הצביעו: {p.missing.join(", ")}</div>
+          )}
+          {d.me.manage && (
+            <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+              <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} disabled={busy === p.id}
+                onClick={() => { setBusy(p.id); api.closeTeamPoll({ id: p.id, closed: !p.closed })
+                  .then(reload).catch((e) => say(e.message)).finally(() => setBusy(null)); }}>
+                {p.closed ? "לפתוח מחדש" : "לסגור"}
+              </button>
+              <button className="btn btn-ghost btn-sm ev-del" disabled={busy === p.id}
+                onClick={() => { setBusy(p.id); api.deleteTeamPoll(p.id)
+                  .then(() => { say("נמחק"); reload(); }).catch((e) => say(e.message))
+                  .finally(() => setBusy(null)); }}>מחיקה</button>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {d.me.write && (adding ? (
+        <div className="card lift" style={{ marginTop: 10 }}>
+          <div className="fld">
+            <label>השאלה</label>
+            <input value={q} autoFocus disabled={busy === "new"}
+              placeholder="למשל: איזה תאריך מתאים לערב?"
+              onChange={(e) => setQ(e.target.value)} />
+          </div>
+          <div className="fld">
+            <label>אפשרויות — שורה לכל אחת</label>
+            <textarea rows={4} value={opts} disabled={busy === "new"}
+              placeholder={"ראשון 12.10\nשלישי 14.10\nחמישי 16.10"}
+              onChange={(e) => setOpts(e.target.value)} />
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button className="btn btn-primary" style={{ flex: 1 }}
+              disabled={busy === "new"} onClick={create}>פתיחת הסקר</button>
+            <button className="btn btn-ghost" style={{ flex: 1 }}
+              disabled={busy === "new"} onClick={() => setAdding(false)}>ביטול</button>
+          </div>
+        </div>
+      ) : (
+        <button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }}
+          onClick={() => setAdding(true)}><TI.plus />סקר חדש</button>
+      ))}
+    </>
+  );
+}
+
+/* ============================================================
+   משוב אנונימי
+   ------------------------------------------------------------
+   ⚠⚠ **אנונימי באמת.** הלוח שבו זה נשמר אינו מחזיק עמודת כותב,
+     והתשובה מהשרת אינה מחזירה מזהה שורה. זו אינה הסתרה בתצוגה
+     אלא היעדר של הנתון.
+
+   ⚠ **וזה נאמר במסך.** מי שאינו יודע שזה אנונימי — יכתוב כאילו
+     לא, וזה בדיוק מה שהופך את הערוץ לחסר תועלת.
+
+   ⚠ **המחיר מוצהר**: אי אפשר למחוק "את מה שאני כתבתי", ואי
+     אפשר למנוע כפילות. שניהם המחיר של אנונימיות.
+   ============================================================ */
+function Feedback({ d, say, reload }) {
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(null);
+  const [sent, setSent] = useState(false);
+
+  const send = () => {
+    if (!text.trim()) return;
+    setBusy("new");
+    api.sendTeamFeedback({ team: d.team.id, text: text.trim() })
+      .then(() => { setText(""); setSent(true); say("נשלח"); reload(); })
+      .catch((e) => say(e.message)).finally(() => setBusy(null));
+  };
+
+  return (
+    <>
+      <div className="tm-anon">
+        <TI.warn />
+        <div>
+          <b>המשוב כאן אנונימי.</b> אין בלוח שדה שמזהה מי כתב — לא לצוות,
+          לא ליו״ר ולא לראש המכינה. גם אנחנו לא יכולים לדעת.
+        </div>
+      </div>
+
+      <div className="card lift" style={{ marginBottom: 12 }}>
+        <div className="fld">
+          <label>מה יש לך לומר לצוות</label>
+          <textarea rows={3} value={text} disabled={busy === "new"}
+            placeholder="מה עבד, מה פחות, מה כדאי בפעם הבאה"
+            onChange={(e) => setText(e.target.value)} />
+        </div>
+        <button className="btn btn-primary" disabled={busy === "new" || !text.trim()}
+          onClick={send}>שליחה</button>
+        {sent && <div className="tm-note" style={{ marginTop: 8 }}>נשלח. אין דרך לקשר את זה אליך.</div>}
+      </div>
+
+      {d.feedback.length === 0 ? (
+        <div className="empty"><div className="e1">אין עדיין משוב</div></div>
+      ) : (
+        <>
+          <div className="grp-h"><span>מה נכתב · {d.feedback.length}</span></div>
+          <div className="rows">
+            {d.feedback.map((f) => (
+              <div className="tm-entry-row" key={f.id}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="tm-pre">{f.text}</div>
+                  {f.date && <div className="tm-entry-m"><span>{dmy2(f.date)}</span></div>}
+                </div>
+                {/* ⚠ המחיקה היא של הוועדה, לא של מי שכתב — אי אפשר
+                    לדעת מי כתב, וזה העניין. */}
+                {d.me.manage && (
+                  <button className="btn btn-ghost btn-sm ev-del" disabled={busy === f.id}
+                    onClick={() => { setBusy(f.id); api.deleteTeamFeedback(f.id)
+                      .then(() => { say("נמחק"); reload(); }).catch((e) => say(e.message))
+                      .finally(() => setBusy(null)); }}>מחיקה</button>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </>
+  );
 }

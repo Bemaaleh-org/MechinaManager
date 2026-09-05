@@ -25,6 +25,10 @@ import {
 import { loadDefinitions } from "./_placements.js";
 import { loadEvals } from "./_lessons-data.js";
 import { mayTeam, mayEditTask, progressOf, isLate, isTeamCategory } from "../shared/team.js";
+import {
+  loadTeamEntries, loadTeamFeedback, loadTeamPolls,
+} from "./_team-extras.js";
+import { teamExtrasReady } from "../shared/team-ids.js";
 
 /* ⚠ מיפוי מפורש ולא השמטה: עמודה חדשה בלוח לא תדלוף מעצמה */
 const toTask = (t, closing, today) => ({
@@ -98,6 +102,10 @@ async function handler(req, res, session) {
          בפרופיל של כל מי שמשובץ אליה. מה שסודי הוא התוכן. */
       return res.status(403).json({ error: "הצוות הזה אינו שלך" });
     }
+
+    const [entriesAll, feedbackAll, pollsAll] = teamExtrasReady()
+      ? await Promise.all([loadTeamEntries(), loadTeamFeedback(), loadTeamPolls()])
+      : [[], [], { polls: [], votes: [] }];
 
     const [vocab, all, evals] = await Promise.all([
       loadVocab(), loadTeamTasks(), loadEvals().catch(() => []),
@@ -174,6 +182,34 @@ async function handler(req, res, session) {
         unassigned: unassigned.length,
       },
       byOwner,
+
+      /* ============================================================
+         הרשומות של הצוות — פרוטוקול, אירועים, קישורים, ציוד, כסף
+         ------------------------------------------------------------
+         ⚠ **מפוצלות לפי סוג כאן ולא במסך.** לוח אחד מחזיק את
+           כולן ונבדל ב-`kind`; מסך שיפצל בעצמו היה מפצל אחרת
+           בכל לשונית.
+
+         ⚠ **הכסף נגזר ואינו נשמר** — אותו כלל כמו בפרויקטים:
+           שני מספרים ששמורים בנפרד נפרדים ביום הראשון (4יז).
+
+         ⚠ **ריק אינו אפס:** רשומה בלי סכום נספרת ומדווחת
+           (`noAmount`) ואינה מושמטת בשקט (4ט).
+         ============================================================ */
+      extras: extrasFor(entriesAll, ctx.def.id, today),
+
+      /* ⚠ הסקרים עם הספירה, ועם מי כבר הצביע — הסקר אינו חשאי
+         ולדעת מי חסר זו כל התועלת. משוב אנונימי הוא מסלול אחר. */
+      polls: pollsFor(pollsAll, ctx.def.id, String(session.itemId || ""), ctx.members),
+
+      /* ⚠⚠ **המשוב האנונימי — טקסט ותאריך, וזה הכול.** אין בלוח
+         עמודת כותב, ולכן אין מה להחזיר. ראו api/_team-extras.js. */
+      feedback: feedbackAll
+        .filter((f) => f.team === ctx.def.id)
+        .map((f) => ({ id: f.id, text: f.text, date: f.date }))
+        .sort((a, b) => (b.date || "").localeCompare(a.date || "")),
+
+      extrasReady: teamExtrasReady(),
       /* ============================================================
          ⚠ **המרצים של הסדרה — אותו לוח חוות דעת, עם שיוך.**
 
@@ -208,3 +244,84 @@ async function handler(req, res, session) {
 }
 
 export default withAuth(handler, { student: true });
+
+/* ============================================================
+   הרשומות, מפוצלות ונגזרות
+   ------------------------------------------------------------
+   ⚠ **הספירה לאחור נגזרת מהאירוע הקרוב שטרם עבר.** אירוע שעבר
+     אינו "בעוד מינוס שלושה ימים" — הוא פשוט אינו הספירה.
+
+   ⚠ **ומה שנספר הוא המשימות הפתוחות**, לא כל המשימות: מי
+     שמסתכל על ספירה לאחור שואל "מה נשאר", לא "כמה עשינו".
+   ============================================================ */
+function extrasFor(all, teamId, today) {
+  const mine = all.filter((e) => e.team === teamId);
+  const of = (k) => mine.filter((e) => e.kind === k);
+
+  const events = of("אירוע")
+    .sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
+  const next = events.find((e) => e.date && e.date >= today) || null;
+
+  const spent = of("הוצאה").reduce((a, x) => a + (Number(x.amount) || 0), 0);
+  const income = of("הכנסה").reduce((a, x) => a + (Number(x.amount) || 0), 0);
+  const noAmount = [...of("הוצאה"), ...of("הכנסה")].filter((x) => x.amount == null).length;
+
+  return {
+    minutes: of("פרוטוקול").sort((a, b) => (b.date || "").localeCompare(a.date || "")),
+    events,
+    links: of("קישור"),
+    gear: of("ציוד"),
+    handover: of("חפיפה"),
+    money: [...of("הוצאה"), ...of("הכנסה")]
+      .sort((a, b) => (b.date || "").localeCompare(a.date || "")),
+    sum: {
+      spent: Math.round(spent * 100) / 100,
+      income: Math.round(income * 100) / 100,
+      noAmount,
+      /* ⚠ null ולא 0 כשאין אירוע קרוב — "בעוד 0 ימים" נקרא
+         כ"היום", וזה שקר (4ג). */
+      nextEvent: next ? { title: next.title, date: next.date, extra: next.extra } : null,
+      daysToEvent: next ? daysBetween(today, next.date) : null,
+    },
+  };
+}
+
+function daysBetween(a, b) {
+  const t = (x) => new Date(x + "T12:00:00Z").getTime();
+  return Math.round((t(b) - t(a)) / 86400000);
+}
+
+/* ============================================================
+   הסקרים
+   ------------------------------------------------------------
+   ⚠ **הספירה נגזרת מההצבעות ואינה נשמרת על הסקר.** מונה שמור
+     מתיישן ברגע שמישהו מוחק הצבעה בלוח.
+
+   ⚠ **ומי טרם הצביע מוחזר בשמו** — זו שאלת תיאום, ולדעת את מי
+     צריך להזכיר זו כל התועלת. הסקר אינו חשאי, וזה נאמר במסך.
+   ============================================================ */
+function pollsFor(data, teamId, me, members) {
+  return data.polls
+    .filter((p) => p.team === teamId)
+    .map((p) => {
+      const votes = data.votes.filter((v) => v.poll === p.id);
+      const byChoice = p.options.map((o) => ({
+        option: o,
+        n: votes.filter((v) => v.choice === o).length,
+        who: votes.filter((v) => v.choice === o)
+          .map((v) => (members.find((m) => String(m.id) === String(v.voter)) || {}).name)
+          .filter(Boolean),
+      }));
+      const votedIds = new Set(votes.map((v) => String(v.voter)));
+      return {
+        id: p.id, question: p.question, options: p.options,
+        closes: p.closes, closed: p.closed, by: p.by,
+        results: byChoice,
+        total: votes.length,
+        mine: (votes.find((v) => String(v.voter) === me) || {}).choice || null,
+        missing: members.filter((m) => !votedIds.has(String(m.id))).map((m) => m.name),
+      };
+    })
+    .sort((a, b) => Number(a.closed) - Number(b.closed)
+      || (a.closes || "9999").localeCompare(b.closes || "9999"));
+}
