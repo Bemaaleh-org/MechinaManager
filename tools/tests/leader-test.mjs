@@ -180,6 +180,66 @@ try {
     ok("וגם הכתיבה שם נחסמת", wr.s === 403, wr.s + " " + (wr.b.error || ""));
   }
 
+  /* ============================================================
+     דיווח על מפגשים — אותו כלל בדיוק
+     ------------------------------------------------------------
+     ⚠⚠ `{scheduler:true}` פותח את `?action=mark` לשלושה: צוות,
+       אחראי לו״ז, ומוביל שבוע. לשניים הראשונים זה נכון; למוביל
+       שבוע זה נתן לסמן **כל מפגש בשנה**, כולל בשבועות של אחרים
+       ובחודשים שלא היה בהם. הכלל זהה לזה של הנוכחות — התאריך
+       מול הטווח, ולכן ההרשאה עוברת מעצמה כשהשבוע נגמר.
+     ============================================================ */
+  console.log("\n=== דיווח על מפגשים ===");
+  {
+    const board = await call(S, "GET", "/api/lessons?action=board");
+    ok("מוביל שבוע פותח את לוח השיעורים", board.s === 200, String(board.s));
+    /* ⚠ מה שמותר נשלח מהשרת ואינו נגזר במסך (4יד). */
+    ok("והשרת אומר על אילו טווחים מותר",
+      board.b.markAll === false && Array.isArray(board.b.markWeeks),
+      JSON.stringify({ all: board.b.markAll, weeks: board.b.markWeeks }));
+    ok("והטווח הוא השבוע שהוא מוביל",
+      (board.b.markWeeks || []).some((w) => w.start === cv(week, W.start)),
+      JSON.stringify(board.b.markWeeks));
+
+    const all = [...(board.b.upcoming || []), ...(board.b.unreported || [])];
+    const wStart = cv(week, W.start), wEnd = cv(week, W.end);
+    const inside2 = all.find((m) => m.date >= wStart && m.date <= wEnd);
+    const outside2 = all.find((m) => m.date < wStart || m.date > wEnd);
+
+    if (inside2) {
+      const was = inside2.happened ?? null;
+      const r2 = await call(S, "POST", "/api/lessons?action=mark",
+        { meetingId: inside2.id, happened: "כן" });
+      ok("מסמן מפגש בשבוע שלו", r2.s === 200, `${r2.s} ${r2.b.error || ""}`);
+      /* ⚠ מחזירים למה שהיה — הבדיקה כותבת על שורה אמיתית (5א). */
+      await call(S, "POST", "/api/lessons?action=mark",
+        { meetingId: inside2.id, happened: was });
+    } else console.log("  (אין מפגש בשבוע הזה — הטענה דולגה)");
+
+    if (outside2) {
+      const r3 = await call(S, "POST", "/api/lessons?action=mark",
+        { meetingId: outside2.id, happened: "כן" });
+      ok("ואינו מסמן מפגש מחוץ לשבוע שלו", r3.s === 403, `${r3.s} ${r3.b.error || ""}`);
+      ok("וההודעה מונה את השבועות שלו",
+        /אינו באחד השבועות/.test(r3.b.error || ""), r3.b.error);
+    } else console.log("  (אין מפגש מחוץ לשבוע — הטענה דולגה)");
+
+    /* ============================================================
+       ⚠⚠ **הטענה ששומרת על הרחבת השער.**
+
+       כדי שמוביל שבוע יוכל לפתוח את לוח השיעורים, השער שלו
+       הוחלף מ-`{scheduler:true}` לאיחוד מפורש בקוד. `scheduler`
+       שומר גם על **דוח התשלום למרצים**, ואילו הרחבנו אותו
+       עצמו — כל מוביל שבוע היה רואה כמה משלמים לכל מרצה.
+
+       זה בדיוק סוג הדליפה שאיש לא מתכוון אליה ואיש לא בודק,
+       ולכן היא נבדקת כאן ובמפורש.
+       ============================================================ */
+    const pay = await call(S, "GET", "/api/lessons?action=pay");
+    ok("ומוביל שבוע אינו רואה את דוח התשלום למרצים",
+      pay.s === 403, `${pay.s} ${pay.b.error || ""}`);
+  }
+
   console.log("\n=== המנהל אינו מוגבל ===");
   const mg = await call(M, "GET", "/api/attendance?action=day&date=" + inside[0]);
   ok("מנהל פותח כל יום", mg.s === 200 && mg.b.canMark === true,

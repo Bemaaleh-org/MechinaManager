@@ -712,14 +712,76 @@ html,body{margin:0;padding:0;background:#012E58}
 .guide-h{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;
   padding:0;text-align:right;cursor:pointer;color:inherit}
 
-.kx .pl-lead.pl-committee{background:linear-gradient(145deg,#2E7D57 0%,#1B5638 100%);
+/* WARN: גוון הקטגוריה חל על שני הגדלים — הכרטיס המלא והמכווץ.
+   כשהכללים היו על ".pl-lead" בלבד, הכרטיס המכווץ נשאר לבן עם
+   טקסט לבן, כלומר בלתי קריא לחלוטין. הגוון הוא מה שמאפשר
+   לזהות ענף מוועדה בלי לקרוא, והוא חייב להיות בשניהם. */
+.kx .pl-lead.pl-committee,.kx .pl-mini.pl-committee{
+  background:linear-gradient(145deg,#2E7D57 0%,#1B5638 100%);
   box-shadow:0 10px 26px rgba(31,107,69,.22)}
-.kx .pl-lead.pl-series{background:linear-gradient(145deg,#B4442F 0%,#8A2E1F 100%);
+.kx .pl-lead.pl-series,.kx .pl-mini.pl-series{
+  background:linear-gradient(145deg,#B4442F 0%,#8A2E1F 100%);
   box-shadow:0 10px 26px rgba(158,54,38,.22)}
-.kx .pl-lead.pl-group{background:linear-gradient(145deg,#A6702A 0%,#7A4E17 100%);
+.kx .pl-lead.pl-group,.kx .pl-mini.pl-group{
+  background:linear-gradient(145deg,#A6702A 0%,#7A4E17 100%);
   box-shadow:0 10px 26px rgba(138,90,30,.22)}
 /* כשיש כמה כרטיסים ברצף — מרווח קטן יותר ביניהם */
 .pl-stack .pl-lead{margin:0 0 10px}
+
+/* ---- שיבוצים במסך הבית: רשת מכווצת ----
+   WARN: ארבעה כרטיסים מלאים תפסו את כל המסך הראשון. אותו מידע
+   ברבע מקום — שניים בשורה, ובמסכים רחבים ארבעה.
+
+   WARN: והקידומת ".kx" חובה. ".kx button" (0,1,1) גובר על
+   ".pl-mini" (0,1,0) ומאפס רקע ומסגרת — אותה מלכודת שכבר
+   מתועדת מעל, אצל .pl-lead. */
+/* ---- סימון "התקיים" מתוך לוח השיעורים ----
+   WARN: השורה הייתה כפתור אחד שפותח את הגיליון. עכשיו היא
+   עוטף עם כפתור פתיחה ושורת סימון — כפתור בתוך כפתור אינו
+   חוקי ב-HTML, והדפדפן היה מפרק אותו בשקט.
+
+   WARN: והקידומת ".kx" חובה — ".kx button" (0,1,1) מאפסת רקע
+   ומסגרת בסגוליות גבוהה יותר. */
+.kx .st-row-w{display:block;padding:0;overflow:hidden}
+.kx .st-open{display:flex;align-items:center;gap:11px;width:100%;
+  background:none;border:none;padding:11px 13px;text-align:start;
+  color:inherit;cursor:pointer;font:inherit}
+.st-mark{display:flex;gap:6px;padding:0 13px 11px}
+.kx .st-mark button{flex:1;font-size:12px;font-weight:800;padding:7px 8px;
+  border-radius:9px;border:1px solid var(--line2);background:var(--surface);
+  color:var(--muted);cursor:pointer;transition:all 120ms var(--ease)}
+.kx .st-mark button.on-ok{background:var(--ok-soft);border-color:transparent;color:var(--ok)}
+.kx .st-mark button.on-soon{background:var(--clay-soft);border-color:transparent;color:var(--clay)}
+.kx .st-mark button:disabled{opacity:.55}
+
+.pl-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+@media (min-width:620px){.pl-grid{grid-template-columns:repeat(4,1fr)}}
+.kx .pl-mini{position:relative;overflow:hidden;display:block;width:100%;
+  text-align:start;border:none;border-radius:var(--r-md);
+  padding:11px 12px 12px;color:#fff;cursor:pointer;min-width:0;
+  /* WARN: רקע ברירת מחדל חובה. ל"ענף" אין מחלקת גוון (cls ריק),
+     ובלעדיו הכרטיס נשאר שקוף עם טקסט לבן — בלתי קריא. אותו
+     נייבי של הכרטיס המלא. */
+  background:linear-gradient(145deg,#0A4478 0%,#012E58 100%);
+  box-shadow:0 10px 26px rgba(1,46,88,.22);
+  transition:transform 120ms var(--ease)}
+.kx .pl-mini:active{transform:scale(.985)}
+/* אותה נקודת אור של הכרטיס הגדול, בקנה מידה קטן */
+.kx .pl-mini::after{content:"";position:absolute;left:-30px;top:-30px;
+  width:90px;height:90px;border-radius:50%;
+  background:rgba(255,255,255,.10);pointer-events:none}
+.kx .pl-mini-k{position:relative;font-size:9.5px;font-weight:800;
+  letter-spacing:.5px;opacity:.78;margin-bottom:3px}
+.kx .pl-mini-n{position:relative;font-size:14.5px;font-weight:800;
+  line-height:1.25;letter-spacing:-.2px;
+  overflow:hidden;text-overflow:ellipsis;display:-webkit-box;
+  -webkit-line-clamp:2;-webkit-box-orient:vertical}
+.kx .pl-mini-s{position:relative;font-size:10.5px;font-weight:700;
+  opacity:.8;margin-top:5px}
+
+/* "עוד N" ליד כותרת קטע — רשימה שנחתכה אומרת זאת */
+.sec-label .sec-more{float:inline-end;font-size:10.5px;font-weight:700;
+  color:var(--muted);opacity:.9}
 
 /* ---- תקציב המטבח ---- */
 .bg-nav{display:flex;align-items:center;gap:8px;margin-bottom:14px}

@@ -2738,10 +2738,36 @@ const PL_LOOK = {
   "צוות מזדמן": { cls: "pl-committee", eyebrow: "צוות" },
 };
 
-function PlacementTile({ m, onClick }) {
+/* ============================================================
+   ⚠⚠ **שני גדלים, ולא גודל אחד.**
+
+   הכרטיס המלא הוא לוח צבעוני ברוחב המסך עם שם ב-29px. במסך
+   השיבוצים זה נכון — שם הוא **הנושא**, ויש בו מקום אחד או
+   שניים. במסך הבית היו ארבעה כאלה זה מתחת לזה, והם תפסו את כל
+   המסך הראשון לפני שהחניך הגיע למה שבאמת עליו לעשות היום.
+
+   `mini` הוא אותו מידע ברבע מקום: רשת של שניים בשורה, אותו
+   גוון קטגוריה, ושם בגודל קריא. **אותו רכיב** ולא שני רכיבים —
+   שניים היו נפרדים זה מזה בתיקון הראשון (4יט).
+
+   ⚠ **הגוון נשאר.** הוא מה שמאפשר לזהות ענף מוועדה בלי לקרוא,
+     והוא נגזר מהקטגוריה ולא מהמצב — אדום וירוק שמורים למצב.
+   ============================================================ */
+function PlacementTile({ m, onClick, mini = false }) {
   const look = PL_LOOK[m.def.category] || PL_LOOK["ענף"];
   const semester = m.def.category === "ועדה" && m.semester !== "שנתי" ? m.semester : null;
   const Tag = onClick ? "button" : "div";
+
+  if (mini) {
+    return (
+      <Tag className={("pl-mini " + look.cls).trim()} onClick={onClick || undefined}>
+        <div className="pl-mini-k">{look.eyebrow}</div>
+        <div className="pl-mini-n">{m.def.name}</div>
+        {semester && <div className="pl-mini-s">{semester}</div>}
+      </Tag>
+    );
+  }
+
   return (
     <Tag className={("pl-lead " + look.cls).trim()} onClick={onClick || undefined}>
       <div className="pl-lead-k">{look.eyebrow}</div>
@@ -2960,7 +2986,7 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
       {auth.isScheduler && (
         <>
           <div className="sec-label">לוח השיעורים</div>
-          <LessonsBoard compact onOpenSheet={() => go("lessons")} />
+          <LessonsBoard compact onOpenSheet={() => go("l-board")} onAll={() => go("l-board")} />
           <div style={{ height: 6 }} />
         </>
       )}
@@ -2968,13 +2994,14 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
       {/* ---------- השיבוצים שלי — ראש המסך ----------
           ⚠ אותם כרטיסים בדיוק כמו במסך השיבוצים. */}
       {places && places.length > 0 && (
-        <div className="pl-stack" style={{ marginBottom: 16 }}>
+        /* ⚠ רשת מכווצת ולא ערימה — ראו ההערה ב-PlacementTile. */
+        <div className="pl-grid" style={{ marginBottom: 16 }}>
           {[...places]
             .sort((a, b) =>
               byCategory(a.def.category, b.def.category)
               || a.def.name.localeCompare(b.def.name, "he"))
             .map((m) => (
-              <PlacementTile key={m.id} m={m} onClick={() => go("placements")} />
+              <PlacementTile key={m.id} m={m} mini onClick={() => go("placements")} />
             ))}
         </div>
       )}

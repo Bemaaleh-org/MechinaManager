@@ -40,6 +40,7 @@
    ============================================================ */
 
 import { withAuth } from "./_session.js";
+import { weeksOfStudent } from "./_leader-weeks.js";
 import { loadSheets, loadMeetings } from "./_lessons-data.js";
 import {
   timeOf, dayOf, minutesOf, hebDayOf, PLANNED,
@@ -56,7 +57,33 @@ const shift = (iso, n) => {
   return d.toISOString().slice(0, 10);
 };
 
-async function handler(req, res) {
+/* ============================================================
+   ⚠⚠ **השער כאן הוא איחוד, ולכן הוא בקוד ולא בדגל של `withAuth`.**
+
+   דגלי `withAuth` הם AND, והשאלה כאן היא "צוות **או** אחראי
+   לו״ז **או** מי שמוביל שבוע כלשהו". אותו דפוס בדיוק כמו
+   `mayArea` (4כב) ו-`mayTeam` (4נ).
+
+   ⚠ **ולמה לא `{scheduler:true}`:** הדגל הזה בודק
+   `session.isLeader`, שפירושו **מוביל היום**. מוביל של השבוע
+   הבא קיבל 403 על לוח השיעורים — בדיוק הבאג שתועד ב-5ב לגבי
+   סימון הנוכחות, שחוזר כאן. השאלה הנכונה היא `leadsAnyWeek`,
+   ו**איזה תאריך** מותר נבדק בתוך נקודת הקצה.
+
+   ⚠⚠ **ובמכוון לא הרחבנו את `{scheduler:true}` עצמו.** הוא
+   שומר גם על `?action=pay` — דוח התשלום למרצים — ומוביל שבוע
+   אינו אמור לראות כמה משלמים למרצה. שער אחד רחב לשתי שאלות
+   שונות הוא בדיוק איך נפתחת גישה שאיש לא התכוון אליה.
+   ============================================================ */
+const mayBoard = (session) =>
+  Boolean(session.isManager || session.isScheduler
+    || session.isLeader || session.leadsAnyWeek);
+
+const BLOCKED = "לוח השיעורים פתוח לצוות, לאחראי הלו״ז ולמובילי השבוע.";
+
+async function handler(req, res, session) {
+  if (!mayBoard(session)) return res.status(403).json({ error: BLOCKED });
+
   try {
     const test = parseTestDate(req?.query?.today);
     const today = test
@@ -155,11 +182,28 @@ async function handler(req, res) {
          היה מוחק מטלה אמיתית בשקט. הסימון מוצג, וההכרעה
          נשארת אצל אחראי הלו״ז. */
 
+    /* ============================================================
+       ⚠ **מה שמותר לי נקבע בשרת ונשלח, ולא נגזר במסך.**
+         מוביל שבוע מדווח על מפגשים **בשבוע שלו בלבד** (ראו
+         _lesson-mark.js), וכפתור שיציע לו לסמן יום של מישהו
+         אחר יקבל 403 אחרי הלחיצה — בדיוק מה שאין לעשות (4יד).
+
+       ⚠ צוות ואחראי לו״ז אינם מוגבלים, ולכן `markWeeks` ריק
+         אצלם ו-`markAll` דולק. שני שדות ולא אחד: "מותר לי הכול"
+         ו"מותר לי בטווחים האלה" הן שתי תשובות שונות. */
+    const markAll = !session.isStudent || Boolean(session.isScheduler);
+    const markWeeks = markAll ? [] : await weeksOfStudent(session.itemId);
+    /* ⚠ הסימון הידני בלוח החניכים — "היום בלבד", כמו בנוכחות. */
+    const markToday = !markAll && Boolean(session.isLeader);
+
     res.status(200).json({
       today, from, to, days: DAYS,
       upcoming,
       cancelled,
       unreported,
+      markAll,
+      markWeeks: markWeeks.map((w) => ({ start: w.start, end: w.end, num: w.num })),
+      markToday,
       counts: {
         upcoming: upcoming.length,
         unreported: unreported.length,
@@ -173,4 +217,7 @@ async function handler(req, res) {
   }
 }
 
-export default withAuth(handler, { scheduler: true, edit: "scheduler" });
+/* ⚠ `{student:true}` הוא השער הרחב, וההרשאה האמיתית היא
+   `mayBoard` שלמעלה. `edit:"scheduler"` נשאר — הוא מגביל
+   **כתיבה** בלבד, והלוח הזה הוא קריאה. */
+export default withAuth(handler, { student: true, edit: "scheduler" });

@@ -121,13 +121,28 @@ const exportTitle = (label, d) => {
 function Band({ total, unreported, unpriced, label }) {
   return (
     <>
+      {/* ============================================================
+          ⚠ **המבנה של `.band` הוא חוזה, ולא הצעה.**
+            `.band > .band-grid > .band-c > .band-n + .band-l`.
+            הגרסה הראשונה כאן כתבה `<div><b>42</b><span>תווית</span>`,
+            ובלי `.band-grid` אין רשת ובלי `.band-l` אין מעבר שורה —
+            והתוצאה על המסך הייתה "42מפגשים טרם דווחו", מספר ותווית
+            דבוקים. זה נראה כמו תקלת קידוד ולא כמו עיצוב.
+          ============================================================ */}
       <div className="band">
-        <div><b className="num">{shekel(total)} ₪</b><span>{label}</span></div>
-        <div className={"band-n" + (unreported ? " warn" : "")}>
-          <b className="num">{unreported}</b><span>מפגשים טרם דווחו</span>
-        </div>
-        <div className={"band-n" + (unpriced ? " warn" : "")}>
-          <b className="num">{unpriced}</b><span>שיעורים בלי מחיר</span>
+        <div className="band-grid">
+          <div className="band-c">
+            <div className="band-n">{shekel(total)} ₪</div>
+            <div className="band-l">{label}</div>
+          </div>
+          <div className="band-c">
+            <div className={"band-n" + (unreported ? " warn" : "")}>{unreported}</div>
+            <div className="band-l">מפגשים טרם דווחו</div>
+          </div>
+          <div className="band-c">
+            <div className={"band-n" + (unpriced ? " warn" : "")}>{unpriced}</div>
+            <div className="band-l">שיעורים בלי מחיר</div>
+          </div>
         </div>
       </div>
       {/* ⚠ במילים ולא רק בצבע — מי שאינו מבחין בגוונים, ומי

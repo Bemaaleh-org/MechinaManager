@@ -362,22 +362,50 @@ function AllTryouts({ data }) {
         המיונים והשיבוצים ממולאים על ידי החניכים, והמסך הזה קורא אותם ואינו עורך.
       </div>
 
+{/* ============================================================
+          ⚠ **המבנה של `.band` הוא חוזה, ולא הצעה.**
+            `.band > .band-grid > .band-c > .band-n + .band-l`.
+            הגרסה הראשונה כאן כתבה `<div><b>42</b><span>תווית</span>`,
+            ובלי `.band-grid` אין רשת ובלי `.band-l` אין מעבר שורה —
+            והתוצאה על המסך הייתה "42מפגשים טרם דווחו", מספר ותווית
+            דבוקים. זה נראה כמו תקלת קידוד ולא כמו עיצוב.
+          ============================================================ */}
       <div className="band">
-        <div><b className="num">{s.total}</b><span>מיונים</span></div>
-        <div><b className="num">{s.students}</b><span>חניכים ניגשו</span></div>
-        {/* ⚠ **"טרם ניגש" מוצג במפורש.** המספר שאומר כמה מהתמונה
-            חסר שייך למסך, לא ללוג (4יח). */}
-        <div><b className="num">{s.none}</b><span>טרם ניגשו</span></div>
+        <div className="band-grid">
+          <div className="band-c">
+            <div className="band-n">{s.total}</div>
+            <div className="band-l">מיונים</div>
+          </div>
+          <div className="band-c">
+            <div className="band-n">{s.students}</div>
+            <div className="band-l">חניכים ניגשו</div>
+          </div>
+          {/* ⚠ **"טרם ניגש" מוצג במפורש.** המספר שאומר כמה מהתמונה
+              חסר שייך למסך, לא ללוג (4יח). */}
+          <div className="band-c">
+            <div className="band-n">{s.none}</div>
+            <div className="band-l">טרם ניגשו</div>
+          </div>
+        </div>
       </div>
 
       {/* ⚠ רצועה שנייה לשיבוצים — הם שאלה אחרת מהמיונים, ומספר
           אחד שמאחד אותם לא היה עונה על אף אחת מהן. */}
       <div className="band">
-        <div><b className="num">{s.placed ?? 0}</b><span>שובצו</span></div>
-        <div className={"band-n" + ((s.unplaced ?? 0) ? " warn" : "")}>
-          <b className="num">{s.unplaced ?? 0}</b><span>טרם שובצו</span>
+        <div className="band-grid">
+          <div className="band-c">
+            <div className="band-n">{s.placed ?? 0}</div>
+            <div className="band-l">שובצו</div>
+          </div>
+          <div className="band-c">
+            <div className={"band-n" + ((s.unplaced ?? 0) ? " warn" : "")}>{s.unplaced ?? 0}</div>
+            <div className="band-l">טרם שובצו</div>
+          </div>
+          <div className="band-c">
+            <div className="band-n">{(data.byCorps || []).length}</div>
+            <div className="band-l">חילות</div>
+          </div>
         </div>
-        <div><b className="num">{(data.byCorps || []).length}</b><span>חילות</span></div>
       </div>
 
       <div className="ty-status">

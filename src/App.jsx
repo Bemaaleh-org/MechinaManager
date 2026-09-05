@@ -699,7 +699,7 @@ function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goCont
             הלוח כאן, ולא רק בתוך השיעורים, כי מה שטרם דווח
             נשכח בדיוק כשלא רואים אותו. */}
       <div className="sec-label">לוח השיעורים</div>
-      <LessonsBoard compact
+      <LessonsBoard compact onAll={() => goLessons("board")}
         onOpenSheet={() => goLessons("board")} />
 
       {/* ---------- דורש טיפול ---------- */}

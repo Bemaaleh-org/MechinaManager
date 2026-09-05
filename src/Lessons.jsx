@@ -1203,20 +1203,84 @@ const GNT_CLASS = { "שבת": "shabbat", "חג ומועד": "holiday" };
    ⚠ "טרם דווח" הוא מצב שלישי ולא "לא התקיים". זו כל הסיבה
      שהרשימה השנייה קיימת.
    ============================================================ */
-export function LessonsBoard({ say, onOpenSheet, compact = false }) {
+/* ============================================================
+   ⚠⚠ **`compact` הוא טעימה, ולא "אותו לוח בלי הרצועה".**
+
+   קודם הוא הסתיר את רצועת המספרים ואת המבוטלים — והמשיך להציג
+   את **כל** השיעורים הקרובים ואת **כל** מה שטרם דווח. בפועל זה
+   היה עשרות שורות בראש מסך הבית, כלומר מסך בית שצריך לגלול
+   אותו כדי להגיע למה שבאמת נמצא בו.
+
+   מסך הבית עונה על "מה עליי עכשיו". התשובה המלאה יושבת במסך
+   "שיעורים קרובים", ולכאן מגיעות ארבע שורות וקישור.
+
+   ⚠ **והמספר שנחתך נאמר במפורש** ("עוד 12"). רשימה שנחתכת בלי
+     לומר זאת נראית כמו הרשימה כולה, ואז מי שסומך עליה מפספס.
+   ============================================================ */
+const PEEK = 4;
+
+export function LessonsBoard({ say, onOpenSheet, onAll, compact = false }) {
   const td = testDate();
   const { data, err, busy, reload } = useLoad(() => api.getLessonsBoard(td), [td]);
+
+  /* ⚠⚠ **כל ה-hooks לפני כל `return` מוקדם.** הגרסה הראשונה
+     הכריזה על `marking` ו-`marked` אחרי שלוש שורות ה-return
+     שמתחת, ואז בטעינה הראשונה (`!data`) רצו פחות hooks מאשר
+     ברינדור הבא — React נופל ב"Rendered more hooks than during
+     the previous render" והמסך כולו מוחלף בשגיאה.
+
+     ⚠ ה-ErrorBoundary תפס את זה והשאיר את שאר המערכת חיה. זו
+       בדיוק התכלית שלו (5ד). */
+  const [marking, setMarking] = useState(null);
+  const [marked, setMarked] = useState({});
 
   if (busy && !data) return <div className="skel skel-card" />;
   if (err) return <LoadFail msg={err} onRetry={reload} />;
   if (!data) return null;
 
+  /* ============================================================
+     סימון "התקיים" ישירות מהלוח
+     ------------------------------------------------------------
+     ⚠⚠ **זה מה שמוביל השבוע בא לעשות.** קודם הוא היה צריך
+       לפתוח את הגיליון של כל שיעור בנפרד כדי לדווח שהתקיים —
+       שלוש לחיצות למפגש, כשהמטלה כולה היא "כן/לא" על ארבעה
+       מפגשים מהשבוע שלו.
+
+     ⚠ **מי שרשאי נקבע בשרת** (`markAll` / `markWeeks`) ואינו
+       נגזר כאן מתפקיד. כפתור שיציע לסמן יום של מישהו אחר
+       יקבל 403 אחרי הלחיצה (4יד).
+
+     ⚠ **והסימון אופטימי, ובכישלון חוזר אחורה ואומר** (4י).
+       סימון שנשאר על המסך אחרי שהשרת דחה אותו הוא שקר.
+     ============================================================ */
+  const canMarkOn = (iso) => {
+    if (!data) return false;
+    if (data.markAll) return true;
+    if (data.markToday && iso === data.today) return true;
+    return (data.markWeeks || []).some((w) => w.start <= iso && iso <= w.end);
+  };
+
+  const markHeld = (m, value) => {
+    if (marking) return;
+    setMarking(m.id);
+    const before = marked[m.id];
+    setMarked((x) => ({ ...x, [m.id]: value }));
+    api.markLesson({ meetingId: m.id, happened: value })
+      .then(() => { if (say) say(value === "כן" ? "סומן שהתקיים" : "סומן שלא התקיים"); })
+      .catch((e) => {
+        setMarked((x) => ({ ...x, [m.id]: before }));
+        if (say) say(e.message);
+      })
+      .finally(() => setMarking(null));
+  };
+
   /* ⚠ ההתנגשות מוצגת כטקסט ולא רק כגוון: "הגאנט אומר: יום
      כיפור" אומר גם מה קרה וגם למה, ומאפשר לראות מיד אם
      הגאנט הוא זה שצריך תיקון. */
   const Row = ({ m, late, off }) => (
-    <button className={"st-row " + (off ? "st-off"
-      : late ? "tone-8" : "tone-1")}
+    <div className={"st-row st-row-w " + (off ? "st-off"
+      : late ? "tone-8" : "tone-1")}>
+    <button className="st-open"
       onClick={() => onOpenSheet && onOpenSheet(m.sheetId)}>
       <div className="tile sm">
         {late ? <LI.warn /> : <LI.book />}
@@ -1246,6 +1310,25 @@ export function LessonsBoard({ say, onOpenSheet, compact = false }) {
       </div>
       <LI.chev style={{ color: "var(--line2)", flex: "0 0 auto" }} />
     </button>
+
+    {/* ⚠ מוצג רק על מפגש שאפשר לסמן, ורק כשהוא לא "לא מתקיים":
+        לגיליון שכתוב בו "מתוכנן: לא" אין מה לדווח (4כה). */}
+    {!off && canMarkOn(m.date) && (
+      <div className="st-mark">
+        {(() => {
+          const cur = marked[m.id] !== undefined ? marked[m.id] : m.happened;
+          return (
+            <>
+              <button className={cur === "כן" ? "on-ok" : ""} disabled={marking === m.id}
+                onClick={() => markHeld(m, cur === "כן" ? null : "כן")}>התקיים</button>
+              <button className={cur === "לא" ? "on-soon" : ""} disabled={marking === m.id}
+                onClick={() => markHeld(m, cur === "לא" ? null : "לא")}>לא התקיים</button>
+            </>
+          );
+        })()}
+      </div>
+    )}
+    </div>
   );
 
   const both = data.counts.upcoming + data.counts.unreported;
@@ -1280,14 +1363,25 @@ export function LessonsBoard({ say, onOpenSheet, compact = false }) {
       {/* ⚠ מה שטרם דווח ראשון — זו המטלה, והשאר הוא מידע. */}
       {data.unreported.length > 0 && (
         <>
-          <div className="sec-label">התקיימו וטרם דווחו</div>
+          <div className="sec-label">
+            התקיימו וטרם דווחו
+            {compact && data.unreported.length > PEEK && (
+              <span className="sec-more">{data.unreported.length} בסך הכול</span>
+            )}
+          </div>
           <div className="rows" style={{ marginBottom: 14 }}>
-            {data.unreported.map((m) => <Row key={m.id} m={m} late />)}
+            {(compact ? data.unreported.slice(0, PEEK) : data.unreported)
+              .map((m) => <Row key={m.id} m={m} late />)}
           </div>
         </>
       )}
 
-      <div className="sec-label">השיעורים הקרובים</div>
+      <div className="sec-label">
+        השיעורים הקרובים
+        {compact && data.upcoming.length > PEEK && (
+          <span className="sec-more">{data.upcoming.length} בסך הכול</span>
+        )}
+      </div>
       {data.upcoming.length === 0 ? (
         <div className="empty tone-1">
           <div className="e-ico"><LI.book /></div>
@@ -1296,8 +1390,19 @@ export function LessonsBoard({ say, onOpenSheet, compact = false }) {
         </div>
       ) : (
         <div className="rows">
-          {data.upcoming.map((m) => <Row key={m.id} m={m} />)}
+          {(compact ? data.upcoming.slice(0, PEEK) : data.upcoming)
+            .map((m) => <Row key={m.id} m={m} />)}
         </div>
+      )}
+
+      {/* ⚠ הקישור מופיע רק כשבאמת נחתך משהו — כפתור "לכל הלוח"
+          על רשימה שכבר שלמה הוא הבטחה ריקה. */}
+      {compact && onAll
+        && (data.upcoming.length > PEEK || data.unreported.length > PEEK) && (
+        <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginTop: 10 }}
+          onClick={onAll}>
+          לכל לוח השיעורים
+        </button>
       )}
 
       {/* ============================================================

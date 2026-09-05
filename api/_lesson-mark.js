@@ -17,10 +17,24 @@ import { HAPPENED } from "../shared/lessons-boards.js";
 import {
   loadMeetings, loadSheets, setMeeting, ensureEvalForMeeting,
 } from "./_lessons-data.js";
+import { weeksOfStudent } from "./_leader-weeks.js";
+import { israelToday } from "./_attendance-data.js";
 
 const VALUES = [HAPPENED.yes, HAPPENED.no];
 
+const mayMark = (session) =>
+  Boolean(session.isManager || session.isScheduler
+    || session.isLeader || session.leadsAnyWeek);
+
 async function handler(req, res, session) {
+  /* ⚠ אותו איחוד כמו בלוח — ראו ההערה ב-api/_lessons-board.js.
+     **איזה תאריך** מותר נבדק למטה, מול השבועות של החניך. */
+  if (!mayMark(session)) {
+    return res.status(403).json({
+      error: "דיווח על מפגשים פתוח לצוות, לאחראי הלו״ז ולמובילי השבוע.",
+    });
+  }
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "רק POST נתמך כאן" });
   }
@@ -47,6 +61,44 @@ async function handler(req, res, session) {
       meeting = meetings.find((m) => m.id === meetingId);
     }
     if (!meeting) return res.status(404).json({ error: "המפגש אינו נמצא" });
+
+    /* ============================================================
+       ⚠⚠ **מוביל שבוע מדווח על השבוע שלו, ולא על השנה כולה.**
+
+       `{scheduler:true}` פותח את נקודת הקצה לשלושה: צוות, אחראי
+       לו״ז, ומוביל שבוע. לשניים הראשונים זה נכון — הלו״ז הוא
+       התפקיד שלהם. למוביל שבוע זה היה נותן לסמן כל מפגש בשנה,
+       כולל בשבועות של אחרים ובחודשים שלא היה בהם.
+
+       הכלל זהה לזה של סימון הנוכחות (5ב): **התאריך מול הטווח**,
+       ולכן ההרשאה עוברת מעצמה כשהשבוע נגמר — בלי שאיש יעשה דבר.
+
+       ⚠ **מי שהוא גם אחראי לו״ז אינו מוגבל.** התפקיד הזה הוא
+         על כל הלו״ז, וההגבלה כאן היא על מי שכל סמכותו נובעת
+         מהשיבוץ לשבוע.
+
+       ⚠ **וההודעה מונה את השבועות שלו**, ולא אומרת "אין הרשאה":
+         מי שנחסם צריך לדעת על מה כן מותר לו (4ע).
+       ============================================================ */
+    if (session.isStudent && !session.isScheduler) {
+      const weeks = await weeksOfStudent(session.itemId);
+      /* ⚠ **הסימון הידני בלוח החניכים נותן "היום בלבד".**
+         הוא עוקף חירום בלי טווח, ולכן אינו נכנס ל-weeksOfStudent
+         (5ב) — אבל הוא כן צריך לאפשר לדווח על היום עצמו, בדיוק
+         כמו בסימון הנוכחות (`api/_attendance-day.js`). בלי
+         השורה הזו חניך שסומן ידנית קיבל הרשאת מוביל שאינה
+         פותחת לו כלום. */
+      const inRange = weeks.some((w) => w.start <= meeting.date && meeting.date <= w.end)
+        || (session.isLeader && meeting.date === israelToday());
+      if (!inRange) {
+        const list = weeks.map((w) => `${w.start}–${w.end}`).join(", ");
+        return res.status(403).json({
+          error: weeks.length
+            ? `${meeting.date} אינו באחד השבועות שאתם מובילים (${list})`
+            : "דיווח על מפגשים פתוח למי שמוביל שבוע, בימים שבשבוע שלו",
+        });
+      }
+    }
 
     const fields = { happened };
     if (body?.note !== undefined) fields.note = body.note;
@@ -98,4 +150,4 @@ async function readJson(req) {
   return raw ? JSON.parse(raw) : {};
 }
 
-export default withAuth(handler, { scheduler: true });
+export default withAuth(handler, { student: true });

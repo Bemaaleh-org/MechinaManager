@@ -145,12 +145,22 @@ function Band({ projects }) {
   const open = projects.filter((p) => !p.sum.closed).length;
   const tasks = projects.reduce((a, p) => a + p.sum.open, 0);
   const late = projects.reduce((a, p) => a + p.sum.late, 0);
+  /* ⚠ מבנה `.band` הוא חוזה — ראו ההערה ב-LessonPay.jsx. */
   return (
     <div className="band">
-      <div><b className="num">{open}</b><span>פרויקטים פעילים</span></div>
-      <div><b className="num">{tasks}</b><span>משימות פתוחות</span></div>
-      <div className={"band-n" + (late ? " warn" : "")}>
-        <b className="num">{late}</b><span>עבר היעד</span>
+      <div className="band-grid">
+        <div className="band-c">
+          <div className="band-n">{open}</div>
+          <div className="band-l">פרויקטים פעילים</div>
+        </div>
+        <div className="band-c">
+          <div className="band-n">{tasks}</div>
+          <div className="band-l">משימות פתוחות</div>
+        </div>
+        <div className="band-c">
+          <div className={"band-n" + (late ? " warn" : "")}>{late}</div>
+          <div className="band-l">עבר היעד</div>
+        </div>
       </div>
     </div>
   );
@@ -421,13 +431,23 @@ function Money({ p, say, reload }) {
   return (
     <>
       <div className="band">
-        <div><b className="num">{shekel(p.sum.spent)} ₪</b><span>הוצאות</span></div>
-        <div><b className="num">{shekel(p.sum.income)} ₪</b><span>הכנסות</span></div>
-        {/* ⚠ **ריק אינו אפס.** תקציב שלא נקבע מוצג כ-"—" ולא
-            כאפס, ואז "נותר" חסר משמעות ולכן אינו מוצג. */}
-        <div className={"band-n" + (p.sum.over ? " warn" : "")}>
-          <b className="num">{p.sum.left == null ? "—" : shekel(p.sum.left) + " ₪"}</b>
-          <span>{p.budget == null ? "לא נקבע תקציב" : "נותר מהתקציב"}</span>
+        <div className="band-grid">
+          <div className="band-c">
+            <div className="band-n">{shekel(p.sum.spent)} ₪</div>
+            <div className="band-l">הוצאות</div>
+          </div>
+          <div className="band-c">
+            <div className="band-n">{shekel(p.sum.income)} ₪</div>
+            <div className="band-l">הכנסות</div>
+          </div>
+          {/* ⚠ **ריק אינו אפס.** תקציב שלא נקבע מוצג כ-"—" ולא
+              כאפס, ואז "נותר" חסר משמעות ולכן אינו מוצג. */}
+          <div className="band-c">
+            <div className={"band-n" + (p.sum.over ? " warn" : "")}>
+              {p.sum.left == null ? "—" : shekel(p.sum.left) + " ₪"}
+            </div>
+            <div className="band-l">{p.budget == null ? "לא נקבע תקציב" : "נותר מהתקציב"}</div>
+          </div>
         </div>
       </div>
 
