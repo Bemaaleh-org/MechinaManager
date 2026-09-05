@@ -12,6 +12,7 @@ import { CyclesPage } from "./Cycles.jsx";
 import { ProfilePage } from "./Profile.jsx";
 import BoardPage from "./Board.jsx";
 import MyDataPage from "./MyData.jsx";
+import TrendsPage from "./Trends.jsx";
 import SearchOverlay, { SearchButton } from "./Search.jsx";
 import ExportPage from "./Export.jsx";
 import { MechinaApp, MechinaStaff, WeekLeadersPage, RoleHoldersPage } from "./Mechina.jsx";
@@ -339,6 +340,10 @@ function Staff({ auth, onSignedOut }) {
                  מחזיר 400 מפורש שאומר בדיוק את זה. */
               { key: "news", label: "מה חדש", icon: <I.note />,
                 active: section === "news", onClick: () => setSection("news") },
+              /* ⚠ **צוות בלבד, והמסך אומר במפורש שאין בו מספרים
+                 על אנשים.** ראו api/_trends.js. */
+              { key: "trends", label: "מגמות", icon: <I.check />,
+                active: section === "trends", onClick: () => setSection("trends") },
             ] },
             { label: "מטבח וחד״א", items: kitchenItems },
             { label: "חניכים ונוכחות", items: [
@@ -515,6 +520,7 @@ function Staff({ auth, onSignedOut }) {
           {section === "profile" && <ProfilePage say={say} />}
           {section === "board" && <BoardPage say={say} />}
           {section === "news" && <MyDataPage say={say} isStudent={false} sub0="news" />}
+          {section === "trends" && <TrendsPage say={say} />}
           {section === "alumni" && <AlumniPage say={say} />}
           {section === "cycles" && auth.isHead && <CyclesPage say={say} />}
           {section === "export" && <ExportPage say={say} />}

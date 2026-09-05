@@ -34,6 +34,7 @@
      ?action=mfeedback     GET/POST/DELETE     משוב אנונימי להנהלה
      ?action=search        GET                 חיפוש רוחבי
      ?action=mydata        GET                 מה רשום עליי ומי רואה
+     ?action=trends        GET                 מגמות המכינה ⚠ צוות בלבד
                      ⚠ כתיבה — החניך על עצמו בלבד. קריאה של
                        כולם — צוות ויו״ר ועדת הגיוסים.
 
@@ -97,6 +98,8 @@ import { notices, mpoll, mfeedback } from "./_board.js";
 import search from "./_search.js";
 /* "הנתונים שלי" — הצהרה על מה שרשום על החניך, ומי רואה. */
 import mydata from "./_mydata.js";
+/* ⚠ מגמות — צוות בלבד, ואין בהן מספר על חניך מסוים. */
+import trends from "./_trends.js";
 /* ⚠ מרצים של סדרה — **אותו לוח חוות דעת**, עם שיוך לסדרה.
    כל חברי הסדרה כותבים, ולא רק היו״ר. */
 import teamLecturer from "./_team-lecturer.js";
@@ -112,4 +115,4 @@ export default router({ login, list, year, leader, weeks, role, profile, inciden
   "team-entry": teamEntry, "team-poll": teamPoll, "team-feedback": teamFeedback,
   "team-lecturer": teamLecturer,
   "lead-week": leadWeek, "lead-activity": leadActivity,
-  notices, mpoll, mfeedback, search, mydata });
+  notices, mpoll, mfeedback, search, mydata, trends });

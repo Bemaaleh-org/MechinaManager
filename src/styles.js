@@ -3849,4 +3849,39 @@ a.tm-entry-t.tm-link{color:var(--navy);text-decoration:underline;
   font-weight:600;color:var(--muted);line-height:1.85}
 .md-news-l li{margin-bottom:3px}
 
+
+/* ============================================================
+   מגמות
+   ------------------------------------------------------------
+   ⚠ עמודות ולא קו: קו בין נקודות מרמז על ערכים
+     שביניהם, ואין כאן ערכים שביניהם — יש שבועות.
+   ============================================================ */
+.tr-promise{font-size:13px;font-weight:700;line-height:1.75;color:var(--accent);
+  background:var(--accent-soft);border-radius:var(--r-md);
+  padding:13px 15px;margin-bottom:12px}
+.tr-card{background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-md);box-shadow:var(--sh-1);padding:14px 16px;
+  margin-bottom:10px}
+.tr-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.tr-t{font-size:15px;font-weight:800;color:var(--ink)}
+.tr-now{font-size:19px;font-weight:800;color:var(--ink);display:flex;
+  align-items:baseline;gap:7px}
+.tr-ch{font-size:11.5px;font-weight:800;color:var(--faint)}
+/* ⚠ הצבע אומר כיוון ולא טוב-רע: עלייה בתקלות אינה
+   בשורה טובה. לכן נייבי וחום, ולא ירוק ואדום (4ג). */
+.tr-ch.up{color:var(--accent)}
+.tr-ch.dn{color:var(--amber)}
+.tr-bars{display:flex;align-items:flex-end;gap:5px;height:118px;margin-top:14px}
+.tr-col{flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:flex-end;gap:5px;height:100%}
+.tr-bar{width:100%;max-width:34px;border-radius:5px 5px 2px 2px;
+  background:linear-gradient(180deg,var(--accent),#0A4478)}
+/* ⚠ שבוע בלי נתון מסומן ואינו מדולג — חור הוא מידע. */
+.tr-bar.tr-gap{background:var(--line2)}
+.tr-lab{font-size:10px;font-weight:700;color:var(--faint);white-space:nowrap}
+.tr-none{font-size:13px;font-weight:600;color:var(--muted);line-height:1.7;
+  margin-top:10px}
+.tr-n{font-size:12px;font-weight:600;color:var(--faint);line-height:1.6;
+  margin-top:9px;padding-top:9px;border-top:1px solid var(--line2)}
+
 `;

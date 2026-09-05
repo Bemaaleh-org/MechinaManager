@@ -19,11 +19,69 @@
    ============================================================ */
 
 import pushRun from "./_push-run.js";
+/* ⚠ **הסיכום השבועי אינו cron נפרד.** התוכנית מגבילה להרצה
+   יומית אחת, והיא תפוסה — לכן המשימה רצה כל יום ובודקת בעצמה
+   אם היום ראשון. ראו api/_weekly.js. */
+import weekly from "./_weekly.js";
 
-const JOBS = { push: pushRun };
+/* ============================================================
+   ⚠⚠ **המשימה היומית מריצה שתיים, וזו אינה נוחות.**
+
+   Vercel Cron מקבל **נתיב בלבד ולא query string**, ולכן ההרצה
+   המתוזמנת מגיעה תמיד ל-`/api/cron` בלי `?job=`. משימה שנייה
+   הייתה דורשת cron שני — והתוכנית מגבילה לאחד.
+
+   ⚠ **וביום ראשון רץ הסיכום השבועי במקום הסבב הרגיל, ולא
+     לצידו.** שניהם עושים את אותו דבר טכנית — נקישה שמעירה את
+     המכשיר, וה-Service Worker פונה בעצמו ל-`?action=notify`
+     (5ה) — ולכן הרצת שניהם הייתה שתי התראות זהות באותה דקה.
+     הסיכום כולל ממילא את כל מה שהסבב הרגיל היה מציג.
+
+   ⚠ **והסדר הוא: הסיכום מחליט קודם.** הוא מדלג בעצמו בכל יום
+     שאינו ראשון ובכל יום שכבר נשלח בו, ומחזיר `skipped` — ורק
+     אז רץ הסבב הרגיל.
+   ============================================================ */
+async function daily(req, res) {
+  let weeklyResult = null;
+  try {
+    /* ⚠ מחזיר את התשובה במקום לכתוב אותה, כדי שנוכל להחליט. */
+    weeklyResult = await weekly(req, { status: () => ({ json: (j) => j }) });
+  } catch (e) {
+    console.error("[cron:weekly]", e && e.message);
+  }
+  if (weeklyResult && weeklyResult.ok && !weeklyResult.skipped) {
+    return res.status(200).json({ ok: true, ran: "weekly", ...weeklyResult });
+  }
+  return pushRun(req, res);
+}
+
+const JOBS = { push: pushRun, weekly, daily };
+
+/* ============================================================
+   ⚠⚠⚠ **השער יושב כאן, לפני הניתוב, ולא בכל משימה בנפרד.**
+
+   זה נמצא בבדיקה: `_push-run.js` בדק את `CRON_SECRET` בעצמו,
+   `_weekly.js` **לא** — ומנהל מחובר שקרא ל-`?job=weekly` קיבל
+   200 ודחף התראה לארבעים מכשירים. אותה תקלה בדיוק כמו הנתב
+   שאינו נוגע באימות (CLAUDE.md, "הנתב לא נוגע באימות"): כל
+   משימה חייבת להביא את ההגנה שלה, ומי שיוסיף את הבאה לא
+   יזכור. לכן היא הועברה לכאן — **משימה שתיכתב מחר מוגנת
+   מעצמה.**
+
+   ⚠ **וההגנה היא סוד ולא סשן**: אין כאן משתמש. הבדיקה נועלת
+     שגם מנהל מחובר מקבל 401.
+   ============================================================ */
+function authorized(req) {
+  const secret = process.env.CRON_SECRET;
+  const given = String(req.headers?.authorization || "").replace(/^Bearer\s+/i, "")
+    || String(req.query?.key || "");
+  return Boolean(secret) && given === secret;
+}
 
 export default async function handler(req, res) {
-  const job = String(req.query?.job || "push");
+  if (!authorized(req)) return res.status(401).json({ error: "לא מורשה" });
+  /* ⚠ **ברירת המחדל היא `daily` ולא `push`** — ראו למעלה. */
+  const job = String(req.query?.job || "daily");
   const fn = JOBS[job];
   if (!fn) {
     /* ⚠ 404 מפורש ולא הרצה שקטה של ברירת המחדל: משימה בשם

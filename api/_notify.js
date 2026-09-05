@@ -34,7 +34,7 @@ import {
   handoverFor, handoverStamp,
 } from "./_duty-data.js";
 import { dutyKey } from "../shared/duties.js";
-import { israelToday, loadMarked, loadCalendar, isSchoolDay } from "./_attendance-data.js";
+import { israelToday, loadMarked, loadCalendar, isSchoolDay, loadAbsences } from "./_attendance-data.js";
 import { weeksOfStudent } from "./_leader-weeks.js";
 import { AUTH_BOARD, AUTH_COLS } from "../shared/auth-board.js";
 import { MECHINA_BOARDS, MECHINA_COLS } from "../shared/mechina-boards.js";
@@ -875,6 +875,94 @@ async function noticeNotes(session, today) {
   }
   return out;
 }
+
+/* ============================================================
+   הסיכום השבועי
+   ------------------------------------------------------------
+   ⚠⚠ **זו ההודעה שהדחיפה השבועית מציגה.** הדחיפה עצמה ריקה
+     (5ה), וה-Service Worker פונה ל-`?action=notify` ומציג את מה
+     שמצא — כלומר בלי הבונה הזה, הדחיפה השבועית מציגה כלום.
+
+   ⚠ **הסיכום מדבר על השבוע שהסתיים**, ולכן הוא מופיע ביום
+     ראשון ושני בלבד. התראה שנשארת פתוחה כל השבוע היא בדיוק
+     מה שמאמן לסגור את הפעמון (4כו).
+
+   ⚠ **ולחניך ולצוות זו אותה התראה בשני תכנים.** לחניך: מה
+     נוגע לו. לצוות: מה במכינה. שני מפתחות שונים, כדי שחניך
+     שהוא גם בעל תפקיד לא יקבל שתיהן.
+
+   ⚠⚠ **ואין כאן שום מספר על חניך אחר**, גם לא לצוות: הסיכום
+     הוא על המכינה. אותה הבטחה של מסך המגמות (api/_trends.js).
+   ============================================================ */
+async function weeklyNote(session, today) {
+  /* ⚠ ראשון ושני בלבד — ראו ההערה. `israelDay` ולא שעת השרת. */
+  const dow = new Date(today + "T12:00:00Z").getUTCDay();
+  if (dow > 1) return [];
+
+  const out = [];
+  try {
+    const last = shift(today, -(dow + 7));
+    const end = shift(last, 6);
+
+    if (session.isStudent) {
+      const [abs, marked, cal] = await Promise.all([
+        loadAbsences(), loadMarked(), loadCalendar(),
+      ]);
+      const me = String(session.itemId);
+      const days = [...marked.keys()].filter((d) => d >= last && d <= end
+        && isSchoolDay(cal.byDate.get(d)));
+      if (!days.length) return [];
+      const here = days.filter((d) => marked.get(d).present.has(me)).length;
+      const mine = abs.filter((a) => String(a.studentId) === me
+        && a.date >= last && a.date <= end);
+      out.push(note({
+        id: `weekly:me:${last}`, kind: "סיכום שבועי", level: "רגיל",
+        title: `השבוע שעבר: נכחת ב-${here} מתוך ${days.length} ימי לימוד`,
+        body: mine.length
+          ? `${mine.length} היעדרויות מאושרות`
+          : "בלי היעדרויות מאושרות",
+        tab: "year", when: end,
+      }));
+      return out;
+    }
+
+    /* ---------- לצוות: על המכינה ---------- */
+    const [marked, cal, abs, faults, meetings] = await Promise.all([
+      loadMarked(), loadCalendar(), loadAbsences(),
+      loadFaults().catch(() => []),
+      loadMeetings().catch(() => []),
+    ]);
+    const days = [...marked.keys()].filter((d) => d >= last && d <= end
+      && isSchoolDay(cal.byDate.get(d)));
+    if (!days.length) return [];
+
+    const { activeStudents } = await import("./_student-rows.js");
+    const n = (await activeStudents()).length || 1;
+    const total = days.reduce((a, d) => a + marked.get(d).present.size, 0);
+    const pct = Math.round((total / (days.length * n)) * 100);
+
+    const wAbs = abs.filter((a) => a.date >= last && a.date <= end).length;
+    const wFaults = faults.filter((f) => f.date >= last && f.date <= end).length;
+    const undone = meetings.filter((m) => m.date >= last && m.date <= end
+      && m.happened === null).length;
+
+    out.push(note({
+      id: `weekly:staff:${last}`, kind: "סיכום שבועי", level: "רגיל",
+      title: `סיכום השבוע: ${pct}% נוכחות ב-${days.length} ימים`,
+      body: [
+        `${wAbs} היעדרויות מאושרות`,
+        `${wFaults} תקלות חדשות`,
+        /* ⚠ "טרם דווח" הוא המספר שמצריך פעולה, ולכן הוא
+           מוצג גם כשהוא 0 — כדי ש-0 יאמר משהו (4ח). */
+        undone ? `${undone} מפגשים טרם דווחו` : "כל המפגשים דווחו",
+      ].join(" · "),
+      tab: "trends", when: end,
+    }));
+  } catch (e) {
+    console.error("[notify:weekly]", e && e.message);
+  }
+  return out;
+}
 /* ============================================================
    בניית ההתראות של משתמש אחד
    ------------------------------------------------------------
@@ -914,6 +1002,9 @@ export async function buildNotes(session, today = israelToday()) {
     /* ⚠ **מחוץ לשני הענפים, כי הלוח פונה לשניהם.** הקהל נאכף
        בתוך הבונה עצמו — ראו ההערה שם. */
     jobs.push(noticeNotes(session, today));
+    /* ⚠ **מחוץ לשני הענפים** — הבונה עצמו מפצל לפי מי המשתמש,
+       כי זו אותה התראה בשני תכנים. */
+    jobs.push(weeklyNote(session, today));
 
     /* ⚠ מנהל מקבל את הכול. זה מה שהתבקש, וזה גם נכון: הוא
        האדם שאמור לדעת שדבר לא נפל בין הכיסאות. */
