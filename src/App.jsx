@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { CSS } from "./styles.js";
-import { LOGO } from "./logo.js";
+/* ⚠ **הלוגו היה בשלושה מקומות**: base64 ב-src/logo.js, קובץ
+   ב-public, ומחרוזת נתיב בכל מסך. החלפת לוגו נגמרה בכך ששניים
+   מהמסכים התעדכנו והשניים האחרים לא. src/brand.js הוא המקור
+   היחיד, ו-src/logo.js נמחק (48KB של base64 בחבילה). */
+import { BRAND } from "./brand.js";
 import { api, setUnauthorizedHandler } from "./api.js";
 import Login from "./Login.jsx";
 import Setup from "./Setup.jsx";
@@ -262,7 +266,7 @@ function Staff({ auth, onSignedOut }) {
             <NotifyBell notify={notify} open={notifOpen}
               onToggle={() => setNotifOpen((v) => !v)} />
             <div className="brand-coin" aria-label="במעלה הדרך">
-              <img src={LOGO} alt="לוגו במעלה הדרך" />
+              <img src={BRAND.mark} alt={"לוגו " + BRAND.motto} />
             </div>
             <button className="who" onClick={() => setUserOpen(true)}>
               <span className="dot" />{user.name.split(" ")[0]}
@@ -271,7 +275,7 @@ function Staff({ auth, onSignedOut }) {
         </header>
 
         <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)}
-          logo={LOGO} title="ניהול מכינת ניר עוז"
+          logo={BRAND.mark} title="ניהול מכינת ניר עוז"
           subtitle={`מכינת ניר עוז${auth.cycle ? " · " + auth.cycle : ""}`}
           user={user}
           onLogout={() => api.logout().catch(() => {}).finally(onSignedOut)}

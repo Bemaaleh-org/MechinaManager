@@ -121,8 +121,9 @@ html,body{margin:0;padding:0;background:#012E58}
    נשאר רק מרכוז אנכי, גודל הלוגו, ורשימת השמות שצריכה לגלול
    כשיש 33 חניכים. */
 /* רקע שקוף, בלי מסגרת ובלי צל — הסמל עומד בפני עצמו */
-.login-mark{display:block;width:140px;height:140px;object-fit:contain;
-  margin:0 auto 16px;border:none;box-shadow:none;background:none}
+.login-mark{display:block;width:min(52vw,150px);height:auto;max-height:150px;
+  object-fit:contain;margin:0 auto 16px;border:none;box-shadow:none;background:none}
+.login-mark.login-lockup{width:min(70vw,230px);max-height:none}
 /* מתקרב באופי לכיתוב שבלוגו בלי להטמיע פונט חיצוני: Heebo 800,
    הכחול של הסמל, ומרווח אותיות מעט צר כמו במקור.
    משקל 800 נטען ב-@import בראש הקובץ — לא נופל לברירת מחדל. */
@@ -1386,8 +1387,26 @@ html,body{margin:0;padding:0;background:#012E58}
 .kx-login::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
   background:radial-gradient(58% 42% at 50% 46%,rgba(126,178,232,.16),transparent 68%)}
 .kx-login .wrap{position:relative;z-index:1}
-.kx-login .login-mark{width:150px;height:150px;
-  filter:drop-shadow(0 14px 36px rgba(0,0,0,.45))}
+/* ---- הסמל במסך הכניסה ----
+   WARN: המידה ברוחב ובתקרת גובה, ולא בגובה קבוע. הסמל קיים
+   בשתי צורות — עיגול (ריבועי) ולוקאפ מלא שכולל את הכיתוב
+   (גבוה וצר). גובה קבוע היה מקטין את הלוקאפ עד שהכיתוב שבתוכו
+   מפסיק להיקרא. ראו src/brand.js.
+
+   WARN: והלוח הלבן מתחתיו אינו קישוט. הסמל הוא נייבי וחום על
+   רקע שקוף, והוא יושב על תצלום כהה — בלי משטח בהיר מתחתיו
+   העיגול נבלע ברקע והשביל החום נעלם לגמרי. */
+.kx-login .login-mark{width:min(58vw,190px);height:auto;max-height:190px;
+  padding:14px;border-radius:26px;
+  background:rgba(255,255,255,.93);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  box-shadow:0 2px 0 rgba(255,255,255,.5) inset,
+             0 18px 44px rgba(0,12,32,.5),
+             0 3px 10px rgba(0,12,32,.3);
+  margin-bottom:18px}
+/* הלוקאפ המלא רחב יותר וצריך פחות ריפוד — הכיתוב כבר בתוכו */
+.kx-login .login-mark.login-lockup{width:min(72vw,260px);max-height:none;
+  padding:18px 20px;border-radius:22px;margin-bottom:22px}
 .kx-login .login-title{font-family:'Suez One',Heebo,serif;font-size:27px;font-weight:400;
   letter-spacing:0;margin-top:6px;text-shadow:0 2px 14px rgba(0,16,40,.5)}
 .kx-login .login-sub{color:rgba(255,255,255,.72);font-size:13px;font-weight:600;

@@ -14,6 +14,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Escalate from "./Escalate.jsx";
+import { BRAND } from "./brand.js";
 import { api } from "./api.js";
 import { testDate } from "./testDate.js";
 import { LessonsPage, LessonsBoard } from "./Lessons.jsx";
@@ -3204,7 +3205,7 @@ export function MechinaApp({ auth, onSignedOut }) {
 
       {/* המגירה — כל הדפים של החניך, כולל מה שתפקידיו פותחים */}
       <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)}
-        logo="/logo-mark.png" title="מכינת ניר עוז" subtitle="מחזור ב׳"
+        logo={BRAND.mark} title="מכינת ניר עוז" subtitle="מחזור ב׳"
         user={{
           name: auth.name,
           role: [auth.isLeader && "מוביל/ת שבוע", ...(auth.roles || [])]

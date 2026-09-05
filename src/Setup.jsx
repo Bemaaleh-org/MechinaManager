@@ -14,6 +14,7 @@
    ============================================================ */
 
 import React, { useState } from "react";
+import { BRAND } from "./brand.js";
 import { api } from "./api.js";
 
 const SI = {
@@ -75,7 +76,8 @@ export default function Setup({ name, onDone, onSignOut }) {
   return (
     <div className="kx kx-login">
       <main className="wrap">
-        <img className="login-mark" src="/logo-mark.png" alt="במעלה הדרך" />
+        <img className={"login-mark" + (BRAND.hasWordmark ? " login-lockup" : "")}
+          src={BRAND.lockup} alt={BRAND.motto + " · " + BRAND.name} />
         <div className="login-title">{first ? `שלום ${first}` : "ברוכים הבאים"}</div>
         <div className="login-sub">כניסה ראשונה · בוחרים שם משתמש וסיסמה</div>
 

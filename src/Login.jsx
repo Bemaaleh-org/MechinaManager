@@ -19,6 +19,7 @@
    ============================================================ */
 
 import React, { useState, useEffect } from "react";
+import { BRAND } from "./brand.js";
 import { api } from "./api.js";
 
 const LI = {
@@ -109,8 +110,11 @@ export default function Login({ notice, onDone }) {
   return (
     <div className="kx kx-login">
       <main className="wrap">
-        <img className="login-mark" src="/logo-mark.png" alt="במעלה הדרך" />
-        <div className="login-title">מכינת ניר עוז</div>
+        {/* ⚠ הלוקאפ מגיע מ-src/brand.js — ראו שם למה הכיתוב
+            אינו מוצג כשהתמונה כבר כוללת אותו. */}
+        <img className={"login-mark" + (BRAND.hasWordmark ? " login-lockup" : "")}
+          src={BRAND.lockup} alt={BRAND.motto + " · " + BRAND.name} />
+        {!BRAND.hasWordmark && <div className="login-title">{BRAND.name}</div>}
         <div className="login-sub">מערכת הניהול</div>
 
         {notice && (
