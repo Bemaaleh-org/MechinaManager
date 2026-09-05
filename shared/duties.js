@@ -102,7 +102,7 @@ export const DUTIES = {
     tabs: [
       { tab: "mark", label: "סימון נוכחות" },
       { tab: "l-board", label: "שיעורים קרובים" },
-      { tab: "leadership", label: "המובילויות שלי" },
+      { tab: "leadership", label: "המובילשיות שלי" },
     ],
   },
   /* ⚠ ליו״ר אין מסך ייעודי שנפתח לו — האחריות שלו היא על

@@ -1,7 +1,7 @@
 /* ============================================================
-   /api/students?action=leadership — דף המובילויות
+   /api/students?action=leadership — דף המובילשיות
 
-     GET                      המובילויות **שעברו** של החניך
+     GET                      המובילשיות **שעברו** של החניך
      GET  ?all=1              כל השבועות שהיו (צוות בלבד)
      PUT  { weekId, feedback | summary }
 
@@ -217,7 +217,7 @@ async function handler(req, res, session) {
     return res.status(200).json({ ok: true, weekId });
   } catch (e) {
     console.error("[leadership]", e);
-    res.status(502).json({ error: "פעולת המובילויות נכשלה" });
+    res.status(502).json({ error: "פעולת המובילשיות נכשלה" });
   }
 }
 

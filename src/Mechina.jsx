@@ -30,6 +30,8 @@ import { HostingPage, LoansPage } from "./Extras.jsx";
 import { useNotify, NotifyBell, NotifyPanel } from "./Notify.jsx";
 import { ProfilePage } from "./Profile.jsx";
 import DutyPage from "./Duty.jsx";
+/* ⚠⚠ מסך שהצוות אינו רואה — השרת מחזיר לו 403. ראו api/_projects.js. */
+import ProjectsPage from "./Projects.jsx";
 import TeamsPage from "./Teams.jsx";
 import ChoresPage from "./Chores.jsx";
 import RulesPage from "./Rules.jsx";
@@ -49,7 +51,7 @@ import ScreenNote from "./ScreenNote.jsx";
 
 /* אותו אוצר צורות של האייקונים במטבח: 21px, stroke 2.1, קצוות עגולים */
 const MI = {
-  /* ⚠ נוסף עבור דף המובילויות. `<MI.flag />` על מפתח שאינו
+  /* ⚠ נוסף עבור דף המובילשיות. `<MI.flag />` על מפתח שאינו
      קיים אינו נופל ב-vite build — הוא נופל בדפדפן ב"Element
      type is invalid", וזה בדיוק סוג השגיאה שהבנייה לא תופסת. */
   flag: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M5 21V4"/><path d="M5 4.5h11l-2 3.5 2 3.5H5"/></svg>,
@@ -3151,7 +3153,7 @@ export function MechinaApp({ auth, onSignedOut }) {
      ⚠ **נגזרת מ-`DUTIES[DUTY_LEADER].tabs`**, כמו כל השאר. מסך
        שיתווסף שם יופיע כאן מעצמו, וגם במרכז התפקיד.
 
-     ⚠ **בלי מה שכבר יושב ב"אישי".** "המובילויות שלי" שייך לכל
+     ⚠ **בלי מה שכבר יושב ב"אישי".** "המובילשיות שלי" שייך לכל
        חניך ולא רק למוביל, והוא כבר למעלה; שתי שורות באותו שם
        בשתי קבוצות נראות כמו תקלה.
      ============================================================ */
@@ -3240,8 +3242,12 @@ export function MechinaApp({ auth, onSignedOut }) {
             /* ⚠ **רק אחרי שהמובילות עברה.** המסך עצמו אומר מתי
                הוא ייפתח, ולכן הקישור קיים תמיד — קישור שנעלם
                ומופיע נראה כמו תקלה. */
-            { key: "leadership", label: "המובילויות שלי", icon: <MI.flag />,
+            { key: "leadership", label: "המובילשיות שלי", icon: <MI.flag />,
               active: tab === "leadership", onClick: () => setTab("leadership") },
+            /* ⚠ **באישי, וזה מדויק:** הפרויקטים הם של החניך
+               בלבד, והצוות אינו רואה אותם כלל. */
+            { key: "projects", label: "הפרויקטים שלי", icon: <MI.tick />,
+              active: tab === "projects", onClick: () => setTab("projects") },
           ] },
 
           { label: "היום־יום במכינה", items: [
@@ -3407,6 +3413,7 @@ export function MechinaApp({ auth, onSignedOut }) {
         {tab === "rules" && <RulesPage say={say} />}
         {tab === "tryouts" && <TryoutsPage say={say} />}
         {tab === "leadership" && <LeadershipPage say={say} />}
+        {tab === "projects" && <ProjectsPage say={say} />}
         {/* ⚠ אחראי הלו״ז בלבד — הכניסה נגזרת מ-DUTIES ונאכפת
             בשרת ב-{scheduler:true}. `bare` אינו נשלח: כדף עצמאי
             הוא כותב את הכותרת שלו. */}

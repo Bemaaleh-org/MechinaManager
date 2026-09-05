@@ -1,5 +1,5 @@
 /* ============================================================
-   דף המובילויות
+   דף המובילשיות
    ------------------------------------------------------------
    ⚠⚠ **רק מה שכבר עבר.** גם כשלחניך יש שיבוץ עתידי, הוא אינו
      מופיע כאן — דף שמראה את השבוע שעומד להגיע הופך מסיכום
@@ -33,17 +33,17 @@ export default function Leadership({ say, staff = false }) {
   useEffect(() => { load(); }, [load]);
 
   if (err) {
-    return <><div className="screen-title">מובילויות</div>
+    return <><div className="screen-title">מובילשיות</div>
       <div className="login-err">{err}</div></>;
   }
   if (!data) {
-    return <><div className="screen-title">מובילויות</div>
+    return <><div className="screen-title">מובילשיות</div>
       <div className="skel" style={{ height: 200 }} /></>;
   }
 
   return (
     <>
-      <div className="screen-title">{staff ? "מובילויות שהיו" : "המובילויות שלי"}</div>
+      <div className="screen-title">{staff ? "מובילשיות שהיו" : "המובילשיות שלי"}</div>
 
       {data.weeks.length === 0 ? (
         <div className="empty">

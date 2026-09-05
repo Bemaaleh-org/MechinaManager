@@ -66,7 +66,7 @@ export async function loadLeaderWeeks({ force = false } = {}) {
         escort: val(i, W.escort) || null,
         assignable: val(i, W.open) === "v",
         leaderIds: linkedAll(i, W.leaders),
-        /* ⚠ דף המובילויות. שני קולות ושני שדות — ראו
+        /* ⚠ דף המובילשיות. שני קולות ושני שדות — ראו
            shared/mechina-boards.js. */
         feedback: val(i, W.feedback) || null,
         feedbackBy: val(i, W.feedbackBy) || null,

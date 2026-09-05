@@ -16,10 +16,13 @@
      ?action=edit    PUT    עריכת נתוני חניך ⚠ ראש מכינה בלבד
      ?action=team-lecturer POST/PUT/DELETE  מרצים של סדרה,
                      וסיכום הסדרה ⚠ כל חברי הסדרה
-     ?action=leadership GET/PUT  דף המובילויות
+     ?action=leadership GET/PUT  דף המובילשיות
                      ⚠ רק שבועות שכבר הסתיימו. משוב — הצוות;
                        סיכום — מי שהוביל.
      ?action=tryouts GET/POST/PUT/DELETE  מיונים ושיבוצים
+     ?action=projects GET/POST/PUT/DELETE      הפרויקטים של החניך
+     ?action=project-task  POST/PUT/DELETE     משימה בפרויקט
+     ?action=project-money POST/PUT/DELETE     תנועת תקציב בפרויקט
                      ⚠ כתיבה — החניך על עצמו בלבד. קריאה של
                        כולם — צוות ויו״ר ועדת הגיוסים.
 
@@ -65,8 +68,13 @@ import edit from "./_student-edit.js";
    שניהם היו מחרוזת טקסט אחת בפרופיל, ואינם עוד.
    הבעלות נשארת אצל החניך; יו״ר ועדת הגיוסים והצוות קוראים. */
 import tryouts from "./_tryouts.js";
-/* ⚠ דף המובילויות — **רק מה שכבר עבר**, גם אם יש שיבוץ עתידי. */
+/* ⚠ דף המובילשיות — **רק מה שכבר עבר**, גם אם יש שיבוץ עתידי. */
 import leadership from "./_leadership.js";
+/* ⚠⚠ שלושת המסלולים האלה חסומים לצוות **בתוך** המודולים שלהם,
+   ולא בדגל של withAuth: זו נקודת הקצה השנייה במערכת שבה
+   isManager אינו מרחיב גישה אלא מבטל אותה (4מה). */
+import projects from "./_projects.js";
+import { projectTask, projectMoney } from "./_project-items.js";
 /* ⚠ מרצים של סדרה — **אותו לוח חוות דעת**, עם שיוך לסדרה.
    כל חברי הסדרה כותבים, ולא רק היו״ר. */
 import teamLecturer from "./_team-lecturer.js";
@@ -77,4 +85,5 @@ import teamAdmin from "./_team-admin.js";
 export default router({ login, list, year, leader, weeks, role, profile, incident, placements, "placements-setup": placementsSetup, safety, "safety-setup": safetySetup, faults, "faults-setup": faultsSetup, alumni, hosting, cycles, import: importStep,
   duty, "duty-tasks": dutyTasks, "duty-notes": dutyNotes, chair,
   team, "team-task": teamTask, "team-admin": teamAdmin, edit, tryouts, leadership,
+  projects, "project-task": projectTask, "project-money": projectMoney,
   "team-lecturer": teamLecturer });

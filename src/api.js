@@ -168,7 +168,7 @@ export const api = {
   addOneOffLesson: ({ subject, lecturer, date, price }) =>
     post("/api/lessons?action=pay", { subject, lecturer, date, price }),
 
-  /* ---------- דף המובילויות ----------
+  /* ---------- דף המובילשיות ----------
      ⚠ מחזיר **רק שבועות שכבר הסתיימו**. `all=1` פותח לצוות
        את כל השבועות שהיו. */
   getLeadership: (all) =>
@@ -194,6 +194,26 @@ export const api = {
   editTryout: ({ id, name, date, status, track, note }) =>
     put("/api/students?action=tryouts", { id, name, date, status, track, note }),
   deleteTryout: (id) => del("/api/students?action=tryouts", { id }),
+
+  /* ---------- הפרויקטים שלי ----------
+     ⚠⚠ **הצוות אינו רואה כאן דבר.** נקודת הקצה מחזירה 403 לכל
+       כניסת צוות — ראו api/_projects.js. */
+  getProjects: () => get("/api/students?action=projects"),
+  addProject: (p) => post("/api/students?action=projects", p),
+  editProject: (p) => put("/api/students?action=projects", p),
+  deleteProject: (id) => del("/api/students?action=projects", { id }),
+
+  addProjectTask: ({ project, title, due, owner, note }) =>
+    post("/api/students?action=project-task", { project, title, due, owner, note }),
+  editProjectTask: ({ id, title, done, due, owner, note }) =>
+    put("/api/students?action=project-task", { id, title, done, due, owner, note }),
+  deleteProjectTask: (id) => del("/api/students?action=project-task", { id }),
+
+  addProjectMoney: ({ project, title, kind, amount, date, note }) =>
+    post("/api/students?action=project-money", { project, title, kind, amount, date, note }),
+  editProjectMoney: ({ id, title, kind, amount, date, note }) =>
+    put("/api/students?action=project-money", { id, title, kind, amount, date, note }),
+  deleteProjectMoney: (id) => del("/api/students?action=project-money", { id }),
   /* ⚠ **השיבוץ לצה״ל — החניך על עצמו, כמו המיונים.** חיל אחד
      מרשימת החילות של לוח הבוגרים, ופירוט תפקיד חופשי לצידו.
      ⚠ נשלח **בלי `id`** — זה מה שמבדיל אותו ממיון בשרת. */

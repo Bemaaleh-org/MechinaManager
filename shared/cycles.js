@@ -50,6 +50,13 @@ export const CYCLE_BOARDS = [
   { key: "safety", title: "אירועי בטיחות", path: "safety.board", need: false },
   { key: "hosting", title: "אירוח קבוצות", path: "extras.hosting", need: false },
   { key: "loans", title: "השאלת ציוד", path: "extras.loans", need: false },
+  /* ⚠ **הפרויקטים שייכים למחזור.** הם העבודה של החניכים האלה
+     ואינם עוברים הלאה — בדיוק כמו משימות הוועדות. שלושת
+     הלוחות יחד, אחרת מחזור חדש יקבל משימות ותקציב שמצביעים
+     על פרויקטים שאינם קיימים בו. */
+  { key: "projects", title: "פרויקטים", path: "projects.projects", need: false },
+  { key: "projectTasks", title: "משימות פרויקט", path: "projects.tasks", need: false },
+  { key: "projectMoney", title: "תקציב פרויקט", path: "projects.budget", need: false },
 ];
 
 /** מה נדרש כדי שמחזור ייחשב מוכן */

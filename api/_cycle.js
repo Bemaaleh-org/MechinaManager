@@ -35,6 +35,7 @@ import { SAFETY } from "../shared/safety-ids.js";
 import { EXTRA } from "../shared/extras-ids.js";
 import { DUTY_BOARDS } from "../shared/duty-ids.js";
 import { TEAM_BOARDS } from "../shared/team-ids.js";
+import { PROJECT_BOARDS } from "../shared/projects-ids.js";
 
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
 
@@ -65,6 +66,9 @@ const TARGETS = {
   safety: SAFETY,
   duty: DUTY_BOARDS,
   team: TEAM_BOARDS,
+  /* ⚠ שלושת לוחות הפרויקטים. בלי השורה הזו מחזור חדש היה
+     נוצר בלעדיהם, ותקלה כזו מתגלה רק בעוד שנה (4ל). */
+  projects: PROJECT_BOARDS,
 };
 
 /**

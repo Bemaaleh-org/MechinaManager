@@ -976,7 +976,7 @@ html,body{margin:0;padding:0;background:#012E58}
   border-radius:9px;padding:7px 9px;font-size:13.5px;font-weight:700;outline:none;
   text-align:center;font-family:inherit}
 
-/* דף המובילויות */
+/* דף המובילשיות */
 .ld{margin-bottom:10px;padding:0;overflow:hidden}
 .kx .ld-h{display:flex;align-items:center;gap:9px;width:100%;padding:12px 13px;
   background:none;text-align:right}
@@ -1014,6 +1014,45 @@ html,body{margin:0;padding:0;background:#012E58}
 .lw-chip i{font-style:normal;font-size:9.5px;font-weight:700;opacity:.75}
 .lw-out{margin-top:8px;font-size:11.5px;font-weight:700;color:var(--clay);
   background:var(--clay-soft);border-radius:var(--r-sm);padding:8px 10px;line-height:1.5}
+
+/* ---- הפרויקטים שלי ----
+   WARN: ההבטחה כתובה במסך ולא רק בקוד. חניך שאינו יודע שאיש
+   אינו קורא ינהל את הפרויקט כאילו מישהו מסתכל. */
+.pr-private{display:flex;gap:9px;align-items:flex-start;font-size:12px;line-height:1.6;
+  color:var(--ink);background:var(--t4-s);border-radius:var(--r-md);
+  padding:11px 13px;margin-bottom:14px;font-weight:600}
+.pr-private svg{flex:0 0 auto;margin-top:2px;color:var(--t4)}
+.kx .pr-card{display:block;width:100%;text-align:start;margin-bottom:10px}
+.pr-top{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.pr-top b{font-size:15px;font-weight:800;letter-spacing:-.2px}
+.pr-meta{font-size:11.5px;color:var(--muted);font-weight:700;margin-top:3px;
+  display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.pr-nums{display:flex;gap:8px;flex-wrap:wrap;font-size:11.5px;font-weight:700;
+  color:var(--muted);margin-top:6px}
+.pr-text{font-size:13.5px;line-height:1.65;white-space:pre-wrap;margin-bottom:12px}
+.pr-note{font-size:12px;color:var(--muted);line-height:1.5;margin-top:4px;white-space:pre-wrap}
+
+.pr-task,.pr-money{display:flex;gap:10px;align-items:flex-start;
+  padding:11px 13px;border-bottom:1px solid var(--line)}
+.pr-task:last-child,.pr-money:last-child{border-bottom:none}
+.pr-task-t{font-size:14px;font-weight:700;line-height:1.4}
+.pr-task.done .pr-task-t{text-decoration:line-through;color:var(--muted)}
+/* WARN: .kx button מאפסת background ו-border בסגוליות גבוהה
+   יותר, ולכן הקידומת המלאה חובה. אותה מלכודת כמו .yr2-c (4מח). */
+.kx .pr-chk{flex:0 0 auto;width:24px;height:24px;border-radius:8px;
+  border:2px solid var(--line2);background:var(--surface);
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:800;color:var(--surface);cursor:pointer;
+  transition:all 120ms var(--ease)}
+.kx .pr-task.done .pr-chk{background:var(--ok);border-color:var(--ok);color:#fff}
+.pr-in{color:var(--ok)}
+.pr-out{color:var(--ink)}
+/* WARN: .scroll-y הקיימת נושאת את הגלילה. כלל max-height חדש
+   בתוך .rows נבלע על ידי .kx .rows overflow:hidden (4ק). */
+.pr-pick{max-height:40vh}
+.pr-pick-r{display:flex;align-items:center;gap:9px;padding:9px 13px;
+  border-bottom:1px solid var(--line);font-size:13.5px;font-weight:700}
+.pr-pick-r:last-child{border-bottom:none}
 
 /* מיונים ושיבוצים */
 .ty-note{font-size:12px;line-height:1.65;color:var(--muted);font-weight:600;
