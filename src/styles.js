@@ -959,9 +959,17 @@ html,body{margin:0;padding:0;background:#012E58}
 .pay-miss{color:var(--clay)}
 .pay-pend{color:var(--amber)}
 .pay-r-note{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.5}
-.pay-p{display:flex;align-items:center;gap:10px;padding:9px 13px;
-  border-bottom:1px solid var(--line)}
-.pay-p:last-child{border-bottom:none}
+/* WARN: הפס יושב על העוטף ולא על השורה עצמה.
+   לשורה נוסף אישור הוצאה שנפתח מתחתיה, ולכן .pay-p עטופה
+   ב-.pay-pw. הכלל :last-child על .pay-p היה מתאים אז לכל
+   שורה — היא הילדה היחידה בעוטף שלה — וכל המפרידים היו
+   נעלמים. אותה מלכודת כמו .kx .rows (4ק), בגרסה שקטה
+   יותר: היא נראית כמו החלטת עיצוב ולא כמו באג.
+   WARN: אין בקטיקים בקובץ הזה — הוא template literal אחד. */
+.pay-p{display:flex;align-items:center;gap:10px;padding:9px 13px}
+.pay-pw{border-bottom:1px solid var(--line)}
+.pay-pw:last-child{border-bottom:none}
+.pay-pw .alert{margin:0 13px 10px}
 .pay-p-n{flex:1;min-width:0;font-size:13.5px;font-weight:700;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap}
 .kx .pay-p input{flex:0 0 108px;background:var(--surface);border:1px solid var(--line2);

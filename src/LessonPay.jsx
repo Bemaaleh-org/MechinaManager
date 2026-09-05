@@ -267,11 +267,16 @@ function PriceList({ rows, canEdit, say, onSaved, canExclude, excludeReady }) {
   return (
     <div className="rows">
       {rows.map((r) => (
-        <div key={r.sheetId}>
-          <label className="pay-p">
-            <span className="pay-p-n">{r.subject}</span>
+        /* ⚠ העוטף נושא את הפס המפריד ואת אישור ההוצאה שנפתח
+           מתחת לשורה. ראו ההערה ב-styles.js ליד .pay-pw. */
+        <div className="pay-pw" key={r.sheetId}>
+          <div className="pay-p">
+            {/* ⚠ label ולא span, ו-htmlFor מפורש: הכפתור יושב
+                עכשיו באותה שורה, ו-label שעוטף את שניהם היה
+                מעביר כל לחיצה על הכפתור גם לשדה המחיר. */}
+            <label className="pay-p-n" htmlFor={"pay-p-" + r.sheetId}>{r.subject}</label>
             {canEdit ? (
-              <input
+              <input id={"pay-p-" + r.sheetId}
                 value={draft[r.sheetId] !== undefined ? draft[r.sheetId] : String(r.price ?? "")}
                 /* ⚠ decimal ולא numeric — זה כסף. */
                 inputMode="decimal" placeholder="ריק = לא סוכם" disabled={busy === r.sheetId}
@@ -285,7 +290,7 @@ function PriceList({ rows, canEdit, say, onSaved, canExclude, excludeReady }) {
                 ⚠⚠ **הוצאה מהדוח — הצוות, ולא אחראי הלו״ז.**
                 המחיר פתוח לאחראי הלו״ז כי הוא זה שמסכם עם המרצים;
                 הוצאת שיעור מהדוח היא החלטה תקציבית ונשארת אצל
-                הצוות. `canExclude` מגיע **מהשרת** ואינו נגזר כאן
+                הצוות. **canExclude מגיע מהשרת** ואינו נגזר כאן
                 מתפקיד — כפתור שיציע פעולה ויקבל 403 אחרי הלחיצה
                 הוא בדיוק מה שאין לעשות (4יד).
                 ============================================================ */}
@@ -295,7 +300,7 @@ function PriceList({ rows, canEdit, say, onSaved, canExclude, excludeReady }) {
                 הוצאה
               </button>
             )}
-          </label>
+          </div>
 
           {/* ⚠ אישור בתוך המסך ולא confirm() של הדפדפן (4ק).
               ⚠ והוא אומר **מה בדיוק ייצא מהסכום** — "בטוח?" על

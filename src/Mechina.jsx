@@ -2832,10 +2832,14 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
       t: unseen === 1 ? "בקשה שלך הוכרעה" : `${unseen} בקשות שלך הוכרעו`,
       s: "לחצו לצפייה", go: () => go("requests") });
   }
-  if (profile && !profile.army && !profile.tryouts) {
+  /* ⚠ הכרטיס הזה הצביע על הפרופיל, ו"שאיפות ומיונים" יצאו
+     ממנו. הוא נבדק עכשיו מול **השיבוץ החדש** ושולח למסך שבו
+     באמת ממלאים אותו — כרטיס תשומת לב שמוביל למסך שאין בו
+     את מה שהוא מבקש הוא בדיוק הסוג שמלמדים להתעלם ממנו. */
+  if (profile && !profile.armyCorps) {
     attn.push({ key: "prof", cls: "",
-      t: "הפרופיל שלך עדיין ריק",
-      s: "שיבוץ צבאי ומיונים — כדי שהצוות יידע איפה אתה עומד", go: () => go("profile") });
+      t: "עוד לא בחרת שיבוץ",
+      s: "חיל ומיונים — כדי שהצוות יידע איפה אתה עומד", go: () => go("tryouts") });
   }
   const nextTalk = profile && (profile.talks || []).filter(Boolean).sort()
     .find((d) => d >= (testDate() || new Date().toISOString().slice(0, 10)));
