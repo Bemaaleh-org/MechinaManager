@@ -3769,4 +3769,42 @@ a.tm-entry-t.tm-link{color:var(--navy);text-decoration:underline;
   background:var(--sand);border:1px solid var(--line2);
   border-radius:var(--r-sm);font-size:13.5px;font-weight:600}
 
+
+/* ============================================================
+   חיפוש
+   ------------------------------------------------------------
+   ⚠ שכבה מעל המסך ולא מסך משלו — מי שסוגר חוזר בדיוק
+     לאן שהיה. z-index מעל הסרגל (40) ומעל המגירה.
+   ============================================================ */
+.kx .top-ico{width:40px;height:40px;border-radius:50%;display:grid;
+  place-items:center;flex:0 0 auto;color:#fff;
+  background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2)}
+.kx .top-ico:hover{background:rgba(255,255,255,.2)}
+
+.sr-wrap{position:fixed;inset:0;z-index:80;background:rgba(6,18,32,.5);
+  backdrop-filter:blur(3px);display:flex;justify-content:center;
+  padding:calc(14px + env(safe-area-inset-top)) 12px 12px}
+.sr-panel{width:100%;max-width:560px;max-height:calc(100vh - 40px);
+  display:flex;flex-direction:column;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--r-lg);
+  box-shadow:var(--sh-2);overflow:hidden}
+.sr-bar{display:flex;align-items:center;gap:9px;padding:12px 14px;
+  border-bottom:1px solid var(--line2);color:var(--muted)}
+.kx .sr-bar input{flex:1;min-width:0;height:38px;background:none;border:0;
+  font-size:16px;font-weight:700;color:var(--ink);outline:none}
+.kx .sr-x{width:34px;height:34px;border-radius:50%;display:grid;
+  place-items:center;color:var(--muted);flex:0 0 auto}
+.kx .sr-x:hover{background:var(--sand)}
+.sr-body{flex:1;min-height:0;overflow-y:auto;padding:6px 0 10px}
+.sr-hint{padding:26px 20px;text-align:center;font-size:13.5px;
+  font-weight:600;color:var(--muted);line-height:1.8}
+.sr-grp{padding:4px 0}
+.sr-grp-h{font-size:11px;font-weight:800;letter-spacing:.8px;
+  color:var(--faint);padding:8px 16px 5px}
+.kx .sr-row{display:flex;width:100%;gap:10px;padding:10px 16px;
+  background:none;border:0;text-align:right;cursor:pointer;color:inherit}
+.kx .sr-row:hover{background:var(--sand)}
+.sr-t{font-size:14.5px;font-weight:700;color:var(--ink);line-height:1.4}
+.sr-s{font-size:12px;font-weight:600;color:var(--muted);margin-top:2px}
+
 `;

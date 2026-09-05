@@ -37,6 +37,11 @@ const KINDS = ["עיקרית", "תוספת", "סלט", "מרק", "קינוח", "
 const MEALS = ["בוקר", "צהריים", "ערב"];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+/* ⚠ **מיוצאת בשם אחר בכוונה.** `loadDishes` נשארת פנימית כדי
+   שלא תיקרא מחוץ למסלול התפריט; החיפוש מקבל שם מפורש, וכך
+   ברור בקריאה מאיפה הנתון מגיע ולמה. */
+export const loadDishesForSearch = (o) => loadDishes(o);
+
 async function loadDishes({ force = false } = {}) {
   return cached("dishes", async () => {
     const items = await allItems(D.board);

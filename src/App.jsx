@@ -11,6 +11,7 @@ import Setup from "./Setup.jsx";
 import { CyclesPage } from "./Cycles.jsx";
 import { ProfilePage } from "./Profile.jsx";
 import BoardPage from "./Board.jsx";
+import SearchOverlay, { SearchButton } from "./Search.jsx";
 import ExportPage from "./Export.jsx";
 import { MechinaApp, MechinaStaff, WeekLeadersPage, RoleHoldersPage } from "./Mechina.jsx";
 import { LessonsPage, LessonsBoard, LESSON_TABS } from "./Lessons.jsx";
@@ -185,6 +186,7 @@ function Staff({ auth, onSignedOut }) {
   const [pendingList, setPendingList] = useState([]);
   const mineList = pendingList.filter((r) => r.canDecide);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   /* ניווט פנימי מהמגירה ומהפעמון: לאיזה תת-מסך לפתוח את התחום */
   const [staffNav, setStaffNav] = useState({ sub: null, n: 0 });
@@ -223,6 +225,43 @@ function Staff({ auth, onSignedOut }) {
   const goKitchen = (a) => { setKArea(a); setSection("kitchen"); };
   const goContainer = (a) => { setCArea(a); setSection("container"); };
   const openRequests = () => { setNotifOpen(false); goStaff("requests"); };
+
+  /* ============================================================
+     יעד חיפוש → מסך במעטפת הצוות
+     ------------------------------------------------------------
+     ⚠⚠ **המעטפות אינן חולקות שמות מסכים, וזה ידוע.** מעטפת
+       החניך היא `tab` שטוח; מעטפת הצוות מפוצלת לחלקים
+       (`mechina` + תת-מסך, `lessons` + תת-מסך). השרת מחזיר
+       שם אחד — שם המסך כפי שהחניך מכיר אותו — והמיפוי מכאן
+       הוא של המעטפת הזו בלבד.
+
+     ⚠ **ויעד שאין לו מיפוי אינו עושה כלום ואינו נופל.** מסך
+       חדש שיתווסף לחיפוש ולא לכאן ישאיר את המשתמש במקומו —
+       וזה עדיף על ניווט לדף שגוי (עיקרון 6 בגרסה שקטה).
+
+     ⚠ ואין כאן פרויקטים, מיונים או המובילשיות: הם מסכים של
+       החניך על עצמו, ולצוות אין להם מקבילה (5ח, 5ד).
+     ============================================================ */
+  const goSearch = (tab) => {
+    const direct = new Set([
+      "profile", "board", "agenda", "gantt", "chores", "menu", "rules",
+      "faults", "safety", "budget", "teams", "placements", "hosting", "loans",
+    ]);
+    if (direct.has(tab)) { setSection(tab); return; }
+    if (tab === "home") { setSection("dash"); return; }
+    if (tab === "students" || tab === "year" || tab === "requests") {
+      goStaff(tab === "students" ? "students" : tab === "year" ? "students" : "requests");
+      return;
+    }
+    if (tab === "l-board") { goLessons("board"); return; }
+    if (tab === "l-sheets") { goLessons("sheets"); return; }
+    if (tab === "l-evals") { goLessons("evals"); return; }
+    if (tab === "lead-week" || tab === "leadership") { goRoles("weeks"); return; }
+    if (tab === "k-all") { goKitchen(null); return; }
+    if (tab === "container") { goContainer("מכולה"); return; }
+    if (tab === "cleaning") { goContainer("ניקיון"); return; }
+    /* יעד לא מוכר — נשארים במקום. */
+  };
 
   /* ⚠ **החיווי במסך, לא רק בשרת.** מי שכל כפתור שילחץ עליו
      יחזיר 403 צריך לדעת מראש שזה מכוון ולא תקלה — אחרת הוא
@@ -264,6 +303,9 @@ function Staff({ auth, onSignedOut }) {
               <h1>ניהול מכינת ניר עוז</h1>
               <div className="sub">{hebDate(new Date())}</div>
             </div>
+            {/* ⚠ **בסרגל ולא במסך.** חיפוש שדורשים לנווט אליו
+                הוא חיפוש שאיש לא ישתמש בו. */}
+            <SearchButton onClick={() => setSearchOpen(true)} />
             <NotifyBell notify={notify} open={notifOpen}
               onToggle={() => setNotifOpen((v) => !v)} />
             <div className="brand-coin" aria-label="במעלה הדרך">
@@ -415,6 +457,12 @@ function Staff({ auth, onSignedOut }) {
 
         {/* ⚠ פאנל אחד לכל התחומים, ולא רק לבקשות היציאה.
             ראו api/_notify.js: מה שדורש טיפול נגזר מהמצב. */}
+        {/* ⚠ **שכבה מעל המסך ולא ניווט.** מי שסוגר את החיפוש
+            חוזר בדיוק לאן שהיה, ומי שבוחר תוצאה מנווט. */}
+        {searchOpen && (
+          <SearchOverlay onClose={() => setSearchOpen(false)} onGo={goSearch} />
+        )}
+
         {notifOpen && (
           <NotifyPanel notify={notify} onClose={() => setNotifOpen(false)}
             onGo={(tab) => {

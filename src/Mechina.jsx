@@ -35,6 +35,7 @@ import DutyPage from "./Duty.jsx";
 import ProjectsPage from "./Projects.jsx";
 import LeadWeekPage from "./LeadWeek.jsx";
 import BoardPage from "./Board.jsx";
+import SearchOverlay, { SearchButton } from "./Search.jsx";
 import TeamsPage from "./Teams.jsx";
 import ChoresPage from "./Chores.jsx";
 import RulesPage from "./Rules.jsx";
@@ -3197,6 +3198,7 @@ export function MechinaApp({ auth, onSignedOut }) {
   }, [auth.isLeader]);
 
   const [notifOpen, setNotifOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   /* ⚠ אותו מנגנון של המנהל. חניך בעל תפקיד מקבל בדיוק את
      ההתראות של התפקיד שלו — ראו api/_notify.js. */
@@ -3227,6 +3229,8 @@ export function MechinaApp({ auth, onSignedOut }) {
             <div className="sub">מכינת ניר עוז · מחזור ב׳</div>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {/* ⚠ **בסרגל ולא במסך** — ראו src/Search.jsx. */}
+            <SearchButton onClick={() => setSearchOpen(true)} />
             <NotifyBell notify={notify} open={notifOpen}
               onToggle={() => setNotifOpen((v) => !v)} />
             <button className="who" onClick={signOut}>
@@ -3346,6 +3350,12 @@ export function MechinaApp({ auth, onSignedOut }) {
         ]} />
 
       {/* תצוגה מקדימה של ההתראות — הבקשות שהוכרעו */}
+      {/* ⚠ שכבה מעל המסך ולא ניווט — ראו src/Search.jsx. */}
+      {searchOpen && (
+        <SearchOverlay onClose={() => setSearchOpen(false)}
+          onGo={(t) => setTab(t)} />
+      )}
+
       {notifOpen && (
         <NotifyPanel notify={notify} onClose={() => setNotifOpen(false)}
           onGo={(t) => setTab(t)} />

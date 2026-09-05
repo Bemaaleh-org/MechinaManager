@@ -174,6 +174,11 @@ export const api = {
     post("/api/students?action=team-feedback", { team, text }),
   deleteTeamFeedback: (id) => del("/api/students?action=team-feedback", { id }),
 
+  /* ---------- חיפוש ----------
+     ⚠ **כל מקור אוכף את ההרשאה של עצמו בשרת**, ואין כאן סינון.
+       ראו api/_search.js. */
+  search: (q) => get("/api/students?action=search&q=" + encodeURIComponent(q)),
+
   /* ---------- לוח מודעות ----------
      ⚠ **הקהל נאכף בשרת ולא כאן.** מודעה לצוות אינה מוחזרת
        לחניך כלל, ולכן אין מה לסנן במסך (עיקרון 4). */
