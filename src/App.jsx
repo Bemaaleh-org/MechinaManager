@@ -8,7 +8,7 @@ import { CyclesPage } from "./Cycles.jsx";
 import { ProfilePage } from "./Profile.jsx";
 import ExportPage from "./Export.jsx";
 import { MechinaApp, MechinaStaff, WeekLeadersPage, RoleHoldersPage } from "./Mechina.jsx";
-import { LessonsPage, LessonsBoard } from "./Lessons.jsx";
+import { LessonsPage, LessonsBoard, LESSON_TABS } from "./Lessons.jsx";
 import { AlumniPage, HostingPage, LoansPage } from "./Extras.jsx";
 import { MenuPage } from "./Menu.jsx";
 import { ContainerPage } from "./Container.jsx";
@@ -202,6 +202,12 @@ function Staff({ auth, onSignedOut }) {
     return () => { live = false; clearInterval(t); };
   }, [isMgr]);
 
+  /* ⚠ אייקון לכל אחד מארבעת מסכי השיעורים. מסך בלי ערך במפה
+     מקבל ברירת מחדל ואינו נעלם (4יא). */
+  const LESSON_ICON = {
+    board: <I.day />, sheets: <I.book />, evals: <I.star />, pay: <I.note />,
+  };
+
   const say = useCallback((m) => { setToast(m); setTimeout(() => setToast(null), 2400); }, []);
 
   const goStaff = (sub) => { setSection("mechina"); setStaffNav((p) => ({ sub, n: p.n + 1 })); };
@@ -346,12 +352,19 @@ function Staff({ auth, onSignedOut }) {
               { key: "gantt", label: "גאנט שנתי", icon: <I.cal />,
                 active: section === "gantt", onClick: () => setSection("gantt") },
             ] },
-            { label: "שיעורים", items: [
-              { key: "l-sheets", label: "גיליונות מרצים", icon: <I.book />,
-                active: section === "lessons" && lessonsSub === "sheets", onClick: () => goLessons("sheets") },
-              { key: "l-evals", label: "חוות דעת", icon: <I.star />,
-                active: section === "lessons" && lessonsSub === "evals", onClick: () => goLessons("evals") },
-            ] },
+            /* ============================================================
+               ⚠ **ארבעה דפים, ולא דף אחד עם ארבע לשוניות.**
+                 השמות והסדר מגיעים מ-`LESSON_TABS` שב-Lessons.jsx —
+                 אותו מקור שמזין את `DUTIES` ואת המגירה של החניך.
+                 קודם ישבו כאן שני קישורים בלבד ("גיליונות" ו"חוות
+                 דעת"), והלוח והתשלום היו נגישים רק למי שידע שיש
+                 רצועה פנימית בפנים.
+               ============================================================ */
+            { label: "שיעורים", items: LESSON_TABS.map((t) => ({
+              key: t.tab, label: t.label, icon: LESSON_ICON[t.sub] || <I.book />,
+              active: section === "lessons" && lessonsSub === t.sub,
+              onClick: () => goLessons(t.sub),
+            })) },
             /* ⚠ הבוגרים אינם בטיחות ואינם תחזוקה. הם קטגוריה
                בפני עצמה — מי שכבר סיים את המכינה. */
             { label: "בוגרים ומחזורים", items: [
@@ -448,9 +461,14 @@ function Staff({ auth, onSignedOut }) {
               isHead={Boolean(auth.isHead)}
               onSub={setStaffSub} />
           )}
+          {/* ⚠ `solo` — הרצועה הפנימית ירדה, וכל דף נפתח לבדו.
+              `key` מאלץ מונטאז' מחדש כשעוברים בין הדפים, אחרת
+              מצב פנימי של דף אחד (גיליון פתוח, חודש שנבחר) היה
+              נשאר על המסך הבא. */}
           {section === "lessons" && isMgr && (
-            <LessonsPage say={say} key={lessonsNav.n} sub0={lessonsNav.sub || undefined}
-              onSub={setLessonsSub} />
+            <LessonsPage say={say} solo
+              key={(lessonsNav.sub || "sheets") + ":" + lessonsNav.n}
+              sub0={lessonsNav.sub || undefined} onSub={setLessonsSub} />
           )}
           {/* ⚠ שני מסכים נפרדים, ולא שתי לשוניות של אחד. */}
           {section === "leaders" && isMgr && (

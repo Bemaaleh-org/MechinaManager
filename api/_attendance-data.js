@@ -131,7 +131,11 @@ export const isSchoolDay = (day) => Boolean(day) && !NON_SCHOOL_KINDS.includes(d
  *   ראו ההסבר ב-shared/mechina-boards.js — חופשות חג אינן
  *   מסומנות, וכל מכנה שנגזר מהלוח מנפח את המספר.
  */
-export function summarize(studentId, { absences, marked, byDate }) {
+/**
+ * ⚠ `today` הוא פרמטר ולא `new Date()` פנימי: השרת רץ ב-UTC,
+ *   ו-`?date=` צריך להשפיע גם כאן. ברירת המחדל היא שעון ישראל.
+ */
+export function summarize(studentId, { absences, marked, byDate }, today = israelToday()) {
   const mine = absences.filter((a) => a.studentId === studentId);
 
   /* ============================================================
@@ -161,6 +165,35 @@ export function summarize(studentId, { absences, marked, byDate }) {
     return { half, used, left: Math.max(0, VACATION_PER_HALF - used), total: VACATION_PER_HALF };
   };
 
+  /* ============================================================
+     ⚠⚠ **המכסה היא של המחצית, ולא של השנה.**
+
+     המסך חיבר את שתי המכסות והציג "6 ימי חופש שנותרו מתוך 6
+     בשנה". זה מספר **נכון חשבונית ושקרי במשמעותו**: ימי החופש
+     נקבעים למחצית ופגים בסופה, ולכן חניך שראה 6 בנובמבר תכנן
+     לפי מספר שלא היה קיים — שלושה מהם היו של מחצית ב׳ ושלושה
+     היו פגים לפני שהספיק להשתמש בהם.
+
+     ⚠ **המחצית נגזרת מלוח השנה ולא מהתאריך.** הגבול בין
+       המחציות הוא שבוע האמצע, והמכינה קובעת אותו בלוח — לא
+       חודש קבוע בקוד (עיקרון 1).
+
+     ⚠ **ונופלים אחורה ליום המסומן האחרון.** היום עצמו עשוי
+       להיות שבת, חג, או תאריך שאין לו שורה בלוח — ואז אין
+       ממנו מחצית. בלי הנפילה לאחור המסך היה מציג "—" בדיוק
+       בסופי השבוע, כשחניכים מתכננים חופשות.
+     ============================================================ */
+  const halfAt = (iso) => {
+    const exact = byDate.get(iso);
+    if (exact && exact.half) return exact.half;
+    const before = [...byDate.keys()].filter((d) => d <= iso).sort();
+    for (let i = before.length - 1; i >= 0; i--) {
+      const h = (byDate.get(before[i]) || {}).half;
+      if (h) return h;
+    }
+    return null;
+  };
+
   /* ⚠ גם ההיעדרות נספרת רק בימים שנספרים. אחרת חניך היה
      צובר היעדרויות ביום שאינו במכנה — ואז absent > schoolDays. */
   const absent = mine.filter((a) => countedSet.has(a.date)).length;
@@ -182,6 +215,10 @@ export function summarize(studentId, { absences, marked, byDate }) {
     justified: count(ABSENCE.justified),
     vacation: count(ABSENCE.vacation),
     quota: [quota(HALF.first), quota(HALF.second)],
+    /* ⚠ שתי המכסות ממשיכות לצאת — מסך הנוכחות מציג את שתיהן,
+       וזו התמונה השנתית. מה שנוסף הוא **איזו מהן עכשיו**, כדי
+       שהמספר הגדול במסך הבית יהיה זה שאפשר לפעול לפיו. */
+    currentHalf: halfAt(today),
   };
 }
 

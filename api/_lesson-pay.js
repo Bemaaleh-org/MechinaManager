@@ -5,6 +5,7 @@
      GET                   השנה כולה, חודש-חודש
      PUT  { id, price, payNote }   מחיר למפגש בגיליון
      PUT  { id, noPay }            הוצאת שיעור מהדוח, והחזרתו
+     POST { subject, lecturer, date, price }   שיעור מזדמן
 
    ------------------------------------------------------------
    ⚠ **מחיר ל*מפגש*, ולא לחודש ולא לשנה.** מה שקובע כמה מגיע
@@ -28,9 +29,13 @@
 
 import { withAuth } from "./_session.js";
 import { gql } from "./_monday.js";
-import { loadSheets, loadMeetings, invalidateLessons } from "./_lessons-data.js";
+import {
+  loadSheets, loadMeetings, invalidateLessons, createSheet, addMeeting, setMeeting,
+} from "./_lessons-data.js";
 import { loadCalendar } from "./_attendance-data.js";
-import { LESSON_BOARDS, LESSON_COLS, PLANNED, payFilterReady } from "../shared/lessons-boards.js";
+import {
+  LESSON_BOARDS, LESSON_COLS, PLANNED, HAPPENED, payFilterReady,
+} from "../shared/lessons-boards.js";
 import { mayEdit } from "../shared/edit-rights.js";
 
 const S = LESSON_COLS.sheets;
@@ -41,7 +46,8 @@ const counted = (m) => m.happened === "כן";
 async function handler(req, res, session) {
   if (req.method === "GET") return report(req, res, session);
   if (req.method === "PUT") return setPrice(req, res, session);
-  return res.status(405).json({ error: "רק GET ו-PUT נתמכים כאן" });
+  if (req.method === "POST") return addOneOff(req, res, session);
+  return res.status(405).json({ error: "רק GET, POST ו-PUT נתמכים כאן" });
 }
 
 async function report(req, res, session) {
@@ -252,6 +258,88 @@ async function setPrice(req, res, session) {
   } catch (e) {
     console.error("[lesson-pay:price]", e);
     res.status(502).json({ error: "עדכון המחיר נכשל" });
+  }
+}
+
+/* ============================================================
+   שיעור מזדמן — מרצה שהגיע פעם אחת
+   ------------------------------------------------------------
+   ⚠⚠ **גיליון ומפגש אמיתיים, ולא "שורה בדוח".** הדוח כולו נגזר
+     מהגיליונות ומהמפגשים שלהם (4ח), ואין בו שום נתון משלו.
+     שורה שהייתה חיה רק בדוח הייתה המקום הראשון שבו הסכום מפסיק
+     להיות ניתן לבדיקה מול מה שבאמת קרה.
+
+     לכן שיעור מזדמן הוא בדיוק מה שהוא: **גיליון עם מפגש אחד**,
+     שסומן "התקיים". הוא מופיע בלוח השיעורים, בגיליונות,
+     ובחוות הדעת — כמו כל שיעור אחר, כי הוא כן היה.
+
+   ⚠ **המחיר חובה כאן, ואינו יכול להישאר ריק.** בגיליון קבוע
+     "ריק" פירושו "טרם סוכם" וזה מצב לגיטימי שנמשך חודשים; שיעור
+     מזדמן נרשם **אחרי** שהוא כבר קרה, ומי שרושם אותו יודע כמה
+     הוא עלה. ריק כאן הוא שכחה, לא מצב.
+
+   ⚠ **המפגש נוצר `planned: כן` ומיד `happened: כן`.** שתי
+     קריאות ולא אחת, כי `addMeeting` אינו מקבל `happened` —
+     והוספת פרמטר שם הייתה משנה את המסלול שכל שאר המערכת
+     משתמשת בו.
+
+   ⚠ **הצוות בלבד** — אותו שער כמו ההוצאה מהדוח, ומאותו טעם:
+     זו רשומה תקציבית. `mayExclude`.
+   ============================================================ */
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+async function addOneOff(req, res, session) {
+  try {
+    if (!mayExclude(session)) {
+      return res.status(403).json({
+        error: "הוספת שיעור מזדמן היא בידי הצוות.",
+      });
+    }
+    const body = req.body ?? (await readJson(req));
+
+    const subject = String(body?.subject || "").trim().slice(0, 200);
+    if (!subject) return res.status(400).json({ error: "לא הוזן שם השיעור" });
+
+    const date = String(body?.date || "").trim();
+    if (!DATE_RE.test(date)) return res.status(400).json({ error: "תאריך בפורמט YYYY-MM-DD" });
+
+    const raw = String(body?.price ?? "").trim();
+    if (!raw) return res.status(400).json({ error: "שיעור מזדמן נרשם אחרי שהתקיים — צריך לציין כמה הוא עלה" });
+    const price = Number(raw);
+    if (!Number.isFinite(price) || price < 0 || price > 1000000) {
+      return res.status(400).json({ error: "מחיר לא תקין" });
+    }
+
+    const lecturer = String(body?.lecturer || "").trim().slice(0, 200);
+
+    /* ⚠ שם כפול נחסם: כל המסכים מזהים גיליון בעין לפי שמו, ושני
+       גיליונות באותו שם הם בדיוק המקום שבו מדווחים על הלא-נכון. */
+    const sheets = await loadSheets({ force: true });
+    if (sheets.some((x) => x.subject === subject)) {
+      return res.status(409).json({ error: `כבר קיים גיליון בשם "${subject}".` });
+    }
+
+    const sheetId = await createSheet({ subject, lecturer, dayTime: "" });
+    await gql(
+      `mutation($b:ID!,$i:ID!,$v:JSON!){
+         change_multiple_column_values(board_id:$b,item_id:$i,column_values:$v,
+                                       create_labels_if_missing:false){ id } }`,
+      { b: LESSON_BOARDS.sheets, i: sheetId,
+        v: JSON.stringify({ [S.price]: String(Math.round(price * 100) / 100) }) });
+
+    const meetingId = await addMeeting({
+      sheetId, sheetName: subject, date, planned: PLANNED.yes,
+      note: "שיעור מזדמן",
+    });
+    /* ⚠ הוא כבר קרה — אחרת הוא היה נספר ב"טרם דווחו" ומנפח
+       בדיוק את המספר שהדוח קיים בשבילו. */
+    await setMeeting(meetingId, { happened: HAPPENED.yes });
+
+    invalidateLessons();
+    return res.status(200).json({ ok: true, sheetId, meetingId });
+  } catch (e) {
+    console.error("[lesson-pay:oneOff]", e);
+    res.status(502).json({ error: "הוספת השיעור נכשלה" });
   }
 }
 

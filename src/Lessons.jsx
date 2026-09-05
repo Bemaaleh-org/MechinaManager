@@ -1323,7 +1323,34 @@ export function LessonsBoard({ say, onOpenSheet, compact = false }) {
   );
 }
 
-export function LessonsPage({ say, sub0, onSub }) {
+/* ============================================================
+   ארבעת מסכי השיעורים
+   ------------------------------------------------------------
+   ⚠ **מקור אחד לשם ולסדר.** הרצועה הפנימית, המגירה של החניך
+     והמגירה של הצוות שאבו את השמות משלושה מקומות שונים —
+     ולכן "הלוח שלי" נשאר בשם הזה במגירה אחת אחרי שהוחלף
+     בשנייה. עכשיו כולם קוראים מכאן.
+
+   ⚠ **"שיעורים קרובים" ולא "הלוח שלי".** המסך מראה מה קורה
+     בימים הקרובים ומה טרם דווח; "שלי" רמז שיש בו משהו אישי,
+     ואין.
+   ============================================================ */
+export const LESSON_TABS = [
+  { sub: "board", tab: "l-board", label: "שיעורים קרובים" },
+  { sub: "sheets", tab: "l-sheets", label: "גיליונות מרצים" },
+  { sub: "evals", tab: "l-evals", label: "חוות דעת" },
+  { sub: "pay", tab: "pay", label: "תשלום למרצים" },
+];
+
+const TITLE = Object.fromEntries(LESSON_TABS.map((t) => [t.sub, t.label]));
+
+/**
+ * ⚠ `solo` — המסך עומד בפני עצמו ואין רצועת לשוניות.
+ *   ארבעת המסכים הם ארבעה דפים במגירה, ולא דף אחד עם ארבע
+ *   לשוניות: כל אחד מהם נפתח מסיבה אחרת ואיש אינו עובר ביניהם
+ *   באמצע עבודה. הרכיב נשאר אחד כדי שלא יתפצלו.
+ */
+export function LessonsPage({ say, sub0, onSub, solo = false }) {
   const [sub, setSub] = useState(sub0 || "sheets");
   /* ⚠ מדווח החוצה כדי שהתפריט יסמן את הדף שנמצאים בו. */
   React.useEffect(() => { if (onSub) onSub(sub); }, [sub, onSub]);
@@ -1336,19 +1363,17 @@ export function LessonsPage({ say, sub0, onSub }) {
 
   return (
     <>
-      <div className="screen-title">שיעורים במכינה</div>
+      {/* ⚠ הכותרת היא של המסך הפתוח, ולא "שיעורים במכינה"
+          לכולם: ארבעה דפים נפרדים שנקראים אותו דבר הם ארבעה
+          דפים שאי אפשר לדעת באיזה מהם נמצאים. */}
+      <div className="screen-title">{TITLE[sub] || "שיעורים במכינה"}</div>
 
-      {!inner && (
+      {!solo && !inner && (
         <div className="seg seg-scroll">
-          {/* ⚠ הלוח ראשון: הוא המסך שנפתח כדי לדעת "מה עליי
-              היום", והגיליונות הם המקום שאליו נכנסים לתקן. */}
-          <button className={sub === "board" ? "on" : ""} onClick={() => setSub("board")}>הלוח שלי</button>
-          <button className={sub === "sheets" ? "on" : ""} onClick={() => setSub("sheets")}>גיליונות</button>
-          <button className={sub === "evals" ? "on" : ""} onClick={() => setSub("evals")}>חוות דעת</button>
-          {/* ⚠ **התשלום יושב כאן ולא כמסך נפרד בתפריט.** הוא
-              נגזר מהגיליונות — מחיר למפגש כפול מה שסומן שהתקיים
-              — ומי שמתקן דיווח הוא בדיוק מי ששואל כמה מגיע. */}
-          <button className={sub === "pay" ? "on" : ""} onClick={() => setSub("pay")}>תשלום למרצים</button>
+          {LESSON_TABS.map((t) => (
+            <button key={t.sub} className={sub === t.sub ? "on" : ""}
+              onClick={() => setSub(t.sub)}>{t.label}</button>
+          ))}
         </div>
       )}
 

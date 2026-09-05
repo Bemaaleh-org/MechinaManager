@@ -20,7 +20,12 @@ import { monthLabel } from "../shared/budget-boards.js";
 
 const shekel = (n) => Math.round(n || 0).toLocaleString("he-IL");
 
-export default function LessonPay({ say }) {
+/**
+ * ⚠ `bare` — בלי כותרת משלו. הדוח מוצג גם כדף עצמאי (ואז
+ *   `LessonsPage` כבר כתב את הכותרת) וגם בתוך רצועת הלשוניות.
+ *   שתי כותרות זו אחר זו נראות כמו באג.
+ */
+export default function LessonPay({ say, bare = false }) {
   useExcel();
   const [month, setMonth] = useState(null);
   const [data, setData] = useState(null);
@@ -33,18 +38,14 @@ export default function LessonPay({ say }) {
   }, [month]);
   useEffect(() => { load(); }, [load]);
 
-  if (err) {
-    return <><div className="screen-title">תשלום למרצים</div>
-      <div className="login-err">{err}</div></>;
-  }
-  if (!data) {
-    return <><div className="screen-title">תשלום למרצים</div>
-      <div className="skel" style={{ height: 220 }} /></>;
-  }
+  const Title = () => (bare ? null : <div className="screen-title">תשלום למרצים</div>);
+
+  if (err) return <><Title /><div className="login-err">{err}</div></>;
+  if (!data) return <><Title /><div className="skel" style={{ height: 220 }} /></>;
 
   return (
     <>
-      <div className="screen-title">תשלום למרצים</div>
+      <Title />
 
       {/* ============================================================
           ⚠ **רצועה נגללת, ולא `.seg` רגילה.**
@@ -67,6 +68,9 @@ export default function LessonPay({ say }) {
         ? <MonthView data={data} say={say} onSaved={load} />
         : <YearView data={data} onPick={setMonth} say={say} onSaved={load} />}
 
+      {/* ⚠ יושב אחרי הדוח ולא לפניו: הוספה היא פעולה נדירה,
+          והקריאה היא מה שבאים בשבילו. */}
+      <OneOff data={data} say={say} onSaved={load} />
       <Excluded data={data} say={say} onSaved={load} />
       <div style={{ height: 50 }} />
     </>
@@ -380,6 +384,103 @@ function Excluded({ data, say, onSaved }) {
             </div>
           </div>
         ))}
+      </div>
+    </>
+  );
+}
+
+/* ============================================================
+   שיעור מזדמן
+   ------------------------------------------------------------
+   ⚠⚠ **נרשם אחרי שהתקיים, ולכן המחיר חובה.** בגיליון קבוע
+     "ריק" פירושו "טרם סוכם" — מצב לגיטימי שנמשך חודשים. כאן
+     מי שרושם כבר יודע כמה זה עלה, וריק הוא שכחה.
+
+   ⚠ **נוצרים גיליון ומפגש אמיתיים**, ולא שורה שחיה רק בדוח:
+     הסכום חייב להישאר ניתן לבדיקה מול מה שבאמת קרה (4ח).
+     המשמעות המעשית — השיעור יופיע גם בגיליונות ובלוח.
+     זה נאמר במסך מראש, כי מי שיגלה את זה אחר כך יחשוב שנוצר
+     משהו בטעות.
+
+   ⚠ **הצוות בלבד** (`canExclude`), כמו ההוצאה מהדוח ומאותו
+     טעם: זו רשומה תקציבית ולא דיווח תפעולי.
+   ============================================================ */
+function OneOff({ data, say, onSaved }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [f, setF] = useState({ subject: "", lecturer: "", date: "", price: "" });
+
+  if (!data.canExclude) return null;
+
+  const ready = f.subject.trim() && f.date && String(f.price).trim() !== "";
+
+  const submit = () => {
+    if (!ready || busy) return;
+    setBusy(true);
+    api.addOneOffLesson({
+      subject: f.subject.trim(), lecturer: f.lecturer.trim(),
+      date: f.date, price: f.price,
+    })
+      .then(() => {
+        say("השיעור נוסף לדוח");
+        setF({ subject: "", lecturer: "", date: "", price: "" });
+        setOpen(false);
+        onSaved();
+      })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  if (!open) {
+    return (
+      <button className="btn btn-ghost btn-sm" style={{ marginTop: 14 }}
+        onClick={() => setOpen(true)}>
+        הוספת שיעור מזדמן
+      </button>
+    );
+  }
+
+  return (
+    <>
+      <div className="grp-h"><span>שיעור מזדמן</span></div>
+      <div className="card lift">
+        <div className="e2" style={{ marginBottom: 10 }}>
+          מרצה שהגיע פעם אחת. נוצרים לו גיליון ומפגש אחד שמסומן שהתקיים —
+          ולכן הוא יופיע גם בגיליונות המרצים ובלוח השיעורים, כמו כל שיעור
+          אחר. זה מה שמאפשר לבדוק את הסכום מול מה שבאמת קרה.
+        </div>
+        <div className="fld">
+          <label>שם השיעור</label>
+          <input value={f.subject} disabled={busy} autoFocus
+            placeholder="למשל: הרצאת אורח — יזמות"
+            onChange={(e) => setF({ ...f, subject: e.target.value })} />
+        </div>
+        <div className="fld">
+          <label>המרצה (לא חובה)</label>
+          <input value={f.lecturer} disabled={busy}
+            onChange={(e) => setF({ ...f, lecturer: e.target.value })} />
+        </div>
+        <div className="two">
+          <div className="fld">
+            <label>מתי התקיים</label>
+            <input type="date" dir="ltr" value={f.date} disabled={busy}
+              onChange={(e) => setF({ ...f, date: e.target.value })} />
+          </div>
+          <div className="fld">
+            <label>כמה עלה</label>
+            {/* ⚠ decimal ולא numeric — זה כסף. */}
+            <input inputMode="decimal" value={f.price} disabled={busy} placeholder="₪"
+              onChange={(e) => setF({ ...f, price: e.target.value })} />
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button className="btn btn-primary" style={{ flex: 1 }}
+            disabled={!ready || busy} onClick={submit}>
+            {busy ? "מוסיף…" : "הוספה לדוח"}
+          </button>
+          <button className="btn btn-ghost" style={{ flex: 1 }} disabled={busy}
+            onClick={() => setOpen(false)}>ביטול</button>
+        </div>
       </div>
     </>
   );

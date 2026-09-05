@@ -62,10 +62,30 @@ const outsideDay = cal.days.find((d) => isSchoolDay(d)
 const marksBefore = new Set((await loadMarked({ force: true })).keys());
 
 const before = linked(week, W.leaders);
-const setLeaders = (ids) => gql(
-  `mutation($b:ID!,$i:ID!,$v:JSON!){ change_multiple_column_values(board_id:$b,item_id:$i,column_values:$v,create_labels_if_missing:false){id} }`,
-  { b: MECHINA_BOARDS.leaderWeeks, i: week.id,
-    v: JSON.stringify({ [W.leaders]: { item_ids: ids.map(Number) } }) });
+
+/* ============================================================
+   ⚠⚠ **השיבוץ נעשה דרך ה-API ולא בכתיבה ישירה ללוח.**
+
+   הגרסה הקודמת כתבה ישירות ל-monday, ו**כתיבה ישירה אינה מנקה
+   את מטמון השרת** — הוא בן חמש דקות ויושב בתהליך אחר. הבדיקה
+   המתינה 45 שניות ואז הכריזה על כישלון, כלומר עברה או נכשלה
+   לפי מזל התזמון: כשהמטמון היה קר היא עברה, וכשמישהו גלש
+   באפליקציה דקה קודם — נכשלה על התנהגות **נכונה**.
+
+   `POST ?action=weeks` מנקה את המטמון באותו תהליך שטיפל
+   בבקשה, ולכן השינוי נראה מיד. ובדרך זו הבדיקה גם עוברת
+   במסלול האמיתי ולא בקיצור דרך.
+
+   ⚠ זה מה שחשף ש-`?action=weeks` אימת מול `activeStudents()`
+     ולכן **סירב לשבץ את חשבון הבדיקה בכלל** — בורר הוא רשימת
+     בחירה וצריך `assignableStudents()` (4ע). תוקן בשרת.
+   ============================================================ */
+const setLeaders = async (ids) => {
+  const r = await call(M, "POST", "/api/students?action=weeks",
+    { weekId: String(week.id), studentIds: ids.map(String) });
+  if (r.s !== 200) throw new Error(`שיבוץ מובילים נכשל: ${r.s} ${r.b.error || ""}`);
+  return r;
+};
 
 const users = (await gql(`{ boards(ids:[${AUTH_BOARD}]){ items_page(limit:100){items{id name column_values(ids:["${AUTH_COLS.code}"]){id text}}} } }`))
   .boards[0].items_page.items;
@@ -87,7 +107,8 @@ try {
   r = await call(S, "POST", "/api/auth?action=signin", { user: DEMO_USER, password: DEMO_PASS });
   ok("חשבון הבדיקה נכנס", r.s === 200, `${r.s} ${r.b.error || ""}`);
 
-  /* ⚠ המתנה **על תנאי** — מטמון השרת יושב בתהליך אחר. */
+  /* ⚠ נשארת רשת ביטחון קצרה: השיבוץ דרך ה-API מנקה את המטמון
+     באותו מופע, אבל בייצור יש כמה מופעים. */
   let day = null;
   for (let i = 0; i < 45; i++) {
     day = await call(S, "GET", "/api/attendance?action=day&date=" + inside[0]);
@@ -187,7 +208,14 @@ try {
     }
   } catch (e) { console.log("  ! בדיקת ימי הסימון נכשלה: " + e.message); }
 
-  await setLeaders(before);
+  /* ⚠ השחזור עטוף: אם הוא נופל, ההודעה חייבת לצאת ולא להיבלע
+     ב-finally — שבוע שנשאר עם המובילים הלא-נכונים הוא נתון
+     אמיתי שהמכינה עובדת לפיו. */
+  try {
+    await setLeaders(before);
+  } catch (e) {
+    console.log("  !! שחזור המובילים נכשל: " + e.message);
+  }
   invalidate("leader-weeks");
   const back = (await allItems(MECHINA_BOARDS.leaderWeeks)).find((w) => String(w.id) === String(week.id));
   const now = linked(back, W.leaders);

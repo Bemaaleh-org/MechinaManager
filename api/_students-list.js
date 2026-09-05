@@ -39,7 +39,7 @@ async function handler(req, res) {
       const hit = absentToday.get(s.id);
       return {
         ...toPublic(s),
-        summary: summarize(s.id, { absences, marked, byDate: cal.byDate }),
+        summary: summarize(s.id, { absences, marked, byDate: cal.byDate }, today),
         /* ⚠ נפרד מ-summary בכוונה: נוכחות אימון ונוכחות יומית
            הן שתי אמיתות שונות ואין לערבב ביניהן. */
         training: training.get(s.id) || EMPTY_TRAINING,

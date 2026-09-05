@@ -20,7 +20,26 @@
 import { withAuth } from "./_session.js";
 import { gql, allItems } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
-import { activeStudents, toPublic } from "./_student-rows.js";
+/* ============================================================
+   ⚠⚠ **`assignableStudents` ולא `activeStudents` — זו רשימת
+     בחירה.**
+
+   הכלל מתועד ב-4ע: `activeStudents()` היא "מי נספר", ו-
+   `assignableStudents()` היא "את מי אפשר לשבץ". חשבון הבדיקה
+   מסונן מהראשונה כדי שלא יזייף נוכחות, אחוזים ומכסות — ומופיע
+   בשנייה, אחרת אי אפשר לשבץ אותו לשום דבר כדי לבדוק אותו.
+
+   כאן היה `activeStudents`, ולכן **חשבון הבדיקה לא הופיע בבורר
+   מובילי השבוע ולא ניתן היה לשבץ אותו דרך ה-API כלל** —
+   `leader-test` נאלץ לכתוב ישירות ללוח, וכתיבה ישירה אינה
+   מנקה את מטמון השרת (הוא בן חמש דקות ויושב בתהליך אחר).
+   התוצאה: בדיקה שעברה או נכשלה לפי מזל התזמון.
+
+   ⚠ **שיבוץ מוביל שבוע אינו מונה ואינו ממוצע** — הוא בחירה
+     של אב הבית מתוך רשימה, ולכן הכיוון הזה נכון לגופו ולא רק
+     נוח לבדיקה.
+   ============================================================ */
+import { assignableStudents, toPublic } from "./_student-rows.js";
 import { todayFor } from "./_attendance-data.js";
 import { MECHINA_BOARDS, MECHINA_COLS } from "../shared/mechina-boards.js";
 import { guideList } from "./_guides.js";
@@ -111,7 +130,7 @@ async function list(req, res, session) {
     if (!session.isManager) {
       return res.status(403).json({ error: "הפעולה מותרת למנהל בלבד" });
     }
-    const [weeks, students] = await Promise.all([loadLeaderWeeks(), activeStudents()]);
+    const [weeks, students] = await Promise.all([loadLeaderWeeks(), assignableStudents()]);
     const byId = new Map(students.map((s) => [s.id, s]));
     const today = todayFor(req);
 
@@ -180,7 +199,7 @@ async function assign(req, res, session) {
       return res.status(400).json({ error: "עד שלושה מובילים לשבוע" });
     }
 
-    const [weeks, students] = await Promise.all([loadLeaderWeeks(), activeStudents()]);
+    const [weeks, students] = await Promise.all([loadLeaderWeeks(), assignableStudents()]);
     const week = weeks.find((w) => w.id === weekId);
     if (!week) {
       return res.status(404).json({ error: "השבוע אינו נמצא" });

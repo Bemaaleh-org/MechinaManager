@@ -76,8 +76,40 @@ const MI = {
    **התפקיד** ולא את המסך, ושני מסכים של אותו תפקיד היו מקבלים
    את אותו אייקון. מסך שאין לו ערך כאן מקבל ברירת מחדל ואינו
    נעלם — אותו כלל כמו תפקיד בלי תיאור (4יא). */
+/* ⚠ מסכים שכבר יושבים בקבוצת "אישי" ולכן אינם חוזרים בקבוצת
+   האחריות. קישור כפול במגירה נראה כמו באג (4ק). */
+/* ============================================================
+   ⚠⚠ **מכסת החופש היא של המחצית, לא של השנה.**
+
+   המסך חיבר את שתי המכסות והציג "6 ימי חופש שנותרו מתוך 6
+   בשנה". נכון חשבונית, שקרי במשמעותו: ימי החופש נקבעים
+   למחצית ופגים בסופה, וחניך שראה 6 בנובמבר תכנן לפי שלושה
+   ימים שכלל לא היו זמינים לו אז.
+
+   ⚠ `currentHalf` מגיע מהשרת ונגזר מלוח השנה — לא מחודש
+     קבוע בקוד. המכינה קובעת את שבוע האמצע בלוח (עיקרון 1).
+
+   ⚠ **ובשבוע האמצע אין מכסה כלל.** הוא מאפס, ולכן מוצגת
+     המכסה של מחצית ב׳ **ונאמר במפורש** שהיא של המחצית הבאה.
+     מספר בלי המילה הזו נראה כמו מכסה זמינה עכשיו.
+   ============================================================ */
+function halfQuota(sum) {
+  if (!sum || !Array.isArray(sum.quota) || !sum.quota.length) return null;
+  const cur = sum.currentHalf || null;
+  const hit = cur ? sum.quota.find((q) => q.half === cur) : null;
+  if (hit) return { ...hit, upcoming: false };
+  /* שבוע האמצע, או תאריך שאין לו מחצית — המכסה הקרובה. */
+  const next = sum.quota[sum.quota.length - 1];
+  return next ? { ...next, upcoming: true } : null;
+}
+
+const PERSONAL_TABS = new Set(["leadership", "chores", "year", "requests"]);
+
 const TAB_ICON = {
   mark: <MI.tick />, lessons: <MI.book />, gantt: <MI.cal />,
+  /* ארבעת מסכי השיעורים — ראו LESSON_TABS ב-Lessons.jsx */
+  "l-board": <MI.cal />, "l-sheets": <MI.book />, "l-evals": <MI.check />,
+  leadership: <MI.flag />,
   container: <MI.box />, loans: <MI.box />,
   faults: <MI.box />, cleaning: <MI.box />, chores: <MI.tick />,
   safety: <MI.note />, hosting: <MI.home />,
@@ -1352,12 +1384,16 @@ function StudentDetail({ student, onBack, say, isHead }) {
                 <div className="band-l">נוכחות</div>
               </div>
               <div className="band-c">
+                {/* ⚠ המחצית הנוכחית, ולא סכום השנה — ראו halfQuota. */}
                 {(() => {
-                  const left = data.summary.quota.reduce((a, q) => a + q.left, 0);
+                  const hq = halfQuota(data.summary);
+                  const left = hq ? hq.left : 0;
                   return (
                     <>
                       <div className={"band-n" + (left === 0 ? " warn" : " ok")}>{left}</div>
-                      <div className="band-l">ימי חופש שנותרו</div>
+                      <div className="band-l">
+                        {hq && hq.upcoming ? "ימי חופש במחצית הבאה" : "ימי חופש במחצית"}
+                      </div>
                     </>
                   );
                 })()}
@@ -2816,8 +2852,9 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
 
   const first = String(auth.name || "").trim().split(/\s+/)[0];
   const sum = year.data && year.data.summary;
-  const quotaLeft = sum ? sum.quota.reduce((a, q) => a + q.left, 0) : null;
-  const quotaTotal = sum ? sum.quota.reduce((a, q) => a + q.total, 0) : null;
+  const hq = halfQuota(sum);
+  const quotaLeft = hq ? hq.left : null;
+  const quotaTotal = hq ? hq.total : null;
   const pending = reqs.data ? reqs.data.requests.filter((r) => r.status === "ממתין").length : null;
 
   /* ---------- דורש טיפול ---------- */
@@ -2863,7 +2900,10 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
     { key: "vac", tone: "tone-1", ico: <MI.cal />, go: () => go("year"),
       cls: quotaLeft === 0 ? "warn" : "good",
       v: quotaLeft == null ? "…" : quotaLeft, l: "ימי חופש שנותרו",
-      s: quotaTotal ? `מתוך ${quotaTotal} בשנה` : "טוען" },
+      /* ⚠ **המחצית נאמרת בשם.** "מתוך 3" בלי לומר של מה חוזר
+         בדיוק לבעיה שהמספר הזה נועד לפתור. */
+      s: hq ? (hq.upcoming ? `מתוך ${hq.total} ב${hq.half} (הקרובה)` : `מתוך ${hq.total} ב${hq.half}`)
+        : "טוען" },
     { key: "req", tone: "tone-2", ico: <MI.note />, go: () => go("requests"),
       cls: pending ? "warn" : "good",
       v: pending == null ? "…" : pending, l: "בקשות ממתינות",
@@ -2985,7 +3025,9 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
               <div className={"band-n" + (quotaLeft === 0 ? " warn" : quotaLeft > 0 ? " ok" : "")}>
                 {quotaLeft == null ? "—" : quotaLeft}
               </div>
-              <div className="band-l">ימי חופש שנותרו</div>
+              <div className="band-l">
+                {hq && hq.upcoming ? "ימי חופש במחצית הבאה" : "ימי חופש במחצית"}
+              </div>
             </div>
             <div className="band-c">
               <div className="band-n">{sum.schoolDays}</div>
@@ -3096,10 +3138,27 @@ export function MechinaApp({ auth, onSignedOut }) {
         out.push(t);
       }
     };
-    if (auth.isLeader) add(DUTY_LEADER);
+    /* ⚠ **מוביל שבוע אינו כאן.** יש לו קבוצה משלו במגירה
+       ("מובילשים"), ומי שיוסיף אותו גם לכאן יקבל את אותם
+       מסכים פעמיים — וקישור כפול נראה כמו באג (4ק). */
     for (const r of auth.roles || []) add(r);
     return out;
-  }, [auth.roles, auth.isLeader]);
+  }, [auth.roles]);
+
+  /* ============================================================
+     קבוצת "מובילשים" — כל מה שמוביל השבוע פותח
+     ------------------------------------------------------------
+     ⚠ **נגזרת מ-`DUTIES[DUTY_LEADER].tabs`**, כמו כל השאר. מסך
+       שיתווסף שם יופיע כאן מעצמו, וגם במרכז התפקיד.
+
+     ⚠ **בלי מה שכבר יושב ב"אישי".** "המובילויות שלי" שייך לכל
+       חניך ולא רק למוביל, והוא כבר למעלה; שתי שורות באותו שם
+       בשתי קבוצות נראות כמו תקלה.
+     ============================================================ */
+  const leaderTabs = useMemo(() => {
+    if (!auth.isLeader) return [];
+    return (DUTIES[DUTY_LEADER].tabs || []).filter((t) => !PERSONAL_TABS.has(t.tab));
+  }, [auth.isLeader]);
 
   const [notifOpen, setNotifOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -3151,23 +3210,28 @@ export function MechinaApp({ auth, onSignedOut }) {
         }}
         onLogout={signOut}
         groups={[
+          /* ============================================================
+             סדר המגירה — לפי מה שהחניך פותח, ולא לפי מה שנבנה מתי
+             ------------------------------------------------------------
+             ⚠ הרשימה גדלה לארבעה־עשר דפים בקבוצה אחת, וכל דף
+               חדש נדחף לסוף — ולכן "דיווח תקלה" ישב בין "תפריט
+               ארוחות" ל"הלו״ז שלי". רשימה ארוכה בלי חלוקה היא
+               רשימה שקוראים את שלושת הפריטים הראשונים שלה.
+
+             ארבע קבוצות, ולכל אחת שאלה משלה:
+               אישי          — מה איתי
+               היום־יום      — מה קורה במכינה
+               השיבוצים שלי  — לאן אני שייך
+               מובילשים / תפקידים — מה באחריותי
+             ============================================================ */
           { label: "אישי", items: [
             { key: "home", label: "בית", icon: <MI.home />, active: tab === "home", onClick: () => setTab("home") },
             { key: "profile", label: "הפרופיל שלי", icon: <MI.users />,
               active: tab === "profile", onClick: () => setTab("profile") },
-            /* ⚠ **תורנויות ונהלים מיד אחרי הפרופיל.** שניהם
-               נוגעים לכל חניך בכל יום — התורנות שלו השבוע, והכללים
-               שהוא חי לפיהם — ולכן הם למעלה ולא בין דיווח תקלה
-               לגאנט השנתי.
-
-               ⚠ ותורנויות **באישי ולא בתפקידים**: כל חניך משובץ
-                 לגזרה ולתורנות מטבח, וכל חניך רואה את טבלת המעקב.
-                 אב הבית מגיע לאותו מסך בדיוק ורואה בו יותר, לפי
-                 mayChores (4יט). */
-            { key: "chores", label: "תורנויות", icon: <MI.tick />,
-              active: tab === "chores", onClick: () => setTab("chores") },
-            { key: "rules", label: "נהלים במכינה", icon: <MI.book />,
-              active: tab === "rules", onClick: () => setTab("rules") },
+            { key: "year", label: "הנוכחות שלי", icon: <MI.cal />,
+              active: tab === "year", onClick: () => setTab("year") },
+            { key: "requests", label: "בקשות יציאה", icon: <MI.note />, badge: unseen,
+              active: tab === "requests", onClick: () => setTab("requests") },
             /* ⚠ **באישי, כי זה נתון של החניך על עצמו.** יו״ר ועדת
                הגיוסים רואה מכאן את של כולם — אותו מסך בדיוק, לפי
                מה שהשרת מרשה (4יט). */
@@ -3178,49 +3242,53 @@ export function MechinaApp({ auth, onSignedOut }) {
                ומופיע נראה כמו תקלה. */
             { key: "leadership", label: "המובילויות שלי", icon: <MI.flag />,
               active: tab === "leadership", onClick: () => setTab("leadership") },
-            { key: "year", label: "הנוכחות שלי", icon: <MI.cal />, active: tab === "year", onClick: () => setTab("year") },
-            { key: "requests", label: "בקשות יציאה", icon: <MI.note />, badge: unseen,
-              active: tab === "requests", onClick: () => setTab("requests") },
-            { key: "placements", label: "השיבוצים שלי", icon: <MI.users />, active: tab === "placements", onClick: () => setTab("placements") },
-            /* ============================================================
-               ניהול הצוותים — באישי ולא בתפקידים
-               ------------------------------------------------------------
-               ⚠ **חברות בוועדה אינה תפקיד.** כל השאר בקבוצת
-                 "תפקידים" נגזר מעמודת התפקידים בלוח החניכים, וזו
-                 קבוצה קטנה; ועדה וסדרה הן שיבוץ, ולהן משובץ כמעט
-                 כל חניך. שם התפקידים היה מרמז שזה למעטים.
+          ] },
 
-               ⚠ **מוצג תמיד ואינו מותנה בדגל.** `auth.teams` נקרא
-                 בכניסה, וחניך שישובץ לוועדה באמצע הסשן לא היה רואה
-                 את המסך עד ריענון. המסך עצמו אומר "אינכם משובצים"
-                 כשאין — וזה מצב תקין, לא כשל.
-               ============================================================ */
+          { label: "היום־יום במכינה", items: [
+            { key: "agenda", label: "הלו״ז שלי", icon: <MI.cal />,
+              active: tab === "agenda", onClick: () => setTab("agenda") },
+            { key: "gantt", label: "גאנט שנתי", icon: <MI.cal />,
+              active: tab === "gantt", onClick: () => setTab("gantt") },
+            /* ⚠ **תורנויות באישי ולא בתפקידים**: כל חניך משובץ
+               לגזרה ולתורנות מטבח, וכל חניך רואה את טבלת המעקב.
+               אב הבית מגיע לאותו מסך בדיוק ורואה בו יותר, לפי
+               mayChores (4יט). */
+            { key: "chores", label: "תורנויות", icon: <MI.tick />,
+              active: tab === "chores", onClick: () => setTab("chores") },
+            { key: "menu", label: "תפריט ארוחות", icon: <MI.book />,
+              active: tab === "menu", onClick: () => setTab("menu") },
+            { key: "rules", label: "נהלים במכינה", icon: <MI.book />,
+              active: tab === "rules", onClick: () => setTab("rules") },
+            { key: "report", label: "דיווח תקלה", icon: <MI.tool />,
+              active: tab === "report", onClick: () => setTab("report") },
+          ] },
+
+          /* ============================================================
+             ⚠ **חברות בוועדה אינה תפקיד.** כל מה שבקבוצת
+               "תפקידים" נגזר מעמודת התפקידים בלוח החניכים, וזו
+               קבוצה קטנה; ועדה וסדרה הן שיבוץ, ולהן משובץ כמעט
+               כל חניך. שם התפקידים היה מרמז שזה למעטים.
+
+             ⚠ **מוצג תמיד ואינו מותנה בדגל.** `auth.teams` נקרא
+               בכניסה, וחניך שישובץ לוועדה באמצע הסשן לא היה רואה
+               את המסך עד ריענון. המסך עצמו אומר "אינכם משובצים"
+               כשאין — וזה מצב תקין, לא כשל.
+             ============================================================ */
+          { label: "השיבוצים שלי", items: [
+            { key: "placements", label: "הענף והוועדות שלי", icon: <MI.users />,
+              active: tab === "placements", onClick: () => setTab("placements") },
             { key: "teams", label: "ועדות וסדרות", icon: <MI.tick />,
               active: tab === "teams", onClick: () => setTab("teams") },
-            { key: "menu", label: "תפריט ארוחות", icon: <MI.book />, active: tab === "menu", onClick: () => setTab("menu") },
-            { key: "report", label: "דיווח תקלה", icon: <MI.tool />, active: tab === "report", onClick: () => setTab("report") },
-            { key: "agenda", label: "הלו״ז שלי", icon: <MI.cal />, active: tab === "agenda", onClick: () => setTab("agenda") },
-            { key: "gantt", label: "גאנט שנתי", icon: <MI.cal />, active: tab === "gantt", onClick: () => setTab("gantt") },
           ] },
-          /* ============================================================
-             קבוצת "תפקידים" — **נגזרת מ-DUTIES ואינה כתובה ביד**
-             ------------------------------------------------------------
-             ⚠⚠ כאן ישבה רשימה ידנית של שישה תנאים
-               (`auth.isContainer ? [...] : []`), והיא הייתה **רשימה
-               שנייה** לצד `DUTIES[x].tabs` שמזינה את הקיצורים במרכז
-               התפקיד. ההערה בראש `shared/duties.js` מזהירה מזה
-               במפורש, ועיקרון 4יט נשבר בדיוק כך פעם אחת: המנהל קיבל
-               מסך והחניך לא, ושני המסכים "עבדו".
 
-               עכשיו יש **מקור אחד**: מסך שנוסף ל-`DUTIES` מופיע
-               מעצמו גם במגירה וגם במרכז התפקיד, בלי לגעת כאן.
+          /* ⚠ קבוצה משלה, ורק למי שמוביל. ראו leaderTabs. */
+          ...(leaderTabs.length ? [{
+            label: "מובילשים", items: leaderTabs.map((t) => ({
+              key: t.tab, label: t.label, icon: TAB_ICON[t.tab] || <MI.flag />,
+              active: tab === t.tab, onClick: () => setTab(t.tab),
+            })),
+          }] : []),
 
-             ⚠ **איחוד לפי `tab`.** מוביל שבוע ואחראי לו״ז חולקים
-               את "שיעורים במכינה", וקישור כפול במגירה נראה כמו באג.
-
-             ⚠ **מרכז התפקיד נשאר ראשון ואינו ב-DUTIES** — הוא לא
-               מסך של תפקיד מסוים אלא הדלת אל כולם.
-             ============================================================ */
           ...(dutyTabs.length ? [{
             label: "תפקידים", items: [
               { key: "duty", label: "מרכז התפקיד", icon: <MI.tick />,
@@ -3340,7 +3408,8 @@ export function MechinaApp({ auth, onSignedOut }) {
         {tab === "tryouts" && <TryoutsPage say={say} />}
         {tab === "leadership" && <LeadershipPage say={say} />}
         {/* ⚠ אחראי הלו״ז בלבד — הכניסה נגזרת מ-DUTIES ונאכפת
-            בשרת ב-{scheduler:true}. */}
+            בשרת ב-{scheduler:true}. `bare` אינו נשלח: כדף עצמאי
+            הוא כותב את הכותרת שלו. */}
         {tab === "pay" && <LessonPayPage say={say} />}
 
         {/* ⚠ area={null} — התצוגה המאוחדת, אותה אחת של המנהל. */}
@@ -3361,9 +3430,26 @@ export function MechinaApp({ auth, onSignedOut }) {
             אוכף בדיוק את זה. */}
         {tab === "mark" && auth.isLeader && <MarkDay say={say} allowPick />}
 
-        {/* ⚠ אחראי לו״ז בלבד. השרת אוכף בכל נקודת קצה של השיעורים,
-            והתפקיד נקרא טרי מהלוח — הסרתו סוגרת את הטאב מיד. */}
-        {tab === "lessons" && (auth.isScheduler || auth.isLeader) && <LessonsPage say={say} />}
+        {/* ============================================================
+            ארבעת מסכי השיעורים — כל אחד דף בפני עצמו
+            ------------------------------------------------------------
+            ⚠ **אותו רכיב, `solo`.** ארבעה רכיבים נפרדים היו
+              מתפצלים בתיקון הראשון; רצועת לשוניות פנימית הייתה
+              משאירה ארבעה דפים שנראים כמו דף אחד.
+
+            ⚠ אחראי לו״ז בלבד, ומוביל שבוע ל"שיעורים קרובים"
+              בלבד — הוא מדווח קיום מפגשים ואינו עורך גיליונות
+              ואינו רואה כסף. השרת אוכף בכל נקודת קצה, והתפקיד
+              נקרא טרי מהלוח — הסרתו סוגרת את הדף מיד.
+
+            ⚠ `tab === "lessons"` נשמר: קישור ישן, כפתור במסך
+              הבית או התראה שנשמרה מפנים לשם, ומסך שלא יעשה
+              כלום נראה כמו תקלה.
+            ============================================================ */}
+        {(tab === "l-board" || tab === "lessons") && (auth.isScheduler || auth.isLeader)
+          && <LessonsPage say={say} solo sub0="board" />}
+        {tab === "l-sheets" && auth.isScheduler && <LessonsPage say={say} solo sub0="sheets" />}
+        {tab === "l-evals" && auth.isScheduler && <LessonsPage say={say} solo sub0="evals" />}
 
         {tab === "new" && (
           <>

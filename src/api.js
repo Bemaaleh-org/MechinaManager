@@ -162,6 +162,11 @@ export const api = {
      והיא הפיכה — `noPay:false` מחזיר אותו. */
   setLessonNoPay: ({ id, noPay }) =>
     put("/api/lessons?action=pay", { id, noPay: Boolean(noPay) }),
+  /* ⚠ **שיעור מזדמן — גיליון ומפגש אמיתיים.** הדוח נגזר
+     מהגיליונות ואין בו נתון משלו; שורה שחיה רק בדוח הייתה
+     מנתקת אותו ממה שבאמת קרה. הצוות בלבד. */
+  addOneOffLesson: ({ subject, lecturer, date, price }) =>
+    post("/api/lessons?action=pay", { subject, lecturer, date, price }),
 
   /* ---------- דף המובילויות ----------
      ⚠ מחזיר **רק שבועות שכבר הסתיימו**. `all=1` פותח לצוות

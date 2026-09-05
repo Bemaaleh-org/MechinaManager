@@ -74,7 +74,7 @@ async function handler(req, res, session) {
     res.status(200).json({
       student: toPublic(student),
       days,
-      summary: summarize(studentId, { absences, marked, byDate: cal.byDate }),
+      summary: summarize(studentId, { absences, marked, byDate: cal.byDate }, today),
       /* ⚠ נפרד מ-summary: נוכחות אימון ונוכחות יומית הן שתי
          אמיתות שונות. ראו _training-summary.js. */
       training: (await trainingByStudent()).get(studentId) || EMPTY_TRAINING,
