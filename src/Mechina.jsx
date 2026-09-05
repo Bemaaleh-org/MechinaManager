@@ -1885,20 +1885,13 @@ function ProfileCard({ studentId, say, withDossier = false, isHead = false }) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (data) setF({ army: data.army, tryouts: data.tryouts, talks: [...data.talks] });
+    if (data) setF({ talks: [...data.talks] });
   }, [data]);
 
   if (busy && !data) return <Loading what="טוען פרופיל" />;
   if (err) return <LoadFail msg={err} onRetry={reload} />;
   if (!data || !f) return null;
 
-  const saveArmy = () => {
-    setSaving(true);
-    api.setProfile({ studentId, army: f.army, tryouts: f.tryouts })
-      .then(() => say("הפרופיל נשמר"))
-      .catch((e) => say(e.message))
-      .finally(() => setSaving(false));
-  };
   const saveTalks = () => {
     setSaving(true);
     api.setProfile({ studentId, talks: f.talks })
@@ -1917,25 +1910,36 @@ function ProfileCard({ studentId, say, withDossier = false, isHead = false }) {
           say={say} reload={reload} />
       )}
 
+      {/* ============================================================
+          ⚠⚠ **קריאה בלבד, וההפניה נאמרת.**
+
+          "שיבוץ ומיונים" היו כאן שני שדות טקסט חופשי שהחניך מילא.
+          המיונים עברו ללוח משלהם והשיבוץ לשתי עמודות, ושניהם
+          נערכים במסך "מיונים ושיבוצים" — על ידי החניך, כתמיד.
+
+          ⚠ **הרישום הישן מוצג ואינו נמחק.** מדריך שראה שם טקסט
+            והוא נעלם יסיק שהמערכת מחקה נתון. הוא מסומן כישן
+            ומופיע רק אם באמת יש בו משהו — כותרת מעל ריק נראית
+            כמו תקלה (4מא).
+          ============================================================ */}
       {withDossier && <div className="sec-label">שיבוץ ומיונים · מילוי החניך</div>}
       <div className="card" style={{ marginBottom: 12 }}>
-        <div className="fld">
-          <label htmlFor="pf-army">שיבוץ צבאי</label>
-          <input id="pf-army" value={f.army} disabled={saving || !data.canEditArmy}
-            onChange={(e) => setF({ ...f, army: e.target.value })}
-            placeholder={data.canEditArmy ? "לאן שובצת" : "החניך טרם מילא"} />
+        <div className="pf-row">
+          <span>שיבוץ צה״ל</span>
+          <b>{data.armyCorps
+            ? data.armyCorps + (data.armyRole ? ` · ${data.armyRole}` : "")
+            : "טרם שובץ"}</b>
         </div>
-        <div className="fld">
-          <label htmlFor="pf-try">מיונים לצבא</label>
-          <input id="pf-try" value={f.tryouts} disabled={saving || !data.canEditArmy}
-            onChange={(e) => setF({ ...f, tryouts: e.target.value })}
-            placeholder={data.canEditArmy ? "אילו מיונים עברת או צפויים" : "החניך טרם מילא"} />
-        </div>
-        {data.canEditArmy && (
-          <button className="btn btn-primary" disabled={saving} onClick={saveArmy}>
-            {saving ? "שומר…" : "שמירה"}
-          </button>
+        {(data.army || data.tryouts) && (
+          <div className="ty-old" style={{ marginTop: 10 }}>
+            <div className="e2">רישום ישן משדות הפרופיל, אינו בשימוש עוד:</div>
+            {data.army && <div className="ty-old-r"><span>שאיפות</span><b>{data.army}</b></div>}
+            {data.tryouts && <div className="ty-old-r"><span>מיונים</span><b>{data.tryouts}</b></div>}
+          </div>
         )}
+        <div className="e2" style={{ marginTop: 8 }}>
+          המיונים והשיבוץ נערכים על ידי החניך במסך "מיונים ושיבוצים".
+        </div>
       </div>
 
       <div className="sec-label">שיחה אישית</div>
@@ -3163,7 +3167,7 @@ export function MechinaApp({ auth, onSignedOut }) {
             /* ⚠ **באישי, כי זה נתון של החניך על עצמו.** יו״ר ועדת
                הגיוסים רואה מכאן את של כולם — אותו מסך בדיוק, לפי
                מה שהשרת מרשה (4יט). */
-            { key: "tryouts", label: "מיונים לצבא", icon: <MI.users />,
+            { key: "tryouts", label: "מיונים ושיבוצים", icon: <MI.users />,
               active: tab === "tryouts", onClick: () => setTab("tryouts") },
             /* ⚠ **רק אחרי שהמובילות עברה.** המסך עצמו אומר מתי
                הוא ייפתח, ולכן הקישור קיים תמיד — קישור שנעלם
@@ -3305,11 +3309,14 @@ export function MechinaApp({ auth, onSignedOut }) {
             "הפרופיל שלי" — אחת לזהות ואחת לצבא ולמיונים —
             והחניך היה צריך לנחש איזו מהן מחזיקה את מה שהוא
             מחפש. הכול על עצמי יושב במקום אחד. */}
+        {/* ⚠ **"שאיפות ומיונים" יצא מהפרופיל.** הוא היה שני
+            שדות טקסט חופשי שאי אפשר לשאול עליהם שום שאלה, והם
+            הוחלפו במסך "מיונים ושיבוצים" — שורה לכל מיון, ושיבוץ
+            אחד מתוך רשימת החילות. הפרופיל חוזר להיות מה שהוא:
+            הזהות וחשבון הכניסה. */}
         {tab === "profile" && (
           <>
             <ProfilePage say={say} />
-            <div className="sec-label">שאיפות ומיונים</div>
-            <ProfileCard studentId={null} say={say} />
             <div style={{ height: 40 }} />
           </>
         )}

@@ -1,5 +1,5 @@
 /* ============================================================
-   מיונים לצבא — הבעלות, והגישה של יו״ר הוועדה
+   מיונים ושיבוצים — הבעלות, והגישה של יו״ר הוועדה
    ------------------------------------------------------------
    ⚠ הבדיקה יוצרת מיונים **על חשבון הבדיקה בלבד** ומוחקת אותם
      לפי מזהה. היא אינה נוגעת במיון של חניך אמיתי.
@@ -74,15 +74,25 @@ try {
   ok("וחניך רגיל אינו רואה את כולם", r.b.canSeeAll === false, String(r.b.canSeeAll));
   const startCount = (r.b.tryouts || []).length;
 
+  /* ⚠⚠ **חמש האפשרויות, בתו.** הרשימה הזו חיה בשלושה מקומות
+     (shared/tryouts-ids.js, seed-tryouts, seed-army) ובלוח עצמו,
+     ותו אחד שיזוז מכשיל כל כתיבה בשקט מצד המסך ורועש מצד
+     monday. הטענה נועלת את הנוסח ולא רק את המספר. */
+  const WANT = ["טרם ניגשתי", "ניגשתי ועברתי לשלב הבא", "ניגשתי והתקבלתי",
+    "ניגשתי ולא התקבלתי", "לא ניגשתי"];
+  ok("חמש אפשרויות המצב, בנוסח המכינה",
+    JSON.stringify(r.b.statuses) === JSON.stringify(WANT),
+    JSON.stringify(r.b.statuses));
+
   r = await call(S, "POST", "/api/students?action=tryouts",
-    { name: "בדיקה — גיבוש", date: "2026-10-05", status: "מתוכנן", track: "מסלול בדיקה" });
+    { name: "בדיקה — גיבוש", date: "2026-10-05", status: "טרם ניגשתי", track: "מסלול בדיקה" });
   ok("מיון נוסף", r.s === 200 && r.b.id, `${r.s} ${r.b.error || ""}`);
   if (r.b.id) made.push(String(r.b.id));
   const id1 = r.b.id;
 
   /* ⚠ הנקודה כולה: **כמה** מיונים לאותו חניך, ולא מחרוזת אחת. */
   r = await call(S, "POST", "/api/students?action=tryouts",
-    { name: "בדיקה — מיון שני", date: "2026-11-02", status: "עבר" });
+    { name: "בדיקה — מיון שני", date: "2026-11-02", status: "ניגשתי והתקבלתי" });
   ok("ומיון שני לאותו חניך", r.s === 200, `${r.s} ${r.b.error || ""}`);
   if (r.b.id) made.push(String(r.b.id));
 
@@ -100,11 +110,64 @@ try {
     `${r.s} ${r.b.error || ""}`);
 
   r = await call(S, "PUT", "/api/students?action=tryouts",
-    { id: id1, status: "עבר", note: "עבר לשלב הבא" });
+    { id: id1, status: "ניגשתי ועברתי לשלב הבא", note: "עבר לשלב הבא" });
   ok("עריכה עוברת", r.s === 200, `${r.s} ${r.b.error || ""}`);
 
   r = await call(S, "PUT", "/api/students?action=tryouts", { id: id1, date: "5.10.2026" });
   ok("תאריך בפורמט שגוי נדחה", r.s === 400, `${r.s} ${r.b.error || ""}`);
+
+  /* ============ 1ב · השיבוץ — חיל אחד, ותפקיד לצידו ============ */
+  console.log("\n=== השיבוץ ===");
+  r = await call(S, "GET", "/api/students?action=tryouts");
+  const ready = r.b.placementReady === true;
+  /* ⚠ **עיקרון 6:** עמודה שטרם הוקמה אינה נראית כמו "אין
+     חילות". הבדיקה בודקת את שני המצבים ואינה מדלגת בשקט. */
+  ok("המסך יודע אם עמודות השיבוץ הוקמו",
+    typeof r.b.placementReady === "boolean", String(r.b.placementReady));
+
+  if (!ready) {
+    r = await call(S, "PUT", "/api/students?action=tryouts", { corps: "כלשהו" });
+    ok("ובלי העמודות — 503 מפורש ולא כישלון סתום",
+      r.s === 503 && r.b.setupRequired === true, `${r.s} ${r.b.error || ""}`);
+    console.log("  (עמודות השיבוץ טרם הוקמו — npm run seed:army)");
+  } else {
+    /* ⚠ שם אחר מ-`before` החיצוני (מצב הוועדה) בכוונה —
+       הצללה בין שני מצבים שמשוחזרים בשני מקומות היא בדיוק
+       הדרך לשחזר את הלא-נכון. */
+    const wasPlaced = r.b.placement || {};
+    ok("ורשימת החילות מגיעה מהשרת",
+      Array.isArray(r.b.corpsList) && r.b.corpsList.length > 0,
+      String((r.b.corpsList || []).length));
+
+    /* ⚠ תווית שאינה בלוח נדחית ברעש, וההודעה אומרת מה כן. */
+    r = await call(S, "PUT", "/api/students?action=tryouts", { corps: "חיל הבדיקות" });
+    ok("חיל שאינו ברשימה נדחה",
+      r.s === 400 && /אינו ברשימת החילות/.test(r.b.error || ""),
+      `${r.s} ${r.b.error || ""}`);
+
+    const pick = (await call(S, "GET", "/api/students?action=tryouts")).b.corpsList[0];
+    r = await call(S, "PUT", "/api/students?action=tryouts",
+      { corps: pick, role: "בדיקה — פירוט תפקיד" });
+    ok("שיבוץ נשמר", r.s === 200, `${r.s} ${r.b.error || ""}`);
+
+    r = await call(S, "GET", "/api/students?action=tryouts");
+    ok("והוא חוזר עם החיל והתפקיד",
+      r.b.placement?.corps === pick && r.b.placement?.role === "בדיקה — פירוט תפקיד",
+      JSON.stringify(r.b.placement));
+
+    /* ⚠⚠ **אותה בעלות כמו במיונים** — גם ראש המכינה חסום. */
+    r = await call(M, "PUT", "/api/students?action=tryouts", { corps: pick });
+    ok("ראש המכינה אינו משבץ", r.s === 403, `${r.s} ${r.b.error || ""}`);
+
+    /* ⚠ מחזירים את מה שהיה — ולא מנקים לריק. חשבון הבדיקה
+       הוא של אחים, ובדיקה שמנקה מוחקת לו נתון שהוא הזין. */
+    await call(S, "PUT", "/api/students?action=tryouts",
+      { corps: wasPlaced.corps || "", role: wasPlaced.role || "" });
+    r = await call(S, "GET", "/api/students?action=tryouts");
+    ok("והמצב הקודם שוחזר",
+      (r.b.placement?.corps || "") === (wasPlaced.corps || ""),
+      JSON.stringify(r.b.placement));
+  }
 
   /* ============ 2 · הבעלות ============ */
   console.log("\n=== הבעלות אצל החניך ===");
@@ -114,7 +177,7 @@ try {
   r = await call(M, "POST", "/api/students?action=tryouts", { name: "בדיקה — של הצוות" });
   ok("ראש המכינה אינו רושם מיון", r.s === 403, `${r.s} ${r.b.error || ""}`);
   ok("וההודעה אומרת למה", /החניך על עצמו/.test(r.b.error || ""), r.b.error);
-  r = await call(M, "PUT", "/api/students?action=tryouts", { id: id1, status: "לא עבר" });
+  r = await call(M, "PUT", "/api/students?action=tryouts", { id: id1, status: "ניגשתי ולא התקבלתי" });
   ok("ואינו עורך", r.s === 403, String(r.s));
   r = await call(M, "DELETE", "/api/students?action=tryouts", { id: id1 });
   ok("ואינו מוחק", r.s === 403, String(r.s));
@@ -123,10 +186,10 @@ try {
   const other = (await allItems(TRYOUT_BOARD.board))
     .find((x) => cv(x, T.student) && cv(x, T.student) !== String(demo.id));
   if (other) {
-    r = await call(S, "PUT", "/api/students?action=tryouts", { id: String(other.id), status: "עבר" });
+    r = await call(S, "PUT", "/api/students?action=tryouts", { id: String(other.id), status: "ניגשתי והתקבלתי" });
     ok("מיון של חניך אחר מחזיר 404", r.s === 404, `${r.s} ${r.b.error || ""}`);
   } else {
-    r = await call(S, "PUT", "/api/students?action=tryouts", { id: "999999999", status: "עבר" });
+    r = await call(S, "PUT", "/api/students?action=tryouts", { id: "999999999", status: "ניגשתי והתקבלתי" });
     ok("מזהה שאינו קיים מחזיר 404", r.s === 404, String(r.s));
   }
 
@@ -141,6 +204,15 @@ try {
     String(r.b.summary.none));
   ok("ופירוט לכל חניך", Array.isArray(r.b.perStudent) && r.b.perStudent.length > 0,
     String((r.b.perStudent || []).length));
+  /* ⚠ "טרם שובץ" הוא המספר שאומר כמה מהתמונה חסר, והוא של
+     המסך ולא של הלוג (4יח). */
+  ok("וכמה שובצו וכמה טרם",
+    typeof r.b.summary.placed === "number" && typeof r.b.summary.unplaced === "number",
+    `${r.b.summary.placed} / ${r.b.summary.unplaced}`);
+  ok("וסכימה לפי חיל", Array.isArray(r.b.byCorps), typeof r.b.byCorps);
+  ok("והשיבוץ יושב על שורת החניך ולא על המיון",
+    (r.b.perStudent || []).every((p) => p.placement && "corps" in p.placement),
+    "placement חסר באחת השורות");
 
   /* ============ 4 · יו״ר ועדת הגיוסים ============ */
   console.log("\n=== יו״ר ועדת הגיוסים ===");
@@ -169,7 +241,7 @@ try {
   ok("וההסבר אומר מכוח מה", /יו״ר/.test(r.b.seeAllWhy || ""), r.b.seeAllWhy);
 
   /* ⚠⚠ **וגם היו״ר אינו כותב.** קריאה נפתחה, בעלות לא. */
-  r = await call(S, "PUT", "/api/students?action=tryouts", { id: "999999999", status: "עבר" });
+  r = await call(S, "PUT", "/api/students?action=tryouts", { id: "999999999", status: "ניגשתי והתקבלתי" });
   ok("אבל אינו עורך מיון של אחר", r.s === 404, String(r.s));
 
   /* ============ 5 · בלי כניסה ============ */

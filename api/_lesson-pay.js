@@ -4,6 +4,7 @@
      GET  ?month=YYYY-MM   חודש אחד, לפי מרצה ולפי שיעור
      GET                   השנה כולה, חודש-חודש
      PUT  { id, price, payNote }   מחיר למפגש בגיליון
+     PUT  { id, noPay }            הוצאת שיעור מהדוח, והחזרתו
 
    ------------------------------------------------------------
    ⚠ **מחיר ל*מפגש*, ולא לחודש ולא לשנה.** מה שקובע כמה מגיע
@@ -29,7 +30,7 @@ import { withAuth } from "./_session.js";
 import { gql } from "./_monday.js";
 import { loadSheets, loadMeetings, invalidateLessons } from "./_lessons-data.js";
 import { loadCalendar } from "./_attendance-data.js";
-import { LESSON_BOARDS, LESSON_COLS, PLANNED } from "../shared/lessons-boards.js";
+import { LESSON_BOARDS, LESSON_COLS, PLANNED, payFilterReady } from "../shared/lessons-boards.js";
 import { mayEdit } from "../shared/edit-rights.js";
 
 const S = LESSON_COLS.sheets;
@@ -54,11 +55,31 @@ async function report(req, res, session) {
 
     const byId = new Map(sheets.map((s) => [s.id, s]));
     /* ⚠ גיליון כבוי אינו בדוח: מפגשיו שנשארו בלוח אינם מטלה
-       של אף אחד, ואינם כסף (4ח). */
+       של אף אחד, ואינם כסף (4ח).
+       ⚠⚠ וגיליון שסומן "מחוץ לדוח התשלום" יורד מכאן **וממשיך
+         לחיות בכל מסך אחר** — זו עמודה של הדוח ולא של השיעור. */
     const live = meetings.filter((m) => {
       const sh = byId.get(m.sheetId);
-      return sh && sh.active && m.date && m.planned !== PLANNED.no;
+      return sh && sh.active && !sh.noPay && m.date && m.planned !== PLANNED.no;
     });
+
+    /* ============================================================
+       ⚠⚠ **מה שהוצא מוצג, ואינו נעלם.**
+
+       הוצאה שקטה היא בדיוק סוג הדבר שאיש לא יזכור בעוד חודשיים,
+       ואז מרצה שכן צריך תשלום פשוט אינו בדוח — ואין שום סימן
+       לכך. הרשימה יושבת בתחתית המסך עם כפתור החזרה, ולצד כל
+       שורה **כמה מפגשים התקיימו בה** — כדי שההחלטה תיראה.
+       ============================================================ */
+    const heldOf = (sheetId) => meetings.filter(
+      (m) => m.sheetId === sheetId && m.date && m.planned !== PLANNED.no && counted(m)).length;
+    const excluded = sheets
+      .filter((sh) => sh.active && sh.noPay)
+      .map((sh) => ({
+        sheetId: sh.id, subject: sh.subject, lecturer: sh.lecturer || null,
+        price: sh.price, held: heldOf(sh.id),
+      }))
+      .sort((a, b) => a.subject.localeCompare(b.subject, "he"));
 
     /** סיכום של קבוצת מפגשים */
     const sum = (list) => {
@@ -113,7 +134,9 @@ async function report(req, res, session) {
       return res.status(200).json({
         month: wanted, months,
         ...sum(inMonth),
+        excluded,
         canEdit: mayEdit(session, "scheduler"),
+        ...excludeGate(session),
       });
     }
 
@@ -132,7 +155,9 @@ async function report(req, res, session) {
       year: { total: all.total, unreported: all.unreported, unpriced: all.unpriced },
       /* ⚠ הרשימה לשנה כולה — לדעת מי חסר מחיר, ולא רק כמה. */
       rows: all.rows,
+      excluded,
       canEdit: mayEdit(session, "scheduler"),
+      ...excludeGate(session),
     });
   } catch (e) {
     console.error("[lesson-pay:report]", e);
@@ -140,7 +165,32 @@ async function report(req, res, session) {
   }
 }
 
-async function setPrice(req, res) {
+/* ============================================================
+   מי רשאי להוציא שיעור מהדוח
+   ------------------------------------------------------------
+   ⚠⚠ **הצוות, ולא אחראי הלו״ז.** זו אינה חזרה על `canEdit`:
+     `mayEdit(session, "scheduler")` פותח את **המחיר** גם
+     לאחראי הלו״ז — שהוא חניך — וזה נכון, כי הוא זה שמסכם עם
+     המרצים. הוצאת שיעור מהדוח היא החלטה תקציבית, ולא תפעולית,
+     והיא נשארת אצל הצוות.
+
+   ⚠ `session.isManager` פירושו **כל כניסת צוות** ולא ראש
+     המכינה בלבד (`_session.js`). זו בחירה, ואותה בחירה כמו
+     ברשימת הזרועות (4טז): הרשאה שרק אדם אחד מחזיק נתקעת ברגע
+     שהוא בחופשה.
+
+   ⚠ **וההודעה אומרת מי כן רשאי**, לא "אין הרשאה" (4ע).
+   ============================================================ */
+const mayExclude = (session) => !session.isStudent;
+
+const excludeGate = (session) => ({
+  canExclude: mayExclude(session),
+  /* ⚠ עיקרון 6: העמודה שטרם הוקמה אינה נראית כמו "אין מה
+     להוציא". המסך אומר מה להריץ, ואינו מציג כפתור מת. */
+  excludeReady: payFilterReady(),
+});
+
+async function setPrice(req, res, session) {
   try {
     const body = req.body ?? (await readJson(req));
     const id = String(body?.id || "").trim();
@@ -150,6 +200,27 @@ async function setPrice(req, res) {
     if (!sheet) return res.status(404).json({ error: "הגיליון אינו נמצא" });
 
     const cols = {};
+
+    /* ---------- הוצאה מהדוח והחזרה ---------- */
+    if (body.noPay !== undefined) {
+      if (!mayExclude(session)) {
+        return res.status(403).json({
+          error: "הוצאת שיעור מדוח התשלום היא בידי הצוות. אפשר לעדכן כאן מחיר.",
+        });
+      }
+      if (!payFilterReady()) {
+        return res.status(503).json({
+          error: "עמודת \"מחוץ לדוח התשלום\" טרם הוקמה בלוח. מריצים npm run seed:army פעם אחת.",
+          setupRequired: true,
+        });
+      }
+      /* ⚠ **תיבה ולא מחיקה, ולכן הפיכה.** "לתמיד" כאן פירושו
+         שהשיעור לא יחזור לדוח מעצמו — ולא שאי אפשר להתחרט.
+         מחיקה אמיתית של גיליון הייתה מוחקת גם את מפגשיו, את
+         חוות הדעת ואת הדירוגים שלו. */
+      cols[S.noPay] = { checked: body.noPay ? "true" : "false" };
+    }
+
     if (body.price !== undefined) {
       /* ⚠ **ריק אינו אפס.** מחיר 0 פירושו "מתנדב"; מחיר חסר
          פירושו "לא סוכם". שני מצבים שונים לגמרי, ואיחודם היה

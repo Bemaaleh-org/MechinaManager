@@ -15,11 +15,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { api } from "./api.js";
 import ScrollTabs from "./Tabs.jsx";
+import { useExcel, downloadTable } from "./excel.js";
 import { monthLabel } from "../shared/budget-boards.js";
 
 const shekel = (n) => Math.round(n || 0).toLocaleString("he-IL");
 
 export default function LessonPay({ say }) {
+  useExcel();
   const [month, setMonth] = useState(null);
   const [data, setData] = useState(null);
   const [err, setErr] = useState("");
@@ -64,6 +66,8 @@ export default function LessonPay({ say }) {
       {month
         ? <MonthView data={data} say={say} onSaved={load} />
         : <YearView data={data} onPick={setMonth} say={say} onSaved={load} />}
+
+      <Excluded data={data} say={say} onSaved={load} />
       <div style={{ height: 50 }} />
     </>
   );
@@ -72,6 +76,44 @@ export default function LessonPay({ say }) {
 /* ============================================================
    ⚠ הרצועה מציגה שלושה מספרים, ושניים מהם הם "מה חסר".
    ============================================================ */
+/* ============================================================
+   ייצוא — חודשי ושנתי
+   ------------------------------------------------------------
+   ⚠⚠ **הכותרת נושאת את ההסתייגות, ולא רק המסך.** קובץ שיוצא
+     מכאן ייפתח בגיליון, ייערך, ויישלח להנהלת חשבונות — הרחק
+     מהמסך שאמר "הסכום אינו סופי". שתי השורות האלה הן בדיוק
+     מה שהופך את המספר למשהו שאפשר להחליט לפיו (4יח), ולכן הן
+     נוסעות איתו.
+
+   ⚠ **"טרם דווחו" ו"בלי מחיר" הן עמודות ולא הערה** — מי שממיין
+     בגיליון צריך לראות מיד אילו שורות אינן שלמות.
+
+   ⚠ סכום שאי אפשר לחשב יוצא כ"—" ולא כ-0. אפס הוא מתנדב.
+   ============================================================ */
+function exportRows(rows, { file, title }) {
+  downloadTable({
+    file, sheet: "תשלום למרצים", title,
+    header: ["שיעור", "מרצה", "מפגשים שהתקיימו", "מחיר למפגש", "סכום",
+             "מפגשים שטרם דווחו", "הערת תשלום"],
+    widths: [26, 18, 16, 13, 12, 17, 26],
+    rows: rows.map((r) => [
+      r.subject, r.lecturer || "", r.held,
+      r.price == null ? "—" : r.price,
+      r.amount == null ? "—" : r.amount,
+      r.pending || 0, r.payNote || "",
+    ]),
+  });
+}
+
+/** כותרת שנושאת את מה שחסר — ראו ההערה מעל. */
+const exportTitle = (label, d) => {
+  const gaps = [];
+  if (d.unreported) gaps.push(`${d.unreported} מפגשים טרם דווחו`);
+  if (d.unpriced) gaps.push(`${d.unpriced} שיעורים בלי מחיר`);
+  return `דוח תשלום למרצים · ${label} · סך הכול ${shekel(d.total)} ₪`
+    + (gaps.length ? ` · הסכום אינו סופי: ${gaps.join(", ")}` : "");
+};
+
 function Band({ total, unreported, unpriced, label }) {
   return (
     <>
@@ -104,6 +146,16 @@ function YearView({ data, onPick, say, onSaved }) {
       <Band total={y.total} unreported={y.unreported} unpriced={y.unpriced}
         label="סך הכול השנה" />
 
+      {/* ⚠ הייצוא יושב מתחת לרצועה ולא בראש המסך — הוא נגזרת
+          של מה שרואים, ולא הפעולה הראשית. */}
+      <button className="btn btn-ghost btn-sm" style={{ marginBottom: 12 }}
+        onClick={() => exportRows(data.rows || [], {
+          file: "תשלום-למרצים-שנתי",
+          title: exportTitle("כל השנה", data.year),
+        })}>
+        ייצוא הדוח השנתי
+      </button>
+
       <div className="grp-h"><span>לפי חודש</span></div>
       <div className="rows">
         {(data.perMonth || []).length === 0 ? (
@@ -121,7 +173,8 @@ function YearView({ data, onPick, say, onSaved }) {
       </div>
 
       <div className="grp-h"><span>מחיר למפגש</span></div>
-      <PriceList rows={data.rows} canEdit={data.canEdit} say={say} onSaved={onSaved} />
+      <PriceList rows={data.rows} canEdit={data.canEdit} say={say} onSaved={onSaved}
+        canExclude={data.canExclude} excludeReady={data.excludeReady} />
     </>
   );
 }
@@ -131,6 +184,15 @@ function MonthView({ data, say, onSaved }) {
     <>
       <Band total={data.total} unreported={data.unreported} unpriced={data.unpriced}
         label={monthLabel(data.month)} />
+
+      <button className="btn btn-ghost btn-sm" style={{ marginBottom: 12 }}
+        disabled={!data.rows.length}
+        onClick={() => exportRows(data.rows, {
+          file: "תשלום-למרצים-" + data.month,
+          title: exportTitle(monthLabel(data.month), data),
+        })}>
+        ייצוא החודש הזה
+      </button>
 
       {data.rows.length === 0 ? (
         <div className="empty">
@@ -162,7 +224,8 @@ function MonthView({ data, say, onSaved }) {
       )}
 
       <div className="grp-h"><span>מחיר למפגש</span></div>
-      <PriceList rows={data.rows} canEdit={data.canEdit} say={say} onSaved={onSaved} />
+      <PriceList rows={data.rows} canEdit={data.canEdit} say={say} onSaved={onSaved}
+        canExclude={data.canExclude} excludeReady={data.excludeReady} />
     </>
   );
 }
@@ -173,9 +236,18 @@ function MonthView({ data, say, onSaved }) {
      לא צריך לעבור מסך, למצוא אותם שוב ולזכור מה חסר — זו
      בדיוק הטעות של מסך ההצפות (4ס).
    ============================================================ */
-function PriceList({ rows, canEdit, say, onSaved }) {
+function PriceList({ rows, canEdit, say, onSaved, canExclude, excludeReady }) {
   const [draft, setDraft] = useState({});
   const [busy, setBusy] = useState(null);
+  const [asking, setAsking] = useState(null);
+
+  const exclude = (r) => {
+    setBusy(r.sheetId);
+    api.setLessonNoPay({ id: r.sheetId, noPay: true })
+      .then(() => { say(`"${r.subject}" הוצא מהדוח`); setAsking(null); onSaved(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(null));
+  };
 
   const commit = (r) => {
     const v = draft[r.sheetId];
@@ -195,21 +267,115 @@ function PriceList({ rows, canEdit, say, onSaved }) {
   return (
     <div className="rows">
       {rows.map((r) => (
-        <label className="pay-p" key={r.sheetId}>
-          <span className="pay-p-n">{r.subject}</span>
-          {canEdit ? (
-            <input
-              value={draft[r.sheetId] !== undefined ? draft[r.sheetId] : String(r.price ?? "")}
-              /* ⚠ decimal ולא numeric — זה כסף. */
-              inputMode="decimal" placeholder="ריק = לא סוכם" disabled={busy === r.sheetId}
-              onChange={(e) => setDraft((d) => ({ ...d, [r.sheetId]: e.target.value }))}
-              onBlur={() => commit(r)}
-              onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} />
-          ) : (
-            <span className="num">{r.price == null ? "—" : `${r.price} ₪`}</span>
+        <div key={r.sheetId}>
+          <label className="pay-p">
+            <span className="pay-p-n">{r.subject}</span>
+            {canEdit ? (
+              <input
+                value={draft[r.sheetId] !== undefined ? draft[r.sheetId] : String(r.price ?? "")}
+                /* ⚠ decimal ולא numeric — זה כסף. */
+                inputMode="decimal" placeholder="ריק = לא סוכם" disabled={busy === r.sheetId}
+                onChange={(e) => setDraft((d) => ({ ...d, [r.sheetId]: e.target.value }))}
+                onBlur={() => commit(r)}
+                onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} />
+            ) : (
+              <span className="num">{r.price == null ? "—" : `${r.price} ₪`}</span>
+            )}
+            {/* ============================================================
+                ⚠⚠ **הוצאה מהדוח — הצוות, ולא אחראי הלו״ז.**
+                המחיר פתוח לאחראי הלו״ז כי הוא זה שמסכם עם המרצים;
+                הוצאת שיעור מהדוח היא החלטה תקציבית ונשארת אצל
+                הצוות. `canExclude` מגיע **מהשרת** ואינו נגזר כאן
+                מתפקיד — כפתור שיציע פעולה ויקבל 403 אחרי הלחיצה
+                הוא בדיוק מה שאין לעשות (4יד).
+                ============================================================ */}
+            {canExclude && excludeReady && (
+              <button type="button" className="btn btn-ghost btn-sm ev-del"
+                disabled={busy === r.sheetId} onClick={() => setAsking(r.sheetId)}>
+                הוצאה
+              </button>
+            )}
+          </label>
+
+          {/* ⚠ אישור בתוך המסך ולא confirm() של הדפדפן (4ק).
+              ⚠ והוא אומר **מה בדיוק ייצא מהסכום** — "בטוח?" על
+              פעולה שמשנה מספר כסף אינו שאלה שאפשר לענות עליה. */}
+          {asking === r.sheetId && (
+            <div className="alert a-clay" style={{ marginTop: 6 }}>
+              <div style={{ flex: 1 }}>
+                <div className="ttl">להוציא את "{r.subject}" מדוח התשלום?</div>
+                <div className="e2">
+                  {r.held} מפגשים
+                  {r.amount ? ` · ${shekel(r.amount)} ₪` : ""} יירדו מהסכום.
+                  השיעור עצמו נשאר פעיל בכל שאר המערכת, ואפשר להחזיר אותו
+                  לדוח בכל רגע מהרשימה שבתחתית המסך.
+                </div>
+                <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                  <button className="btn btn-clay btn-sm" style={{ flex: 1 }}
+                    disabled={busy === r.sheetId} onClick={() => exclude(r)}>
+                    כן, להוציא
+                  </button>
+                  <button className="btn btn-ghost btn-sm" style={{ flex: 1 }}
+                    disabled={busy === r.sheetId} onClick={() => setAsking(null)}>ביטול</button>
+                </div>
+              </div>
+            </div>
           )}
-        </label>
+        </div>
       ))}
     </div>
+  );
+}
+
+/* ============================================================
+   מה שהוצא מהדוח
+   ------------------------------------------------------------
+   ⚠⚠ **הוצאה שאי אפשר לראות היא הוצאה שאיש לא יזכור.** בעוד
+     חודשיים מרצה שכן צריך תשלום פשוט לא יהיה בדוח, ולא יהיה
+     שום סימן לכך. הרשימה יושבת בתחתית המסך, לצד כל שורה כמה
+     מפגשים התקיימו בה, ועם כפתור החזרה.
+
+   ⚠ **ריקה = אינה מוצגת כלל.** כותרת מעל ריק נראית כמו תקלה
+     (4מא). מי שלא הוציא כלום לא צריך לדעת שאפשר.
+   ============================================================ */
+function Excluded({ data, say, onSaved }) {
+  const [busy, setBusy] = useState(null);
+  const list = data.excluded || [];
+  if (!list.length) return null;
+
+  const restore = (r) => {
+    setBusy(r.sheetId);
+    api.setLessonNoPay({ id: r.sheetId, noPay: false })
+      .then(() => { say(`"${r.subject}" חזר לדוח`); onSaved(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(null));
+  };
+
+  return (
+    <>
+      <div className="grp-h"><span>הוצאו מהדוח · {list.length}</span></div>
+      <div className="pay-warn">
+        השיעורים האלה אינם נספרים בסכום. הם פעילים בכל שאר המערכת,
+        ומפגשיהם ממשיכים להופיע בלוח השיעורים.
+      </div>
+      <div className="rows">
+        {list.map((r) => (
+          <div className="pay-r" key={r.sheetId}>
+            <div className="pay-r-t">
+              <b>{r.subject}</b>
+              {data.canExclude && (
+                <button className="btn btn-ghost btn-sm" disabled={busy === r.sheetId}
+                  onClick={() => restore(r)}>החזרה לדוח</button>
+              )}
+            </div>
+            <div className="pay-r-m">
+              {r.lecturer && <span>{r.lecturer}</span>}
+              <span>{r.held} מפגשים התקיימו</span>
+              {r.price != null && <span>× {r.price} ₪</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }

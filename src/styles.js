@@ -1007,7 +1007,7 @@ html,body{margin:0;padding:0;background:#012E58}
 .lw-out{margin-top:8px;font-size:11.5px;font-weight:700;color:var(--clay);
   background:var(--clay-soft);border-radius:var(--r-sm);padding:8px 10px;line-height:1.5}
 
-/* מיונים לצבא */
+/* מיונים ושיבוצים */
 .ty-note{font-size:12px;line-height:1.65;color:var(--muted);font-weight:600;
   background:var(--bg);border-radius:var(--r-md);padding:10px 12px;margin-bottom:12px}
 .ty-card{margin-bottom:10px}
@@ -1023,6 +1023,23 @@ html,body{margin:0;padding:0;background:#012E58}
   justify-content:space-between}
 .ty-row-f{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
 .ty-row-l{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:4px}
+
+/* ---- השיבוץ לצה״ל: חיל אחד, ופירוט תפקיד לצידו ----
+   הכרטיס פתוח כשקוראים וסגור כשעורכים: מי שכבר שובץ רואה
+   שורה אחת, ומי שטרם — רואה בדיוק את מה שחסר. */
+.ty-pl{margin-bottom:12px}
+.ty-pl-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ty-pl-v{font-size:15px;font-weight:800;letter-spacing:-.2px;margin-top:3px}
+.ty-pl-v span{font-weight:600;color:var(--muted);font-size:13px}
+/* "טרם שובצתי" הוא מצב, ולא שדה ריק — ולכן מעומעם ולא נעדר. */
+.ty-pl-none{color:var(--muted);font-weight:700;font-size:13.5px}
+
+/* ---- הרישום הישן מהפרופיל ----
+   מעומעם בכוונה: הוא נשמר כדי שלא יאבד, ואינו מה שקוראים. */
+.ty-old{background:var(--bg);border-radius:var(--r-md);padding:11px 13px}
+.ty-old-r{display:flex;gap:8px;align-items:baseline;margin-top:6px;font-size:13px}
+.ty-old-r span{color:var(--muted);font-weight:700;font-size:11.5px;min-width:52px}
+.ty-old-r b{font-weight:700;line-height:1.5}
 .tr-duty{display:inline-block;font-style:normal;font-size:9.5px;font-weight:800;
   background:var(--amber-soft);color:var(--amber);padding:1px 5px;
   border-radius:5px;margin-inline-start:6px;vertical-align:middle}

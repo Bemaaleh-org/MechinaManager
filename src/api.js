@@ -157,6 +157,11 @@ export const api = {
   /* ⚠ price: מספר, או מחרוזת ריקה כדי להחזיר ל"לא סוכם". */
   setLessonPrice: ({ id, price, payNote }) =>
     put("/api/lessons?action=pay", { id, price, payNote }),
+  /* ⚠ **הוצאת שיעור מהדוח — הצוות בלבד, ולא אחראי הלו״ז.**
+     הגיליון נשאר פעיל בכל שאר המערכת; זו עמודה של הדוח.
+     והיא הפיכה — `noPay:false` מחזיר אותו. */
+  setLessonNoPay: ({ id, noPay }) =>
+    put("/api/lessons?action=pay", { id, noPay: Boolean(noPay) }),
 
   /* ---------- דף המובילויות ----------
      ⚠ מחזיר **רק שבועות שכבר הסתיימו**. `all=1` פותח לצוות
@@ -175,7 +180,7 @@ export const api = {
   setPush: (subscription) => post("/api/auth?action=push", { subscription }),
   clearPush: (endpoint) => del("/api/auth?action=push", { endpoint }),
 
-  /* ---------- מיונים לצבא ----------
+  /* ---------- מיונים ושיבוצים ----------
      ⚠ כתיבה — החניך על עצמו בלבד. קריאה של כולם — צוות
        ויו״ר ועדת הגיוסים, לפי תיבה בלוח ולא לפי שם בקוד. */
   getTryouts: () => get("/api/students?action=tryouts"),
@@ -184,6 +189,11 @@ export const api = {
   editTryout: ({ id, name, date, status, track, note }) =>
     put("/api/students?action=tryouts", { id, name, date, status, track, note }),
   deleteTryout: (id) => del("/api/students?action=tryouts", { id }),
+  /* ⚠ **השיבוץ לצה״ל — החניך על עצמו, כמו המיונים.** חיל אחד
+     מרשימת החילות של לוח הבוגרים, ופירוט תפקיד חופשי לצידו.
+     ⚠ נשלח **בלי `id`** — זה מה שמבדיל אותו ממיון בשרת. */
+  setArmyPlacement: ({ corps, role }) =>
+    put("/api/students?action=tryouts", { corps, role }),
 
   /* ---------- בוגרים · אירוח · השאלות · תפריט ---------- */
   /* ---------- התראות ----------
@@ -404,10 +414,17 @@ export const api = {
   getProfile: (studentId) =>
     get("/api/students?action=profile" + (studentId ? "&student=" + encodeURIComponent(studentId) : "")),
 
-  /** עדכון פרופיל: חניך שולח army/tryouts, מנהל שולח talks */
-  setProfile: ({ studentId, army, tryouts, talks }) =>
+  /* ============================================================
+     עדכון פרופיל — **תאריכי השיחה האישית בלבד.**
+
+     ⚠ `army` ו-`tryouts` ירדו מכאן במכוון. הם עברו למסך
+       "מיונים ושיבוצים" (`addTryout` / `setArmyPlacement`),
+       והשרת מחזיר 410 על שליחתם. השארתם כאן הייתה משאירה
+       מסלול שנראה עובד ואינו כותב לשום מקום שנקרא.
+     ============================================================ */
+  setProfile: ({ studentId, talks }) =>
     post("/api/students?action=profile" + (studentId ? "&student=" + encodeURIComponent(studentId) : ""),
-      { army, tryouts, talks }),
+      { talks }),
 
   /** אירועים חריגים. מנהל בלבד — השרת אוכף. */
   getIncidents: (studentId) =>

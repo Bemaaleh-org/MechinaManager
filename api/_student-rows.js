@@ -37,7 +37,12 @@ export async function studentRows({ force = false } = {}) {
       C.tz, C.active, C.demo, C.leader, C.gender, C.dob, ROLES_COL,
       C.phone, C.mail, C.city, C.allergy, C.religion, C.shirt,
       C.army, C.tryouts, C.talk1, C.talk2, C.talk3,
-    ]);
+      /* ⚠ שתי אלה ריקות עד ש-`npm run seed:army` ירוץ, ומזהה
+         ריק ברשימה הזו גורם ל-monday להחזיר את **כל** העמודות
+         — כלומר בדיוק את פרטי ההורים והמידע הרפואי שהמיפוי
+         המפורש נועד למנוע. מסוננות. */
+      C.armyCorps, C.armyRole,
+    ].filter(Boolean));
     const d = await gql(
       `{ boards(ids:[${MECHINA_BOARDS.roster}]){ items_page(limit:500){ items {
            id name column_values(ids:${ids}){ id text } } } } }`
@@ -75,6 +80,18 @@ export async function studentRows({ force = false } = {}) {
         /* ---- פרופיל ----
            ⚠ לא נכנס ל-toPublic. יוצא רק דרך נקודת הקצה של
            הפרופיל, שאוכפת מי רואה מה. */
+        /* ============================================================
+           השיבוץ לצה״ל — חיל ופירוט תפקיד
+           ------------------------------------------------------------
+           ⚠ **מחוץ ל-`profile`, כי הוא כבר אינו נתון של הפרופיל.**
+             "שאיפות ומיונים" יצא מהמסך ההוא לגמרי, והשיבוץ חי
+             עכשיו במסך "מיונים ושיבוצים".
+
+           ⚠ **אינו ב-`toPublic`** — הוא יוצא רק דרך נקודת הקצה
+             של המיונים, שאוכפת מי רואה מה.
+           ============================================================ */
+        armyCorps: (C.armyCorps && val(i, C.armyCorps)) || "",
+        armyRole: (C.armyRole && val(i, C.armyRole)) || "",
         profile: {
           army: val(i, C.army) || "",
           tryouts: val(i, C.tryouts) || "",

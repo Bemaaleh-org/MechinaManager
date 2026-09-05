@@ -44,6 +44,10 @@ export async function loadSheets({ force = false } = {}) {
            מתנדב, וריק הוא "לא סוכם". */
         price: val(i, S.price) === "" ? null : Number(val(i, S.price)),
         payNote: val(i, S.payNote) || null,
+        /* ⚠ **מחוץ לדוח התשלום בלבד** — הגיליון נשאר פעיל
+           ומפגשיו ממשיכים להופיע בכל מסך אחר. ראו ההערה
+           ב-shared/lessons-boards.js. */
+        noPay: Boolean(S.noPay) && val(i, S.noPay) === "v",
         /* ⚠⚠ פרטי אדם חיצוני. נקראים כאן, ו**אינם יוצאים לחניך** —
            ראו `toStudentSheet` ב-api/_lessons-list.js. */
         phone: val(i, S.phone) || null,

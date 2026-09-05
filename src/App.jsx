@@ -320,7 +320,7 @@ function Staff({ auth, onSignedOut }) {
               /* ⚠ **גלוי לכל הצוות, ולא רק ליו״ר הוועדה.** המסך
                  קורא בלבד, והשרת קובע מי רואה את הכול — לפי
                  תיבה בלוח ולא לפי שם בקוד. */
-              { key: "a-tryouts", label: "מיונים לצבא", icon: <I.users />,
+              { key: "a-tryouts", label: "מיונים ושיבוצים", icon: <I.users />,
                 active: section === "tryouts", onClick: () => setSection("tryouts") },
             ] },
             /* ============================================================

@@ -32,7 +32,11 @@ const COLS = [
 
 /* ⚠ התוויות נזרעות פעם אחת ומכאן והלאה `create_labels_if_missing`
    נשאר false — תווית חסרה פירושה טעות בקוד. */
-const STATUSES = ["מתוכנן", "עבר", "לא עבר", "ממתין לתשובה", "לא הגיע", "בוטל"];
+/* ⚠ זהה לרשימה שב-shared/tryouts-ids.js ולזו שב-tools/seed-army.mjs.
+   שלושתן חייבות להישאר תואמות בתו — לוח חדש שייזרע עם רשימה
+   ישנה יראה תקין ויכשיל כל כתיבה. */
+const STATUSES = ["טרם ניגשתי", "ניגשתי ועברתי לשלב הבא",
+  "ניגשתי והתקבלתי", "ניגשתי ולא התקבלתי", "לא ניגשתי"];
 
 const boards = (await gql(`{ boards(limit:200, state:active){ id name } }`)).boards;
 let board = boards.find((b) => String(b.name).trim() === BOARD);
