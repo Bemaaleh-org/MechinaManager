@@ -18,6 +18,7 @@
 import React, { useState, useEffect } from "react";
 import { enablePush, disablePush, pushBlocker } from "./push.js";
 import { api } from "./api.js";
+import { readPrefs, writePrefs, THEMES, TEXTS } from "./prefs.js";
 
 const PI = {
   user: (p) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c0-3.6 3.2-6 7.5-6s7.5 2.4 7.5 6"/></svg>,
@@ -188,6 +189,12 @@ export function ProfilePage({ say }) {
         </button>
       </div>
 
+      {/* ---------- תצוגה ---------- */}
+      {/* ⚠ **בפרופיל ולא במסך הגדרות נפרד.** מסך שלישי שאפשר
+          להיכנס אליו רק כדי לשנות צבע הוא מסך שאיש לא ימצא,
+          וזו בדיוק הטעות של מסך ההצפות שנמחק (4ס). */}
+      <DisplayPrefs />
+
       {/* ---------- התראות לטלפון ---------- */}
       <PushCard say={say} />
 
@@ -216,6 +223,81 @@ export function ProfilePage({ say }) {
   );
 }
 
+
+/* ============================================================
+   תצוגה — מצב לילה, גודל גופן, ניגודיות
+   ------------------------------------------------------------
+   ⚠⚠ **ההעדפה מוחלת מיד ואינה נשמרת בשרת.** אין "שמירה" ואין
+     כפתור: לחיצה משנה את המסך תחת האצבע, וזה נכון — התוצאה
+     היא כל המידע שצריך כדי לדעת אם בחרת נכון.
+
+   ⚠ **והיא של המכשיר ולא של האדם** — ראו ההערה ב-src/prefs.js.
+     הודעה קטנה במסך אומרת זאת, כדי שמי שיפתח במחשב אחר לא
+     יחשוב שההגדרה נמחקה.
+   ============================================================ */
+function DisplayPrefs() {
+  const [p, setP] = useState(() => readPrefs());
+  const set = (patch) => setP(writePrefs({ ...p, ...patch }));
+
+  return (
+    <>
+      <div className="sec-label">תצוגה</div>
+      <div className="card lift">
+        <div className="fld">
+          <label>מצב תצוגה</label>
+          <div className="pf-opt">
+            {THEMES.map((t) => (
+              <button key={t.id} className={p.theme === t.id ? "on" : ""}
+                onClick={() => set({ theme: t.id })}>
+                {/* ⚠ דגימת צבע ולא רק שם: "לפי המכשיר" אינו אומר
+                    לאיש מה הוא יקבל בפועל. */}
+                <span className="pf-sw" style={{
+                  background: t.id === "dark" ? "#0B1826"
+                    : t.id === "light" ? "#F5F1E8"
+                      : "linear-gradient(90deg,#F5F1E8 50%,#0B1826 50%)",
+                }} />
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="fld">
+          <label>גודל הטקסט</label>
+          <div className="pf-opt">
+            {TEXTS.map((t, i) => (
+              <button key={t.id} className={p.text === t.id ? "on" : ""}
+                onClick={() => set({ text: t.id })}>
+                <span style={{ fontSize: [15, 18, 21][i], fontWeight: 800 }}>אא</span>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="fld" style={{ marginBottom: 0 }}>
+          <label>ניגודיות</label>
+          <div className="pf-opt">
+            <button className={p.contrast !== "high" ? "on" : ""}
+              onClick={() => set({ contrast: "normal" })}>רגילה</button>
+            <button className={p.contrast === "high" ? "on" : ""}
+              onClick={() => set({ contrast: "high" })}>מוגברת</button>
+          </div>
+          {/* ⚠ מסביר מה זה עושה. "ניגודיות מוגברת" לבדו אינו
+              אומר לאיש אם זה מה שהוא צריך. */}
+          <div className="pf-note" style={{ marginTop: 8 }}>
+            מחזירה מסגרות ברורות לכרטיסים ומכהה את הטקסט המשני —
+            עוזר באור שמש ישיר.
+          </div>
+        </div>
+      </div>
+      <div className="pf-note" style={{ margin: "8px 2px 0" }}>
+        ההגדרות האלה נשמרות <b>במכשיר הזה</b> ולא בחשבון, וממשיכות לעבוד
+        גם אחרי יציאה.
+      </div>
+    </>
+  );
+}
 
 /* ============================================================
    התראות לטלפון

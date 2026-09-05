@@ -12,6 +12,12 @@ html,body{margin:0;padding:0;background:#012E58}
 .kx{
   --bg:#F5F1E8; --surface:#fff; --ink:#1F2733; --muted:#6B6455; --faint:#A29A88;
   --line:#E7E0D2; --line2:#D3C9B6;
+  /* ⚠⚠ **הוגדר בדיעבד.** --sand שימש בכ-40 כללים ולא הוגדר
+     מעולם — כלומר background:var(--sand) נפתר לכלום, והרקע
+     נשאר שקוף. זה נראה "בסדר" על משטח לבן ונעלם לגמרי בכל
+     מקום אחר, ולכן איש לא הבחין. משתנה שאינו קיים אינו שגיאה
+     ב-CSS, וזו בדיוק הסיבה שהוא חי כאן חודשים. */
+  --sand:#F1ECE0;
   --accent:#002454; --accent-soft:#DDE5F0;
   --amber:#8A5A1E; --amber-soft:#F5EBDA;
   --clay:#9E3626; --clay-soft:#F8E6E2;
@@ -3548,5 +3554,181 @@ a.tm-entry-t.tm-link{color:var(--navy);text-decoration:underline;
 .lw-tmpl-b{padding:0 12px 12px}
 /* שורה מוסתרת נשארת קריאה ומסומנת — הסתרה אינה מחיקה. */
 .lw-off{opacity:.55}
+
+
+/* ============================================================
+   ============  שכבת ההעדפות  ================================
+   ============================================================
+   מצב לילה · גופן גדול · ניגודיות מוגברת.
+
+   ⚠⚠ **השכבה הזו יושבת בסוף הקובץ בכוונה, ודורסת את מה שמעליה**
+     — בדיוק כמו שכבת ההרמה (4ג). אפשר להסיר אותה בחתיכה אחת אם
+     משהו נשבר, והאפליקציה חוזרת בדיוק למה שהייתה.
+
+   ⚠ **המתג הוא data-attribute על .kx ולא class**, כדי ששלוש
+     ההעדפות יהיו בלתי תלויות: מצב לילה עם גופן רגיל, גופן גדול
+     באור יום, וכל צירוף אחר. מחלקות היו נדרשות להצטרף בשם.
+
+   ⚠⚠ **ואי אפשר היה להסתפק בהחלפת הטוקנים.** כ-30 כללים בקובץ
+     נושאים הקס מקובע (שרידי הפרוטוטייפ שהועתק כלשונו), והם
+     נשארים בהירים גם כשכל הטוקנים כהים — כלומר טקסט כהה על
+     רקע כהה. הם מנויים כאן אחד אחד. מי שיוסיף כלל חדש עם הקס
+     בהיר — להוסיף אותו גם כאן, או להשתמש בטוקן מלכתחילה.
+   ============================================================ */
+
+/* ---------- מצב לילה ---------- */
+/* ⚠ **הפלטה אינה היפוך של הבהירה.** היפוך מכני נותן אפור מלוכלך
+   וצהוב זוהר; כאן הבסיס הוא נייבי עמוק — אותה זהות של הסרגל
+   העליון, שכבר קיימת באפליקציה — והחום נשמר בטקסט ובמבטאים. */
+.kx[data-theme="dark"]{
+  --bg:#0B1826; --surface:#132539; --ink:#EAE3D6; --muted:#A9B6C6; --faint:#71829A;
+  --line:#22374F; --line2:#2E4763;
+  --accent:#9CC3F0; --accent-soft:#1B3350;
+  --amber:#E0AC63; --amber-soft:#3A2C16;
+  --clay:#F09480; --clay-soft:#3D211C;
+  --brand-clay:#C99777; --brand-clay-soft:#33251C;
+  --ok:#6FD69F; --ok-soft:#12301F;
+  --sand:#0F1F31;
+
+  /* ⚠ הצל בשתי שכבות גם כאן, אבל שחור עמוק במקום חום: צל חום
+     על רקע כהה נראה כמו כתם ולא כמו הרמה. */
+  --sh-1:0 1px 2px rgba(0,0,0,.4), 0 8px 20px -12px rgba(0,0,0,.7);
+  --sh-2:0 2px 5px rgba(0,0,0,.45), 0 20px 44px -20px rgba(0,0,0,.85);
+
+  /* ⚠ שמונת גווני הקטגוריות מוארים והמילוי הרך מוכהה — אחרת
+     האריחים נעלמים ברקע, והגוון הוא מה שמבדיל ענף מוועדה. */
+  --t1:#4FD1B5; --t1-s:#0D2B27;
+  --t2:#8FA3F0; --t2-s:#1A1F3C;
+  --t3:#E0AC63; --t3-s:#33260F;
+  --t4:#F08BA8; --t4-s:#3A1B25;
+  --t5:#B79BE0; --t5-s:#261B38;
+  --t6:#6FB4EC; --t6-s:#0F2739;
+  --t7:#A8C86E; --t7-s:#1F2A12;
+  --t8:#F0937A; --t8-s:#38201A;
+}
+/* ⚠ הרקע של html/body נצבע גם הוא, אחרת גלישת-יתר באייפון
+   חושפת רצועה כחולה־בהירה מתחת לתוכן הכהה. */
+[data-kx-theme="dark"] body,[data-kx-theme="dark"] html{background:#0B1826}
+
+/* ⚠ **הכללים עם הקס מקובע** — ראו ההערה למעלה. */
+.kx[data-theme="dark"] .led-item:active,
+.kx[data-theme="dark"] .tsum-row:active,
+.kx[data-theme="dark"] .st-row:active,
+.kx[data-theme="dark"] .dash-card:active,
+.kx[data-theme="dark"] .attn-row:active,
+.kx[data-theme="dark"] .notif-item:active,
+.kx[data-theme="dark"] .crow.done,
+.kx[data-theme="dark"] .row.hot{background:#1A2E45}
+.kx[data-theme="dark"] .seg{background:#16283C}
+.kx[data-theme="dark"] .prog{background:#22374F}
+.kx[data-theme="dark"] .yr-c.off{background:#16283C;border-color:#16283C}
+.kx[data-theme="dark"] .pill.pp-none{background:#22374F;color:#A9B6C6}
+.kx[data-theme="dark"] .st-av.none{background:#16283C;color:#71829A}
+.kx[data-theme="dark"] .dash-ico.warn{background:#3D211C;color:#F09480}
+.kx[data-theme="dark"] .gnt-ev.today{background:#33260F}
+.kx[data-theme="dark"] .fld input:hover,
+.kx[data-theme="dark"] .fld textarea:hover{background:#1A2E45}
+.kx[data-theme="dark"] .card,
+.kx[data-theme="dark"] .lo-card{background:linear-gradient(180deg,#132539 0%,#16293F 100%)}
+/* ⚠⚠ **האריחים — המקרה הגרוע ביותר שנמצא בבדיקה.**
+   .nav-tile ו-.stat-tile נשאו שיפוע לבן מקובע והטקסט עליהם
+   הוא var(--ink) — כלומר קרם על קרם, בלתי קריא לגמרי.
+   וזה רשת הקיצורים במסך הבית — הדבר הראשון שרואים.
+   נמצא בצילום מסך ולא בבנייה: CSS שגוי אינו שגיאה. */
+.kx[data-theme="dark"] .nav-tile,
+.kx[data-theme="dark"] .stat-tile{
+  background:linear-gradient(180deg,#16293F 0%,#132539 100%);
+  box-shadow:0 1px 2px rgba(0,0,0,.4),0 10px 24px -14px rgba(0,0,0,.7),
+    inset 0 1px 0 rgba(255,255,255,.05)}
+.kx[data-theme="dark"] .yr2-c.unmarked{background:#132539;color:var(--muted)}
+.kx[data-theme="dark"] .chip{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14)}
+.kx[data-theme="dark"] .brand-coin{background:#EDE6D8}
+.kx[data-theme="dark"] .yr2-c.sick{background:#3D211C;color:#F0A292;border-color:#54302A}
+.kx[data-theme="dark"] .yr2-c.just{background:#33260F;color:#E0BC83;border-color:#4A3818}
+.kx[data-theme="dark"] .mv-c.present,
+.kx[data-theme="dark"] .tm-st.on,
+.kx[data-theme="dark"] .t-over{background:#12301F;color:#6FD69F}
+.kx[data-theme="dark"] .mv-c.sick,
+.kx[data-theme="dark"] .t-near,
+.kx[data-theme="dark"] .ro-bar,
+.kx[data-theme="dark"] .scr-note,
+.kx[data-theme="dark"] .note-warn{background:#33260F;color:#E0AC63}
+.kx[data-theme="dark"] .mv-c.just{background:#1B3350;color:#9CC3F0}
+.kx[data-theme="dark"] .mv-c.vac,
+.kx[data-theme="dark"] .ch-lead{background:#261B38;color:#B79BE0}
+.kx[data-theme="dark"] .t-under{background:#3D211C;color:#F09480}
+.kx[data-theme="dark"] .esc-h{color:#E0AC63;background:#33260F}
+.kx[data-theme="dark"] .lw-soon{background:#132539}
+.kx[data-theme="dark"] .lw-past{background:#0F1F31}
+
+/* ============================================================
+   גופן גדול
+   ------------------------------------------------------------
+   ⚠⚠ **font-size על .kx בלבד, ולא זום של הדפדפן.** רוב הגדלים
+     בקובץ הם px מוחלטים ולכן אינם מגיבים לו — אבל padding
+     ו-gap כן נשארים במקומם, וזה בדיוק מה שנדרש: הטקסט גדל
+     והפריסה לא נשברת.
+
+   ⚠ **ולכן זה מוגבל למה שכן נגזר.** כותרות ומספרים גדולים
+     שמוגדרים ב-px נשארים בגודלם; הם ממילא הגדולים במסך.
+   ============================================================ */
+.kx[data-text="lg"]{font-size:18px;line-height:1.55}
+.kx[data-text="xl"]{font-size:20px;line-height:1.62}
+/* ⚠ הכללים שדורסים בגודל מפורש — מוגדלים ביחס ולא בערך קבוע,
+   כדי שהיחס בין כותרת לגוף יישמר. */
+.kx[data-text="lg"] .tm-entry-t,.kx[data-text="lg"] .lw-task-t,
+.kx[data-text="lg"] .row-name,.kx[data-text="lg"] .pr-task-t{font-size:15.5px}
+.kx[data-text="xl"] .tm-entry-t,.kx[data-text="xl"] .lw-task-t,
+.kx[data-text="xl"] .row-name,.kx[data-text="xl"] .pr-task-t{font-size:17px}
+.kx[data-text="lg"] .tm-entry-m,.kx[data-text="lg"] .sub2,
+.kx[data-text="lg"] .tm-note{font-size:13.5px}
+.kx[data-text="xl"] .tm-entry-m,.kx[data-text="xl"] .sub2,
+.kx[data-text="xl"] .tm-note{font-size:15px}
+.kx[data-text="lg"] .screen-title{font-size:26px}
+.kx[data-text="xl"] .screen-title{font-size:29px}
+
+/* ============================================================
+   ניגודיות מוגברת
+   ------------------------------------------------------------
+   ⚠ **מחזיר את המסגרות שההרמה החלישה.** שפת העיצוב מגדירה
+     משטח בצל ולא בקו (4ג), וזה יפה — ולא נקרא באור שמש ישיר,
+     ולא נקרא למי שרואה פחות ניגודיות. כאן הקו חוזר.
+
+   ⚠ **וגם --faint ו-muted מוכהים**: אפור בהיר על קרם הוא
+     בדיוק הטקסט שאי אפשר לקרוא, והוא נושא את התאריכים ואת
+     שמות מי שביצע.
+
+   ⚠ **הצל אינו מוסר אלא מוחלש** — בלעדיו הכרטיסים נדבקים זה
+     לזה ואי אפשר לספור אותם.
+   ============================================================ */
+.kx[data-contrast="high"]{
+  --muted:#3F3A2E; --faint:#5C5545; --line:#8C8471; --line2:#6E6858;
+}
+.kx[data-contrast="high"][data-theme="dark"]{
+  --muted:#D8E2EE; --faint:#B6C3D2; --line:#4E6B8C; --line2:#61809F;
+}
+.kx[data-contrast="high"] .card,
+.kx[data-contrast="high"] .tm-entry,
+.kx[data-contrast="high"] .tm-entry-row,
+.kx[data-contrast="high"] .lw-task,
+.kx[data-contrast="high"] .pr-task,
+.kx[data-contrast="high"] .row,
+.kx[data-contrast="high"] .dash-card,
+.kx[data-contrast="high"] .nav-card{border-width:2px;box-shadow:var(--sh-1)}
+.kx[data-contrast="high"] .btn{border-width:2px;font-weight:800}
+.kx[data-contrast="high"] .pill{border:1.5px solid currentColor}
+/* ⚠ טבעת מיקוד עבה: ניווט במקלדת הוא חלק מאותה בקשה. */
+.kx[data-contrast="high"] :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* ---------- מסך ההעדפות ---------- */
+.pf-opt{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:7px}
+.kx .pf-opt button{display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:13px 8px;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-md);box-shadow:var(--sh-1);cursor:pointer;
+  font-size:13px;font-weight:700;color:var(--ink);transition:all var(--ease)}
+.kx .pf-opt button.on{border-color:var(--accent);
+  box-shadow:inset 0 0 0 1.5px var(--accent),var(--sh-1)}
+.pf-opt .pf-sw{width:100%;height:26px;border-radius:var(--r-sm);
+  border:1px solid var(--line2)}
 
 `;
