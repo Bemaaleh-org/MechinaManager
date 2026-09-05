@@ -26,6 +26,23 @@ import {
 import { studentRows, normalizeTz } from "./_student-rows.js";
 import { identities, isFresh } from "./_identity.js";
 
+/* ============================================================
+   ⚠⚠ **"ההתחברות נכשלה" על תקלת שירות היא הודעה שמטעה.**
+
+   כשמונדיי אינה עונה, כל כניסה נכשלת — והמשתמש שהקליד סיסמה
+   **נכונה** קורא "ההתחברות נכשלה" ומסיק שהוא טעה בסיסמה. הוא
+   ינסה שוב, יאפס סיסמה, ויסיק שהחשבון נמחק. בפועל לא היה שום
+   דבר לא בסדר עם מה שהקליד.
+
+   זה עיקרון 6 בדיוק: **כשל טעינה חייב להיראות אחרת מ"אין
+   נתונים" ומ"הפרטים שגויים"** — שלושה מצבים, שלוש הודעות.
+
+   ⚠ וההודעה אינה חושפת דבר: היא נכונה לכל מי שמנסה להיכנס,
+     ואינה אומרת אם המשתמש קיים.
+   ============================================================ */
+const SERVICE_DOWN = "המערכת אינה מצליחה להגיע כרגע לשרת הנתונים. "
+  + "זו אינה בעיה בפרטים שהזנתם — כדאי לנסות שוב בעוד דקה.";
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "רק POST נתמך כאן" });
@@ -120,7 +137,7 @@ export default async function handler(req, res) {
   } catch (e) {
     const status = e instanceof AuthError ? e.status : 502;
     console.error("[student-login]", e.message);
-    res.status(status).json({ error: status === 502 ? "ההתחברות נכשלה" : e.message });
+    res.status(status).json({ error: status === 502 ? SERVICE_DOWN : e.message });
   }
 }
 

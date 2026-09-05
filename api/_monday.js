@@ -9,6 +9,13 @@
 
 const ENDPOINT = "https://api.monday.com/v2";
 
+/* ============================================================
+   ⚠ שגיאות שכן שווה לנסות שוב עליהן — תקלה רגעית אצל monday
+     או הגבלת קצב. כל השאר (תווית חסרה, עמודה שהוחלפה, הרשאה)
+     הן טעות בקוד, ועליהן נכשלים מיד וברעש.
+   ============================================================ */
+const TRANSIENT = /INTERNAL_SERVER_ERROR|DOWNSTREAM_SERVICE_ERROR|Internal server error|ComplexityException|RATE_LIMIT|Too many requests|502|503|504/i;
+
 export async function gql(query, variables = {}) {
   const token = process.env.MONDAY_TOKEN;
   if (!token) throw new Error("MONDAY_TOKEN לא מוגדר בסביבה");
@@ -25,8 +32,34 @@ export async function gql(query, variables = {}) {
 
       const json = await r.json();
       if (json.errors) {
-        // שגיאת סכמה או הרשאה לא תשתפר בניסיון חוזר
-        throw new Error("monday: " + JSON.stringify(json.errors));
+        /* ============================================================
+           ⚠⚠ **לא כל שגיאת GraphQL היא קבועה.**
+
+           כאן היה כתוב "שגיאת סכמה או הרשאה לא תשתפר בניסיון
+           חוזר", וזה נכון — אבל **`INTERNAL_SERVER_ERROR` של
+           monday אינו שגיאת סכמה**, הוא תקלה רגעית אצלם. הוא
+           הגיע באותו שדה `errors`, ולכן נזרק מיד בלי אף ניסיון
+           חוזר.
+
+           זה נראה בפיילוט כ**"ההתחברות נכשלת"**: monday החזירה
+           500 לחלק מהבקשות, כל כניסה קוראת ללוח, וכל כישלון
+           כזה הפיל את הכניסה לגמרי — בזמן שהניסיון הבא היה
+           מצליח. אצל המשתמש זה נראה כמו מערכת שבורה, ואצלנו
+           כמו "monday נפלה".
+
+           ⚠ **וההבחנה חייבת להישאר.** תווית שאינה קיימת, עמודה
+             שהוחלפה או הרשאה חסרה **חייבות להיכשל ברעש ומיד** —
+             ניסיון חוזר עליהן רק מסתיר טעות בקוד ומשלש את הזמן.
+           ============================================================ */
+        const text = JSON.stringify(json.errors);
+        if (attempt < 2 && TRANSIENT.test(text)) {
+          lastError = new Error("monday: " + text);
+          /* ⚠ המתנה גדלה: תקלה רגעית אצלם לא נפתרת באותה
+             מילישנייה, וניסיון מיידי הוא בזבוז של שלוש בקשות. */
+          await new Promise((z) => setTimeout(z, 400 * (attempt + 1)));
+          continue;
+        }
+        throw new Error("monday: " + text);
       }
       return json.data;
     } catch (e) {
