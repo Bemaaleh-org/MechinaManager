@@ -174,6 +174,40 @@ export const api = {
     post("/api/students?action=team-feedback", { team, text }),
   deleteTeamFeedback: (id) => del("/api/students?action=team-feedback", { id }),
 
+  /* ---------- לוח מודעות ----------
+     ⚠ **הקהל נאכף בשרת ולא כאן.** מודעה לצוות אינה מוחזרת
+       לחניך כלל, ולכן אין מה לסנן במסך (עיקרון 4). */
+  notices: () => get("/api/students?action=notices"),
+  addNotice: ({ title, kind, body, to, until, link }) =>
+    post("/api/students?action=notices", { title, kind, body, to, until, link }),
+  editNotice: ({ id, title, kind, body, to, until, link, pinned }) =>
+    put("/api/students?action=notices", { id, title, kind, body, to, until, link, pinned }),
+  deleteNotice: (id) => del("/api/students?action=notices", { id }),
+  /* ⚠ **אותה נקודת קצה בכוונה.** השרת מזהה לפי המזהה אם זו
+     מודעה או תגובה, ושתי נקודות קצה היו מחייבות את המסך לדעת
+     את ההבחנה — והוא לא צריך. */
+  deleteNoticeComment: (id) => del("/api/students?action=notices", { id }),
+  /* ⚠ תגובה פתוחה לכל מי שרואה את המודעה, גם למי שאינו מפרסם. */
+  commentNotice: ({ post: postId, text }) =>
+    post("/api/students?action=notices", { post: postId, text }),
+
+  /* ⚠ סקר מכינה אינו חשאי; משוב אנונימי הוא המסלול האחר. */
+  mechinaPolls: () => get("/api/students?action=mpoll"),
+  addMechinaPoll: ({ question, options, to, closes }) =>
+    post("/api/students?action=mpoll", { question, options, to, closes }),
+  voteMechinaPoll: ({ poll, choice }) =>
+    post("/api/students?action=mpoll", { poll, choice }),
+  closeMechinaPoll: ({ id, closed }) => put("/api/students?action=mpoll", { id, closed }),
+  deleteMechinaPoll: (id) => del("/api/students?action=mpoll", { id }),
+
+  /* ⚠⚠ **משוב אנונימי — ואין כאן מזהה שולח, בשום צורה.** הלוח
+     אינו מחזיק עמודת כותב, והתשובה אינה מחזירה מזהה שורה.
+     ראו api/_board.js. */
+  mechinaFeedback: () => get("/api/students?action=mfeedback"),
+  sendMechinaFeedback: ({ topic, text }) =>
+    post("/api/students?action=mfeedback", { topic, text }),
+  deleteMechinaFeedback: (id) => del("/api/students?action=mfeedback", { id }),
+
   /* ---------- שבוע ההובלה ----------
      ⚠ **`week` נשלח בכל כתיבה ואינו נגזר בשרת מ"היום".** מוביל
        מכין את השבוע שלו מראש ומתקן אותו בדיעבד, ושרת שינחש

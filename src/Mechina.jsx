@@ -34,6 +34,7 @@ import DutyPage from "./Duty.jsx";
 /* ⚠⚠ מסך שהצוות אינו רואה — השרת מחזיר לו 403. ראו api/_projects.js. */
 import ProjectsPage from "./Projects.jsx";
 import LeadWeekPage from "./LeadWeek.jsx";
+import BoardPage from "./Board.jsx";
 import TeamsPage from "./Teams.jsx";
 import ChoresPage from "./Chores.jsx";
 import RulesPage from "./Rules.jsx";
@@ -117,6 +118,7 @@ const TAB_ICON = {
   /* ⚠ מסך בלי ערך במפה מקבל ברירת מחדל ואינו נעלם (4יא) —
      אבל שבוע ההובלה הוא לוח שנה, ואייקון של קופסה מטעה. */
   "lead-week": <MI.cal />,
+  board: <MI.note />,
   container: <MI.box />, loans: <MI.box />,
   faults: <MI.box />, cleaning: <MI.box />, chores: <MI.tick />,
   safety: <MI.note />, hosting: <MI.home />,
@@ -3283,6 +3285,10 @@ export function MechinaApp({ auth, onSignedOut }) {
           ] },
 
           { label: "היום־יום במכינה", items: [
+            /* ⚠ **ראשון בקבוצה.** זה המסך שמחליף את "מה קורה
+               היום" בוואטסאפ, ומי שיצטרך לגלול אליו לא ייכנס. */
+            { key: "board", label: "לוח מודעות", icon: <MI.note />,
+              active: tab === "board", onClick: () => setTab("board") },
             { key: "agenda", label: "הלו״ז שלי", icon: <MI.cal />,
               active: tab === "agenda", onClick: () => setTab("agenda") },
             { key: "gantt", label: "גאנט שנתי", icon: <MI.cal />,
@@ -3451,6 +3457,10 @@ export function MechinaApp({ auth, onSignedOut }) {
             בפני האדם היחיד שצריך אותו לפני שהשבוע מתחיל (5ב). */}
         {tab === "lead-week" && (auth.leadsAnyWeek || auth.isLeader)
           && <LeadWeekPage say={say} />}
+        {/* ⚠ **פתוח לכל חניך.** מי שרשאי לפרסם נקבע בשרת לפי
+            האחריות שהוא נושא; הקריאה היא של כולם, וזו כל התכלית
+            של לוח מודעות. */}
+        {tab === "board" && <BoardPage say={say} />}
         {tab === "projects" && <ProjectsPage say={say} />}
         {/* ⚠ אחראי הלו״ז בלבד — הכניסה נגזרת מ-DUTIES ונאכפת
             בשרת ב-{scheduler:true}. `bare` אינו נשלח: כדף עצמאי

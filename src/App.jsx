@@ -10,6 +10,7 @@ import Login from "./Login.jsx";
 import Setup from "./Setup.jsx";
 import { CyclesPage } from "./Cycles.jsx";
 import { ProfilePage } from "./Profile.jsx";
+import BoardPage from "./Board.jsx";
 import ExportPage from "./Export.jsx";
 import { MechinaApp, MechinaStaff, WeekLeadersPage, RoleHoldersPage } from "./Mechina.jsx";
 import { LessonsPage, LessonsBoard, LESSON_TABS } from "./Lessons.jsx";
@@ -285,6 +286,11 @@ function Staff({ auth, onSignedOut }) {
                 onClick: () => setSection("dash") },
               { key: "profile", label: "הפרופיל שלי", icon: <I.users />,
                 active: section === "profile", onClick: () => setSection("profile") },
+              /* ⚠ **אותו מסך בדיוק של החניך** — עיקרון 4יט. מה
+                 שמשתנה הוא מה שהשרת מחזיר: הצוות רואה גם מודעות
+                 לצוות, וגם את המשוב האנונימי. */
+              { key: "board", label: "לוח מודעות", icon: <I.note />,
+                active: section === "board", onClick: () => setSection("board") },
             ] },
             { label: "מטבח וחד״א", items: kitchenItems },
             { label: "חניכים ונוכחות", items: [
@@ -453,6 +459,7 @@ function Staff({ auth, onSignedOut }) {
           {section === "kitchen" && <KitchenPage say={say} area={kArea} />}
           {section === "menu" && <MenuPage say={say} />}
           {section === "profile" && <ProfilePage say={say} />}
+          {section === "board" && <BoardPage say={say} />}
           {section === "alumni" && <AlumniPage say={say} />}
           {section === "cycles" && auth.isHead && <CyclesPage say={say} />}
           {section === "export" && <ExportPage say={say} />}

@@ -824,6 +824,57 @@ async function leadSummaryNotes(session, today) {
   }
   return out;
 }
+
+/* ============================================================
+   לוח המודעות
+   ------------------------------------------------------------
+   ⚠⚠ **"חדש" נגזר מהתאריך ולא מתור, ולכן נעלם מעצמו.** רשימת
+     "טרם נקראו" הייתה נשארת פתוחה עד שמישהו יסמן — כלומר
+     לנצח, וזה בדיוק מה שמאמן להתעלם מהפעמון (4כו).
+
+   ⚠ **והקהל נאכף כאן שוב.** `buildNotes` רץ גם בסבב הדחיפה,
+     שאין בו מסך שיסנן — מודעה לצוות שתיכנס לפעמון של חניך היא
+     דליפה, ולא באג תצוגה.
+
+   ⚠ **שורה אחת למודעה ולא מונה אחד.** בניגוד לתקלות, מודעה
+     היא בדיוק הדבר שבשבילו נפתח הפעמון — "3 מודעות חדשות" הוא
+     מספר שמחייב לפתוח מסך כדי לדעת אם הוא מעניין.
+   ============================================================ */
+async function noticeNotes(session, today) {
+  const out = [];
+  try {
+    const { boardReady } = await import("../shared/board-ids.js");
+    if (!boardReady()) return [];
+    const { loadNotices } = await import("./_board.js");
+
+    /* ⚠ אותה פונקציה של הקהל, ולא העתק שלה — שני עותקים היו
+       מתפצלים ביום שמישהו מוסיף קהל שלישי. */
+    const forMe = (to) => to === "כולם"
+      || (session.isStudent ? to === "חניכים" : to === "צוות");
+
+    const fresh = (await loadNotices())
+      .filter((n) => forMe(n.to)
+        && n.date && n.date >= shift(today, -5)
+        && (!n.until || n.until >= today));
+
+    for (const n of fresh.slice(0, 5)) {
+      out.push(note({
+        id: `notice:${n.id}`,
+        kind: "לוח מודעות",
+        /* ⚠ נעוץ הוא החלטה מפורשת של ראש המכינה, ולכן הוא
+           רמת "גבוה" — זו כל המשמעות של נעיצה. */
+        level: n.pinned ? "גבוה" : "רגיל",
+        title: n.title,
+        body: [n.kind, n.by].filter(Boolean).join(" · "),
+        tab: "board",
+        when: n.date,
+      }));
+    }
+  } catch (e) {
+    console.error("[notify:notices]", e && e.message);
+  }
+  return out;
+}
 /* ============================================================
    בניית ההתראות של משתמש אחד
    ------------------------------------------------------------
@@ -859,6 +910,10 @@ export async function buildNotes(session, today = israelToday()) {
          לצוות כולו, וזו כל הסיבה שהמוביל טורח לכתוב אותו. */
       jobs.push(leadSummaryNotes(session, today));
     }
+
+    /* ⚠ **מחוץ לשני הענפים, כי הלוח פונה לשניהם.** הקהל נאכף
+       בתוך הבונה עצמו — ראו ההערה שם. */
+    jobs.push(noticeNotes(session, today));
 
     /* ⚠ מנהל מקבל את הכול. זה מה שהתבקש, וזה גם נכון: הוא
        האדם שאמור לדעת שדבר לא נפל בין הכיסאות. */

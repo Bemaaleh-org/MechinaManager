@@ -3731,4 +3731,42 @@ a.tm-entry-t.tm-link{color:var(--navy);text-decoration:underline;
 .pf-opt .pf-sw{width:100%;height:26px;border-radius:var(--r-sm);
   border:1px solid var(--line2)}
 
+
+/* ============================================================
+   לוח המודעות
+   ------------------------------------------------------------
+   ⚠ קידומת .kx על כל מה שהוא button — .kx button
+     מאפסת רקע ומסגרת בסגוליות (0,2,0) (4מח, 4ק).
+
+   ⚠ הגוון נגזר מסוג המודעה (tone-N), ונושא רק את
+     הפס בקצה — כרטיס צבעוני שלם הופך רשימה של עשר
+     מודעות לקשת בענן (4ג: אדום וירוק שמורים למצב).
+   ============================================================ */
+.nb-card{background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-md);box-shadow:var(--sh-1);margin-bottom:8px;
+  overflow:hidden;border-inline-start:3px solid var(--t)}
+.nb-past{opacity:.62}
+.kx .nb-h{display:flex;width:100%;gap:10px;padding:12px 14px;background:none;
+  border:0;text-align:right;cursor:pointer;color:inherit}
+.kx .nb-h:hover{background:var(--sand)}
+.nb-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:4px}
+.nb-kind{font-size:11px;font-weight:800;letter-spacing:.3px;color:var(--t);
+  background:var(--t-s);padding:3px 9px;border-radius:999px}
+.nb-pin{display:inline-flex;align-items:center;gap:4px;font-size:11px;
+  font-weight:800;color:var(--amber);background:var(--amber-soft);
+  padding:3px 9px;border-radius:999px}
+.nb-t{font-size:15.5px;font-weight:800;color:var(--ink);line-height:1.35}
+.nb-b{padding:0 14px 13px;border-top:1px solid var(--line2)}
+.nb-cs{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.nb-c{background:var(--sand);border-radius:var(--r-sm);padding:9px 11px}
+.nb-c-t{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.6;
+  white-space:pre-wrap}
+.kx .nb-x{background:none;border:0;padding:0;font-size:12px;font-weight:700;
+  color:var(--clay);cursor:pointer;text-decoration:underline;
+  text-underline-offset:2px}
+.nb-add{display:flex;gap:6px;margin-top:10px}
+.kx .nb-add input{flex:1;min-width:0;height:42px;padding:0 12px;
+  background:var(--sand);border:1px solid var(--line2);
+  border-radius:var(--r-sm);font-size:13.5px;font-weight:600}
+
 `;

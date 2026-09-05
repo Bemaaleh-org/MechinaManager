@@ -29,6 +29,9 @@
      ?action=team-feedback POST/DELETE         משוב אנונימי לצוות
      ?action=lead-week     GET/POST/PUT/DELETE שבוע ההובלה
      ?action=lead-activity GET/POST/PUT/DELETE בנק הפעילויות
+     ?action=notices       GET/POST/PUT/DELETE לוח מודעות ותגובות
+     ?action=mpoll         GET/POST/PUT/DELETE סקרי מכינה
+     ?action=mfeedback     GET/POST/DELETE     משוב אנונימי להנהלה
                      ⚠ כתיבה — החניך על עצמו בלבד. קריאה של
                        כולם — צוות ויו״ר ועדת הגיוסים.
 
@@ -86,6 +89,8 @@ import { teamEntry, teamPoll, teamFeedback } from "./_team-extras.js";
 /* שבוע ההובלה — הקונסולה של המובילים ובנק הפעילויות.
    ⚠ שניהם ?action= ולא קובץ נספר: 8 מתוך 12 תפוסות. */
 import { leadWeek, leadActivity } from "./_lead-week.js";
+/* לוח מודעות, סקרי מכינה ומשוב אנונימי להנהלה. */
+import { notices, mpoll, mfeedback } from "./_board.js";
 /* ⚠ מרצים של סדרה — **אותו לוח חוות דעת**, עם שיוך לסדרה.
    כל חברי הסדרה כותבים, ולא רק היו״ר. */
 import teamLecturer from "./_team-lecturer.js";
@@ -100,4 +105,5 @@ export default router({ login, list, year, leader, weeks, role, profile, inciden
   "project-entry": projectEntry,
   "team-entry": teamEntry, "team-poll": teamPoll, "team-feedback": teamFeedback,
   "team-lecturer": teamLecturer,
-  "lead-week": leadWeek, "lead-activity": leadActivity });
+  "lead-week": leadWeek, "lead-activity": leadActivity,
+  notices, mpoll, mfeedback });

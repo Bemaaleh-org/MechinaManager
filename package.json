@@ -24,6 +24,8 @@
     "seed:cron": "node tools/seed-cron-secret.mjs",
     "seed:teams2": "node --env-file=.env tools/seed-teams2.mjs",
     "seed:lead": "node --env-file=.env tools/seed-lead.mjs",
+    "seed:board": "node --env-file=.env tools/seed-board.mjs",
+    "clean:defaults": "node --env-file=.env tools/clean-defaults.mjs",
     "push:test": "node --env-file=.env tools/push-test.mjs",
     "projects:orphans": "node --env-file=.env tools/projects-orphans.mjs"
   },
