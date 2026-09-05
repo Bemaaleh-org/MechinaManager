@@ -11,6 +11,7 @@ import Setup from "./Setup.jsx";
 import { CyclesPage } from "./Cycles.jsx";
 import { ProfilePage } from "./Profile.jsx";
 import BoardPage from "./Board.jsx";
+import MyDataPage from "./MyData.jsx";
 import SearchOverlay, { SearchButton } from "./Search.jsx";
 import ExportPage from "./Export.jsx";
 import { MechinaApp, MechinaStaff, WeekLeadersPage, RoleHoldersPage } from "./Mechina.jsx";
@@ -333,6 +334,11 @@ function Staff({ auth, onSignedOut }) {
                  לצוות, וגם את המשוב האנונימי. */
               { key: "board", label: "לוח מודעות", icon: <I.note />,
                 active: section === "board", onClick: () => setSection("board") },
+              /* ⚠ **לאיש צוות זו לשונית "מה חדש" בלבד** — אין
+                 עליו נתונים במערכת מלבד חשבון הכניסה, והשרת
+                 מחזיר 400 מפורש שאומר בדיוק את זה. */
+              { key: "news", label: "מה חדש", icon: <I.note />,
+                active: section === "news", onClick: () => setSection("news") },
             ] },
             { label: "מטבח וחד״א", items: kitchenItems },
             { label: "חניכים ונוכחות", items: [
@@ -508,6 +514,7 @@ function Staff({ auth, onSignedOut }) {
           {section === "menu" && <MenuPage say={say} />}
           {section === "profile" && <ProfilePage say={say} />}
           {section === "board" && <BoardPage say={say} />}
+          {section === "news" && <MyDataPage say={say} isStudent={false} sub0="news" />}
           {section === "alumni" && <AlumniPage say={say} />}
           {section === "cycles" && auth.isHead && <CyclesPage say={say} />}
           {section === "export" && <ExportPage say={say} />}

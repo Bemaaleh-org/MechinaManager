@@ -3807,4 +3807,46 @@ a.tm-entry-t.tm-link{color:var(--navy);text-decoration:underline;
 .sr-t{font-size:14.5px;font-weight:700;color:var(--ink);line-height:1.4}
 .sr-s{font-size:12px;font-weight:600;color:var(--muted);margin-top:2px}
 
+
+/* ============================================================
+   הנתונים שלי · מה חדש
+   ------------------------------------------------------------
+   ⚠ כל שורה נושאת שלושה דברים — נתון, מקור ומי
+     רואה. התגיות קטנות ושקטות, כדי שהנתון עצמו ייקרא
+     ראשון — שלוש שורות באותו משקל הן קיר טקסט.
+   ============================================================ */
+.md-intro{font-size:13.5px;font-weight:600;color:var(--muted);line-height:1.8;
+  background:var(--sand);border:1px solid var(--line2);border-radius:var(--r-md);
+  padding:13px 15px;margin-bottom:16px}
+.md-intro b{color:var(--ink);font-weight:800}
+.md-row{background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-md);box-shadow:var(--sh-1);padding:11px 14px;
+  margin-bottom:7px}
+.md-l{font-size:12px;font-weight:800;color:var(--faint);letter-spacing:.2px}
+.md-v{font-size:15px;font-weight:700;color:var(--ink);line-height:1.5;
+  margin-top:2px;word-break:break-word}
+.md-m{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.md-tag{font-size:10.5px;font-weight:800;letter-spacing:.2px;
+  background:var(--sand);border:1px solid var(--line2);color:var(--muted);
+  padding:2px 8px;border-radius:999px}
+/* ⚠ "מי רואה" בגוון ולא באפור — זה הנתון שהמסך
+   קיים בשבילו, ואסור שהוא ייראה כמו הערת שוליים. */
+.md-tag.md-who{background:var(--accent-soft);border-color:transparent;
+  color:var(--accent)}
+.md-n{font-size:12px;font-weight:600;color:var(--muted);line-height:1.65;
+  margin-top:7px;padding-top:7px;border-top:1px solid var(--line2)}
+
+.md-news{background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-md);box-shadow:var(--sh-1);padding:14px 16px;
+  margin-bottom:9px}
+.md-news.on{border-color:var(--ok);box-shadow:inset 0 0 0 1px var(--ok),var(--sh-1)}
+.md-news-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.md-news-t{font-family:Heebo,sans-serif;font-size:16.5px;font-weight:800;
+  color:var(--ink)}
+.md-news-d{display:flex;align-items:center;gap:6px;font-size:12px;
+  font-weight:700;color:var(--faint);flex:0 0 auto}
+.md-news-l{margin:9px 0 0;padding-inline-start:18px;font-size:13.5px;
+  font-weight:600;color:var(--muted);line-height:1.85}
+.md-news-l li{margin-bottom:3px}
+
 `;

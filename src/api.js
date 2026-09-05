@@ -174,6 +174,9 @@ export const api = {
     post("/api/students?action=team-feedback", { team, text }),
   deleteTeamFeedback: (id) => del("/api/students?action=team-feedback", { id }),
 
+  /* ⚠ אין כאן פרמטר "על מי" — הזהות מגיעה מהסשן, נקודה. */
+  myData: () => get("/api/students?action=mydata"),
+
   /* ---------- חיפוש ----------
      ⚠ **כל מקור אוכף את ההרשאה של עצמו בשרת**, ואין כאן סינון.
        ראו api/_search.js. */

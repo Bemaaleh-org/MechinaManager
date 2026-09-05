@@ -35,6 +35,7 @@ import DutyPage from "./Duty.jsx";
 import ProjectsPage from "./Projects.jsx";
 import LeadWeekPage from "./LeadWeek.jsx";
 import BoardPage from "./Board.jsx";
+import MyDataPage from "./MyData.jsx";
 import SearchOverlay, { SearchButton } from "./Search.jsx";
 import TeamsPage from "./Teams.jsx";
 import ChoresPage from "./Chores.jsx";
@@ -120,6 +121,7 @@ const TAB_ICON = {
      אבל שבוע ההובלה הוא לוח שנה, ואייקון של קופסה מטעה. */
   "lead-week": <MI.cal />,
   board: <MI.note />,
+  mydata: <MI.note />,
   container: <MI.box />, loans: <MI.box />,
   faults: <MI.box />, cleaning: <MI.box />, chores: <MI.tick />,
   safety: <MI.note />, hosting: <MI.home />,
@@ -3286,6 +3288,10 @@ export function MechinaApp({ auth, onSignedOut }) {
                בלבד, והצוות אינו רואה אותם כלל. */
             { key: "projects", label: "הפרויקטים שלי", icon: <MI.tick />,
               active: tab === "projects", onClick: () => setTab("projects") },
+            /* ⚠ **אחרון באישי, ובכוונה.** זה אינו מסך יומיומי —
+               הוא מסך שנכנסים אליו כששואלים שאלה. */
+            { key: "mydata", label: "הנתונים שלי", icon: <MI.note />,
+              active: tab === "mydata", onClick: () => setTab("mydata") },
           ] },
 
           { label: "היום־יום במכינה", items: [
@@ -3471,6 +3477,7 @@ export function MechinaApp({ auth, onSignedOut }) {
             האחריות שהוא נושא; הקריאה היא של כולם, וזו כל התכלית
             של לוח מודעות. */}
         {tab === "board" && <BoardPage say={say} />}
+        {tab === "mydata" && <MyDataPage say={say} isStudent />}
         {tab === "projects" && <ProjectsPage say={say} />}
         {/* ⚠ אחראי הלו״ז בלבד — הכניסה נגזרת מ-DUTIES ונאכפת
             בשרת ב-{scheduler:true}. `bare` אינו נשלח: כדף עצמאי
