@@ -33,6 +33,7 @@
    ============================================================ */
 
 import { withAuth, actorName } from "./_session.js";
+import { nudge } from "./_push-now.js";
 import { studentRows } from "./_student-rows.js";
 import { gql } from "./_monday.js";
 import {
@@ -161,6 +162,12 @@ async function handler(req, res, session) {
         }),
       }
     );
+
+    /* ⚠ **דחיפה ברגע ההכרעה, ולא מחר.** זו ההתראה שהחניך באמת
+       מחכה לה — הוא ביקש לצאת ורוצה לדעת אם אושר. fire-and-forget:
+       אינה נזרקת, אינה מעכבת את התשובה, ואם היא נכשלת הסבב היומי
+       והפעמון ממילא יראו את זה. ראו api/_push-now.js. */
+    nudge("student", request.studentId, "בקשה הוכרעה");
 
     invalidateRequests();
     invalidateAttendance();

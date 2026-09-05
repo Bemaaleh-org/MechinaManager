@@ -21,7 +21,8 @@
     "seed:army": "node --env-file=.env tools/seed-army.mjs",
     "seed:tester-roles": "node --env-file=.env tools/seed-tester-roles.mjs",
     "seed:projects": "node --env-file=.env tools/seed-projects.mjs",
-    "seed:cron": "node tools/seed-cron-secret.mjs"
+    "seed:cron": "node tools/seed-cron-secret.mjs",
+    "push:test": "node --env-file=.env tools/push-test.mjs"
   },
   "dependencies": {
     "nodemailer": "^9.0.5",

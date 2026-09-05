@@ -30,6 +30,8 @@
 
 import { withAuth, actorName } from "./_session.js";
 import { DUTY_BOARDS, DUTY_COLS } from "../shared/duty-ids.js";
+import { nudgeMany } from "./_push-now.js";
+import { activeStudents } from "./_student-rows.js";
 import {
   loadNotes, invalidateNotes, dutiesForStudent,
   setColumns, createItem, deleteItem,
@@ -96,6 +98,27 @@ async function handler(req, res, session) {
         ...(body?.body ? { [N.body]: String(body.body).trim().slice(0, 3000) } : {}),
       });
       invalidateNotes();
+
+      /* ============================================================
+         ⚠ **דחיפה לבעל התפקיד, ברגע ההצפה.**
+
+         זו הודעה שאיש צוות שלח לאדם מסוים כדי שיטפל במשהו —
+         ולחכות איתה עד הסבב של מחר מפספס בדיוק את הנקודה.
+
+         ⚠ **מופנית לתפקיד ולא לאדם**, ולכן הנמענים נגזרים כאן
+           מהאחריות: מי שנושא אותה **עכשיו** מקבל. אם התפקיד עבר
+           לחניך אחר — הוא זה שיקבל, בלי שאיש יעדכן דבר. זה בדיוק
+           הכלל שבגללו ההצפה נשמרת עם מפתח אחריות ולא עם מזהה
+           אדם (4מה).
+
+         ⚠ **fire-and-forget** — כישלון דחיפה אינו מפיל הצפה
+           שכבר נשמרה.
+         ============================================================ */
+      try {
+        const holders = await holdersOfDuty(duty);
+        nudgeMany("student", holders, "הצפה לתפקיד " + duty);
+      } catch (e) { console.error("[duty-notes:push]", e && e.message); }
+
       return res.status(200).json({ ok: true, id });
     }
 
@@ -187,3 +210,26 @@ async function readJson(req) {
 /* ⚠ פתוח לחניך ולצוות כאחד; ההפרדה בין מה שכל צד רשאי לעשות
    נעשית בתוך ה-handler לפי `session.isStudent`. */
 export default withAuth(handler, { student: true });
+
+/* ============================================================
+   מי נושא את האחריות הזו **עכשיו**
+   ------------------------------------------------------------
+   ⚠ נגזר ואינו נשמר: ההצפה מופנית למפתח אחריות
+   ("אחראי מטבח", "יו״ר#123"), והנמענים הם מי שהמפתח הזה מופיע
+   אצלו כרגע. תפקיד שעבר לחניך אחר מעביר איתו את הנמענים, בלי
+   שאיש יעדכן דבר.
+
+   ⚠ **שגיאה כאן אינה מפילה את ההצפה** — היא כבר נשמרה, והפעמון
+     יראה אותה ממילא בפעם הבאה שבעל התפקיד ייכנס.
+   ============================================================ */
+async function holdersOfDuty(duty) {
+  const students = await activeStudents();
+  const out = [];
+  for (const s of students) {
+    try {
+      const mine = await dutiesForStudent(s.id);
+      if (mine.some((d) => dutyKey(d) === duty)) out.push(s.id);
+    } catch { /* חניך אחד שנכשל אינו עוצר את השאר */ }
+  }
+  return out;
+}

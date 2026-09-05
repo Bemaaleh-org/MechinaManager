@@ -17,6 +17,9 @@
    ============================================================ */
 
 import { withAuth, actorName } from "./_session.js";
+import { nudgeMany } from "./_push-now.js";
+import { activeStudents } from "./_student-rows.js";
+import { ROLE_HOUSE } from "../shared/lessons-boards.js";
 import { allItems, uploadFile } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
 import { setColumns, renameItem, createItem, deleteItem } from "./_items.js";
@@ -228,6 +231,24 @@ async function handler(req, res, session) {
       }
 
       invalidate("faults");
+
+      /* ============================================================
+         ⚠ **תקלה חדשה — דחיפה לאב הבית מיד.**
+
+         זו ההתראה שהכי לא סובלת המתנה: מקרר שהפסיק לעבוד, דלת
+         שנתקעה. הסבב היומי היה מגיע אליה בערב שלמחרת.
+
+         ⚠ **הנמענים נגזרים מהתפקיד** — מי שנושא "אב בית" עכשיו.
+           לא שם בקוד ולא רשימה שמורה (4א).
+         ⚠ **fire-and-forget** — התקלה כבר נשמרה.
+         ============================================================ */
+      try {
+        const house = (await activeStudents())
+          .filter((s) => (s.roles || []).includes(ROLE_HOUSE))
+          .map((s) => s.id);
+        nudgeMany("student", house, "תקלה חדשה");
+      } catch (e) { console.error("[faults:push]", e && e.message); }
+
       return res.status(200).json({ ok: true, id, photoUploaded });
     }
 
