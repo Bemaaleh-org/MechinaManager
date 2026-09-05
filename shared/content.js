@@ -42,6 +42,11 @@ export const CONTENT = [
     hint: "מופיע מעל טופס הדיווח, לכל חניך." },
   { key: "note.menu", where: "menu", title: "על תפריט הארוחות" },
   { key: "note.leaders", where: "weeks", title: "על מובילי השבוע" },
+  /* ⚠ **מופנה למובילים עצמם ולא לצוות.** "על מובילי השבוע"
+     יושב במסך השיבוץ של המנהל; זה יושב במסך שהמוביל עובד בו,
+     ומה שכתוב בו הוא הנחיות המכינה להובלה. */
+  { key: "note.leadweek", where: "lead-week", title: "לפני שמתחילים להוביל",
+    hint: "מה המכינה מצפה ממוביל שבוע — הטקסט מוצג בראש המסך של המובילים" },
 ];
 
 export const contentAt = (where) => CONTENT.filter((c) => c.where === where);

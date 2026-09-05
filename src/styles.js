@@ -3464,4 +3464,89 @@ a.tm-entry-t.tm-link{color:var(--navy);text-decoration:underline;
 .tm-anon svg{flex:none;color:var(--navy);margin-top:2px}
 .tm-anon b{color:var(--ink);font-weight:800}
 
+
+/* ============================================================
+   שבוע ההובלה
+   ------------------------------------------------------------
+   ⚠ קידומת .kx על כל מה שהוא button: .kx button מאפסת רקע
+     ומסגרת בסגוליות (0,2,0), וכלל בלי הקידומת נבלע בלי סימן
+     (4מח, 4ק). ואין בקטיקים בקובץ הזה — הוא template literal
+     אחד, ובקטיק בהערה סוגר אותו.
+   ============================================================ */
+.lw-pick{display:flex;align-items:center;gap:6px;margin-bottom:12px;position:relative}
+.kx .lw-pick-m{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:11px 14px;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-md);box-shadow:var(--sh-1);font-size:14.5px;
+  font-weight:800;color:var(--ink);cursor:pointer}
+.lw-pick-list{position:absolute;top:calc(100% + 6px);inset-inline:0;z-index:30;
+  max-height:52vh;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-md);box-shadow:var(--sh-2);padding:6px}
+.kx .lw-pick-list button{display:flex;align-items:center;gap:8px;width:100%;
+  padding:9px 11px;background:none;border:0;border-radius:var(--r-sm);
+  font-size:13.5px;font-weight:700;color:var(--ink);text-align:right;cursor:pointer}
+.kx .lw-pick-list button:hover{background:var(--sand)}
+.kx .lw-pick-list button.on{background:var(--sand);box-shadow:inset 0 0 0 1px var(--navy)}
+.lw-pick-list button span:first-child{flex:1}
+
+/* ⚠ הגוון אומר **מתי**, ולא "טוב או רע": לפני · עכשיו · אחרי.
+   אדום וירוק שמורים למצב (4ג), ולכן אינם כאן. */
+.lw-hero{border-radius:var(--r-lg);padding:16px 18px;margin-bottom:14px;
+  box-shadow:var(--sh-2);border:1px solid var(--line)}
+.lw-now{background:linear-gradient(180deg,#1F3A5F,#16304F);color:#F4EFE6}
+.lw-soon{background:var(--surface)}
+.lw-past{background:var(--sand)}
+.lw-hero-n{font-family:Heebo,sans-serif;font-size:21px;font-weight:800;line-height:1.2}
+.lw-now .lw-hero-n{color:#F4EFE6}
+.lw-hero-d{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;
+  font-size:13px;font-weight:700;color:var(--muted)}
+.lw-now .lw-hero-d{color:#C9D6E6}
+.lw-hero-p{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
+.lw-who{display:inline-block;padding:5px 11px;border-radius:999px;
+  background:var(--sand);font-size:12.5px;font-weight:800;color:var(--ink)}
+/* ⚠ "אני" מסומן — שבוע מובילים שניים, ומי שלא ימצא את עצמו
+   ברשימה יחשוב שהוא לא באמת משובץ. */
+.lw-who.me{background:var(--navy);color:#F4EFE6}
+.lw-now .lw-who{background:rgba(255,255,255,.14);color:#F4EFE6}
+.lw-now .lw-who.me{background:#F4EFE6;color:#16304F}
+.lw-hero-w{margin-top:10px;font-size:13.5px;font-weight:700;line-height:1.6}
+.lw-now .lw-hero-w{color:#E4EAF2}
+
+/* ---------- ימי השבוע ---------- */
+/* ⚠ direction:rtl במפורש, כמו ב-.cal של הגאנט וב-.yr2 (4מח). */
+.lw-days{direction:rtl;display:grid;grid-template-columns:repeat(7,1fr);gap:5px;
+  margin-bottom:12px}
+.kx .lw-day{display:flex;flex-direction:column;align-items:center;gap:1px;
+  padding:9px 2px;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-sm);cursor:pointer;color:var(--muted);
+  transition:all var(--ease)}
+.kx .lw-day.on{background:var(--navy);border-color:var(--navy);color:#F4EFE6}
+.kx .lw-day.today:not(.on){box-shadow:inset 0 0 0 2px var(--amber)}
+.lw-day-n{font-size:11px;font-weight:700}
+.lw-day-d{font-size:16px;font-weight:800}
+.lw-daytitle{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:800;
+  color:var(--ink);margin:0 0 12px}
+
+/* ---------- שורת צ׳ק ליסט ---------- */
+.lw-task{display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);
+  box-shadow:var(--sh-1);padding:11px 13px;margin-bottom:7px}
+.lw-task.done .lw-task-t{text-decoration:line-through;color:var(--faint)}
+.kx .lw-task-b{flex:1;min-width:0;background:none;border:0;padding:0;
+  text-align:right;cursor:pointer;color:inherit}
+.lw-task-t{font-size:14px;font-weight:700;color:var(--ink);line-height:1.45}
+.lw-task-x{flex-basis:100%;padding-top:8px;border-top:1px solid var(--line2);
+  margin-top:2px}
+.lw-prev{background:var(--sand);border:1px solid var(--line2);
+  border-radius:var(--r-md);padding:12px 14px;margin-bottom:6px}
+
+
+.lw-tmpl{margin-top:18px;border:1px solid var(--line);border-radius:var(--r-md);
+  background:var(--sand);overflow:hidden}
+.kx .lw-tmpl-h{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  width:100%;padding:12px 14px;background:none;border:0;text-align:right;
+  font-size:13.5px;font-weight:800;color:var(--muted);cursor:pointer}
+.lw-tmpl-b{padding:0 12px 12px}
+/* שורה מוסתרת נשארת קריאה ומסומנת — הסתרה אינה מחיקה. */
+.lw-off{opacity:.55}
+
 `;

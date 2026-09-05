@@ -22,6 +22,7 @@ import { studentRows } from "../../api/_student-rows.js";
 import { invalidate } from "../../api/_cache.js";
 import { MECHINA_BOARDS, MECHINA_COLS } from "../../shared/mechina-boards.js";
 import { loadCalendar, isSchoolDay, loadMarked } from "../../api/_attendance-data.js";
+import { LEAD_BOARDS, LEAD_COLS, leadReady } from "../../shared/lead-ids.js";
 
 const B = "http://localhost:5173";
 const DEMO_USER = "bdika";
@@ -62,6 +63,19 @@ const outsideDay = cal.days.find((d) => isSchoolDay(d)
 const marksBefore = new Set((await loadMarked({ force: true })).keys());
 
 const before = linked(week, W.leaders);
+
+/* ⚠⚠ **צילום שדות הטקסט של השבוע לפני שנוגעים בהם.**
+   השבוע הזה אמיתי, ומוביל אמיתי אולי כבר כתב בו סיכום. בדיקה
+   שכותבת עליו ואינה מחזירה מוחקת נתון של המכינה — בדיוק
+   התקלה של demo-test, שניקה עמודות זהות ומחק למנהל את שם
+   המשתמש שהרגע הגדיר. */
+const textBefore = {
+  handover: cv(week, W.handover || "") || "",
+  summary: cv(week, W.summary) || "",
+  summarySent: cv(week, W.summarySent || "") || "",
+};
+/* מה שהבדיקה יצרה — נמחק לפי מזהה, ולא לפי סינון ערכים. */
+const madeLead = [];
 
 /* ============================================================
    ⚠⚠ **השיבוץ נעשה דרך ה-API ולא בכתיבה ישירה ללוח.**
@@ -246,6 +260,159 @@ try {
     `${mg.s} ${mg.b.canMark}`);
   ok("ו-myWeeks ריק לאיש צוות", (mg.b.myWeeks || []).length === 0,
     JSON.stringify(mg.b.myWeeks));
+
+  /* ============================================================
+     שבוע ההובלה — הקונסולה
+     ------------------------------------------------------------
+     ⚠ **הטענה המרכזית: השער הוא `leadsAnyWeek` ולא `isLeader`.**
+       חשבון הבדיקה משובץ לשבוע הזה, ואם השבוע אינו "היום" הוא
+       עדיין חייב להיכנס — זו בדיוק התקלה של 5ב, ומוביל השבוע
+       הבא הוא האדם היחיד שצריך את המסך לפני שהשבוע מתחיל.
+     ============================================================ */
+  if (!leadReady()) {
+    console.log("\n=== שבוע ההובלה: הלוחות טרם הוקמו — מדלג ===");
+  } else {
+    console.log("\n=== שבוע ההובלה ===");
+
+    let lw = await call(S, "GET", "/api/students?action=lead-week&week=" + week.id);
+    ok("מוביל שבוע נכנס לקונסולה, גם כשהשבוע אינו היום",
+      lw.s === 200 && lw.b.week && lw.b.week.id === String(week.id),
+      `${lw.s} ${lw.b.error || ""}`);
+    ok("והשבוע מסומן כשלו לעריכה", lw.b.me && lw.b.me.edit === true,
+      JSON.stringify(lw.b.me));
+    /* ⚠ **התבנית אינה בתשובה של מי שאינו ראש מכינה** — לא ריקה,
+       פשוט אינה שם (4מא). */
+    ok("והתבנית אינה מוחזרת לחניך כלל", !("template" in lw.b),
+      Object.keys(lw.b).join(","));
+
+    /* --- משימה לשבוע, וסימון --- */
+    let r2 = await call(S, "POST", "/api/students?action=lead-week",
+      { week: String(week.id), title: "בדיקה — משימה אוטומטית", when: "בסוף השבוע" });
+    ok("המוביל מוסיף משימה לשבוע שלו", r2.s === 200 && r2.b.id,
+      `${r2.s} ${r2.b.error || ""}`);
+    const TASK = r2.b.id;
+    if (TASK) madeLead.push(TASK);
+
+    /* ⚠ **חניך אינו יוצר שורת תבנית**, גם כשהוא מוביל: זו הגדרה
+       של המכינה ולא ביצוע של שבוע. */
+    r2 = await call(S, "POST", "/api/students?action=lead-week",
+      { template: true, title: "בדיקה — תבנית אסורה" });
+    ok("ואינו יוצר שורת תבנית", r2.s === 403 && /ראש המכינה/.test(r2.b.error || ""),
+      `${r2.s} ${r2.b.error || ""}`);
+    if (r2.s === 200 && r2.b.id) madeLead.push(r2.b.id);
+
+    if (TASK) {
+      r2 = await call(S, "POST", "/api/students?action=lead-week",
+        { week: String(week.id), task: TASK, done: true });
+      ok("מסמן אותה כבוצעה", r2.s === 200 && r2.b.done === true,
+        `${r2.s} ${r2.b.error || ""}`);
+
+      /* ⚠⚠ **אידמפוטנטי**: שני מובילים שלוחצים כמעט יחד שולחים
+         אותה כוונה ומקבלים אותה תוצאה, ולא שתי שורות ביצוע
+         (עיקרון 5). */
+      r2 = await call(S, "POST", "/api/students?action=lead-week",
+        { week: String(week.id), task: TASK, done: true });
+      ok("סימון חוזר אינו יוצר שורה שנייה", r2.s === 200 && r2.b.done === true,
+        `${r2.s} ${r2.b.error || ""}`);
+
+      lw = await call(S, "GET", "/api/students?action=lead-week&week=" + week.id);
+      const t = (lw.b.tasks || []).filter((x) => x.id === TASK);
+      ok("והמשימה מופיעה פעם אחת ומסומנת", t.length === 1 && t[0].done === true,
+        "n=" + t.length);
+      /* ⚠ **מי סימן, בשם** — זו החלוקה בין שני המובילים, וזו כל
+         התכלית של השדה (ההפך מ-4מה, אותו כלל כמו 4נ). */
+      ok("ומי סימן נכתב בשם", Boolean(t[0] && t[0].by), (t[0] || {}).by);
+
+      /* ⚠ ביטול = **מחיקת השורה**, ולא עמודה שמסומנת "לא". */
+      r2 = await call(S, "POST", "/api/students?action=lead-week",
+        { week: String(week.id), task: TASK, done: false });
+      ok("ביטול סימון מוחק את שורת הביצוע", r2.s === 200 && r2.b.done === false,
+        `${r2.s} ${r2.b.error || ""}`);
+    }
+
+    /* --- מסירה וסיכום: שני שדות --- */
+    r2 = await call(S, "PUT", "/api/students?action=lead-week", {
+      week: String(week.id),
+      handover: "בדיקה — מסירה אוטומטית",
+      summary: "בדיקה — סיכום אוטומטי",
+    });
+    ok("המוביל שומר מסירה וסיכום", r2.s === 200, `${r2.s} ${r2.b.error || ""}`);
+
+    lw = await call(S, "GET", "/api/students?action=lead-week&week=" + week.id);
+    ok("ושניהם חוזרים בנפרד",
+      lw.b.week.handover === "בדיקה — מסירה אוטומטית"
+      && lw.b.week.summary === "בדיקה — סיכום אוטומטי",
+      JSON.stringify([lw.b.week.handover, lw.b.week.summary]));
+    /* ⚠ "נשלח" הוא **חותמת ולא דגל** — לפני השליחה אין תאריך. */
+    ok("וטרם נשלח", !lw.b.week.summarySent, String(lw.b.week.summarySent));
+
+    /* --- הגבול: שבוע של מישהו אחר --- */
+    const other = (lw.b.weeks || []).find((x) => !x.mine);
+    if (other) {
+      r2 = await call(S, "POST", "/api/students?action=lead-week",
+        { week: other.id, title: "בדיקה — שבוע של אחרים" });
+      ok("ואינו כותב לשבוע שאינו שלו", r2.s === 403,
+        `${r2.s} ${r2.b.error || ""}`);
+      if (r2.s === 200 && r2.b.id) madeLead.push(r2.b.id);
+
+      /* ⚠ **קריאה כן** — מוביל שרוצה לראות מה עשה השבוע שעבר
+         צריך להגיע לשם, ו`me.edit` הוא שמבדיל (4ר). */
+      const rd = await call(S, "GET", "/api/students?action=lead-week&week=" + other.id);
+      ok("אבל כן קורא אותו, בלי הרשאת עריכה",
+        rd.s === 200 && rd.b.me.edit === false, `${rd.s} ${rd.b.me && rd.b.me.edit}`);
+    }
+
+    /* --- בנק הפעילויות --- */
+    r2 = await call(S, "POST", "/api/students?action=lead-activity",
+      { title: "בדיקה — פעילות אוטומטית", minutes: "45", people: "30" });
+    ok("מוסיף פעילות לבנק", r2.s === 200 && r2.b.id, `${r2.s} ${r2.b.error || ""}`);
+    const ACT = r2.b.id;
+    if (ACT) madeLead.push(ACT);
+
+    r2 = await call(S, "POST", "/api/students?action=lead-activity",
+      { title: "בדיקה — סוג לא מוכר", kind: "משהו" });
+    ok("סוג פעילות לא מוכר נדחה", r2.s === 400, `${r2.s} ${r2.b.error || ""}`);
+    if (r2.s === 200 && r2.b.id) madeLead.push(r2.b.id);
+
+    if (ACT) {
+      r2 = await call(S, "POST", "/api/students?action=lead-week",
+        { week: String(week.id), activity: ACT, date: inside[0] });
+      ok("ורושם שהיא רצה", r2.s === 200 && r2.b.id, `${r2.s} ${r2.b.error || ""}`);
+      const USE = r2.b.id;
+      if (USE) madeLead.push(USE);
+
+      const ab = await call(S, "GET", "/api/students?action=lead-activity");
+      const a1 = (ab.b.activities || []).find((x) => x.id === ACT) || {};
+      /* ⚠ המונה **נגזר ואינו נשמר** — מונה שמור מתיישן ברגע
+         שמישהו מוחק שורת שימוש בלוח (4כו). */
+      ok("והמונה נגזר מהשימושים", a1.uses === 1, "uses=" + a1.uses);
+      ok("וגם התאריך האחרון", a1.lastUsed === inside[0], "last=" + a1.lastUsed);
+
+      /* ⚠⚠ **מחיקה של פעילות שרצה היא הסתרה** — שורות השימוש
+         נושאות את המזהה, והיסטוריה שמצביעה לשומקום היא בדיוק
+         מה שהמאגר קיים כדי למנוע (4ק). */
+      r2 = await call(S, "DELETE", "/api/students?action=lead-activity", { id: ACT });
+      ok("מחיקת פעילות שרצה מסתירה ואינה מוחקת",
+        r2.s === 200 && r2.b.archived === true, `${r2.s} ${JSON.stringify(r2.b)}`);
+
+      const ab2 = await call(S, "GET", "/api/students?action=lead-activity");
+      ok("והיא יורדת מהבורר", !(ab2.b.activities || []).some((x) => x.id === ACT),
+        "archivedCount=" + ab2.b.archivedCount);
+      /* ⚠ אבל שורת השימוש **נשארת קריאה** — השם נשמר עליה. */
+      const lw2 = await call(S, "GET", "/api/students?action=lead-week&week=" + week.id);
+      const u = (lw2.b.used || []).find((x) => x.id === USE);
+      ok("ושורת השימוש נשארה עם השם", Boolean(u && u.title), JSON.stringify(u));
+    }
+
+    /* --- הגבול השני: מי שאינו מוביל כלל --- */
+    /* ⚠ מנהל **כן** קורא (הוא עוקב), ואינו עורך — אלא אם הוא
+       ראש המכינה. דני לויט הוא ראש מכינה, ולכן זה נבדק בכיוון
+       הקריאה בלבד. */
+    const mg2 = await call(M, "GET", "/api/students?action=lead-week&week=" + week.id);
+    ok("איש צוות קורא את הקונסולה", mg2.s === 200, `${mg2.s} ${mg2.b.error || ""}`);
+    ok("ורואה את התבנית", Array.isArray(mg2.b.template),
+      typeof mg2.b.template);
+  }
 } finally {
   /* ⚠ **לספור מה נוצר בלוח שהפעולה נוגעת בו, ולא רק בלוח
      הראשי.** `?action=mark` יוצר שורה בלוח ימי הסימון לכל
@@ -267,6 +434,48 @@ try {
       }
     }
   } catch (e) { console.log("  ! בדיקת ימי הסימון נכשלה: " + e.message); }
+
+  /* ============================================================
+     ⚠ **ניקוי שבוע ההובלה — שלושה לוחות ושדות טקסט משוחזרים.**
+
+     המחיקה לפי המזהים שחזרו מהיצירה, ולא לפי סינון ערכים
+     (שתופס גם שורות שלא יצרנו). ושדות הטקסט של השבוע מוחזרים
+     למה שהיה — לא נמחקים.
+     ============================================================ */
+  if (leadReady()) {
+    for (const id of madeLead) {
+      await gql("mutation($i:ID!){ delete_item(item_id:$i){id} }", { i: id })
+        .catch((e) => console.log("  ! לא נמחק " + id + ": " + e.message));
+    }
+    /* ⚠ **וגם שורות הביצוע שנוצרו לשבוע הזה.** סימון יוצר שורה
+       בלוח שני, ובדיקה שסופרת לוח אחד מתוך שניים משאירה שורות —
+       בדיוק הלקח של quota-test. */
+    try {
+      const logs = (await allItems(LEAD_BOARDS.log))
+        .filter((i) => cv(i, LEAD_COLS.log.week) === String(week.id)
+          && String(i.name || "").startsWith("בדיקה — "));
+      for (const i of logs) {
+        await gql("mutation($i:ID!){ delete_item(item_id:$i){id} }", { i: String(i.id) });
+      }
+      const left = (await allItems(LEAD_BOARDS.checklist))
+        .filter((i) => String(i.name || "").startsWith("בדיקה — "));
+      if (left.length) console.log("  !! נשארו " + left.length + " שורות צ׳ק ליסט של בדיקה");
+    } catch (e) { console.log("  ! ניקוי לוחות ההובלה נכשל: " + e.message); }
+
+    /* ⚠⚠ **החזרת שדות הטקסט לערכם הקודם, ולא ניקוי שלהם.** */
+    try {
+      const cols = {};
+      if (W.handover) cols[W.handover] = textBefore.handover;
+      cols[W.summary] = textBefore.summary;
+      if (W.summarySent) {
+        cols[W.summarySent] = textBefore.summarySent
+          ? { date: textBefore.summarySent } : null;
+      }
+      await gql("mutation($b:ID!,$i:ID!,$v:JSON!){ change_multiple_column_values(board_id:$b,item_id:$i,column_values:$v,create_labels_if_missing:false){id} }",
+        { b: MECHINA_BOARDS.leaderWeeks, i: String(week.id), v: JSON.stringify(cols) });
+      console.log("  (שדות השבוע שוחזרו)");
+    } catch (e) { console.log("  !! שחזור שדות השבוע נכשל: " + e.message); }
+  }
 
   /* ⚠ השחזור עטוף: אם הוא נופל, ההודעה חייבת לצאת ולא להיבלע
      ב-finally — שבוע שנשאר עם המובילים הלא-נכונים הוא נתון

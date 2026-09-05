@@ -36,6 +36,7 @@ import { EXTRA } from "../shared/extras-ids.js";
 import { DUTY_BOARDS } from "../shared/duty-ids.js";
 import { TEAM_BOARDS } from "../shared/team-ids.js";
 import { PROJECT_BOARDS } from "../shared/projects-ids.js";
+import { LEAD_BOARDS } from "../shared/lead-ids.js";
 
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
 
@@ -54,6 +55,7 @@ const FALLBACK = JSON.parse(JSON.stringify({
      `handover` למעלה — אוצר המילים של הצוותים הוא ידע מוסדי
      שהמכינה כיוונה פעם אחת, ואינו מוחלף בהחלפת מחזור. */
   team: TEAM_BOARDS,
+  lead: LEAD_BOARDS,
 }));
 
 /** לאן כל מרחב שמות כותב */
@@ -69,6 +71,9 @@ const TARGETS = {
   /* ⚠ שלושת לוחות הפרויקטים. בלי השורה הזו מחזור חדש היה
      נוצר בלעדיהם, ותקלה כזו מתגלה רק בעוד שנה (4ל). */
   projects: PROJECT_BOARDS,
+  /* ⚠ הצ׳ק ליסט והביצוע בלבד. בנק הפעילויות נשאר מחוץ למחזור
+     במכוון — ראו ההערה ב-shared/cycles.js. */
+  lead: LEAD_BOARDS,
 };
 
 /**

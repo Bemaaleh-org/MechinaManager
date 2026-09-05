@@ -174,6 +174,38 @@ export const api = {
     post("/api/students?action=team-feedback", { team, text }),
   deleteTeamFeedback: (id) => del("/api/students?action=team-feedback", { id }),
 
+  /* ---------- שבוע ההובלה ----------
+     ⚠ **`week` נשלח בכל כתיבה ואינו נגזר בשרת מ"היום".** מוביל
+       מכין את השבוע שלו מראש ומתקן אותו בדיעבד, ושרת שינחש
+       "היום" היה כותב לשבוע של מישהו אחר. ההרשאה נבדקת מול
+       הטווח שבלוח. */
+  leadWeek: (week) =>
+    get("/api/students?action=lead-week" + (week ? "&week=" + encodeURIComponent(week) : "")),
+  /* ⚠ `done:false` מוחק את שורת הביצוע — קיום שורה = בוצע. */
+  markLeadTask: ({ week, task, done }) =>
+    post("/api/students?action=lead-week", { week, task, done }),
+  addLeadTask: ({ week, title, when, body, order }) =>
+    post("/api/students?action=lead-week", { week, title, when, body, order }),
+  /* ⚠ `template:true` — שורה לכל שבועות ההובלה, ראש המכינה בלבד. */
+  addLeadTemplate: ({ title, when, body, order }) =>
+    post("/api/students?action=lead-week", { template: true, title, when, body, order }),
+  logLeadActivity: ({ week, activity, date, note }) =>
+    post("/api/students?action=lead-week", { week, activity, date, note }),
+  saveLeadWeek: ({ week, handover, summary, send }) =>
+    put("/api/students?action=lead-week", { week, handover, summary, send }),
+  editLeadTemplate: ({ template, title, when, body, order, archived }) =>
+    put("/api/students?action=lead-week", { template, title, when, body, order, archived }),
+  deleteLeadRow: (id) => del("/api/students?action=lead-week", { id }),
+
+  /* ⚠ בנק הפעילויות אינו במחזור — ראו shared/cycles.js. */
+  activities: () => get("/api/students?action=lead-activity"),
+  addActivity: ({ title, kind, body, minutes, people, gear, link }) =>
+    post("/api/students?action=lead-activity", { title, kind, body, minutes, people, gear, link }),
+  editActivity: ({ id, title, kind, body, minutes, people, gear, link, archived }) =>
+    put("/api/students?action=lead-activity",
+      { id, title, kind, body, minutes, people, gear, link, archived }),
+  deleteActivity: (id) => del("/api/students?action=lead-activity", { id }),
+
   saveTeamSummary: ({ team, summary }) =>
     put("/api/students?action=team-lecturer", { team, summary }),
 

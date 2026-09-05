@@ -22,6 +22,8 @@
     "seed:tester-roles": "node --env-file=.env tools/seed-tester-roles.mjs",
     "seed:projects": "node --env-file=.env tools/seed-projects.mjs",
     "seed:cron": "node tools/seed-cron-secret.mjs",
+    "seed:teams2": "node --env-file=.env tools/seed-teams2.mjs",
+    "seed:lead": "node --env-file=.env tools/seed-lead.mjs",
     "push:test": "node --env-file=.env tools/push-test.mjs",
     "projects:orphans": "node --env-file=.env tools/projects-orphans.mjs"
   },

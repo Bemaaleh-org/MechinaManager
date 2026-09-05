@@ -38,6 +38,17 @@ export const CYCLE_BOARDS = [
      ידע מוסדי שהמכינה כיוונה פעם אחת — בדיוק כמו מסמכי
      החפיפה ולוח המנות, שגם הם מחוץ לחוזה (4מז). */
   { key: "teamTasks", title: "משימות ועדות וסדרות", path: "team.tasks", need: false },
+  /* ⚠⚠ **שני מתוך שלושת לוחות ההובלה, ולא שלושתם.**
+     הצ׳ק ליסט והביצוע הם של המחזור הזה — מה שהמובילים סימנו
+     בשנה שעברה אינו רלוונטי, ובנוסף הצ׳ק ליסט מכיל גם משימות
+     שהמובילים הוסיפו לשבוע מסוים.
+
+     **בנק הפעילויות אינו כאן, וזה כל העניין**: מה שמחזור אחד
+     המציא הוא בדיוק מה שהבא צריך, ולוח שמשוכפל ריק בכל שנה
+     מבטל את הסיבה שהוא קיים. אותו נימוק כמו לוח המנות ולוח
+     הבוגרים (4מז, 4ל). */
+  { key: "leadChecklist", title: "צ׳ק ליסט הובלה", path: "lead.checklist", need: false },
+  { key: "leadLog", title: "ביצוע הובלה", path: "lead.log", need: false },
   { key: "sheets", title: "גיליונות מרצים", path: "lessons.sheets", need: true },
   { key: "meetings", title: "מפגשי שיעורים", path: "lessons.meetings", need: true },
   { key: "evals", title: "חוות דעת", path: "lessons.evals", need: false },

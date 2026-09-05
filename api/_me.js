@@ -51,6 +51,12 @@ export default async function handler(req, res) {
         ...(session.isStudent ? {
           isStudent: true,
           isLeader: session.isLeader,
+          /* ⚠⚠ **שתי שאלות שנראות אחת** (5ב): `isLeader` הוא
+             "מוביל **היום**" ו-`leadsAnyWeek` הוא "משובץ לשבוע
+             כלשהו השנה". המגירה נשענת על השנייה, אחרת מסך שבוע
+             ההובלה נסגר בפני מוביל השבוע הבא — כלומר בפני האדם
+             היחיד שצריך אותו לפני שהשבוע מתחיל. */
+          leadsAnyWeek: Boolean(session.leadsAnyWeek),
           /* התפקידים קובעים אילו מסכים מוצגים לו. נקראים טרי
              מהלוח בכל בקשה, ולכן הסרת תפקיד סוגרת מיד. */
           roles: session.roles || [],

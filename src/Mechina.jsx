@@ -33,6 +33,7 @@ import { ProfilePage } from "./Profile.jsx";
 import DutyPage from "./Duty.jsx";
 /* ⚠⚠ מסך שהצוות אינו רואה — השרת מחזיר לו 403. ראו api/_projects.js. */
 import ProjectsPage from "./Projects.jsx";
+import LeadWeekPage from "./LeadWeek.jsx";
 import TeamsPage from "./Teams.jsx";
 import ChoresPage from "./Chores.jsx";
 import RulesPage from "./Rules.jsx";
@@ -113,6 +114,9 @@ const TAB_ICON = {
   /* ארבעת מסכי השיעורים — ראו LESSON_TABS ב-Lessons.jsx */
   "l-board": <MI.cal />, "l-sheets": <MI.book />, "l-evals": <MI.check />,
   leadership: <MI.flag />,
+  /* ⚠ מסך בלי ערך במפה מקבל ברירת מחדל ואינו נעלם (4יא) —
+     אבל שבוע ההובלה הוא לוח שנה, ואייקון של קופסה מטעה. */
+  "lead-week": <MI.cal />,
   container: <MI.box />, loans: <MI.box />,
   faults: <MI.box />, cleaning: <MI.box />, chores: <MI.tick />,
   safety: <MI.note />, hosting: <MI.home />,
@@ -3441,6 +3445,12 @@ export function MechinaApp({ auth, onSignedOut }) {
         {tab === "rules" && <RulesPage say={say} />}
         {tab === "tryouts" && <TryoutsPage say={say} />}
         {tab === "leadership" && <LeadershipPage say={say} />}
+        {/* ⚠ **`leadsAnyWeek` ולא `isLeader`.** הראשון הוא "מוביל
+            שבוע כלשהו השנה" והשני "מוביל **היום**"; שער שנשען
+            על השני סוגר את המסך בפני מוביל השבוע הבא — כלומר
+            בפני האדם היחיד שצריך אותו לפני שהשבוע מתחיל (5ב). */}
+        {tab === "lead-week" && (auth.leadsAnyWeek || auth.isLeader)
+          && <LeadWeekPage say={say} />}
         {tab === "projects" && <ProjectsPage say={say} />}
         {/* ⚠ אחראי הלו״ז בלבד — הכניסה נגזרת מ-DUTIES ונאכפת
             בשרת ב-{scheduler:true}. `bare` אינו נשלח: כדף עצמאי

@@ -689,6 +689,141 @@ async function readSeen(session) {
 }
 
 
+
+/* ============================================================
+   שבוע ההובלה — לפני שהוא מתחיל, ובזמן שהוא רץ
+   ------------------------------------------------------------
+   ⚠⚠ **ההתראה החשובה כאן היא זו שמגיעה לפני השבוע.** מוביל
+     שמגלה ביום ראשון בבוקר שהוא מוביל השבוע כבר איחר את כל
+     ההכנה — וההכנה מראש היא כל התכלית של המסך.
+
+   ⚠ **וזה מדויק לפי הטווח שבלוח ואינו דגל שמישהו מדליק** —
+     ההתראה מופיעה ונעלמת מעצמה כשהתאריך חוצה את הקו, בלי שאיש
+     יעשה דבר ובלי דיפלוי (5ב).
+
+   ⚠ **שער זול ראשון.** `_notify` נשאל כל שלוש דקות לכל משתמש
+     מחובר; חניך שאינו מוביל שבוע יוצא בשורה הראשונה, לפני
+     שנקרא ולו לוח אחד.
+   ============================================================ */
+async function leadWeekNotes(session, today) {
+  if (!session.isStudent) return [];
+  if (!session.leadsAnyWeek) return [];
+  const out = [];
+  try {
+    const { leadReady } = await import("../shared/lead-ids.js");
+    if (!leadReady()) return [];
+    const { weeksOfStudent } = await import("./_leader-weeks.js");
+    const { loadChecklist, loadLeadLog } = await import("./_lead-week.js");
+
+    const mine = await weeksOfStudent(session.itemId);
+    if (!mine.length) return [];
+
+    /* ⚠ **שבעה ימים קדימה ולא יותר.** התראה על שבוע הובלה בעוד
+       חודשיים אינה פעולה, והיא מאמנת להתעלם (4צ). */
+    const soon = mine.filter((w) => w.start > today && w.start <= shift(today, 7));
+    for (const w of soon) {
+      out.push(note({
+        id: `lead:soon:${w.id}`, kind: "הובלה", level: "רגיל",
+        title: `שבוע ההובלה שלך מתחיל ב-${w.start}`,
+        body: "אפשר להיכנס עכשיו ולעבור על הצ׳ק ליסט",
+        tab: "lead-week", when: w.start,
+      }));
+    }
+
+    const now = mine.find((w) => w.start <= today && today <= w.end);
+    if (!now) return out;
+
+    const [list, log] = await Promise.all([loadChecklist(), loadLeadLog()]);
+    const tasks = list.filter((t) => !t.archived && (!t.week || t.week === now.id));
+    const done = new Set(log
+      .filter((r) => r.kind === "משימה" && r.week === now.id)
+      .map((r) => r.ref));
+    const left = tasks.filter((t) => !done.has(t.id));
+
+    /* ⚠ **מה שנשאר, כמספר אחד.** עשרים שורות "משימה פתוחה" הן
+       רעש שגורם לסגור את הפעמון ולא לפתוח אותו (4כו). */
+    if (left.length) {
+      /* ⚠ ביום האחרון זה כבר דחוף: מה שלא ייסגר היום עובר
+         למובילים הבאים כבעיה שלהם. */
+      const last = now.end === today;
+      out.push(note({
+        id: `lead:left:${now.id}:${left.length}`, kind: "הובלה",
+        level: last ? "גבוה" : "רגיל",
+        title: last
+          ? `היום היום האחרון בשבוע שלך — ${left.length} בצ׳ק ליסט טרם סומנו`
+          : `${left.length} בצ׳ק ליסט שבוע ההובלה טרם סומנו`,
+        body: left.slice(0, 3).map((t) => t.title).join(" · "),
+        tab: "lead-week",
+      }));
+    }
+
+    /* ⚠ **המסירה נבדקת ביום האחרון ולא אחריו.** אחרי שהשבוע
+       נגמר, התראה עליה היא נזיפה על משהו שאי אפשר עוד לעשות
+       בזמן — והיא נשארת פתוחה לנצח. */
+    if (now.end === today) {
+      const { loadLeaderWeeks } = await import("./_leader-weeks.js");
+      const week = (await loadLeaderWeeks()).find((w) => w.id === now.id);
+      if (week && !String(week.summary || "").trim()) {
+        out.push(note({
+          id: `lead:sum:${now.id}`, kind: "הובלה", level: "רגיל",
+          title: "השבוע נגמר — כדאי לכתוב סיכום ומסירה",
+          body: "הסיכום הולך לצוות, והמסירה למובילים הבאים",
+          tab: "lead-week",
+        }));
+      }
+    }
+  } catch (e) {
+    console.error("[notify:lead]", e && e.message);
+  }
+  return out;
+}
+
+/* ============================================================
+   הסיכומים שהמובילים שלחו לצוות
+   ------------------------------------------------------------
+   ⚠ **נגזר מהחותמת ואינו תור.** "נשלח בשבעת הימים האחרונים"
+     נעלם מעצמו, ואילו רשימת "טרם נקראו" הייתה נשארת פתוחה עד
+     שמישהו יסמן — כלומר לנצח (4כו).
+
+   ⚠ **וזו הסיבה שיש חותמת בכלל**: מוביל שכתב סיכום ואינו יודע
+     אם מישהו קיבל אותו לא יכתוב את הבא.
+   ============================================================ */
+async function leadSummaryNotes(session, today) {
+  if (session.isStudent) return [];
+  const out = [];
+  try {
+    const { loadLeaderWeeks } = await import("./_leader-weeks.js");
+    const col = MECHINA_COLS.leaderWeeks.summarySent;
+    /* ⚠ העמודה נוספה על ידי seed-lead. בלעדיה הבונה שותק
+       ואינו מפיל את הפעמון (עיקרון 6). */
+    if (!col) return [];
+
+    const since = shift(today, -7);
+    const d = await gql(
+      `{ boards(ids:[${MECHINA_BOARDS.leaderWeeks}]){ items_page(limit:200){ items {
+           id column_values(ids:["${col}"]){ text } } } } }`);
+    const rows = d.boards?.[0]?.items_page?.items || [];
+    const weeks = await loadLeaderWeeks();
+    const sentAt = (id) => {
+      const r = rows.find((i) => String(i.id) === String(id));
+      return (r && r.column_values[0] && r.column_values[0].text) || null;
+    };
+
+    for (const w of weeks) {
+      const at = sentAt(w.id);
+      if (!at || at < since || !String(w.summary || "").trim()) continue;
+      out.push(note({
+        id: `lead:sent:${w.id}:${at}`, kind: "הובלה", level: "רגיל",
+        title: `סיכום שבוע ${w.num || w.name} נשלח על ידי המובילים`,
+        body: String(w.summary).slice(0, 120),
+        tab: "week-leaders", when: at,
+      }));
+    }
+  } catch (e) {
+    console.error("[notify:lead-sum]", e && e.message);
+  }
+  return out;
+}
 /* ============================================================
    בניית ההתראות של משתמש אחד
    ------------------------------------------------------------
@@ -716,8 +851,13 @@ export async function buildNotes(session, today = israelToday()) {
       /* ⚠ הפרויקטים שלו בלבד, ולעולם לא בפעמון של מנהל —
          ולכן הבונה הזה יושב **רק** בענף של החניך. */
       jobs.push(projectNotes(session, today));
+      /* ⚠ הבונה עוצר בשורה הראשונה כשהחניך אינו מוביל שבוע. */
+      jobs.push(leadWeekNotes(session, today));
     } else {
       jobs.push(requestNotes(session, today));
+      /* ⚠ **לכל הצוות ולא לראש המכינה בלבד.** הסיכום מופנה
+         לצוות כולו, וזו כל הסיבה שהמוביל טורח לכתוב אותו. */
+      jobs.push(leadSummaryNotes(session, today));
     }
 
     /* ⚠ מנהל מקבל את הכול. זה מה שהתבקש, וזה גם נכון: הוא
