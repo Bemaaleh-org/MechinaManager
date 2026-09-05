@@ -3884,4 +3884,25 @@ a.tm-entry-t.tm-link{color:var(--navy);text-decoration:underline;
 .tr-n{font-size:12px;font-weight:600;color:var(--faint);line-height:1.6;
   margin-top:9px;padding-top:9px;border-top:1px solid var(--line2)}
 
+
+/* ============================================================
+   מצב לא מקוון
+   ------------------------------------------------------------
+   ⚠ ענבר ולא אדום: אין כאן תקלה אלא מצב. אדום
+     שמור לכשל, ובאנר אדום על נסיעה באוטובוס הוא
+     אזעקה על משהו שאיש אינו יכול לעשות בו דבר (4ג).
+   ============================================================ */
+.off-bar{display:flex;align-items:flex-start;gap:9px;
+  background:var(--amber-soft);color:var(--amber);
+  border-bottom:1px solid rgba(138,90,30,.22);
+  padding:10px 16px;font-size:12.5px;font-weight:700;line-height:1.6;
+  position:sticky;top:0;z-index:35}
+.off-bar b{font-weight:800}
+.off-dot{width:8px;height:8px;border-radius:50%;background:currentColor;
+  flex:0 0 auto;margin-top:6px;opacity:.75}
+@media (prefers-reduced-motion:no-preference){
+  .off-dot{animation:off-pulse 2.4s ease-in-out infinite}
+}
+@keyframes off-pulse{0%,100%{opacity:.75}50%{opacity:.25}}
+
 `;

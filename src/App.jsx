@@ -13,6 +13,7 @@ import { ProfilePage } from "./Profile.jsx";
 import BoardPage from "./Board.jsx";
 import MyDataPage from "./MyData.jsx";
 import TrendsPage from "./Trends.jsx";
+import OfflineBar from "./Offline.jsx";
 import SearchOverlay, { SearchButton } from "./Search.jsx";
 import ExportPage from "./Export.jsx";
 import { MechinaApp, MechinaStaff, WeekLeadersPage, RoleHoldersPage } from "./Mechina.jsx";
@@ -492,6 +493,10 @@ function Staff({ auth, onSignedOut }) {
               if (go) go();
             }} />
         )}
+
+        {/* ⚠ מעל התוכן ומתחת לסרגל — מה שעל המסך עשוי להיות
+            ישן, וזה חייב להיאמר לפני שקוראים אותו. */}
+        <OfflineBar />
 
         <main className="wrap">
           {/* ============================================================

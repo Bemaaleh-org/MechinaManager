@@ -36,6 +36,7 @@ import ProjectsPage from "./Projects.jsx";
 import LeadWeekPage from "./LeadWeek.jsx";
 import BoardPage from "./Board.jsx";
 import MyDataPage from "./MyData.jsx";
+import OfflineBar from "./Offline.jsx";
 import SearchOverlay, { SearchButton } from "./Search.jsx";
 import TeamsPage from "./Teams.jsx";
 import ChoresPage from "./Chores.jsx";
@@ -3366,6 +3367,9 @@ export function MechinaApp({ auth, onSignedOut }) {
         <NotifyPanel notify={notify} onClose={() => setNotifOpen(false)}
           onGo={(t) => setTab(t)} />
       )}
+
+      {/* ⚠ ראו ההערה ב-src/Offline.jsx. */}
+      <OfflineBar />
 
       <main className="wrap">
         {/* ============================================================

@@ -25,6 +25,46 @@ function handle401(path, data) {
   }
 }
 
+/* ============================================================
+   עבודה לא מקוונת — הצד של הלקוח
+   ------------------------------------------------------------
+   ⚠⚠ **נתון מהמטמון מסומן, ולעולם אינו מוצג כאילו הוא עדכני.**
+     ה-Service Worker מוסיף `x-kx-offline` ו-`x-kx-cached-at`
+     לתשובה שהגיעה מהמטמון (ראו public/sw.js), וכאן זה הופך
+     למצב שהמסך יכול להציג. נתון ישן שנראה עדכני הוא בדיוק מה
+     שעיקרון 6 אוסר.
+
+   ⚠⚠⚠ **וכתיבה בלי רשת נחסמת ואינה נשמרת בתור.** סימון שנשמר
+     בתור נראה כאילו נקלט ועשוי להישלח כעבור שעות, אחרי שמישהו
+     אחר כבר סימן את אותו יום — ו-`?action=mark` **דורס** את
+     רשימת הנוכחים (5א). ההודעה אומרת בדיוק את זה, ולא "שגיאת
+     רשת".
+
+   ⚠ **המנוי הוא על מצב ולא על אירוע.** `navigator.onLine` לבדו
+     משקר לא מעט (רשת שיש בה אות ואין בה חיבור), ולכן המצב
+     נקבע גם מהתשובות עצמן: בקשה שנפלה מדליקה אותו, ובקשה
+     שהצליחה מכבה אותו.
+   ============================================================ */
+let offline = false;
+let staleAt = null;
+const offlineSubs = new Set();
+
+/** מנוי על שינוי מצב. מחזיר פונקציית ביטול. */
+export function onOffline(fn) {
+  offlineSubs.add(fn);
+  fn({ offline, staleAt });
+  return () => offlineSubs.delete(fn);
+}
+
+function setOffline(next, at) {
+  const changed = next !== offline || (at || null) !== staleAt;
+  offline = next;
+  staleAt = at || (next ? staleAt : null);
+  if (changed) for (const f of offlineSubs) f({ offline, staleAt });
+}
+
+export const offlineState = () => ({ offline, staleAt });
+
 async function send(method, path, body) {
   let r;
   try {
@@ -34,8 +74,17 @@ async function send(method, path, body) {
       body: JSON.stringify(body),
     });
   } catch {
-    throw new Error("אין חיבור לשרת");
+    setOffline(true);
+    /* ⚠⚠ **ההודעה אומרת מה קרה ומה לעשות, ולא "שגיאת רשת".**
+       ובעיקר: היא אומרת במפורש **שלא נשמר**, כדי שאיש לא
+       יניח שזה ייקלט אחר כך. */
+    throw new Error(
+      "אין חיבור — השינוי לא נשמר. אפשר לצפות במה שנטען קודם, "
+      + "ולנסות שוב כשיהיה חיבור."
+    );
   }
+  /* ⚠ בקשה שהצליחה מכבה את המצב, גם אם navigator.onLine משקר. */
+  setOffline(false);
 
   const data = await r.json().catch(() => ({}));
   if (r.status === 401) handle401(path, data);
@@ -58,7 +107,14 @@ async function get(path) {
   try {
     r = await fetch(path);
   } catch {
-    throw new Error("אין חיבור לשרת");
+    setOffline(true);
+    throw new Error("אין חיבור, ואין גם עותק שמור של המסך הזה.");
+  }
+  /* ⚠ תשובה מהמטמון — ה-SW מסמן אותה, ראו public/sw.js. */
+  if (r.headers && r.headers.get("x-kx-offline")) {
+    setOffline(true, r.headers.get("x-kx-cached-at") || null);
+  } else {
+    setOffline(false);
   }
   const data = await r.json().catch(() => ({}));
   if (r.status === 401) handle401(path, data);
