@@ -38,10 +38,13 @@ if (!projectsReady()) {
   process.exit(1);
 }
 
-const made = { projects: [], tasks: [], money: [] };
+const made = { projects: [], tasks: [], money: [], entries: [] };
 const cleanup = async () => {
+  /* ⚠ **כל לוח שהבדיקה נגעה בו**, ולא רק הראשי. שלבים ויומן
+     יושבים בלוח רביעי, וניקוי שמדלג עליו משאיר שורות. */
   for (const [k, board] of [["projects", PROJECT_BOARDS.projects],
-    ["tasks", PROJECT_BOARDS.tasks], ["money", PROJECT_BOARDS.budget]]) {
+    ["tasks", PROJECT_BOARDS.tasks], ["money", PROJECT_BOARDS.budget],
+    ["entries", PROJECT_BOARDS.entries]]) {
     for (const id of made[k]) {
       try { await gql(`mutation($i:ID!){ delete_item(item_id:$i){id} }`, { i: id }); } catch { /* כבר נמחק */ }
     }
@@ -148,6 +151,89 @@ try {
   ok("וההכנסות בנפרד", p2.sum.income === 100, String(p2.sum.income));
   ok("והיתרה נגזרת", p2.sum.left === 800, String(p2.sum.left));
   ok("ותנועה בלי סכום מדווחת", p2.sum.noAmount === 1, String(p2.sum.noAmount));
+
+  /* ============ 4ב · שלבים, תת-משימות וקטגוריות ============ */
+  console.log("\n=== שלבים ותת-משימות ===");
+  r = await call(S, "POST", "/api/students?action=project-entry",
+    { project: pid, kind: "שלב", title: "בדיקה — שלב א", order: 1 });
+  ok("שלב נוסף", r.s === 200 && r.b.id, `${r.s} ${r.b.error || ""}`);
+  const sid = String(r.b.id);
+  made.entries.push(sid);
+
+  r = await call(S, "POST", "/api/students?action=project-entry",
+    { project: pid, kind: "סוג מומצא", title: "בדיקה" });
+  ok("סוג רשומה שאינו מוכר נדחה", r.s === 400, `${r.s} ${r.b.error || ""}`);
+
+  r = await call(S, "PUT", "/api/students?action=project-task", { id: t1, stage: sid });
+  ok("משימה משויכת לשלב", r.s === 200, `${r.s} ${r.b.error || ""}`);
+
+  r = await call(S, "POST", "/api/students?action=project-task",
+    { project: pid, title: "בדיקה — תת-משימה", parent: t1 });
+  ok("תת-משימה נוספה", r.s === 200, `${r.s} ${r.b.error || ""}`);
+  made.tasks.push(String(r.b.id));
+
+  r = await call(S, "GET", "/api/students?action=projects");
+  const pS = r.b.projects.find((x) => x.id === pid);
+  ok("והשלב חוזר עם הפרויקט", (pS.stages || []).some((x) => x.id === sid),
+    JSON.stringify((pS.stages || []).map((x) => x.title)));
+  ok("והשיוך נשמר", (pS.tasks || []).some((x) => x.id === t1 && x.stage === sid),
+    JSON.stringify((pS.tasks || []).map((x) => x.stage)));
+  ok("והשרת סופר שלבים", pS.sum.stages === 1, String(pS.sum.stages));
+
+  /* ⚠ סימון שלב כהושלם — הוא נשאר ואינו נמחק. */
+  r = await call(S, "PUT", "/api/students?action=project-entry", { id: sid, done: true });
+  ok("שלב מסומן כהושלם", r.s === 200, `${r.s} ${r.b.error || ""}`);
+  r = await call(S, "GET", "/api/students?action=projects");
+  ok("והוא עדיין ברשימה",
+    (r.b.projects.find((x) => x.id === pid).stages || []).some((x) => x.id === sid && x.done),
+    "השלב נעלם או לא סומן");
+
+  console.log("\n=== קטגוריות בתקציב ===");
+  r = await call(S, "POST", "/api/students?action=project-money",
+    { project: pid, title: "בדיקה — קטגוריה", kind: "הוצאה", amount: "50", category: "חומרים" });
+  ok("תנועה עם קטגוריה נרשמה", r.s === 200, `${r.s} ${r.b.error || ""}`);
+  made.money.push(String(r.b.id));
+
+  r = await call(S, "POST", "/api/students?action=project-money",
+    { project: pid, title: "בדיקה — קטגוריה שגויה", kind: "הוצאה", amount: "10",
+      category: "קטגוריה מומצאת" });
+  ok("קטגוריה שאינה מוכרת נדחתה", r.s === 400, `${r.s} ${r.b.error || ""}`);
+
+  r = await call(S, "GET", "/api/students?action=projects");
+  const pC = r.b.projects.find((x) => x.id === pid);
+  ok("והפירוט לפי קטגוריה מחושב בשרת",
+    (pC.sum.byCategory || []).some((c) => c.category === "חומרים" && c.amount === 50),
+    JSON.stringify(pC.sum.byCategory));
+
+  console.log("\n=== יומן ===");
+  r = await call(S, "POST", "/api/students?action=project-entry",
+    { project: pid, kind: "יומן", title: "בדיקה — יומן", date: "2026-09-01", body: "מה קרה" });
+  ok("רשומת יומן נוספה", r.s === 200, `${r.s} ${r.b.error || ""}`);
+  made.entries.push(String(r.b.id));
+  r = await call(S, "GET", "/api/students?action=projects");
+  const pJ = r.b.projects.find((x) => x.id === pid);
+  /* ⚠ **שני הסוגים באותו לוח, ונפרדים בתשובה.** אם הם היו
+     מתערבבים, היומן היה מופיע בשלבים ולהפך. */
+  ok("היומן והשלבים נפרדים בתשובה",
+    (pJ.journal || []).length === 1 && (pJ.stages || []).length === 1,
+    `יומן ${(pJ.journal || []).length} · שלבים ${(pJ.stages || []).length}`);
+
+  console.log("\n=== תבניות ===");
+  ok("השרת מציע תבניות", Array.isArray(r.b.templates) && r.b.templates.length > 0,
+    JSON.stringify((r.b.templates || []).map((t) => t.key)));
+  r = await call(S, "POST", "/api/students?action=projects",
+    { name: "בדיקה — מתבנית", template: "event" });
+  ok("פרויקט מתבנית נוצר", r.s === 200 && r.b.template === "event",
+    `${r.s} ${r.b.template}`);
+  const tid = String(r.b.id);
+  made.projects.push(tid);
+  r = await call(S, "GET", "/api/students?action=projects");
+  const pT = r.b.projects.find((x) => x.id === tid);
+  ok("ונוצרו לו שלבים ומשימות",
+    (pT.stages || []).length > 0 && (pT.tasks || []).length > 0,
+    `שלבים ${(pT.stages || []).length} · משימות ${(pT.tasks || []).length}`);
+  for (const st of pT.stages) made.entries.push(st.id);
+  for (const t of pT.tasks) made.tasks.push(t.id);
 
   /* ============ 5 · שותפים ============ */
   console.log("\n=== שותפים ===");

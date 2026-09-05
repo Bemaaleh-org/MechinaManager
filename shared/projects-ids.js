@@ -19,7 +19,8 @@
 export const PROJECT_BOARDS = {
   "projects": "5103597773",
   "tasks": "5103597777",
-  "budget": "5103597780"
+  "budget": "5103597780",
+  "entries": "5103613001"
 };
 
 export const PROJECT_COLS = {
@@ -33,21 +34,36 @@ export const PROJECT_COLS = {
     "start": "date_mm6x6d5k",
     "due": "date_mm6xhtcv",
     "budget": "numeric_mm6xf44g",
-    "archived": "boolean_mm6xw0x4"
+    "archived": "boolean_mm6xw0x4",
+    "shared": "boolean_mm6xw4r0",
+    "shareNote": "long_text_mm6xaqr3",
+    "legacy": "boolean_mm6x4y0a"
   },
   "tasks": {
     "project": "text_mm6x3b7d",
     "done": "boolean_mm6xy3a6",
     "due": "date_mm6xr42t",
     "owner": "text_mm6xnjkb",
-    "note": "long_text_mm6xdbwm"
+    "note": "long_text_mm6xdbwm",
+    "stage": "text_mm6x6mq9",
+    "parent": "text_mm6x7tvs"
   },
   "budget": {
     "project": "text_mm6xbjv5",
     "kind": "color_mm6xr5kb",
     "amount": "numeric_mm6xg55m",
     "date": "date_mm6xhwe3",
-    "note": "long_text_mm6xbdv1"
+    "note": "long_text_mm6xbdv1",
+    "category": "color_mm6xn1q9"
+  },
+  "entries": {
+    "project": "text_mm6xd0y",
+    "kind": "color_mm6x7rcx",
+    "date": "date_mm6x5smt",
+    "body": "long_text_mm6xdhe8",
+    "done": "boolean_mm6x1rbk",
+    "order": "numeric_mm6x77bg",
+    "files": "file_mm6xv231"
   }
 };
 
@@ -73,6 +89,23 @@ export const MONEY_KIND = [
 ];
 
 /** סטטוסים שנחשבים סגורים — לחישוב ההתקדמות */
+/** ⚠ סוג הרשומה: שלב בדרך, או שורת יומן. זהות בתו לתוויות שבלוח. */
+export const ENTRY_KIND = [
+  "שלב",
+  "יומן"
+];
+
+/** קטגוריות ההוצאה. המכינה יכולה להוסיף תווית בלוח. */
+export const MONEY_CAT = [
+  "חומרים",
+  "הסעות",
+  "פרסום",
+  "כיבוד",
+  "ציוד",
+  "שכר",
+  "אחר"
+];
+
 export const PROJECT_CLOSED = ["הושלם", "בוטל"];
 
 export const projectsReady = () =>

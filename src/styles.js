@@ -1113,6 +1113,78 @@ html,body{margin:0;padding:0;background:#012E58}
 /* WARN: .scroll-y הקיימת נושאת את הגלילה. כלל max-height חדש
    בתוך .rows נבלע על ידי .kx .rows overflow:hidden (4ק). */
 .pr-pick{max-height:40vh}
+
+/* ---- שלבים: ציר אנכי ----
+   WARN: הקו אומר "רצף" בלי מילה. הוא מצויר על העוטף ולא על כל
+   שלב, אחרת הוא נשבר בין השורות. */
+.pr-track{position:relative}
+.pr-track::before{content:"";position:absolute;inset-inline-start:11px;top:14px;bottom:14px;
+  width:2px;background:var(--line2);border-radius:2px}
+.pr-step{position:relative;display:flex;gap:11px;align-items:flex-start;
+  padding:10px 0}
+.kx .pr-dot{position:relative;z-index:1;flex:0 0 auto;width:24px;height:24px;
+  border-radius:50%;border:2px solid var(--line2);background:var(--surface);
+  display:flex;align-items:center;justify-content:center;font-size:13px;
+  font-weight:800;color:var(--surface);cursor:pointer;
+  transition:all 120ms var(--ease)}
+.kx .pr-step.done .pr-dot{background:var(--ok);border-color:var(--ok);color:#fff}
+.pr-step-b{flex:1;min-width:0}
+.pr-step-t{font-size:14.5px;font-weight:700;line-height:1.35}
+.pr-step.done .pr-step-t{color:var(--muted)}
+
+/* ---- תת-משימה: מוזחת, וקטנה יותר ---- */
+.pr-sub{padding-inline-start:34px;background:var(--bg)}
+.pr-sub .pr-task-t{font-size:13.5px}
+
+/* ---- יומן ---- */
+.pr-log{display:flex;gap:11px;align-items:flex-start;padding:11px 13px;
+  border-bottom:1px solid var(--line)}
+.pr-log:last-child{border-bottom:none}
+.pr-log-d{flex:0 0 52px;font-size:11.5px;font-weight:800;color:var(--muted);
+  padding-top:2px}
+.pr-log-b{font-size:13.5px;line-height:1.6;white-space:pre-wrap}
+
+/* ---- קטגוריות התקציב ---- */
+.pr-cats{display:flex;flex-direction:column;gap:9px;margin-bottom:12px}
+.pr-cat-t{display:flex;justify-content:space-between;align-items:baseline;
+  font-size:13px;font-weight:700;margin-bottom:4px}
+
+/* ---- תבניות ---- */
+.pr-tpl{display:flex;gap:6px;flex-wrap:wrap}
+.kx .pr-tpl button{font-size:12.5px;font-weight:700;padding:7px 12px;
+  border-radius:999px;border:1px solid var(--line2);background:var(--surface);
+  color:var(--muted);cursor:pointer;transition:all 120ms var(--ease)}
+.kx .pr-tpl button.on{background:var(--navy);border-color:transparent;color:#fff}
+
+/* ---- שיתוף ---- */
+.pr-toggle{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.pr-toggle input{margin-top:3px;flex:0 0 auto}
+.pr-toggle b{display:block;font-size:14px;font-weight:700}
+.pr-toggle i{display:block;font-style:normal;font-size:12px;color:var(--muted);
+  line-height:1.55;margin-top:2px}
+
+/* ---- ציר זמן ----
+   WARN: סולם אחד — המיקום של כל סימן ושל קו "היום" מחושב מאותו
+   טווח. שני סולמות היו מציירים משימה לפני היום שהיא אחריו. */
+.pr-tl{margin-bottom:12px}
+.pr-tl-line{position:relative;height:4px;border-radius:2px;background:var(--line2)}
+.pr-tl-now{position:absolute;top:-5px;width:2px;height:14px;background:var(--clay);
+  border-radius:2px}
+.pr-tl-ends{display:flex;justify-content:space-between;font-size:10.5px;
+  font-weight:700;color:var(--muted);margin-top:5px}
+.pr-tl-row{padding:10px 13px;border-bottom:1px solid var(--line)}
+.pr-tl-row:last-child{border-bottom:none}
+.pr-tl-bar{position:relative;height:3px;border-radius:2px;background:var(--line);
+  margin-bottom:7px}
+.pr-tl-bar i{position:absolute;top:-3px;width:9px;height:9px;border-radius:50%;
+  background:var(--navy);margin-inline-start:-4px}
+.pr-tl-bar i.done{background:var(--ok)}
+.pr-tl-bar i.late{background:var(--clay)}
+.pr-tl-t{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+  font-size:14px;font-weight:700}
+.pr-tl-done{color:var(--muted);text-decoration:line-through}
+.pr-files{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.pr-files a{text-decoration:none}
 .pr-pick-r{display:flex;align-items:center;gap:9px;padding:9px 13px;
   border-bottom:1px solid var(--line);font-size:13.5px;font-weight:700}
 .pr-pick-r:last-child{border-bottom:none}

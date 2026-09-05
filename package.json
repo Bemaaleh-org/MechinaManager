@@ -22,7 +22,8 @@
     "seed:tester-roles": "node --env-file=.env tools/seed-tester-roles.mjs",
     "seed:projects": "node --env-file=.env tools/seed-projects.mjs",
     "seed:cron": "node tools/seed-cron-secret.mjs",
-    "push:test": "node --env-file=.env tools/push-test.mjs"
+    "push:test": "node --env-file=.env tools/push-test.mjs",
+    "projects:orphans": "node --env-file=.env tools/projects-orphans.mjs"
   },
   "dependencies": {
     "nodemailer": "^9.0.5",

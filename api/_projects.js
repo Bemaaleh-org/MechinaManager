@@ -46,8 +46,10 @@ import { setColumns, renameItem, createItem, deleteItem } from "./_items.js";
 import { assignableStudents } from "./_student-rows.js";
 import {
   PROJECT_BOARDS as B, PROJECT_COLS as C,
-  PROJECT_STATUS, PROJECT_KIND, MONEY_KIND, PROJECT_CLOSED, projectsReady,
+  PROJECT_STATUS, PROJECT_KIND, MONEY_KIND, MONEY_CAT, ENTRY_KIND,
+  PROJECT_CLOSED, projectsReady,
 } from "../shared/projects-ids.js";
+import { loadEntries } from "./_project-entries.js";
 
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
 /* ⚠ `value === null` הוא המבחן לריק בעמודת סטטוס, ולא `text` —
@@ -83,6 +85,13 @@ export async function loadProjects({ force = false } = {}) {
       due: val(i, C.projects.due) || null,
       budget: num(i, C.projects.budget),
       archived: val(i, C.projects.archived) === "v",
+      /* ⚠⚠ **שיתוף הוא בחירה של החניך, ולא הרשאה בשרת.** הצוות
+         עדיין אינו יכול לקרוא את הפרויקטים — מה שהוא רואה הוא
+         רק מה שסומן כאן במפורש, ורק דרך המסלול של בקשות
+         התקציב. שתי החלטות נפרדות: */
+      shared: Boolean(C.projects.shared) && val(i, C.projects.shared) === "v",
+      shareNote: (C.projects.shareNote && val(i, C.projects.shareNote)) || null,
+      legacy: Boolean(C.projects.legacy) && val(i, C.projects.legacy) === "v",
     })).filter((p) => p.name && p.owner);
   }, { force });
 }
@@ -99,6 +108,10 @@ export async function loadProjectTasks({ force = false } = {}) {
       due: val(i, C.tasks.due) || null,
       owner: val(i, C.tasks.owner) || null,
       note: val(i, C.tasks.note) || null,
+      /* ריק = "בלי שלב", וזה מצב תקין ולא חסר. */
+      stage: (C.tasks.stage && val(i, C.tasks.stage)) || null,
+      /* ⚠ עומק אחד בלבד — ראו tools/seed-projects2.mjs. */
+      parent: (C.tasks.parent && val(i, C.tasks.parent)) || null,
     })).filter((t) => t.title && t.project);
   }, { force });
 }
@@ -115,24 +128,79 @@ export async function loadProjectMoney({ force = false } = {}) {
       amount: num(i, C.budget.amount),
       date: val(i, C.budget.date) || null,
       note: val(i, C.budget.note) || null,
+      category: (C.budget.category && status(i, C.budget.category)) || null,
     })).filter((m) => m.title && m.project);
   }, { force });
 }
 
 const invalidateAll = () => {
-  invalidate("projects"); invalidate("project-tasks"); invalidate("project-money");
+  invalidate("projects"); invalidate("project-tasks");
+  invalidate("project-money"); invalidate("project-entries");
 };
 
 /** האם החניך שייך לפרויקט — בעלים או שותף. */
 const mine = (p, id) =>
   String(p.owner) === String(id) || p.partners.map(String).includes(String(id));
 
+/**
+ * הפרויקט, אם החניך שייך אליו. אחרת null.
+ * ⚠ מיוצא כדי שכל מסלולי הבן ישתמשו **באותה** בדיקת שייכות.
+ *   שתי גרסאות שלה נפרדות זו מזו בתיקון הראשון, וזו בדיקת
+ *   הרשאה — לא נוחות.
+ */
+export async function mineProject(projectId, studentId) {
+  const p = (await loadProjects()).find((x) => x.id === String(projectId || ""));
+  return p && mine(p, studentId) ? p : null;
+}
+
+/* ============================================================
+   תבניות פרויקט
+   ------------------------------------------------------------
+   ⚠ **בקוד ולא בלוח, ובכוונה.** תבנית אינה נתון של המכינה אלא
+     נקודת פתיחה — והיא נועדה להיערך מיד אחרי היצירה. אילו ישבה
+     בלוח, כל שינוי בה היה "מה שמישהו קבע" במקום הצעה.
+
+   ⚠ **חניך שמתחיל מדף ריק לרוב לא מתחיל.** זו כל התכלית: שלוש
+     משימות ראשונות ושלושה שלבים, שאפשר למחוק בשנייה.
+   ============================================================ */
+const TEMPLATES = [
+  {
+    key: "event", name: "אירוע",
+    about: "ערב, טקס, יום שיא — משהו עם תאריך ואורחים",
+    stages: ["תכנון וגיבוש רעיון", "הפקה — ציוד, מקום, כיבוד", "היום עצמו", "סיכום ולקחים"],
+    tasks: ["להחליט תאריך ומקום", "לבנות תקציב", "לחלק תפקידים בצוות",
+      "לפרסם לחניכים", "לסכם מה עבד ומה לא"],
+  },
+  {
+    key: "community", name: "יוזמה קהילתית",
+    about: "פעילות בקיבוץ או בסביבה — עם שותפים מחוץ למכינה",
+    stages: ["להבין מה צריך", "לגייס שותפים", "הרצה ראשונה", "המשכיות"],
+    tasks: ["לדבר עם מי שזה נוגע לו", "לבדוק מה כבר קיים",
+      "לקבוע פגישה עם גורם בקיבוץ", "להריץ פעם אחת ולראות"],
+  },
+  {
+    key: "business", name: "עסק קטן",
+    about: "משהו שמוכר או מגייס כסף",
+    stages: ["רעיון ובדיקת היתכנות", "הקמה", "מכירה ראשונה", "תפעול שוטף"],
+    tasks: ["לחשב כמה זה עולה לייצר", "לקבוע מחיר", "לבדוק על מי זה עובד",
+      "למכור פעם אחת"],
+  },
+  {
+    key: "learn", name: "למידה או מחקר",
+    about: "להעמיק בנושא ולהעביר אותו הלאה",
+    stages: ["לבחור שאלה", "ללמוד", "להעביר"],
+    tasks: ["לנסח את השאלה במשפט אחד", "למצוא שלושה מקורות",
+      "לסכם בכתב", "להעביר לקבוצה"],
+  },
+];
+
 /* ============================================================
    הסיכום — נגזר, ואינו נשמר
    ============================================================ */
-function summarize(p, tasks, money) {
+function summarize(p, tasks, money, entries = []) {
   const t = tasks.filter((x) => x.project === p.id);
   const m = money.filter((x) => x.project === p.id);
+  const st = entries.filter((x) => x.project === p.id && x.kind === "שלב");
 
   const done = t.filter((x) => x.done).length;
   /* ⚠ **בלי משימות `pct` הוא `null` ולא 0.** 0% נראה כמו נתון
@@ -159,6 +227,18 @@ function summarize(p, tasks, money) {
     left: p.budget == null ? null : Math.round((p.budget - spent + income) * 100) / 100,
     over: p.budget != null && spent - income > p.budget,
     noAmount,
+    /* ⚠ **פירוט לפי קטגוריה — רק להוצאות.** "כמה עלו החומרים"
+       היא שאלה; "כמה נכנס מחומרים" אינה. */
+    byCategory: MONEY_CAT
+      .map((c) => ({
+        category: c,
+        amount: Math.round(m.filter((x) => x.kind === "הוצאה" && x.category === c)
+          .reduce((a, x) => a + (Number(x.amount) || 0), 0) * 100) / 100,
+      }))
+      .filter((x) => x.amount > 0)
+      .sort((a, b) => b.amount - a.amount),
+    stages: st.length,
+    stagesDone: st.filter((x) => x.done).length,
     closed: PROJECT_CLOSED.includes(p.status || ""),
   };
 }
@@ -201,8 +281,8 @@ async function handler(req, res, session) {
 }
 
 async function list(res, me) {
-  const [projects, tasks, money, students] = await Promise.all([
-    loadProjects(), loadProjectTasks(), loadProjectMoney(), assignableStudents(),
+  const [projects, tasks, money, entries, students] = await Promise.all([
+    loadProjects(), loadProjectTasks(), loadProjectMoney(), loadEntries(), assignableStudents(),
   ]);
   const byId = new Map(students.map((s) => [String(s.id), s.name]));
   const ours = projects.filter((p) => mine(p, me));
@@ -219,15 +299,50 @@ async function list(res, me) {
         || (a.due || "9999").localeCompare(b.due || "9999")),
     money: money.filter((m) => m.project === p.id)
       .sort((a, b) => (b.date || "").localeCompare(a.date || "")),
-    sum: summarize(p, tasks, money),
+    /* ⚠ שלבים לפי `order` ואז תאריך: שני שלבים באותו שבוע הם
+       מצב רגיל, והסדר ביניהם הוא החלטה של החניך ולא של הלוח. */
+    stages: entries.filter((e) => e.project === p.id && e.kind === "שלב")
+      .sort((a, b) => a.order - b.order || (a.date || "9999").localeCompare(b.date || "9999")),
+    /* היומן הפוך — האחרון למעלה. */
+    journal: entries.filter((e) => e.project === p.id && e.kind === "יומן")
+      .sort((a, b) => (b.date || "").localeCompare(a.date || "")),
+    sum: summarize(p, tasks, money, entries),
   })).sort((a, b) => Number(a.archived) - Number(b.archived)
     || Number(a.sum.closed) - Number(b.sum.closed)
     || (a.due || "9999").localeCompare(b.due || "9999")
     || a.name.localeCompare(b.name, "he"));
 
+  /* ============================================================
+     ⚠⚠ **הארכיון — מה שחניכים בחרו במפורש להשאיר.**
+
+     "מה עשו לפנינו" הוא בדיוק מה שחסר למכינה בין מחזורים, וגם
+     בדיוק המקום שבו קל לשבור הבטחה. לכן:
+
+       · **רק פרויקטים שסומנו `legacy`** — ברירת המחדל כבויה,
+         ואין מסלול שבו מישהו אחר מדליק אותה.
+       · **מיפוי מפורש ומצומצם** — שם, סוג, על מה, מטרה, וסטטוס.
+         **בלי היומן, בלי התקציב, בלי המשימות ובלי השותפים.**
+         אלה הדברים שנכתבו מתוך הנחה שאיש אינו קורא.
+       · **בלי שם הבעלים.** מה שעניין את המחזור הבא הוא מה
+         נעשה, לא מי עשה — וזו גם ההפחתה שמאפשרת לשתף בכלל.
+
+     ⚠ ומה שנשאר מהמחזור הנוכחי אינו מוצג כאן: אלה הפרויקטים
+       של החניך עצמו, והוא רואה אותם ממילא למעלה.
+     ============================================================ */
+  const legacy = projects
+    .filter((p) => p.legacy && !ours.some((x) => x.id === p.id))
+    .map((p) => ({
+      id: p.id, name: p.name, kind: p.kind, status: p.status,
+      about: p.about, goal: p.goal,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, "he"));
+
   return res.status(200).json({
     projects: full,
+    legacy,
     statuses: PROJECT_STATUS, kinds: PROJECT_KIND, moneyKinds: MONEY_KIND,
+    categories: MONEY_CAT, entryKinds: ENTRY_KIND,
+    templates: TEMPLATES.map((t) => ({ key: t.key, name: t.name, about: t.about })),
     /* ⚠ רשימת הבחירה לשותפים — `assignableStudents`, ובלי עצמי. */
     students: students.filter((s) => String(s.id) !== me)
       .map((s) => ({ id: String(s.id), name: s.name })),
@@ -276,6 +391,36 @@ async function fill(cols, body, me, res) {
   if (body.archived !== undefined) {
     cols[P.archived] = { checked: body.archived ? "true" : "false" };
   }
+  /* ============================================================
+     ⚠⚠ **שני שיתופים נפרדים, ובכוונה.**
+
+     `shared` — "הצוות רואה את הפרויקט הזה עכשיו", לבקשת תקציב
+     או ליווי. `legacy` — "המחזור הבא יוכל לקרוא עליו".
+
+     אלה שתי החלטות שונות לגמרי: חניך יכול לרצות עזרה עכשיו
+     ולא לרצות שהפרויקט יישאר לתמיד, ולהפך. תיבה אחת לשתיהן
+     הייתה מכריחה אותו לוותר על אחת מהן.
+
+     ⚠ ושתיהן **של החניך**. אין מסלול שבו הצוות מדליק אותן.
+     ============================================================ */
+  if (body.shared !== undefined && P.shared) {
+    cols[P.shared] = { checked: body.shared ? "true" : "false" };
+  }
+  if (body.shareNote !== undefined && P.shareNote) {
+    cols[P.shareNote] = String(body.shareNote || "").trim().slice(0, 2000);
+  }
+  if (body.legacy !== undefined && P.legacy) {
+    cols[P.legacy] = { checked: body.legacy ? "true" : "false" };
+  }
+  /* ⚠ **העברת בעלות** — הבעלים בלבד, והוא נבדק אצל הקורא.
+     החניך שמקבל חייב להיות שותף כבר: העברה למי שאינו בפרויקט
+     הייתה מוציאה את הפרויקט מידי שניהם. */
+  if (body.owner !== undefined) {
+    const to = String(body.owner || "").trim();
+    const known = new Set((await assignableStudents()).map((s) => String(s.id)));
+    if (!known.has(to)) { res.status(400).json({ error: "חניך לא מוכר" }); return true; }
+    cols[P.owner] = to;
+  }
   if (body.partners !== undefined) {
     const want = Array.isArray(body.partners) ? body.partners.map(String) : [];
     /* ⚠⚠ **השותפים מאומתים בשרת.** בלי זה אפשר היה לשתף מזהה
@@ -300,8 +445,32 @@ async function create(res, me, body) {
   if (!cols[C.projects.status]) cols[C.projects.status] = { label: PROJECT_STATUS[0] };
 
   const id = await createItem(B.projects, name, cols);
+
+  /* ============================================================
+     ⚠ **התבנית נוצרת אחרי הפרויקט, וכישלון בה אינו מפיל אותו.**
+       החניך ביקש לפתוח פרויקט; השלבים והמשימות הם נקודת פתיחה.
+       פרויקט שנוצר וחזרה עליו שגיאה הוא בדיוק המצב שבו לוחצים
+       שוב ומקבלים שניים.
+     ============================================================ */
+  const tpl = TEMPLATES.find((t) => t.key === String(body?.template || ""));
+  if (tpl && B.entries) {
+    try {
+      let n = 1;
+      for (const st of tpl.stages) {
+        await createItem(B.entries, st, {
+          [C.entries.project]: String(id),
+          [C.entries.kind]: { label: ENTRY_KIND[0] },
+          [C.entries.order]: String(n++),
+        });
+      }
+      for (const t of tpl.tasks) {
+        await createItem(B.tasks, t, { [C.tasks.project]: String(id) });
+      }
+    } catch (e) { console.error("[projects:template]", e); }
+  }
+
   invalidateAll();
-  return res.status(200).json({ ok: true, id: String(id) });
+  return res.status(200).json({ ok: true, id: String(id), template: tpl ? tpl.key : null });
 }
 
 async function edit(res, me, body) {
@@ -315,6 +484,30 @@ async function edit(res, me, body) {
      ואינו מוחק.** אחרת שותף אחד יכול להוציא את השאר. */
   if (body.partners !== undefined && String(p.owner) !== me) {
     return res.status(403).json({ error: "רשימת השותפים נקבעת על ידי מי שפתח את הפרויקט" });
+  }
+  /* ============================================================
+     ⚠⚠ **העברת בעלות — הבעלים בלבד, ורק לשותף קיים.**
+
+     בלי שתי המגבלות האלה שותף יכול היה לקחת לעצמו את הפרויקט,
+     או להעביר אותו למישהו שאינו בו — ואז הוא יוצא מידי כולם
+     ואיש לא יכול לפתוח אותו. וזה בדיוק סוג התקלה שאין ממנה
+     דרך חזרה מהמסך.
+
+     ⚠ **והבעלים הקודם נשאר שותף**, אחרת הוא מאבד גישה לפרויקט
+       שהוא בנה ברגע שהעביר אותו.
+     ============================================================ */
+  if (body.owner !== undefined) {
+    if (String(p.owner) !== me) {
+      return res.status(403).json({ error: "העברת הבעלות היא בידי מי שפתח את הפרויקט" });
+    }
+    const to = String(body.owner || "").trim();
+    if (!p.partners.map(String).includes(to)) {
+      return res.status(400).json({
+        error: "אפשר להעביר את הפרויקט רק למי שכבר שותף בו. קודם מוסיפים אותו כשותף.",
+      });
+    }
+    /* הבעלים היוצא נכנס לשותפים, והנכנס יוצא מהם. */
+    body.partners = [...p.partners.filter((x) => String(x) !== to), me];
   }
 
   const cols = {};

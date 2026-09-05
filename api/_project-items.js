@@ -28,7 +28,7 @@ import { invalidate } from "./_cache.js";
 import { setColumns, renameItem, createItem, deleteItem } from "./_items.js";
 import { assignableStudents } from "./_student-rows.js";
 import {
-  PROJECT_BOARDS as B, PROJECT_COLS as C, MONEY_KIND, projectsReady,
+  PROJECT_BOARDS as B, PROJECT_COLS as C, MONEY_KIND, MONEY_CAT, projectsReady,
 } from "../shared/projects-ids.js";
 import { loadProjects, loadProjectTasks, loadProjectMoney } from "./_projects.js";
 
@@ -58,6 +58,15 @@ function makeHandler(kind) {
   async function fill(out, body, me, res) {
     if (isTask) {
       if (body.done !== undefined) out[cols.done] = { checked: body.done ? "true" : "false" };
+      /* ⚠ **שלב ותת-משימה — שיוך בתוך אותו פרויקט בלבד.**
+         מזהה שמצביע לפרויקט אחר היה מייצר משימה שמופיעה
+         בשניים, ובאף אחד מהם לא ניתן למחוק אותה. */
+      if (body.stage !== undefined && cols.stage) {
+        out[cols.stage] = String(body.stage || "").trim();
+      }
+      if (body.parent !== undefined && cols.parent) {
+        out[cols.parent] = String(body.parent || "").trim();
+      }
       if (body.owner !== undefined) {
         const id = String(body.owner || "").trim();
         if (!id) out[cols.owner] = "";
@@ -76,6 +85,13 @@ function makeHandler(kind) {
           res.status(400).json({ error: `"${v}" אינו סוג תנועה מוכר` }); return true;
         }
         out[cols.kind] = { label: v };
+      }
+      if (body.category !== undefined && cols.category) {
+        const c = String(body.category || "").trim();
+        if (!c) out[cols.category] = null;
+        else if (!MONEY_CAT.includes(c)) {
+          res.status(400).json({ error: `"${c}" אינה קטגוריה מוכרת` }); return true;
+        } else out[cols.category] = { label: c };
       }
       if (body.amount !== undefined) {
         const raw = String(body.amount ?? "").trim();

@@ -23,6 +23,7 @@
      ?action=projects GET/POST/PUT/DELETE      הפרויקטים של החניך
      ?action=project-task  POST/PUT/DELETE     משימה בפרויקט
      ?action=project-money POST/PUT/DELETE     תנועת תקציב בפרויקט
+     ?action=project-entry POST/PUT/DELETE     שלב או רשומת יומן
                      ⚠ כתיבה — החניך על עצמו בלבד. קריאה של
                        כולם — צוות ויו״ר ועדת הגיוסים.
 
@@ -75,6 +76,7 @@ import leadership from "./_leadership.js";
    isManager אינו מרחיב גישה אלא מבטל אותה (4מה). */
 import projects from "./_projects.js";
 import { projectTask, projectMoney } from "./_project-items.js";
+import projectEntry from "./_project-entries.js";
 /* ⚠ מרצים של סדרה — **אותו לוח חוות דעת**, עם שיוך לסדרה.
    כל חברי הסדרה כותבים, ולא רק היו״ר. */
 import teamLecturer from "./_team-lecturer.js";
@@ -86,4 +88,5 @@ export default router({ login, list, year, leader, weeks, role, profile, inciden
   duty, "duty-tasks": dutyTasks, "duty-notes": dutyNotes, chair,
   team, "team-task": teamTask, "team-admin": teamAdmin, edit, tryouts, leadership,
   projects, "project-task": projectTask, "project-money": projectMoney,
+  "project-entry": projectEntry,
   "team-lecturer": teamLecturer });

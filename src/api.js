@@ -203,17 +203,32 @@ export const api = {
   editProject: (p) => put("/api/students?action=projects", p),
   deleteProject: (id) => del("/api/students?action=projects", { id }),
 
-  addProjectTask: ({ project, title, due, owner, note }) =>
-    post("/api/students?action=project-task", { project, title, due, owner, note }),
-  editProjectTask: ({ id, title, done, due, owner, note }) =>
-    put("/api/students?action=project-task", { id, title, done, due, owner, note }),
+  addProjectTask: ({ project, title, due, owner, note, stage, parent }) =>
+    post("/api/students?action=project-task",
+      { project, title, due, owner, note, stage, parent }),
+  editProjectTask: ({ id, title, done, due, owner, note, stage, parent }) =>
+    put("/api/students?action=project-task",
+      { id, title, done, due, owner, note, stage, parent }),
   deleteProjectTask: (id) => del("/api/students?action=project-task", { id }),
 
-  addProjectMoney: ({ project, title, kind, amount, date, note }) =>
-    post("/api/students?action=project-money", { project, title, kind, amount, date, note }),
-  editProjectMoney: ({ id, title, kind, amount, date, note }) =>
-    put("/api/students?action=project-money", { id, title, kind, amount, date, note }),
+  addProjectMoney: ({ project, title, kind, amount, date, note, category }) =>
+    post("/api/students?action=project-money",
+      { project, title, kind, amount, date, note, category }),
+  editProjectMoney: ({ id, title, kind, amount, date, note, category }) =>
+    put("/api/students?action=project-money",
+      { id, title, kind, amount, date, note, category }),
   deleteProjectMoney: (id) => del("/api/students?action=project-money", { id }),
+
+  /* ⚠ שלב ורשומת יומן — אותו לוח, נבדלים ב-kind. ראו
+     api/_project-entries.js. */
+  /* ⚠ קובץ נשלח כ-base64 בגוף הבקשה, עד 2MB — כמו בתקלות.
+     אין שירות אחסון חיצוני, וזו הייתה החלטה. */
+  addProjectEntry: ({ project, kind, title, date, body, order, fileData, fileName, fileMime }) =>
+    post("/api/students?action=project-entry",
+      { project, kind, title, date, body, order, fileData, fileName, fileMime }),
+  editProjectEntry: ({ id, kind, title, date, body, done, order }) =>
+    put("/api/students?action=project-entry", { id, kind, title, date, body, done, order }),
+  deleteProjectEntry: (id) => del("/api/students?action=project-entry", { id }),
   /* ⚠ **השיבוץ לצה״ל — החניך על עצמו, כמו המיונים.** חיל אחד
      מרשימת החילות של לוח הבוגרים, ופירוט תפקיד חופשי לצידו.
      ⚠ נשלח **בלי `id`** — זה מה שמבדיל אותו ממיון בשרת. */

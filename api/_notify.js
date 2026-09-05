@@ -513,6 +513,68 @@ async function dutyNotes(session) {
 }
 
 /* ============================================================
+   משימות פרויקט שעבר היעד
+   ------------------------------------------------------------
+   ⚠⚠ **ההתראה של החניך על עצמו, ולא של אף אחד אחר.** הפרויקטים
+     שלו אינם נגישים לצוות (ראו api/_projects.js), וגם ההתראה
+     עליהם נבנית רק בשבילו — היא לעולם אינה נכנסת לפעמון של
+     מנהל, גם לא במקרה.
+
+   ⚠ **שורה אחת ולא שורה למשימה.** חמש משימות באיחור הן חמש
+     שורות בפעמון, וזה בדיוק מה שמלמד לסגור אותו (4כו).
+
+   ⚠ **ו"היום" אינו איחור.** משימה שהיעד שלה היום עדיין אפשרית,
+     וההתראה עליה היא לחץ ולא עזרה.
+   ============================================================ */
+async function projectNotes(session, today) {
+  if (!session.isStudent) return [];
+  const out = [];
+  try {
+    const { loadProjects, loadProjectTasks } = await import("./_projects.js");
+    const me = String(session.itemId);
+    const projects = (await loadProjects()).filter(
+      (p) => !p.archived
+        && (String(p.owner) === me || p.partners.map(String).includes(me)));
+    if (!projects.length) return [];
+
+    const ids = new Set(projects.map((p) => p.id));
+    const tasks = (await loadProjectTasks()).filter((t) => ids.has(t.project));
+    const late = tasks.filter((t) => !t.done && t.due && t.due < today);
+
+    if (late.length) {
+      const names = [...new Set(late.map((t) => {
+        const p = projects.find((x) => x.id === t.project);
+        return p ? p.name : null;
+      }).filter(Boolean))];
+      out.push(note({
+        id: `proj:late:${late.length}`, kind: "פרויקט", level: "רגיל",
+        title: late.length === 1
+          ? "משימה בפרויקט עברה את היעד"
+          : `${late.length} משימות בפרויקטים עברו את היעד`,
+        body: names.slice(0, 3).join(" · "),
+        tab: "projects",
+      }));
+    }
+
+    /* ⚠ יעד הפרויקט עצמו — קרוב, ולא עבר. אחרי שעבר זו כבר
+       שאלה אחרת ("להאריך או לסגור"), והפעמון אינו המקום לה. */
+    const soon = projects.filter(
+      (p) => p.due && p.due >= today && p.due <= shift(today, 7));
+    for (const p of soon) {
+      out.push(note({
+        id: `proj:due:${p.id}:${p.due}`, kind: "פרויקט", level: "נמוך",
+        title: `יעד הפרויקט "${p.name}" בשבוע הקרוב`,
+        body: p.due, tab: "projects", when: p.due,
+      }));
+    }
+  } catch (e) {
+    /* ⚠ תחום שנופל אינו מפיל את הפעמון (4כו). */
+    console.error("[notify:projects]", e && e.message);
+  }
+  return out;
+}
+
+/* ============================================================
    התורנות שלי
    ------------------------------------------------------------
    ⚠ **החניך מקבל התראה על השיבוץ שלו, ולא על השיבוץ של אחרים.**
@@ -651,6 +713,9 @@ export async function buildNotes(session, today = israelToday()) {
       jobs.push(choreNotes(session, today));
       /* ⚠ הבונה עוצר מיד כשהחניך אינו מוביל שבוע. */
       jobs.push(leaderMarkNotes(session, today));
+      /* ⚠ הפרויקטים שלו בלבד, ולעולם לא בפעמון של מנהל —
+         ולכן הבונה הזה יושב **רק** בענף של החניך. */
+      jobs.push(projectNotes(session, today));
     } else {
       jobs.push(requestNotes(session, today));
     }
