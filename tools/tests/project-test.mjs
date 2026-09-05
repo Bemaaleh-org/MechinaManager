@@ -11,7 +11,7 @@
    ============================================================ */
 import { gql } from "../../api/_monday.js";
 import { studentRows } from "../../api/_student-rows.js";
-import { PROJECT_BOARDS, projectsReady } from "../../shared/projects-ids.js";
+import { PROJECT_BOARDS, PROJECT_COLS, projectsReady } from "../../shared/projects-ids.js";
 import { AUTH_BOARD, AUTH_COLS } from "../../shared/auth-board.js";
 import { tempRegister } from "./_auth.mjs";
 
@@ -261,14 +261,40 @@ try {
 
   /* ============ 7 · מחיקה של פרויקט עם תוכן ============ */
   console.log("\n=== מחיקה ===");
-  r = await call(S, "DELETE", "/api/students?action=projects", { id: pid });
-  /* ⚠⚠ מחיקה שקטה של משימות ותנועות היא בדיוק מה שאי אפשר
-     לתקן. ההודעה אומרת כמה יש ומה לעשות במקום (4ק). */
-  ok("פרויקט עם תוכן אינו נמחק", r.s === 400, `${r.s} ${r.b.error || ""}`);
-  ok("וההודעה מונה כמה יש", /משימות/.test(r.b.error || ""), r.b.error);
-
   r = await call(S, "PUT", "/api/students?action=projects", { id: pid, archived: true });
-  ok("וארכוב עובר", r.s === 200, `${r.s} ${r.b.error || ""}`);
+  ok("ארכוב עובר", r.s === 200, `${r.s} ${r.b.error || ""}`);
+
+  /* ============================================================
+     ⚠⚠ **מחיקה גוררת את הכול, ומדווחת כמה.**
+
+     קודם פרויקט עם תוכן פשוט לא נמחק. זה הגן על נתונים והשאיר
+     את החניך בלי דרך למחוק פרויקט שפתח בטעות. עכשיו הוא נמחק
+     תמיד — **וגם התלויים בו**, אחרת הם נשארים כיתומים שאינם
+     מופיעים בשום מסך ולכן אי אפשר גם למחוק אותם.
+
+     הטענה כאן היא בדיוק על זה: אחרי המחיקה **אין יתומים**.
+     ============================================================ */
+  const before2 = await call(S, "GET", "/api/students?action=projects");
+  const pDel = before2.b.projects.find((x) => x.id === pid);
+  const kidCount = (pDel.tasks || []).length + (pDel.money || []).length
+    + (pDel.stages || []).length + (pDel.journal || []).length;
+
+  r = await call(S, "DELETE", "/api/students?action=projects", { id: pid });
+  ok("פרויקט עם תוכן נמחק", r.s === 200, `${r.s} ${r.b.error || ""}`);
+  ok("והשרת מדווח כמה שורות נגררו",
+    r.b.removed === kidCount, `דווח ${r.b.removed} · צפוי ${kidCount}`);
+  ok("ובלי כשלים", r.b.failed === undefined, String(r.b.failed));
+
+  /* ⚠ הטענה שסוגרת את המעגל: אף שורה לא נשארה בלי פרויקט. */
+  const after2 = await gql(
+    `query($b:[ID!]){ boards(ids:$b){ items_page(limit:300){ items{ id
+       column_values(ids:["${PROJECT_COLS.tasks.project}"]){ text } } } } }`,
+    { b: [PROJECT_BOARDS.tasks] });
+  const orphans = (after2.boards[0].items_page.items || [])
+    .filter((i) => (i.column_values[0].text || "") === pid);
+  ok("ולא נשארו משימות יתומות", orphans.length === 0, String(orphans.length));
+  /* כבר נמחקו — שלא ינסה שוב בניקוי */
+  made.projects = made.projects.filter((x) => x !== pid);
 
   /* ============ 8 · בלי כניסה ============ */
   console.log("\n=== בלי כניסה ===");

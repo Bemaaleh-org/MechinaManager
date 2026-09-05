@@ -319,9 +319,24 @@ function ProjectDetail({ p, data, say, reload, onBack, onEdit }) {
             <div className="alert a-clay" style={{ marginTop: 10 }}>
               <div style={{ flex: 1 }}>
                 <div className="ttl">למחוק את "{p.name}"?</div>
+                {/* ⚠ **אומרים כמה ייעלם לפני ששואלים.** "בטוח?" על
+                    פעולה שמוחקת עשרים שורות אינה שאלה שאפשר
+                    לענות עליה. */}
                 <div className="e2">
-                  פרויקט שיש בו משימות או תנועות תקציב אינו נמחק — הוא עובר
-                  לארכיון, והכול נשמר.
+                  {(() => {
+                    const n = [
+                      p.sum.tasks ? `${p.sum.tasks} משימות` : null,
+                      (p.money || []).length ? `${p.money.length} תנועות תקציב` : null,
+                      (p.stages || []).length ? `${p.stages.length} שלבים` : null,
+                      (p.journal || []).length ? `${p.journal.length} רשומות יומן` : null,
+                    ].filter(Boolean);
+                    return n.length
+                      ? `יימחקו גם ${n.join(", ")}. אי אפשר לשחזר.`
+                      : "הפרויקט ריק. אי אפשר לשחזר.";
+                  })()}
+                  <br />
+                  אם רק רוצים להוריד אותו מהרשימה — עדיף "העברה לארכיון",
+                  והכול נשמר.
                 </div>
                 <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
                   <button className="btn btn-clay btn-sm" style={{ flex: 1 }}
@@ -358,10 +373,35 @@ function Tasks({ p, data, say, reload }) {
       .finally(() => setBusy(null));
   };
 
+  /* ============================================================
+     ⚠⚠ **הסימון אופטימי, ואינו טוען מחדש את המסך.**
+
+     הגרסה הראשונה חיכתה לתשובת monday **ואז** טענה מחדש את כל
+     הפרויקטים — שתי הליכות רשת לכל ✓, ובערך שנייה וחצי שבה
+     הריבוע לא זז. למשתמש זה נראה כאילו הלחיצה לא נקלטה, והוא
+     לוחץ שוב.
+
+     עכשיו: הריבוע מתמלא מיד, הבקשה יוצאת ברקע, והמסך אינו
+     נטען מחדש בהצלחה — הסכומים והאחוזים מחושבים כאן מאותה
+     שכבת ה-override.
+
+     ⚠ **ובכישלון חוזרים אחורה ואומרים** (4י). סימון שנשאר על
+       המסך אחרי שהשרת דחה אותו הוא שקר, לא נוחות.
+
+     ⚠ **ואין `busy` על הריבוע.** נעילה של רבע שנייה בזמן
+       שהבקשה בדרך היא בדיוק העיכוב שהסרנו.
+     ============================================================ */
+  const [flip, setFlip] = useState({});
+  const isDone = (t) => (flip[t.id] !== undefined ? flip[t.id] : t.done);
+
   const toggle = (t) => {
-    setBusy(t.id);
-    api.editProjectTask({ id: t.id, done: !t.done })
-      .then(reload).catch((e) => say(e.message)).finally(() => setBusy(null));
+    const next = !isDone(t);
+    setFlip((x) => ({ ...x, [t.id]: next }));
+    api.editProjectTask({ id: t.id, done: next })
+      .catch((e) => {
+        setFlip((x) => { const c = { ...x }; delete c[t.id]; return c; });
+        say(e.message);
+      });
   };
 
   const del = (t) => {
@@ -408,22 +448,22 @@ function Tasks({ p, data, say, reload }) {
       {view === "time" ? <Timeline p={p} today={today} /> : (
       <div className="rows">
         {roots.map((t) => (
-          <div className={"pr-task" + (t.done ? " done" : "")} key={t.id}>
-            <button className="pr-chk" disabled={busy === t.id} onClick={() => toggle(t)}
-              aria-label={t.done ? "לבטל סימון" : "סימון כבוצע"}>
-              {t.done ? "✓" : ""}
+          <div className={"pr-task" + (isDone(t) ? " done" : "")} key={t.id}>
+            <button className="pr-chk" onClick={() => toggle(t)}
+              aria-label={isDone(t) ? "לבטל סימון" : "סימון כבוצע"}>
+              {isDone(t) ? "✓" : ""}
             </button>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="pr-task-t">{t.title}</div>
               <div className="pr-meta">
                 {/* ⚠ "עבר היעד" נצבע רק על משימה פתוחה. */}
                 {t.due && (
-                  <span className={!t.done && t.due < today ? "pay-miss" : ""}>{dmy(t.due)}</span>
+                  <span className={!isDone(t) && t.due < today ? "pay-miss" : ""}>{dmy(t.due)}</span>
                 )}
                 {t.ownerName && <span>· {t.ownerName}</span>}
                 {stageName(t.stage) && <span className="pill p-cool">{stageName(t.stage)}</span>}
                 {kidsOf(t.id).length > 0 && (
-                  <span>· {kidsOf(t.id).filter((k) => k.done).length}/{kidsOf(t.id).length} תת-משימות</span>
+                  <span>· {kidsOf(t.id).filter(isDone).length}/{kidsOf(t.id).length} תת-משימות</span>
                 )}
               </div>
               {t.note && <div className="pr-note">{t.note}</div>}
@@ -434,17 +474,17 @@ function Tasks({ p, data, say, reload }) {
         )).concat(
           /* תת-המשימות, מיד אחרי האב ובהזחה */
           roots.flatMap((t) => kidsOf(t.id).map((k) => (
-            <div className={"pr-task pr-sub" + (k.done ? " done" : "")} key={k.id}>
-              <button className="pr-chk" disabled={busy === k.id} onClick={() => toggle(k)}
-                aria-label={k.done ? "לבטל סימון" : "סימון כבוצע"}>
-                {k.done ? "✓" : ""}
+            <div className={"pr-task pr-sub" + (isDone(k) ? " done" : "")} key={k.id}>
+              <button className="pr-chk" onClick={() => toggle(k)}
+                aria-label={isDone(k) ? "לבטל סימון" : "סימון כבוצע"}>
+                {isDone(k) ? "✓" : ""}
               </button>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="pr-task-t">{k.title}</div>
                 <div className="pr-meta">
                   <span>מתוך: {t.title}</span>
                   {k.due && (
-                    <span className={!k.done && k.due < today ? "pay-miss" : ""}>· {dmy(k.due)}</span>
+                    <span className={!isDone(k) && k.due < today ? "pay-miss" : ""}>· {dmy(k.due)}</span>
                   )}
                 </div>
               </div>
@@ -856,10 +896,18 @@ function Stages({ p, say, reload }) {
       .finally(() => setBusy(null));
   };
 
+  /* ⚠ אופטימי ובלי טעינה מחדש — ראו ההערה ב-Tasks. */
+  const [flip, setFlip] = useState({});
+  const isDone = (st) => (flip[st.id] !== undefined ? flip[st.id] : st.done);
+
   const toggle = (st) => {
-    setBusy(st.id);
-    api.editProjectEntry({ id: st.id, done: !st.done })
-      .then(reload).catch((e) => say(e.message)).finally(() => setBusy(null));
+    const next = !isDone(st);
+    setFlip((x) => ({ ...x, [st.id]: next }));
+    api.editProjectEntry({ id: st.id, done: next })
+      .catch((e) => {
+        setFlip((x) => { const c = { ...x }; delete c[st.id]; return c; });
+        say(e.message);
+      });
   };
 
   const del = (st) => {
@@ -889,12 +937,14 @@ function Stages({ p, say, reload }) {
       <div className="pr-track">
         {stages.map((st) => {
           const t = tasksOf(st.id);
+          /* ⚠ נספר מהמצב המוצג ולא מהשרת, אחרת המונה מפגר
+             אחרי הריבוע שכבר התמלא. */
           const done = t.filter((x) => x.done).length;
           return (
-            <div className={"pr-step" + (st.done ? " done" : "")} key={st.id}>
-              <button className="pr-dot" disabled={busy === st.id} onClick={() => toggle(st)}
-                aria-label={st.done ? "לבטל סימון" : "סימון כהושלם"}>
-                {st.done ? "✓" : ""}
+            <div className={"pr-step" + (isDone(st) ? " done" : "")} key={st.id}>
+              <button className="pr-dot" onClick={() => toggle(st)}
+                aria-label={isDone(st) ? "לבטל סימון" : "סימון כהושלם"}>
+                {isDone(st) ? "✓" : ""}
               </button>
               <div className="pr-step-b">
                 <div className="pr-step-t">{st.title}</div>

@@ -532,22 +532,47 @@ async function remove(res, me, body) {
     return res.status(403).json({ error: "מחיקה היא בידי מי שפתח את הפרויקט" });
   }
 
-  /* ⚠⚠ **פרויקט עם תוכן אינו נמחק — הוא מארכב.** מחיקה שקטה
-     של עשרים משימות ותנועות תקציב היא בדיוק סוג הפעולה שאי
-     אפשר לתקן, וההודעה אומרת כמה יש ומה לעשות במקום (4ק). */
-  const [tasks, money] = await Promise.all([loadProjectTasks(), loadProjectMoney()]);
-  const t = tasks.filter((x) => x.project === id).length;
-  const m = money.filter((x) => x.project === id).length;
-  if (t || m) {
-    return res.status(400).json({
-      error: `בפרויקט יש ${t} משימות ו-${m} תנועות תקציב. אפשר להעביר אותו לארכיון — `
-        + "הוא יורד מהרשימה והכול נשמר.",
-      tasks: t, money: m,
-    });
+  /* ============================================================
+     ⚠⚠ **המחיקה גוררת את הכול — ובכוונה.**
+
+     קודם פרויקט עם תוכן פשוט **לא נמחק**, וההודעה הציעה ארכיון.
+     זה הגן על נתונים, אבל השאיר את החניך בלי דרך למחוק פרויקט
+     שהוא פתח בטעות — והארכיון אינו מחיקה, הוא הסתרה.
+
+     עכשיו הוא נמחק תמיד, **וגם כל מה שתלוי בו**: המשימות,
+     תנועות התקציב, השלבים והיומן. בלי הגרירה הזו הם נשארים
+     בלוח כיתומים שאינם מופיעים בשום מסך — ולכן גם אי אפשר
+     למחוק אותם מהמסך. הם רק נצברים.
+
+     ⚠ **המסך אומר כמה ייעלם לפני שהוא שואל.** "בטוח?" על
+       פעולה שמוחקת עשרים שורות אינה שאלה שאפשר לענות עליה.
+
+     ⚠ **הבעלים בלבד** — נבדק למעלה. שותף מוחק את עצמו מהשותפים,
+       לא את הפרויקט של מישהו אחר.
+
+     ⚠ **וכישלון במחיקת שורה תלויה אינו עוצר את השאר.** עדיף
+       שורה יתומה אחת מאשר מחיקה שנעצרה באמצע — ויש
+       `npm run projects:orphans` בדיוק בשבילה.
+     ============================================================ */
+  const [tasks, money, entries] = await Promise.all([
+    loadProjectTasks(), loadProjectMoney(), loadEntries(),
+  ]);
+  const kids = [
+    ...tasks.filter((x) => x.project === id),
+    ...money.filter((x) => x.project === id),
+    ...entries.filter((x) => x.project === id),
+  ];
+  let failed = 0;
+  for (const k of kids) {
+    try { await deleteItem(k.id); } catch { failed++; }
   }
   await deleteItem(id);
   invalidateAll();
-  return res.status(200).json({ ok: true, id });
+  return res.status(200).json({
+    ok: true, id, removed: kids.length - failed,
+    /* ⚠ מדווח ואינו שותק — שורה שנשארה היא שורה שצריך לדעת עליה. */
+    ...(failed ? { failed } : {}),
+  });
 }
 
 async function readJson(req) {
