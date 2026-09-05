@@ -66,13 +66,29 @@ export async function loadAlumni({ force = false } = {}) {
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** תוויות הזרוע כפי שהן בלוח עצמו */
+/* ============================================================
+   תוויות הזרוע כפי שהן בלוח — **בלי המושבתות**
+   ------------------------------------------------------------
+   ⚠⚠ הגרסה הקודמת קראה את `labels` בלבד, ולכן זרוע שמישהו
+     השבית ביד (או `tools/deactivate-label.mjs`) המשיכה להופיע
+     בבורר ולעבור את האימות. ההשבתה היא הדרך היחידה להוריד
+     תווית בלי למחוק את הנתון של מי שיושב עליה, ולכן היא נפוצה
+     כאן — וקורא שמתעלם ממנה מציע בדיוק את מה שהורידו.
+
+   ⚠ **בוגר שכבר יושב על זרוע מושבתת ממשיך להציג אותה** —
+     `loadAlumni` קורא את הערך מהשורה ולא מהרשימה. מה שנסגר
+     הוא הבחירה קדימה, לא ההיסטוריה.
+   ============================================================ */
 async function branchLabels({ force = false } = {}) {
   return cached("alumni-branches", async () => {
     const d = await gql(`{ boards(ids:[${A.board}]){ columns{ id settings_str } } }`);
     const col = (d.boards[0].columns || []).find((c) => c.id === A.cols.branch);
-    const labels = col ? Object.values(JSON.parse(col.settings_str || "{}").labels || {}) : [];
-    return labels.filter(Boolean).map(String);
+    if (!col) return [];
+    const st = JSON.parse(col.settings_str || "{}");
+    const off = new Set((st.deactivated_labels || []).map(String));
+    return Object.entries(st.labels || {})
+      .filter(([id, t]) => t && !off.has(String(id)))
+      .map(([, t]) => String(t));
   }, { force });
 }
 

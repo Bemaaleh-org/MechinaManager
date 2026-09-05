@@ -45,9 +45,42 @@ export async function studentRows({ force = false } = {}) {
     ].filter(Boolean));
     const d = await gql(
       `{ boards(ids:[${MECHINA_BOARDS.roster}]){ items_page(limit:500){ items {
-           id name column_values(ids:${ids}){ id text } } } } }`
+           id name column_values(ids:${ids}){ id text value } } } } }`
     );
     const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
+
+/* ============================================================
+   ⚠⚠⚠ **`text` של עמודת סטטוס משקר על תא ריק.**
+
+   ל-monday יש "משבצת ריקה" קבועה בעמודת סטטוס — **אינדקס 5**.
+   תא בלי בחירה מחזיר `value: null` אבל `text` של **התווית
+   שיושבת על 5**, אם יש כזו. וזה לא באג נדיר: הוא הופיע ברגע
+   שנוצרה עמודת החילות, ו**כל 35 החניכים הופיעו כמשובצים
+   ל"חיל האוויר"** — התווית החמישית ברשימה.
+
+   ⚠ **ואי אפשר לפנות את המשבצת.** ניסינו: מחיקת התווית שעל 5
+     ויצירתה מחדש מחזירה אותה **בדיוק ל-5**, כי monday נותנת
+     תמיד את המפתח הפנוי הנמוך ביותר. שליחת `id` חדש נדחית
+     ב-"For new labels no id should be provided".
+
+   ⚠ **ולא רק בקריאה:** ניקוי תא סטטוס במחרוזת ריקה כותב
+     `index:5` **במפורש** — כלומר "למחוק את הבחירה" קובע אותה.
+     הניקוי הנכון הוא `null`.
+
+   לכן: **`value === null` הוא המבחן לריק, ולא `text === ""`.**
+   `text` נכון ומדויק לכל תא שיש בו בחירה אמיתית, ולכן הוא
+   נשאר מקור השם — רק הריק נגזר מ-`value`.
+
+   ⚠ כל עמודת סטטוס חדשה שתיקרא כאן חייבת את אותו טיפול.
+     `tools/seed-army.mjs` ו-`tools/seed-tryouts.mjs` כבר
+     מדלגים על מפתח 5 ביצירה, אבל זה עוזר רק ללוחות חדשים —
+     לא לעמודות שכבר קיימות ולא לעמודות שהמכינה בנתה ביד.
+   ============================================================ */
+    const status = (i, c) => {
+      const cell = i.column_values.find((x) => x.id === c);
+      if (!cell || cell.value === null || cell.value === undefined) return "";
+      return cell.text || "";
+    };
     return d.boards[0].items_page.items.map((i) => {
       /* עמודת dropdown מחזירה תוויות מופרדות בפסיק. הרשימה אינה
          סגורה — תפקיד שיתווסף בלוח יגיע לכאן בלי שינוי בקוד. */
@@ -90,7 +123,7 @@ export async function studentRows({ force = false } = {}) {
            ⚠ **אינו ב-`toPublic`** — הוא יוצא רק דרך נקודת הקצה
              של המיונים, שאוכפת מי רואה מה.
            ============================================================ */
-        armyCorps: (C.armyCorps && val(i, C.armyCorps)) || "",
+        armyCorps: (C.armyCorps && status(i, C.armyCorps)) || "",
         armyRole: (C.armyRole && val(i, C.armyRole)) || "",
         profile: {
           army: val(i, C.army) || "",

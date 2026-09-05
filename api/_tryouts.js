@@ -61,13 +61,32 @@ const R = MECHINA_COLS.roster;
    ⚠ כשל בקריאה מחזיר רשימה ריקה ואינו מפיל את המסך; אימות
      הכתיבה נופל אז ברעש ואינו פותח שער.
    ============================================================ */
+/* ============================================================
+   ⚠⚠ **תווית מושבתת יורדת מהרשימה.**
+
+   הדרך היחידה להוריד תווית מ-monday בלי למחוק נתונים היא
+   להשבית אותה (update_status_column דורס את כל הרשימה, ותווית
+   שנעלמת מוחקת בשקט את הערך של כל שורה שיושבת עליה). מי שקורא
+   רק את `labels` מקבל גם את המושבתות — כלומר ממשיך להציע לבחור
+   בדיוק את מה שמישהו הוריד ביד, ובלי שום סימן שמשהו לא בסדר.
+
+   ההשבתה יושבת ב-`deactivated_labels` (מערך של מזהי תוויות),
+   ולא בתוך `labels_colors`.
+   ============================================================ */
+const activeLabels = (settingsStr) => {
+  const st = JSON.parse(settingsStr || "{}");
+  const off = new Set((st.deactivated_labels || []).map(String));
+  return Object.entries(st.labels || {})
+    .filter(([id, t]) => t && !off.has(String(id)))
+    .map(([, t]) => String(t));
+};
+
 async function corpsLabels({ force = false } = {}) {
   if (!armyPlacementReady()) return [];
   return cached("army-corps", async () => {
     const d = await gql(`{ boards(ids:[${MECHINA_BOARDS.roster}]){ columns{ id settings_str } } }`);
     const col = (d.boards[0].columns || []).find((c) => c.id === R.armyCorps);
-    const labels = col ? Object.values(JSON.parse(col.settings_str || "{}").labels || {}) : [];
-    return labels.filter(Boolean).map(String);
+    return col ? activeLabels(col.settings_str) : [];
   }, { force, ttl: 10 * 60_000 });
 }
 
@@ -78,6 +97,39 @@ const placementOf = (row) => ({
 });
 
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
+
+/* ============================================================
+   ⚠⚠⚠ **`text` של עמודת סטטוס משקר על תא ריק.**
+
+   ל-monday יש "משבצת ריקה" קבועה בעמודת סטטוס — **אינדקס 5**.
+   תא בלי בחירה מחזיר `value: null` אבל `text` של **התווית
+   שיושבת על 5**, אם יש כזו. וזה לא באג נדיר: הוא הופיע ברגע
+   שנוצרה עמודת החילות, ו**כל 35 החניכים הופיעו כמשובצים
+   ל"חיל האוויר"** — התווית החמישית ברשימה.
+
+   ⚠ **ואי אפשר לפנות את המשבצת.** ניסינו: מחיקת התווית שעל 5
+     ויצירתה מחדש מחזירה אותה **בדיוק ל-5**, כי monday נותנת
+     תמיד את המפתח הפנוי הנמוך ביותר. שליחת `id` חדש נדחית
+     ב-"For new labels no id should be provided".
+
+   ⚠ **ולא רק בקריאה:** ניקוי תא סטטוס במחרוזת ריקה כותב
+     `index:5` **במפורש** — כלומר "למחוק את הבחירה" קובע אותה.
+     הניקוי הנכון הוא `null`.
+
+   לכן: **`value === null` הוא המבחן לריק, ולא `text === ""`.**
+   `text` נכון ומדויק לכל תא שיש בו בחירה אמיתית, ולכן הוא
+   נשאר מקור השם — רק הריק נגזר מ-`value`.
+
+   ⚠ כל עמודת סטטוס חדשה שתיקרא כאן חייבת את אותו טיפול.
+     `tools/seed-army.mjs` ו-`tools/seed-tryouts.mjs` כבר
+     מדלגים על מפתח 5 ביצירה, אבל זה עוזר רק ללוחות חדשים —
+     לא לעמודות שכבר קיימות ולא לעמודות שהמכינה בנתה ביד.
+   ============================================================ */
+const statusOf = (i, c) => {
+  const cell = i.column_values.find((x) => x.id === c);
+  if (!cell || cell.value === null || cell.value === undefined) return "";
+  return cell.text || "";
+};
 const isDate = (x) => /^\d{4}-\d{2}-\d{2}$/.test(String(x || ""));
 
 export async function loadTryouts({ force = false } = {}) {
@@ -91,7 +143,10 @@ export async function loadTryouts({ force = false } = {}) {
         student: val(i, T.student),
         studentName: val(i, T.studentName),
         date: val(i, T.date) || null,
-        status: val(i, T.status) || null,
+        /* ⚠ **מצב ריק הוא ריק.** לפני התיקון "לא הגיע" ישבה על
+           מפתח 5, ולכן כל מיון בלי מצב נקרא "לא הגיע" — טענה
+           על החניך שהוא מעולם לא עשה. ראו ההערה מעל. */
+        status: statusOf(i, T.status) || null,
         track: val(i, T.track) || null,
         note: val(i, T.note) || null,
       }))
@@ -294,7 +349,19 @@ async function setPlacement(req, res, session, body) {
   const cols = {};
   if (body.corps !== undefined) {
     const c = String(body.corps || "").trim();
-    if (!c) cols[R.armyCorps] = "";
+/* ============================================================
+       ⚠⚠⚠ **מנקים עמודת סטטוס ב-`null`, ולעולם לא במחרוזת ריקה.**
+
+       `""` **אינו** מנקה תא סטטוס — הוא כותב בו `{"index":5}`
+       במפורש, כלומר בוחר את המשבצת הריקה של monday. אם יושבת
+       שם תווית (וזה המצב כאן, "טרם שובץ"), התא נשאר עם `value`
+       שאינו `null` ועם `text` של אותה תווית — ו"מחקתי את
+       השיבוץ" הופך ל"שובצתי לתווית מוזרה".
+
+       `null` מנקה באמת: `value` חוזר ל-`null`, וזה מה שכל
+       הקריאה נשענת עליו (ראו ההערה ב-api/_student-rows.js).
+       ============================================================ */
+    if (!c) cols[R.armyCorps] = null;
     else {
       const known = await corpsLabels();
       /* ⚠ תווית שאינה בלוח נדחית ברעש ולא נוצרת בשקט. וההודעה
@@ -345,7 +412,8 @@ function fill(cols, body, res) {
   }
   if (body.status !== undefined) {
     const st = String(body.status || "").trim();
-    if (!st) cols[T.status] = "";
+    /* ⚠ `null` ולא `""` — ראו ההערה ב-setPlacement. */
+    if (!st) cols[T.status] = null;
     /* ⚠ תווית שאינה בלוח נדחית ברעש ולא נוצרת בשקט. */
     else if (!TRYOUT_STATUS.includes(st)) {
       res.status(400).json({ error: `"${st}" אינו מצב מוכר. האפשרויות: ${TRYOUT_STATUS.join(" · ")}` });

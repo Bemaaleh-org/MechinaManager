@@ -109,8 +109,8 @@ export const MECHINA_COLS = {
          ריקה ב-monday נקראת "" בלי שגיאה, וזה בדיוק המצב שבו
          שדה נראה עובד ואינו נשמר.
        ============================================================ */
-    armyCorps: "",
-    armyRole: "",
+    armyCorps: "color_mm6x6nhk",
+    armyRole: "text_mm6x6qf7",
     talk1: "date_mm6cegbw",
     talk2: "date_mm6cwdyv",
     talk3: "date_mm6c33sj",

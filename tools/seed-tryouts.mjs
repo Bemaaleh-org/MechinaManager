@@ -32,6 +32,26 @@ const COLS = [
 
 /* ⚠ התוויות נזרעות פעם אחת ומכאן והלאה `create_labels_if_missing`
    נשאר false — תווית חסרה פירושה טעות בקוד. */
+/* ============================================================
+   ⚠⚠⚠ **אינדקס 5 הוא המשבצת הריקה של monday — ואסור לתת לו שם.**
+
+   הגרסה הקודמת מיפתה את התוויות ל-1..6, ולכן "לא הגיע" נחתה על
+   5. התוצאה: **כל מיון בלי מצב נקרא "לא הגיע"** — התא ריק
+   (`value` הוא `null`), אבל `text` מחזיר את שם התווית שעל 5,
+   וכל הקוד במאגר קורא `text`.
+
+   ולא רק בקריאה: ניקוי של עמודת סטטוס כותב `index:5` במפורש,
+   כלומר "למחוק את המצב" היה **קובע** אותו.
+
+   אותה מלכודת נתפסה בעמודת החילות, שם היא סימנה את כל 35
+   החניכים כמשובצים ל"חיל האוויר". ראו tools/seed-army.mjs.
+   ============================================================ */
+const LABEL_KEYS = (() => {
+  const out = [];
+  for (let k = 1; out.length < 20; k++) if (k !== 5) out.push(k);
+  return out;
+})();
+
 /* ⚠ זהה לרשימה שב-shared/tryouts-ids.js ולזו שב-tools/seed-army.mjs.
    שלושתן חייבות להישאר תואמות בתו — לוח חדש שייזרע עם רשימה
    ישנה יראה תקין ויכשיל כל כתיבה. */
@@ -63,7 +83,7 @@ for (const [title, type, key] of COLS) {
        create_column(board_id:$b,title:$t,column_type:$c,defaults:$s){ id } }`,
     { b: board.id, t: title, c: type,
       s: type === "status"
-        ? JSON.stringify({ labels: Object.fromEntries(STATUSES.map((l, i) => [i + 1, l])) })
+        ? JSON.stringify({ labels: Object.fromEntries(STATUSES.map((l, i) => [LABEL_KEYS[i], l])) })
         : null });
   ids[key] = String(d.create_column.id);
   console.log("  עמודה: " + title + " → " + ids[key]);

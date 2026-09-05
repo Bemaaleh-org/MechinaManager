@@ -95,7 +95,7 @@ export const LESSON_COLS = {
 
        ⚠ ריקה עד ש-`npm run seed:army` ירוץ (`payFilterReady`).
        ============================================================ */
-    noPay: "",
+    noPay: "boolean_mm6x91w3",
     phone: "text_mm6wsa3w",
     mail: "text_mm6wg4cp",
     contact: "long_text_mm6wsr98",

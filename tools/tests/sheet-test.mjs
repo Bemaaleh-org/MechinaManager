@@ -185,6 +185,63 @@ try {
   r = await call(G, "GET", "/api/lessons?action=pay");
   ok("אבל כן קורא את הדוח", r.s === 200, String(r.s));
 
+  /* ============================================================
+     הוצאת שיעור מדוח התשלום
+     ------------------------------------------------------------
+     ⚠ **על הגיליון שהבדיקה יצרה בלבד.** הפיכת התיבה על שיעור
+       אמיתי משנה מספר כסף שהמכינה מסתכלת עליו — ו"מחזירים
+       בסוף" אינו מספיק כשהכתיבה היא על שורה קיימת (5א).
+     ============================================================ */
+  console.log("\n=== הוצאה מדוח התשלום ===");
+  r = await call(M, "GET", "/api/lessons?action=pay");
+  ok("המסך יודע אם העמודה הוקמה",
+    typeof r.b.excludeReady === "boolean", String(r.b.excludeReady));
+  ok("ומי רשאי להוציא נקבע בשרת",
+    r.b.canExclude === true, String(r.b.canExclude));
+
+  if (r.b.excludeReady) {
+    await call(M, "PUT", "/api/lessons?action=pay", { id, price: 450 });
+    r = await call(M, "PUT", "/api/lessons?action=pay", { id, noPay: true });
+    ok("הגיליון הוצא מהדוח", r.s === 200, `${r.s} ${r.b.error || ""}`);
+
+    r = await call(M, "GET", "/api/lessons?action=pay");
+    /* ⚠⚠ **הטענה המרכזית: הוצאה מוצגת ואינה נעלמת.** הוצאה
+       שאי אפשר לראות היא הוצאה שאיש לא יזכור, ואז מרצה שכן
+       צריך תשלום פשוט אינו בדוח בלי שום סימן. */
+    ok("והוא מופיע ברשימת מה שהוצא",
+      (r.b.excluded || []).some((x) => String(x.sheetId) === String(id)),
+      JSON.stringify((r.b.excluded || []).map((x) => x.subject)));
+    ok("ואינו ברשימת המחירים",
+      !(r.b.rows || []).some((x) => String(x.sheetId) === String(id)),
+      "הגיליון עדיין בדוח");
+
+    /* ⚠ **הגיליון נשאר פעיל בכל שאר המערכת** — זו עמודה של
+       הדוח ולא של השיעור. כיבוי active היה מוריד אותו מהכול. */
+    d = await mine();
+    ok("והשיעור עצמו נשאר פעיל", d.sheet.active === true, String(d.sheet.active));
+
+    /* ⚠ אחראי הלו״ז קובע מחיר ואינו מוציא מהדוח — שתי שאלות,
+       ולא הרשאה אחת. */
+    if (demo) {
+      const S3 = jar();
+      await call(S3, "POST", "/api/auth?action=signin",
+        { user: DEMO_USER, password: DEMO_PASS });
+      r = await call(S3, "PUT", "/api/lessons?action=pay", { id, noPay: false });
+      ok("וחניך אינו מחזיר אותו", r.s === 403, `${r.s} ${r.b.error || ""}`);
+    }
+
+    r = await call(M, "PUT", "/api/lessons?action=pay", { id, noPay: false });
+    ok("וההוצאה הפיכה", r.s === 200, `${r.s} ${r.b.error || ""}`);
+    r = await call(M, "GET", "/api/lessons?action=pay");
+    ok("והגיליון חזר לדוח",
+      !(r.b.excluded || []).some((x) => String(x.sheetId) === String(id)),
+      "עדיין ברשימת המוצאים");
+  } else {
+    r = await call(M, "PUT", "/api/lessons?action=pay", { id, noPay: true });
+    ok("ובלי העמודה — 503 מפורש ולא כישלון סתום",
+      r.s === 503 && r.b.setupRequired === true, `${r.s} ${r.b.error || ""}`);
+  }
+
   console.log("\n=== ניקוי ===");
   await cleanup();
   const left = (await allItems(LB.sheets)).filter((x) => x.name.includes("בדיקה"));

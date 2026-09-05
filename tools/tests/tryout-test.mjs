@@ -159,10 +159,26 @@ try {
     r = await call(M, "PUT", "/api/students?action=tryouts", { corps: pick });
     ok("ראש המכינה אינו משבץ", r.s === 403, `${r.s} ${r.b.error || ""}`);
 
-    /* ⚠ מחזירים את מה שהיה — ולא מנקים לריק. חשבון הבדיקה
-       הוא של אחים, ובדיקה שמנקה מוחקת לו נתון שהוא הזין. */
-    await call(S, "PUT", "/api/students?action=tryouts",
-      { corps: wasPlaced.corps || "", role: wasPlaced.role || "" });
+    /* ============================================================
+       ⚠⚠ **"למחוק את השיבוץ" חייב לרוקן באמת.**
+
+       זו לא בדיקה תיאורטית: הגרסה הראשונה ניקתה במחרוזת ריקה,
+       ומחרוזת ריקה **אינה מנקה עמודת סטטוס** — היא כותבת
+       `{"index":5}`, כלומר בוחרת את המשבצת הריקה של monday.
+       התוצאה הייתה שביטול שיבוץ הפך אותו לשיבוץ אחר. הטענה
+       הזו היא מה שתפס את זה.
+       ============================================================ */
+    r = await call(S, "PUT", "/api/students?action=tryouts", { corps: "", role: "" });
+    ok("ביטול שיבוץ עובר", r.s === 200, `${r.s} ${r.b.error || ""}`);
+    r = await call(S, "GET", "/api/students?action=tryouts");
+    ok("והשיבוץ באמת ריק — ולא תווית של משבצת ריקה",
+      !r.b.placement?.corps, JSON.stringify(r.b.placement));
+
+    /* ⚠ מחזירים את מה שהיה — ולא משאירים במצב שהבדיקה יצרה. */
+    if (wasPlaced.corps) {
+      await call(S, "PUT", "/api/students?action=tryouts",
+        { corps: wasPlaced.corps, role: wasPlaced.role || "" });
+    }
     r = await call(S, "GET", "/api/students?action=tryouts");
     ok("והמצב הקודם שוחזר",
       (r.b.placement?.corps || "") === (wasPlaced.corps || ""),
