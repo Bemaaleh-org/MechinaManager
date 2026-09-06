@@ -78,6 +78,15 @@ export async function loadLeaderWeeks({ force = false } = {}) {
   }, { force, ttl: 5 * 60_000 });
 }
 
+/**
+ * מטביע `leader` — "מוביל בתאריך הזה" — על רשימת חניכים ציבורית.
+ * ⚠ **המקור הוא לוח השבועות ולא העמודה במצבה.** ראו `toPublic`.
+ */
+export async function withLeaders(list, dateIso) {
+  const ids = new Set((await leadersForDate(dateIso)).map(String));
+  return list.map((s) => ({ ...s, leader: ids.has(String(s.id)) }));
+}
+
 /** מזהי המובילים של השבוע שהתאריך נופל בו. ריק אם אין. */
 export async function leadersForDate(dateIso) {
   const weeks = await loadLeaderWeeks();

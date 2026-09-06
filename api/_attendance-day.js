@@ -18,7 +18,7 @@ import {
 } from "./_attendance-data.js";
 import { loadSheets, loadMeetings } from "./_lessons-data.js";
 import { kitchenDutyOn } from "./_chores-data.js";
-import { weeksOfStudent } from "./_leader-weeks.js";
+import { weeksOfStudent, leadersForDate } from "./_leader-weeks.js";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -38,6 +38,7 @@ async function handler(req, res, session) {
     if (!DATE_RE.test(asked)) {
       return res.status(400).json({ error: "תאריך לא תקין. הפורמט: YYYY-MM-DD" });
     }
+    const dayLeaders = new Set((await leadersForDate(asked)).map(String));
     /* ============================================================
        ⚠ **שער הקריאה מתיישר עם שער הכתיבה.**
 
@@ -105,6 +106,9 @@ async function handler(req, res, session) {
         const hit = onDate.get(s.id);
         return {
           ...toPublic(s),
+          /* ⚠ מוביל **בתאריך שנבחר**, מלוח השבועות — לא העוקף
+             הידני. ראו toPublic. */
+          leader: dayLeaders.has(String(s.id)),
           absent: Boolean(hit),
           /* ⚠ נוכח רק אם סומן במפורש. לא נוכח ולא נעדר = לא סומן. */
           present: Boolean(stamp && stamp.present && stamp.present.has(s.id)),

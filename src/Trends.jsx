@@ -46,7 +46,7 @@ export default function TrendsPage({ say }) {
       <div className="screen-title">מגמות</div>
 
       {/* ⚠⚠ ההבטחה ראשונה, לפני הנתונים. */}
-      <div className="tr-promise">{d.promise}</div>
+      <div className="tn-promise">{d.promise}</div>
 
       <div className="tm-note" style={{ marginTop: 0 }}>
         שמונת השבועות שהסתיימו, {dmy(d.from)} – {dmy(d.to)}.
@@ -79,13 +79,13 @@ function Series({ s, min }) {
     /* ⚠ **מצב משלו ולא גרף ריק.** גרף של נקודה אחת נראה כמו
        נתון, והוא אינו. */
     return (
-      <div className="tr-card">
-        <div className="tr-h"><div className="tr-t">{s.title}</div></div>
-        <div className="tr-none">
+      <div className="tn-card">
+        <div className="tn-h"><div className="tn-t">{s.title}</div></div>
+        <div className="tn-none">
           עוד אין מספיק נתונים למגמה — צריך לפחות {min} שבועות עם נתון,
           ויש {real.length}.
         </div>
-        {s.note && <div className="tr-n">{s.note}</div>}
+        {s.note && <div className="tn-n">{s.note}</div>}
       </div>
     );
   }
@@ -98,42 +98,42 @@ function Series({ s, min }) {
   const flat = s.change === 0;
 
   return (
-    <div className="tr-card">
-      <div className="tr-h">
-        <div className="tr-t">{s.title}</div>
-        <div className="tr-now num">
+    <div className="tn-card">
+      <div className="tn-h">
+        <div className="tn-t">{s.title}</div>
+        <div className="tn-now num">
           {last}{s.unit}
           {s.change != null && !flat && (
-            <span className={"tr-ch " + (up ? "up" : "dn")}>
+            <span className={"tn-ch " + (up ? "up" : "dn")}>
               {up ? "▲" : "▼"} {Math.abs(s.change)}{s.unit}
             </span>
           )}
-          {flat && <span className="tr-ch">ללא שינוי</span>}
+          {flat && <span className="tn-ch">ללא שינוי</span>}
         </div>
       </div>
 
       {/* ⚠ **עמודות ולא קו.** קו בין נקודות מרמז על ערכים
           שביניהן, ואין כאן ערכים שביניהן — יש שמונה שבועות.
           ⚠ ושבוע בלי נתון מסומן ואינו מדולג: חור הוא מידע. */}
-      <div className="tr-bars" dir="rtl">
+      <div className="tn-bars" dir="rtl">
         {s.points.map((p) => (
-          <div className="tr-col" key={p.label} title={dmy(p.label)}>
+          <div className="tn-col" key={p.label} title={dmy(p.label)}>
             {p.value == null ? (
-              <div className="tr-bar tr-gap" style={{ height: "6px" }} />
+              <div className="tn-bar tn-gap" style={{ height: "6px" }} />
             ) : (
-              <div className="tr-bar"
+              <div className="tn-bar"
                 style={{ height: Math.max(4, (p.value / max) * 92) + "px" }} />
             )}
-            <div className="tr-lab">{dmy(p.label)}</div>
+            <div className="tn-lab">{dmy(p.label)}</div>
           </div>
         ))}
       </div>
 
       {/* ⚠ מקרא לחור, כי עמודה נמוכה וחור נראים דומה בהצצה. */}
       {s.points.some((p) => p.value == null) && (
-        <div className="tr-n">שבוע ללא נתון מסומן בקו דק — לא אפס.</div>
+        <div className="tn-n">שבוע ללא נתון מסומן בקו דק — לא אפס.</div>
       )}
-      {s.note && <div className="tr-n">{s.note}</div>}
+      {s.note && <div className="tn-n">{s.note}</div>}
     </div>
   );
 }

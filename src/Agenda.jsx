@@ -22,6 +22,35 @@ const dowOf = (iso) => DOW[new Date(iso + "T12:00:00Z").getUTCDay()];
 const dayLabel = (iso) =>
   `יום ${dowOf(iso)}, ${Number(iso.slice(8, 10))} ב${MONTHS[Number(iso.slice(5, 7)) - 1]}`;
 
+/* ============================================================
+   מסך הבית נטען בבת אחת
+   ------------------------------------------------------------
+   ⚠⚠ **הבעיה שזה פותר:** מסך הבית מורכב מחמישה-שישה מקורות
+     שכל אחד נטען לבד, וכרטיס הלו״ז — שמושך 787KB מ-Google —
+     קפץ פנימה שניות אחרי השאר ודחף את כל המסך למטה. מסך
+     ש"מתיישב" בשלבים נראה שבור, גם כשכל חלק בו תקין.
+
+   ⚠ **הרכיבים מורכבים ומביאים את הנתונים שלהם, ורק התצוגה
+     מוסתרת** (`hidden`, לא אי-רינדור). אחרת כרטיס שנטען רק
+     כשהוא מורכב לעולם לא היה מסיים לטעון, והשער היה נעול
+     על עצמו.
+
+   ⚠ **תקרה של חמש שניות.** מקור שנפל או שנתקע אינו מחזיק את
+     כל המסך כבן ערובה — אחרי התקרה מציגים מה שיש, וכל כרטיס
+     מציג את מצבו שלו (עיקרון 6 בגרסה של זמן).
+   ============================================================ */
+const HOME_GATE_MS = 5000;
+export function useHomeGate(expected) {
+  const [settled, setSettled] = React.useState(0);
+  const [late, setLate] = React.useState(false);
+  React.useEffect(() => {
+    const t = setTimeout(() => setLate(true), HOME_GATE_MS);
+    return () => clearTimeout(t);
+  }, []);
+  const bump = React.useCallback(() => setSettled((n) => n + 1), []);
+  return { ready: late || settled >= expected, bump };
+}
+
 function useLoad(fn, deps = []) {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
@@ -81,8 +110,11 @@ function EventRow({ e, now = false }) {
 }
 
 /* ---------- הלו״ז של היום, לשיבוץ במסך הבית ---------- */
-export function TodayAgenda({ onOpen, max = 4 }) {
+export function TodayAgenda({ onOpen, max = 4, onSettled }) {
   const { data, err, busy } = useLoad(() => api.getAgenda(), []);
+  /* ⚠ מדווח למסך הבית שסיים — הצלחה או כישלון — כדי שהמסך
+     ייפתח בבת אחת ולא יקפוץ כשהלו״ז מגיע. ראו useHomeGate. */
+  React.useEffect(() => { if (!busy && onSettled) onSettled(); }, [busy]); // eslint-disable-line react-hooks/exhaustive-deps
   if (busy || err || !data) return null;
   const list = data.todayEvents || [];
   if (list.length === 0) return null;

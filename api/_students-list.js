@@ -13,6 +13,7 @@
 
 import { withAuth } from "./_session.js";
 import { activeStudents, toPublic } from "./_student-rows.js";
+import { withLeaders } from "./_leader-weeks.js";
 import { loadCalendar, loadAbsences, loadMarked, summarize, israelToday } from "./_attendance-data.js";
 import { availableRoles } from "./_student-role.js";
 import { trainingByStudent, EMPTY_TRAINING } from "./_training-summary.js";
@@ -48,7 +49,8 @@ async function handler(req, res) {
     });
 
     res.status(200).json({
-      students: list,
+      /* ⚠ `leader` מלוח השבועות, לפי היום — ראו toPublic. */
+      students: await withLeaders(list, today),
       count: list.length,
       /* ⚠ נקראת מהגדרות העמודה בלוח ולא מרשימה בקוד — תפקיד חדש
          שיתווסף ב-monday יופיע במסך בלי דיפלוי. */

@@ -46,7 +46,7 @@ import LeadershipPage from "./Leadership.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import LessonPayPage from "./LessonPay.jsx";
 import { GanttPage } from "./Gantt.jsx";
-import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
+import { AgendaPage, TodayAgenda, useHomeGate } from "./Agenda.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
 import { useExcel, downloadTable } from "./excel.js";
 /* ⚠ המסך היחיד שמייבא קטגוריות מ-shared. סדר התצוגה חייב
@@ -183,7 +183,8 @@ function LoadFail({ msg, onRetry }) {
   );
 }
 
-const Loading = ({ what }) => (
+/* ⚠ מיוצא גם למעטפת הצוות — מסך הבית של שתיהן נטען בבת אחת (useHomeGate). */
+export const Loading = ({ what }) => (
   <div className="empty" style={{ paddingTop: 60 }}><div className="e1">{what}…</div></div>
 );
 
@@ -1850,6 +1851,10 @@ function StaffDossier({ f, studentId, isHead, say, reload }) {
             {!f.active && <span className="pill p-low">אינו פעיל</span>}
             {f.demo && <span className="pill p-new">חשבון בדיקה</span>}
             {f.leader && <span className="chip">מוביל שבוע</span>}
+            {/* ⚠ העוקף הידני מוצג בשמו ולא כ"מוביל שבוע": הוא אינו
+                פג לעולם, ומי שרואה אותו צריך לבדוק אם הוא עדיין
+                נחוץ (5ב). */}
+            {f.manualLeader && <span className="chip">סימון ידני: מוביל קבוע</span>}
             {(f.roles || []).map((r) => <span className="chip" key={r}>{r}</span>)}
           </div>
         )}
@@ -2858,27 +2863,39 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
   const [places, setPlaces] = useState(null);
   const [gantt, setGantt] = useState(null);
 
+  /* ⚠ שישה מקורות: חמישה כאן + כרטיס הלו״ז שמדווח בעצמו.
+     `year` ו-`reqs` מגיעים מהמעטפת ונבדקים בנפרד למטה. */
+  const gate = useHomeGate(6);
+  const bump = gate.bump;
+
   useEffect(() => {
     let live = true;
-    api.getProfile().then((r) => { if (live) setProfile(r); }).catch(() => {});
+    api.getProfile().then((r) => { if (live) setProfile(r); }).catch(() => {}).finally(bump);
     api.getPlacements()
       .then((r) => {
         if (!live) return;
         const defs = Object.fromEntries((r.definitions || []).map((d) => [d.id, d]));
         setPlaces((r.mine || []).map((m) => ({ ...m, def: defs[m.placement] })).filter((m) => m.def));
       })
-      .catch(() => { if (live) setPlaces([]); });
+      .catch(() => { if (live) setPlaces([]); })
+      .finally(bump);
     api.getFaults()
       .then((r) => { if (live) setFaults((r.faults || []).filter((x) => x.status !== "טופלה").length); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(bump);
     api.getRatable()
       .then((r) => { if (live) setRatable((r.meetings || []).filter((m) => !m.rated).length); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(bump);
     api.getGantt()
       .then((r) => { if (live) setGantt(r.events || []); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(bump);
     return () => { live = false; };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ⚠ מוכן = כל המקורות הסתיימו (או שעברה התקרה) וגם המעטפת. */
+  const homeReady = gate.ready && !year.busy && !reqs.busy;
 
   const greet = () => {
     const h = new Date().getHours();
@@ -2972,6 +2989,10 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
 
   return (
     <>
+      {!homeReady && <Loading what="טוען את מסך הבית" />}
+      {/* ⚠ `hidden` ולא אי-רינדור — הכרטיסים חייבים להיות מורכבים
+          כדי לטעון. ראו useHomeGate. */}
+      <div hidden={!homeReady}>
       <div className="hero2">
         <img src="/photos/student.jpg" alt="חניכי המכינה" />
         <div className="h2-veil" />
@@ -2984,7 +3005,7 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
 
       {year.err && <LoadFail msg={year.err} onRetry={year.reload} />}
 
-      <TodayAgenda onOpen={() => go("agenda")} />
+      <TodayAgenda onOpen={() => go("agenda")} onSettled={bump} />
 
       {/* ============================================================
           לוח השיעורים — לאחראי הלו״ז
@@ -3131,6 +3152,7 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
         ))}
       </div>
       <div style={{ height: 30 }} />
+      </div>
     </>
   );
 }

@@ -32,13 +32,14 @@
    ============================================================ */
 
 import { withAuth } from "./_session.js";
+import { israelToday } from "./_attendance-data.js";
 import { gql } from "./_monday.js";
 import { studentRows } from "./_student-rows.js";
 import { invalidate } from "./_cache.js";
 import { MECHINA_BOARDS, MECHINA_COLS } from "../shared/mechina-boards.js";
 import { guideMap, isGuideOf } from "./_guides.js";
 import { loadRequests } from "./_requests.js";
-import { loadLeaderWeeks } from "./_leader-weeks.js";
+import { loadLeaderWeeks, leadersForDate } from "./_leader-weeks.js";
 import { placementsFor } from "./_placements.js";
 import { identities } from "./_identity.js";
 import { phoneHe } from "../shared/mechina-boards.js";
@@ -171,7 +172,12 @@ async function staffView(student, guide) {
     group: guide ? guide.group || null : null,
     guide: guide ? (guide.short || guide.name) : null,
     roles: student.roles || [],
-    leader: Boolean(student.leader),
+    /* ⚠ **שני שדות ולא אחד.** `leader` הוא מלוח השבועות — האם
+       הוא מוביל **היום**; `manualLeader` הוא העוקף הידני שבמצבה,
+       והוא מוצג בשמו כדי שמי שרואה אותו יבדוק אם הוא עדיין
+       נחוץ (5ב). */
+    leader: (await leadersForDate(israelToday())).map(String).includes(String(student.id)),
+    manualLeader: Boolean(student.leader),
 
     /* ---------- הכניסה למערכת ----------
        ⚠ הסיסמה לא קיימת כאן ולא בשום מקום — רק האם נבחרה.

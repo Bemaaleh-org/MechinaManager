@@ -10,13 +10,14 @@ import Login from "./Login.jsx";
 import Setup from "./Setup.jsx";
 import { CyclesPage } from "./Cycles.jsx";
 import { ProfilePage } from "./Profile.jsx";
+import { useHomeGate } from "./Agenda.jsx";
 import BoardPage from "./Board.jsx";
 import MyDataPage from "./MyData.jsx";
 import TrendsPage from "./Trends.jsx";
 import OfflineBar from "./Offline.jsx";
 import SearchOverlay, { SearchButton } from "./Search.jsx";
 import ExportPage from "./Export.jsx";
-import { MechinaApp, MechinaStaff, WeekLeadersPage, RoleHoldersPage } from "./Mechina.jsx";
+import { MechinaApp, MechinaStaff, WeekLeadersPage, RoleHoldersPage, Loading } from "./Mechina.jsx";
 import { LessonsPage, LessonsBoard, LESSON_TABS } from "./Lessons.jsx";
 import { AlumniPage, HostingPage, LoansPage } from "./Extras.jsx";
 import { MenuPage } from "./Menu.jsx";
@@ -604,15 +605,20 @@ function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goCont
   const [kitchen, setKitchen] = useState(null); // {missing, openShopping}
   const [budget, setBudget] = useState(null);   // {month, total, head}
   const [failed, setFailed] = useState(false);
+  /* ⚠ חמישה מקורות — ראו useHomeGate ב-Agenda.jsx. */
+  const gate = useHomeGate(5);
+  const bump = gate.bump;
 
   useEffect(() => {
     let live = true;
     api.getStudents()
       .then((r) => { if (live) setToday(r.today); })
-      .catch(() => { if (live) setFailed(true); });
+      .catch(() => { if (live) setFailed(true); })
+      .finally(bump);
     api.getGantt()
       .then((r) => { if (live) setGantt(r.events); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(bump);
     api.getFaults()
       .then((r) => {
         if (!live) return;
@@ -622,10 +628,12 @@ function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goCont
           urgent: openList.filter((x) => x.urgency === "דחוף").length,
         });
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(bump);
     api.getBudget()
       .then((r) => { if (live) setBudget({ month: r.month, total: r.total, head: r.headcount }); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(bump);
     Promise.all([api.getKitchen("אוכל"), api.getKitchen("חד״פ")])
       .then(([a, b]) => {
         if (!live) return;
@@ -634,9 +642,10 @@ function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goCont
           openShopping: (a.counts?.openShopping || 0) + (b.counts?.openShopping || 0),
         });
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(bump);
     return () => { live = false; };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const greet = () => {
     const h = new Date().getHours();
@@ -729,6 +738,8 @@ function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goCont
 
   return (
     <>
+      {!gate.ready && <Loading what="טוען את מסך הבית" />}
+      <div hidden={!gate.ready}>
       {/* ---------- הפתיח ---------- */}
       <div className="hero2">
         <img src="/photos/dash.jpg" alt="חניכי המכינה על הדשא" />
@@ -825,6 +836,7 @@ function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goCont
             )}
           </button>
         ))}
+      </div>
       </div>
     </>
   );
