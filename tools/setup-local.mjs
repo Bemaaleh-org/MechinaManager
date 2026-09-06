@@ -26,6 +26,24 @@ import { MECHINA_BOARDS } from "../shared/mechina-boards.js";
 import { CONTAINER_BOARDS } from "../shared/container-boards.js";
 import { KITCHEN_BOARDS } from "../shared/kitchen-ids.js";
 import { PLACEMENT_BOARDS } from "../shared/placements-ids.js";
+/* ⚠ **כל לוח שנוסף למערכת נוסף גם כאן.** עמדה חדשה צריכה לדעת
+   בדקה הראשונה אם הטוקן שלה מגיע לכל הלוחות — ולא לגלות את
+   זה במסך הראשון שנופל. הרשימה נגזרת מקבצי ה-ids, כך שמזהה
+   ריק (לוח שטרם הוקם) פשוט מדולג. */
+import { TEAM_BOARDS } from "../shared/team-ids.js";
+import { PROJECT_BOARDS } from "../shared/projects-ids.js";
+import { LEAD_BOARDS } from "../shared/lead-ids.js";
+import { BOARD_BOARDS } from "../shared/board-ids.js";
+import { CHORE_BOARDS } from "../shared/chores-ids.js";
+import { DUTY_BOARDS } from "../shared/duty-ids.js";
+import { BUDGET_BOARDS } from "../shared/budget-ids.js";
+import { TRYOUT_BOARD } from "../shared/tryouts-ids.js";
+import { FAULTS } from "../shared/faults-ids.js";
+import { SAFETY } from "../shared/safety-ids.js";
+import { CYCLES_BOARD } from "../shared/cycles-ids.js";
+
+const prefix = (p, obj) =>
+  Object.fromEntries(Object.entries(obj || {}).map(([k, v]) => [p + ":" + k, v]));
 
 const ok = (m) => console.log(`  ✓ ${m}`);
 const warn = (m) => console.log(`  ! ${m}`);
@@ -113,6 +131,18 @@ if (!env.MONDAY_TOKEN) {
       kitchenShop: KITCHEN_BOARDS.shopping,
       placeDefs: PLACEMENT_BOARDS.definitions,
       placeAsgn: PLACEMENT_BOARDS.assignments,
+      /* ⚠ קידומת לכל תחום, כדי ששני "tasks" לא ידרסו זה את זה. */
+      ...prefix("team", TEAM_BOARDS),
+      ...prefix("project", PROJECT_BOARDS),
+      ...prefix("lead", LEAD_BOARDS),
+      ...prefix("board", BOARD_BOARDS),
+      ...prefix("chore", CHORE_BOARDS),
+      ...prefix("duty", DUTY_BOARDS),
+      ...prefix("budget", BUDGET_BOARDS),
+      tryouts: TRYOUT_BOARD.board,
+      faults: FAULTS.board,
+      safety: SAFETY.board,
+      cycles: typeof CYCLES_BOARD === "object" ? CYCLES_BOARD.board : CYCLES_BOARD,
     }).filter(([, id]) => id)),
   };
 
@@ -121,7 +151,10 @@ if (!env.MONDAY_TOKEN) {
     ok(`מחובר כ-${me.me.name}`);
 
     const ids = Object.values(boards);
-    const data = await gql(`{ boards(ids:[${ids.join(",")}]) { id name } }`);
+    /* ⚠⚠ **limit חובה.** monday מחזירה 25 לוחות כברירת מחדל גם
+       כשמבקשים 42 בשמם — ו-17 "לא נגישים" היו בדיוק ההפרש.
+       הבדיקה הכריזה על תקלת הרשאה בטוקן שעובד באוויר. */
+    const data = await gql(`{ boards(ids:[${ids.join(",")}], limit:${ids.length}) { id name } }`);
     const found = new Set(data.boards.map((b) => String(b.id)));
     const missing = Object.entries(boards).filter(([, id]) => !found.has(String(id)));
 

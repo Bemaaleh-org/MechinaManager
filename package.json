@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20.6"
+  },
   "scripts": {
     "dev": "node --env-file=.env node_modules/vite/bin/vite.js",
     "build": "vite build",
@@ -26,6 +29,9 @@
     "seed:lead": "node --env-file=.env tools/seed-lead.mjs",
     "seed:board": "node --env-file=.env tools/seed-board.mjs",
     "clean:defaults": "node --env-file=.env tools/clean-defaults.mjs",
+    "check:icons": "node tools/check-icons.mjs",
+    "seed:demo": "node --env-file=.env tools/seed-demo.mjs",
+    "demo:flag": "node --env-file=.env tools/demo-flag.mjs",
     "push:test": "node --env-file=.env tools/push-test.mjs",
     "projects:orphans": "node --env-file=.env tools/projects-orphans.mjs"
   },
