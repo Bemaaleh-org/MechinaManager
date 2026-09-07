@@ -179,6 +179,7 @@ for (const [step, ids] of [["students", created], ["gantt", gIds], ["sheets", sh
    קיימות כדי למנוע.
    ============================================================ */
 console.log(`\n${pass} עברו, ${fail} נכשלו`);
-process.exit(fail ? 1 : 0);
-
+/* ⚠ השחזור **לפני** היציאה. הוא ישב אחרי process.exit ומעולם לא רץ —
+   שורת מנהל שנרשמה זמנית נשארה "רשומה" אחרי כל הרצה. */
 await reg.restore();
+process.exit(fail ? 1 : 0);

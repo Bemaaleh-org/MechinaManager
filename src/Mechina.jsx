@@ -405,17 +405,22 @@ function Summary({ s }) {
    ============================================================ */
 const TYPES = ["חופש", "מחלה", "מוצדקת"];
 
-function RequestForm({ days, quota, onDone, say }) {
-  const [type, setType] = useState("מחלה");
-  const [date, setDate] = useState("");
-  const [endDate, setEndDate] = useState(""); // ריק = יום אחד
-  const [detail, setDetail] = useState("");
+/* ⚠ `initial` — עריכה של בקשה ממתינה. אותו טופס בדיוק, עם
+   הערכים הקיימים; השרת מאפס את המלצת המדריך כשהפרטים המהותיים
+   משתנים, והטופס אומר זאת לפני השליחה. */
+function RequestForm({ days, quota, onDone, say, initial = null }) {
+  const editing = Boolean(initial && initial.id);
+  const [type, setType] = useState(initial?.type || "מחלה");
+  const [date, setDate] = useState(initial?.date || "");
+  const [endDate, setEndDate] = useState(
+    initial && initial.endDate && initial.endDate !== initial.date ? initial.endDate : ""); // ריק = יום אחד
+  const [detail, setDetail] = useState(initial?.detail || "");
   /* ⚠ **שעת יציאה וחזרה — חובה בכל בקשה.** זו השאלה התפעולית
      האמיתית, ובלעדיה המדריך שואל בוואטסאפ בדיוק את מה שהטופס
      אמור היה לתפוס. ברירת המחדל היא ריק ולא שעה סבירה: שעה
      שמולאה מראש נשלחת כמות שהיא בלי שאיש הסתכל עליה. */
-  const [outAt, setOutAt] = useState("");
-  const [backAt, setBackAt] = useState("");
+  const [outAt, setOutAt] = useState(initial?.outAt || "");
+  const [backAt, setBackAt] = useState(initial?.backAt || "");
   const [file, setFile] = useState(null); // {name, mime, data}
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -461,28 +466,43 @@ function RequestForm({ days, quota, onDone, say }) {
     e.preventDefault();
     if (busy || blocked) return;
     setBusy(true); setErr(null);
-    api.createRequest({
+    const body = {
       type, date, endDate: endDate || undefined, detail: detail.trim(),
       outAt, backAt,
-      ...(type === "מחלה" && file
-        ? { fileName: file.name, fileMime: file.mime, fileData: file.data } : {}),
-    })
+      /* ⚠ קובץ לכל סוג בקשה — לא למחלה בלבד. */
+      ...(file ? { fileName: file.name, fileMime: file.mime, fileData: file.data } : {}),
+    };
+    (editing ? api.editRequest({ id: initial.id, ...body }) : api.createRequest(body))
       .then((r) => {
-        if (r.fileUploaded === false) say("הבקשה נשלחה, אבל העלאת האישור נכשלה — נסו שוב מהמסך");
-        else say(r.days > 1 ? `הבקשה נשלחה — ${r.days} ימים` : "הבקשה נשלחה");
-        setDate(""); setEndDate(""); setDetail("");
-        setOutAt(""); setBackAt(""); setFile(null);
+        if (r.fileUploaded === false) say("הבקשה נשמרה, אבל העלאת המסמך נכשלה — נסו שוב מהמסך");
+        else if (editing) {
+          say(r.changed && r.changed.length
+            ? "הבקשה עודכנה" + (r.guideReset ? " — היא חוזרת למדריך להמלצה" : "")
+            : "לא היה מה לשנות");
+        } else say(r.days > 1 ? `הבקשה נשלחה — ${r.days} ימים` : "הבקשה נשלחה");
+        if (!editing) {
+          setDate(""); setEndDate(""); setDetail("");
+          setOutAt(""); setBackAt(""); setFile(null);
+        }
         onDone();
       })
       .catch((e2) => setErr(e2.message))
       .finally(() => setBusy(false));
   };
 
-  /* רק ימים שקיימים בלוח, ומהיום והלאה */
-  const options = useMemo(
-    () => days.filter((d) => d.state === "future" || d.state === "unmarked"),
-    [days]
-  );
+  /* רק ימים שקיימים בלוח, ומהיום והלאה.
+     ⚠ בעריכה התאריך הקיים נשאר ברשימה גם אם כבר עבר — אחרת
+       הבורר מציג ריק על בקשה שיש לה תאריך. */
+  const options = useMemo(() => {
+    const list = days.filter((d) => d.state === "future" || d.state === "unmarked");
+    for (const iso of [initial?.date, initial?.endDate]) {
+      if (iso && !list.some((d) => d.date === iso)) {
+        const hit = byDate.get(iso);
+        if (hit) list.push(hit);
+      }
+    }
+    return list.sort((a, b) => a.date.localeCompare(b.date));
+  }, [days, initial, byDate]);
 
   return (
     <form className="card" onSubmit={submit}>
@@ -608,24 +628,38 @@ function RequestForm({ days, quota, onDone, say }) {
         )}
       </div>
 
-      {type === "מחלה" && (
-        <div className="fld">
-          <label htmlFor="rq-file">אישור מחלה (לא חובה)</label>
-          <input id="rq-file" type="file" accept="image/*,.pdf" disabled={busy}
-            onChange={pickFile}
-            style={{ width: "100%", minHeight: 48, background: "var(--surface)",
-                     border: "1px solid var(--line2)", borderRadius: 11,
-                     padding: "11px 13px", fontSize: 14 }} />
-          {file && (
-            <div style={{ fontSize: 12, color: "var(--ok)", fontWeight: 700, marginTop: 5 }}>
-              ✓ {file.name} מוכן לשליחה
-            </div>
-          )}
+      {/* ⚠ **קובץ לכל סוג בקשה.** אישור מחלה, הזמנה לאירוע, זימון
+          למיון — כולם מסמכים שהצוות מבקש, ודרישת "מחלה בלבד"
+          שלחה את השאר לוואטסאפ. */}
+      <div className="fld">
+        <label htmlFor="rq-file">
+          {type === "מחלה" ? "אישור מחלה (לא חובה)" : "מסמך מצורף (לא חובה)"}
+        </label>
+        <input id="rq-file" type="file" accept="image/*,.pdf" disabled={busy}
+          onChange={pickFile}
+          style={{ width: "100%", minHeight: 48, background: "var(--surface)",
+                   border: "1px solid var(--line2)", borderRadius: 11,
+                   padding: "11px 13px", fontSize: 14 }} />
+        {file && (
+          <div style={{ fontSize: 12, color: "var(--ok)", fontWeight: 700, marginTop: 5 }}>
+            ✓ {file.name} מוכן לשליחה
+          </div>
+        )}
+        {editing && initial.hasFile && !file && (
+          <div className="fld-hint">כבר צורף מסמך לבקשה. קובץ חדש יתווסף לצידו.</div>
+        )}
+      </div>
+
+      {/* ⚠ נאמר לפני ולא אחרי: המדריך כבר המליץ, והשינוי מחזיר
+          את הבקשה אליו. */}
+      {editing && initial.stage === undefined && (
+        <div className="fld-hint" style={{ marginBottom: 10 }}>
+          שינוי של תאריך, סוג או שעות מחזיר את הבקשה להתחלת המסלול.
         </div>
       )}
 
       <button className="btn btn-primary" type="submit" disabled={busy || blocked}>
-        {busy ? "שולח…" : "שליחת הבקשה"}
+        {busy ? "שומר…" : editing ? "שמירת השינויים" : "שליחת הבקשה"}
       </button>
     </form>
   );
@@ -680,8 +714,12 @@ function RequestTrack({ r }) {
   );
 }
 
-function RequestCard({ r, onDecide, busyId }) {
+/* ⚠ `onEdit` ו-`onWithdraw` מוצגים רק כשהשרת אמר `canEdit` —
+   בקשה ממתינה של מי שמסתכל. כפתור שמופיע ומקבל 409 אחרי
+   הלחיצה הוא בדיוק מה ש-4יד אוסר. */
+function RequestCard({ r, onDecide, busyId, onEdit, onWithdraw }) {
   const busy = busyId === r.id;
+  const [confirm, setConfirm] = useState(false);
   /* ⚠ המדריך ממליץ, ראש המכינה מכריע. אותם כפתורים, טקסט אחר —
      כדי שהמדריך לא יחשוב שסגר את הבקשה. */
   const isRec = r.decideAs === "guide";
@@ -699,10 +737,38 @@ function RequestCard({ r, onDecide, busyId }) {
       <div className="rq-meta">
         <span className={"pill " + (TYPE_PILL[r.type] || "p-new")}>{r.type}</span>
         <span className={"pill " + (STATUS_PILL[r.status] || "p-new")}>{r.status}</span>
-        {r.hasFile && <span className="pill p-ok">צורף אישור</span>}
+        {r.hasFile && (r.fileUrl
+          ? <a className="pill p-ok" href={r.fileUrl} target="_blank" rel="noreferrer">צורף מסמך ↗</a>
+          : <span className="pill p-ok">צורף מסמך</span>)}
         {r.groupName && <span>· {r.groupName}</span>}
       </div>
+      {/* ⚠ **השעות מוצגות לכולם** — הן הדבר הראשון שהמדריך צריך,
+          והן היו במיפוי של החניך בלבד. */}
+      {(r.outAt || r.backAt) && (
+        <div className="rq-hours">
+          <span>יציאה <b className="num" dir="ltr">{r.outAt || "—"}</b></span>
+          <span>חזרה <b className="num" dir="ltr">{r.backAt || "—"}</b></span>
+        </div>
+      )}
       {r.detail && <div className="rq-detail">{r.detail}</div>}
+      {r.canEdit && (onEdit || onWithdraw) && (
+        <div className="rq-act rq-own">
+          {onEdit && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => onEdit(r)}>
+              עריכה
+            </button>
+          )}
+          {onWithdraw && (confirm ? (
+            <button type="button" className="btn btn-clay btn-sm" disabled={busy}
+              onClick={() => { setConfirm(false); onWithdraw(r); }}>
+              לבטל את הבקשה?
+            </button>
+          ) : (
+            <button type="button" className="btn btn-ghost btn-sm" style={{ color: "var(--clay)" }}
+              onClick={() => setConfirm(true)}>ביטול הבקשה</button>
+          ))}
+        </div>
+      )}
       {r.stage && <RequestTrack r={r} />}
       {onDecide && r.canDecide && skipping && (
         <div className="rq-skip">
@@ -1545,16 +1611,18 @@ function ManagerRequests({ say }) {
               file: "בקשות-יציאה",
               sheet: "בקשות יציאה",
               title: "בקשות יציאה — מכינת ניר עוז",
-              header: ["חניך", "קבוצה", "סוג", "מתאריך", "עד תאריך", "פירוט", "אישור מחלה",
+              header: ["חניך", "קבוצה", "סוג", "מתאריך", "עד תאריך", "שעת יציאה", "שעת חזרה",
+                       "פירוט", "מסמך",
                        "שלב", "המלצת המדריך", "המדריך", "סטטוס", "הוכרע על ידי"],
               rows: data.requests.map((r) => [
                 r.student ? r.student.name : "", r.groupName || "", r.type, dmy(r.date),
                 r.endDate && r.endDate !== r.date ? dmy(r.endDate) : "",
+                r.outAt || "", r.backAt || "",
                 r.detail || "", r.hasFile ? "צורף" : "",
                 r.stage || "", r.guideDecision || "", r.guideBy || r.guideName || "",
                 r.status, r.decidedBy || "",
               ]),
-              widths: [20, 13, 10, 12, 12, 30, 11, 15, 13, 15, 10, 16],
+              widths: [20, 13, 10, 12, 12, 10, 10, 30, 9, 15, 13, 15, 10, 16],
             });
             say("הקובץ ירד");
           }}><MI.dl />הורדת כל הבקשות לאקסל</button>
@@ -3170,6 +3238,14 @@ export function MechinaApp({ auth, onSignedOut }) {
 
   const year = useLoad(() => api.getStudentYear(null, td), [td]);
   const reqs = useLoad(() => api.getRequests(), []);
+  /* ⚠ בקשה ממתינה שנפתחה לעריכה. השרת מחזיר `canEdit` ורק
+     כרטיס שנושא אותו מציע עריכה. */
+  const [editReq, setEditReq] = useState(null);
+  const withdraw = (r) => {
+    api.deleteRequest(r.id)
+      .then(() => { say("הבקשה בוטלה"); reqs.reload(); year.reload(); })
+      .catch((e) => say(e.message));
+  };
 
   const signOut = () => {
     api.logout().catch(() => {}).finally(onSignedOut);
@@ -3432,7 +3508,22 @@ export function MechinaApp({ auth, onSignedOut }) {
           </>
         )}
 
-        {tab === "requests" && (
+        {tab === "requests" && editReq && (
+          <>
+            <button className="btn btn-ghost btn-sm" style={{ marginBottom: 14 }}
+              onClick={() => setEditReq(null)}>
+              <MI.chev style={{ transform: "rotate(180deg)" }} />ביטול העריכה
+            </button>
+            <div className="screen-title">עריכת בקשה</div>
+            {year.data ? (
+              <RequestForm days={year.data.days} quota={year.data.summary.quota}
+                say={say} initial={editReq}
+                onDone={() => { setEditReq(null); refreshAll(); }} />
+            ) : <Loading what="טוען" />}
+          </>
+        )}
+
+        {tab === "requests" && !editReq && (
           <>
             <div className="screen-title">הבקשות שלי</div>
             {reqs.err && <LoadFail msg={reqs.err} onRetry={reqs.reload} />}
@@ -3442,7 +3533,9 @@ export function MechinaApp({ auth, onSignedOut }) {
                 <div className="e1">אין בקשות</div>
                 <div className="e2">בקשה שתגיש תופיע כאן עם הסטטוס שלה.</div>
               </div>
-            ) : reqs.data.requests.map((r) => <RequestCard key={r.id} r={r} />))}
+            ) : reqs.data.requests.map((r) => (
+              <RequestCard key={r.id} r={r} onEdit={setEditReq} onWithdraw={withdraw} />
+            )))}
 
             <div className="sticky">
               <button className="btn btn-primary" onClick={() => setTab("new")}>

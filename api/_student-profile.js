@@ -196,6 +196,7 @@ async function staffView(student, guide) {
     requests: (requests || []).map((r) => ({
       id: r.id, type: r.type, date: r.date, endDate: r.endDate,
       status: r.status, detail: r.detail || null,
+      outAt: r.outAt, backAt: r.backAt,
       decidedBy: r.decidedBy, decidedAt: r.decidedAt,
       guideDecision: r.guideDecision, guideBy: r.guideBy,
     })),

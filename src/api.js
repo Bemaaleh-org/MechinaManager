@@ -600,6 +600,13 @@ export const api = {
     post("/api/attendance?action=requests",
       { type, date, endDate, detail, outAt, backAt, fileName, fileMime, fileData }),
 
+  /* ⚠ עריכה וביטול — לבקשה ממתינה בלבד, ועל ידי מי שהגיש.
+     שדה שלא נשלח נשאר כפי שהוא; קובץ מצורף לכל סוג בקשה. */
+  editRequest: ({ id, type, date, endDate, detail, outAt, backAt, fileName, fileMime, fileData }) =>
+    put("/api/attendance?action=requests",
+      { id, type, date, endDate, detail, outAt, backAt, fileName, fileMime, fileData }),
+  deleteRequest: (id) => del("/api/attendance?action=requests", { id }),
+
   /** אישור או דחייה. מנהל בלבד. אישור יוצר את שורת ההיעדרות. */
   decideRequest: ({ requestId, decision }) =>
     post("/api/attendance?action=decide", { requestId, decision }),

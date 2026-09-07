@@ -181,14 +181,67 @@ ok("והשדות שכן — בדיוק אלה שהוגדרו",
     /* ⚠ הרשימה **סגורה בכוונה**: היא נועלת את מה שיוצא
        לחניך, ושדה חדש שיתווסף למיפוי ייפול כאן ולא ידלוף
        בשקט. outAt ו-backAt נוספו במודע — הן שעות שהחניך
-       עצמו הזין. */
-    ["backAt","date","decidedAt","decidedBy","detail","endDate","hasFile","id","outAt","status","type"]),
+       עצמו הזין. canEdit ו-fileUrl נוספו עם העריכה העצמית:
+       הראשון נגזר בשרת כדי שהכפתור יידע מראש, והשני הוא
+       הקובץ שהחניך עצמו צירף. */
+    ["backAt","canEdit","date","decidedAt","decidedBy","detail","endDate","fileUrl","hasFile","id","outAt","status","type"]),
   Object.keys(q).sort().join(","));
 ok("ולא רואה בקשות של אחרים",
   !mineReqs.requests.some((x) => x.id === noGroupId), "מספר בקשות: " + mineReqs.requests.length);
 
+/* ============================================================
+   עריכה וביטול — החניך, ורק כשהבקשה ממתינה
+   ------------------------------------------------------------
+   ⚠ שלושה כיוונים ולא אחד: מי שהגיש כן; חניך אחר מקבל 404
+     (ולא 403 — 403 מאשר שהבקשה קיימת); צוות מקבל 403; ובקשה
+     שהוכרעה מחזירה 409 גם למי שהגיש.
+   ============================================================ */
+console.log("\n=== עריכה וביטול על ידי החניך ===");
+const DATE3 = "2026-11-18";
+r = await call(S.j, "POST", "/api/attendance?action=requests",
+  { type: "מוצדקת", date: DATE3, endDate: DATE3, detail: "בדיקה — לעריכה", outAt: "14:00", backAt: "20:00" });
+ok("הוגשה בקשה שלישית", r.status === 200, r.b.error);
+const editId = r.b.id;
+q = (await call(S.j, "GET", "/api/attendance?action=requests")).b.requests.find((x) => x.id === editId);
+ok("החניך רואה canEdit על בקשה ממתינה", q && q.canEdit === true);
+q = (await call(S.j, "GET", "/api/attendance?action=requests")).b.requests.find((x) => x.id === id);
+ok("ולא על בקשה שהוכרעה", q && q.canEdit === false);
+
+r = await call(NOAM.j, "POST", "/api/attendance?action=decide", { requestId: editId, decision: "approve" });
+ok("נעם המליץ", r.status === 200 && r.b.stage === "אצל ראש המכינה", r.b.error);
+
+r = await call(S.j, "PUT", "/api/attendance?action=requests", { id: editId, detail: "בדיקה — פירוט חדש" });
+ok("עריכת פירוט בלבד", r.status === 200 && r.b.changed.includes("פירוט"), r.b.error || JSON.stringify(r.b.changed));
+ok("פירוט אינו מאפס את ההמלצה", r.b.guideReset === false);
+
+r = await call(S.j, "PUT", "/api/attendance?action=requests", { id: editId, outAt: "16:00" });
+ok("עריכת שעת יציאה", r.status === 200 && r.b.changed.includes("שעת יציאה"), r.b.error);
+ok("ושינוי מהותי מאפס את המלצת המדריך", r.b.guideReset === true);
+q = (await call(DANI.j, "GET", "/api/attendance?action=requests")).b.requests.find((x) => x.id === editId);
+ok("הבקשה חזרה לשלב המדריך", q.stage === "אצל המדריך" && q.guideDecision === null, JSON.stringify({ s: q.stage, g: q.guideDecision }));
+ok("והצוות רואה את השעות", q.outAt === "16:00" && q.backAt === "20:00", JSON.stringify({ o: q.outAt, b: q.backAt }));
+
+r = await call(S2.j, "PUT", "/api/attendance?action=requests", { id: editId, detail: "לא שלי" });
+ok("חניך אחר — 404", r.status === 404, String(r.status));
+r = await call(DANI.j, "PUT", "/api/attendance?action=requests", { id: editId, detail: "צוות" });
+ok("צוות — 403", r.status === 403, String(r.status));
+r = await call(S.j, "PUT", "/api/attendance?action=requests", { id, detail: "כבר הוכרעה" });
+ok("בקשה שהוכרעה — 409", r.status === 409, String(r.status));
+r = await call(S.j, "PUT", "/api/attendance?action=requests", { id: editId, outAt: "25:00" });
+ok("שעה לא חוקית נדחית", r.status === 400, String(r.status));
+
+r = await call(S2.j, "DELETE", "/api/attendance?action=requests", { id: editId });
+ok("ביטול על ידי חניך אחר — 404", r.status === 404, String(r.status));
+r = await call(S.j, "DELETE", "/api/attendance?action=requests", { id: editId });
+ok("החניך מבטל", r.status === 200, r.b.error);
+ok("והבקשה נעלמה",
+  !(await call(S.j, "GET", "/api/attendance?action=requests")).b.requests.some((x) => x.id === editId));
+
 console.log("\n=== ניקוי ===");
 for (const rid of [id, noGroupId]) await del(rid);
+/* ⚠ הבקשה השלישית בוטלה בבדיקה עצמה; אם הביטול נכשל היא
+   נמחקת כאן לפי מזהה, כדי שלא תישאר בלוח האמיתי. */
+if ((await allItems(MB.requests)).some((x) => String(x.id) === editId)) await del(editId);
 let removed = 0;
 for (const a of await allItems(MB.absence)) {
   if (cv(a, MC.absence.date) !== DATE2) continue;
@@ -214,6 +267,7 @@ ok("שתי הבקשות נמחקו", !left.some((x) => [id, noGroupId].includes(
    קיימות כדי למנוע.
    ============================================================ */
 console.log(`\n${pass} עברו, ${fail} נכשלו`);
-process.exit(fail ? 1 : 0);
-
+/* ⚠ השחזור **לפני** היציאה. הוא ישב אחרי process.exit ומעולם לא רץ —
+   שורת מנהל שנרשמה זמנית נשארה "רשומה" אחרי כל הרצה. */
 await reg.restore();
+process.exit(fail ? 1 : 0);

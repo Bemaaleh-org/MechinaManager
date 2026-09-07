@@ -471,6 +471,12 @@ html,body{margin:0;padding:0;background:#012E58}
 .rq-act button.ok{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
 .rq-act button.no{background:var(--clay-soft);border-color:var(--clay);color:var(--clay)}
 .rq-act button:disabled{opacity:.45}
+/* שעות היציאה והחזרה — שתי מילים ושני מספרים, לכולם */
+.rq-hours{display:flex;gap:14px;margin-top:7px;font-size:12.5px;color:var(--muted);font-weight:700}
+.rq-hours b{color:var(--ink);margin-inline-start:4px}
+/* עריכה וביטול של בקשה ממתינה — כפתורי רפאים, לא כפתורי הכרעה */
+.rq-act.rq-own{margin-top:10px}
+.rq-act.rq-own button{flex:0 0 auto;min-height:38px;border-color:var(--line)}
 
 /* ---- מסך הבית של המנהל ---- */
 .dash-greet{font-family:'Suez One',Heebo,serif;font-size:26px;font-weight:400;letter-spacing:0;margin:4px 2px 2px}
