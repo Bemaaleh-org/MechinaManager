@@ -42,9 +42,38 @@ export async function notReady() {
   return bad;
 }
 
+/**
+ * ⚠⚠ **כל קבצי המזהים נטענים, לא רק החמישה.**
+ *   `api/students.js` מייבא את כולם, ולכן קובץ **אחד** שאינו
+ *   נטען מפיל את הפונקציה כולה — וכל מסך במערכת מחזיר 500,
+ *   כולל מסכים שאין להם שום קשר לאותו לוח. זה קרה כאן: הצהרת
+ *   export כפולה ב-laundry-ids.js הפילה את מסך המשמר.
+ */
+export async function brokenIdFiles() {
+  const { readdirSync } = await import("node:fs");
+  const bad = [];
+  for (const f of readdirSync("shared").filter((x) => x.endsWith("-ids.js")).sort()) {
+    try { await import("../shared/" + f + "?v=" + Date.now()); }
+    catch (e) { bad.push({ file: "shared/" + f, why: String(e?.message || e).split("\n")[0] }); }
+  }
+  return bad;
+}
+
 /* ---- הרצה ישירה ---- */
 if (import.meta.url === "file://" + process.argv[1] ||
     process.argv[1]?.endsWith("boards-ready.mjs")) {
+  /* ⚠ קובץ שבור נבדק **ראשון**: הוא מפיל את כל המערכת, ולעומתו
+     לוח שטרם הוקם הוא מצב תקין שהמסך יודע לתאר (עיקרון 6). */
+  const broken = await brokenIdFiles();
+  if (broken.length) {
+    console.error("✗✗ " + broken.length + " קבצי מזהים אינם נטענים.");
+    console.error("   כל עוד זה כך, **כל** מסך במערכת מחזיר 500:");
+    for (const b of broken) console.error("      " + b.file + " — " + b.why);
+    console.error("\n   התיקון: למחוק את הקובץ ולהריץ את ה-seed שלו שוב.");
+    console.error("   npm run setup:boards יעשה את זה עבור החמישה החדשים.\n");
+    process.exit(2);
+  }
+
   const bad = await notReady();
   if (!bad.length) {
     console.log("✓ כל הלוחות החדשים מוגדרים.");

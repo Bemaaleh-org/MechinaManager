@@ -55,20 +55,34 @@ try {
   process.exit(1);
 }
 
-const run = (s) => {
+const run = (s, args = []) => {
   console.log("\n" + "═".repeat(56));
   console.log("▶ " + s.title);
   console.log("═".repeat(56));
-  const r = spawnSync(process.execPath, ["--env-file=.env", s.script],
+  const r = spawnSync(process.execPath, ["--env-file=.env", s.script, ...args],
     { stdio: "inherit" });
   return r.status === 0;
 };
 
+/* ⚠ **בדיקה אחרי כל שלב ולא רק בסוף.** סקריפט seed יכול לצאת 0
+   ובכל זאת להשאיר קובץ מזהים שאינו נטען — קרה כאן: קובץ ב-CRLF
+   קיבל הצהרת export כפולה, וזה SyntaxError. אימות רק בסוף אמר
+   "אחד נכשל" אחרי חמישה שלבים, בלי לומר איזה מהם באמת שבר. */
+const stepOk = async (s) => (await notReady()).every((b) => b.ids !== s.ids);
+
 const done = [];
 for (const s of STEPS) {
-  if (run(s)) { done.push(s); continue; }
+  const ranOk = run(s);
+  if (ranOk && await stepOk(s)) { done.push(s); continue; }
   console.error("\n" + "═".repeat(56));
-  console.error("✗ נעצר על: " + s.title + "  (" + s.script + ")");
+  if (ranOk) {
+    console.error("✗ " + s.title + " הסתיים בהצלחה, אבל " + s.ids);
+    console.error("  עדיין אינו נטען. זה כמעט תמיד הצהרת export כפולה");
+    console.error("  בקובץ — למחוק אותו ולהריץ שוב:");
+    console.error("      del " + s.ids.replace(/\//g, "\\") + "   (או rm בלינוקס)");
+  } else {
+    console.error("✗ נעצר על: " + s.title + "  (" + s.script + ")");
+  }
   if (done.length) {
     console.error("\n  מה שכן הוקם, וחייב להיכנס לקומיט:");
     for (const d of done) console.error("    " + d.ids);
@@ -78,7 +92,10 @@ for (const s of STEPS) {
   process.exit(1);
 }
 
-if (!run(CLEAN)) {
+/* ⚠ **`--go` ולא הרצה יבשה.** clean-defaults מדפיס בלי הדגל את
+   מה שהוא *היה* מוחק ויוצא 0 — כלומר ההקמה דיווחה הצלחה ושורות
+   ה-"Task 1" נשארו בכל לוח חדש, בדיוק מה שהוא נועד למנוע (5יב). */
+if (!run(CLEAN, ["--go"])) {
   console.error("\n⚠ הלוחות הוקמו וניקוי שורות הדמה נכשל.");
   console.error("  זה אינו חוסם — להריץ בנפרד: npm run clean:defaults\n");
 }

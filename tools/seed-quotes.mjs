@@ -117,15 +117,29 @@ const head = `/* ============================================================
 
 let src = existsSync(path) ? readFileSync(path, "utf8") : head;
 const put = (name, value) => {
-  const re = new RegExp(`export const ${name} = [\\s\\S]*?;\\n`);
+  /* ⚠ `;\\r?\\n` ולא `;\\n` — גיט בווינדוס בודק את הקבצים ב-CRLF,
+     ואז הביטוי לא היה תופס כלום וכל put היה **מוסיף** הצהרה
+     שנייה במקום להחליף. שתי הצהרות export לאותו שם הן
+     SyntaxError, כלומר הקובץ כולו מפסיק להיטען. */
+  const re = () => new RegExp(`export const ${name} = [\\s\\S]*?;\\r?\\n`, "g");
   const line = `export const ${name} = ${JSON.stringify(value, null, 2)};\n`;
-  src = re.test(src) ? src.replace(re, line) : src + "\n" + line;
+  if (!re().test(src)) { src += "\n" + line; return; }
+  /* ⚠ **הראשונה מוחלפת והשאר נמחקות.** קובץ שכבר נפגע מהבאג
+     של CRLF מחזיק שתי הצהרות לאותו שם — וזה SyntaxError, כלומר
+     כל api/students.js מפסיק להיטען וכל מסך מחזיר 500. החלפה
+     של הראשונה בלבד הייתה משאירה אותו שבור. */
+  let first = true;
+  src = src.replace(re(), () => (first ? ((first = false), line) : ""));
 };
 
 put("QUOTE_BOARDS", boards);
 put("QUOTE_COLS", colsOut);
 
-if (!src.includes("quotesReady")) {
+/* ⚠ בודק את ה-export עצמו ולא את המילה. שם הפונקציה מופיע
+   גם בהערת הכותרת, ולכן includes החזיר true גם כשה-export
+   עצמו חסר — ואז הוא לעולם לא הוחזר, והאימות נפל
+   על "אין quotesReady()" אחרי הרצה שהצליחה. */
+if (!new RegExp("export const quotesReady\\s*=").test(src)) {
   src += `
 /** ⚠ הלוחות אינם חובה — בלעדיהם המסך אומר מה להריץ (עיקרון 6). */
 export const quotesReady = () =>

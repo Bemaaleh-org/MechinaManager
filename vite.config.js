@@ -20,7 +20,12 @@ function localApi() {
         // משלים את מה ש-Vercel מספקת לפונקציה
         req.query = Object.fromEntries(url.searchParams);
         res.status = (code) => { res.statusCode = code; return res; };
+        /* ⚠ שומר על שליחה כפולה. בלי זה, שגיאה שצפה **אחרי**
+           שהתשובה נשלחה מפילה את ה-catch עצמו ב-write-after-end,
+           ואז הלקוח מקבל HTML במקום JSON ואומר "שגיאה 500"
+           בלי הסיבה — כלומר ההודעה המועילה היחידה אובדת. */
         res.json = (body) => {
+          if (res.writableEnded) return;
           res.setHeader("Content-Type", "application/json; charset=utf-8");
           res.end(JSON.stringify(body));
         };
@@ -29,8 +34,14 @@ function localApi() {
           const mod = await server.ssrLoadModule(`/api/${name}.js`);
           await mod.default(req, res);
         } catch (e) {
-          server.config.logger.error(`[api/${name}] ${e.message}`);
-          res.status(500).json({ error: e.message });
+          /* ⚠ ה-stack ולא ה-message בלבד. כשהכשל הוא בטעינת
+             מודול (למשל export כפול בקובץ shared/*-ids.js),
+             ה-message לבדו אינו אומר **איזה** קובץ שבר. */
+          server.config.logger.error(`[api/${name}] ${e.stack || e.message}`);
+          res.status(500).json({
+            error: `[api/${name}] ${e.message}`,
+            where: String(e.stack || "").split("\n")[1]?.trim() || null,
+          });
         }
       });
     },
