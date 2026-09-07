@@ -819,6 +819,17 @@ export const api = {
     get("/api/lessons?action=report" + (month ? `&month=${encodeURIComponent(month)}` : "")),
 
   /** שיעורי מרצה אורח שהחניך המחובר יכול לדרג */
+  /* ============================================================
+     תוכן השיעור והארכיון
+     ------------------------------------------------------------
+     ⚠ `openRate` הוא מה שפותח שיעור לדירוג בלי קשר לסוג הגיליון
+       ולתאריך — "חוות דעת מזדמנת". ראו api/_lesson-content.js.
+     ============================================================ */
+  getLessonArchive: () => get("/api/lessons?action=archive"),
+  setLessonContent: ({ meetingId, summary, openRate, fileName, fileMime, fileData }) =>
+    put("/api/lessons?action=content",
+      { meetingId, summary, openRate, fileName, fileMime, fileData }),
+
   getRatable: () => get("/api/lessons?action=rate"),
 
   /** דירוג 1–10. דירוג חוזר מעדכן את הקודם. */

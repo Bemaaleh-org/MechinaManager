@@ -43,6 +43,7 @@ import ChoresPage from "./Chores.jsx";
 import LaundryPage from "./Laundry.jsx";
 import QuotesPage, { DailyQuote } from "./Quotes.jsx";
 import MishmarPage from "./Mishmar.jsx";
+import Archive from "./Archive.jsx";
 import RulesPage from "./Rules.jsx";
 import TryoutsPage from "./Tryouts.jsx";
 import LeadershipPage from "./Leadership.jsx";
@@ -119,6 +120,7 @@ const PERSONAL_TABS = new Set(["leadership", "chores", "year", "requests"]);
 const TAB_ICON = {
   quotes: <MI.book />,
   mishmar: <MI.book />,
+  archive: <MI.book />,
   laundry: <MI.box />,
   mark: <MI.tick />, lessons: <MI.book />, gantt: <MI.cal />,
   /* ארבעת מסכי השיעורים — ראו LESSON_TABS ב-Lessons.jsx */
@@ -3442,6 +3444,11 @@ export function MechinaApp({ auth, onSignedOut }) {
                עורך את אותו מסך בדיוק (4יט). */
             { key: "mishmar", label: "משמר", icon: <MI.book />,
               active: tab === "mishmar", onClick: () => setTab("mishmar") },
+            /* ⚠ **פתוח לכל חניך, וזו כל התכלית.** עד היום שיעור
+               שהתקיים היה שורה בלוח, ומה שנאמר בו נשאר אצל מי
+               שהיה שם. */
+            { key: "archive", label: "השיעורים שהיו", icon: <MI.book />,
+              active: tab === "archive", onClick: () => setTab("archive") },
             { key: "agenda", label: "הלו״ז שלי", icon: <MI.cal />,
               active: tab === "agenda", onClick: () => setTab("agenda") },
             { key: "gantt", label: "גאנט שנתי", icon: <MI.cal />,
@@ -3647,6 +3654,7 @@ export function MechinaApp({ auth, onSignedOut }) {
         {tab === "board" && <BoardPage say={say} />}
         {tab === "quotes" && <QuotesPage say={say} />}
         {tab === "mishmar" && <MishmarPage say={say} />}
+        {tab === "archive" && <Archive say={say} />}
         {tab === "mydata" && <MyDataPage say={say} isStudent />}
         {tab === "projects" && <ProjectsPage say={say} />}
         {/* ⚠ אחראי הלו״ז בלבד — הכניסה נגזרת מ-DUTIES ונאכפת

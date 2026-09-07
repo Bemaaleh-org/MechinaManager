@@ -10,6 +10,8 @@
      ?action=rate    GET/POST  דירוג שיעורים על ידי חניכים
      ?action=evals   GET    חוות דעת על מרצים
      ?action=evals   POST   הוספת חוות דעת
+     ?action=content PUT    סיכום השיעור, דפי עזר ופתיחה לדירוג
+     ?action=archive GET    "השיעורים שהיו" — לכל חניך
 
    ⚠ כל המודולים כאן עטופים ב-{scheduler:true} — צוות או אחראי
      לו״ז. חניך רגיל מקבל 403 גם דרך הנתב, וגם בקריאה ישירה.
@@ -30,6 +32,9 @@ import board from "./_lessons-board.js";
    צוות בלבד; עלויות אינן נתון של חניך. */
 import pay from "./_lesson-pay.js";
 import exportSheet from "./_sheet-export.js";
+/* ⚠ תוכן השיעור והארכיון. שני מסלולים במודול אחד: הכתיבה
+   לאחראי הלו״ז, והקריאה לכל חניך — ראו api/_lesson-content.js. */
+import { lessonArchive, lessonContent } from "./_lesson-content.js";
 
 export default router({ list, sheet, mark, meeting, evals, gantt, report, rate, agenda, board,
-  export: exportSheet, pay });
+  export: exportSheet, pay, content: lessonContent, archive: lessonArchive });

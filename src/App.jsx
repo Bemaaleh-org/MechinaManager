@@ -33,6 +33,7 @@ import ChoresPage from "./Chores.jsx";
 import LaundryPage from "./Laundry.jsx";
 import QuotesPage from "./Quotes.jsx";
 import MishmarPage from "./Mishmar.jsx";
+import Archive from "./Archive.jsx";
 import RulesPage from "./Rules.jsx";
 import TryoutsPage from "./Tryouts.jsx";
 import AccessPage from "./Access.jsx";
@@ -439,11 +440,17 @@ function Staff({ auth, onSignedOut }) {
                  דעת"), והלוח והתשלום היו נגישים רק למי שידע שיש
                  רצועה פנימית בפנים.
                ============================================================ */
-            { label: "שיעורים", items: LESSON_TABS.map((t) => ({
+            { label: "שיעורים", items: [...LESSON_TABS.map((t) => ({
               key: t.tab, label: t.label, icon: LESSON_ICON[t.sub] || <I.book />,
               active: section === "lessons" && lessonsSub === t.sub,
               onClick: () => goLessons(t.sub),
-            })) },
+            })),
+              /* ⚠ **הארכיון אינו לשונית של "שיעורים במכינה"** אלא
+                 דף בפני עצמו: הוא היחיד שם שגלוי לכל חניך, וכל
+                 השאר הם של אחראי הלו״ז. */
+              { key: "archive", label: "השיעורים שהיו", icon: <I.book />,
+                active: section === "archive", onClick: () => setSection("archive") },
+            ] },
             /* ⚠ הבוגרים אינם בטיחות ואינם תחזוקה. הם קטגוריה
                בפני עצמה — מי שכבר סיים את המכינה. */
             { label: "בוגרים ומחזורים", items: [
@@ -548,6 +555,7 @@ function Staff({ auth, onSignedOut }) {
           {section === "board" && <BoardPage say={say} />}
           {section === "quotes" && <QuotesPage say={say} />}
           {section === "mishmar" && <MishmarPage say={say} />}
+          {section === "archive" && <Archive say={say} />}
           {section === "news" && <MyDataPage say={say} isStudent={false} sub0="news" />}
           {section === "trends" && <TrendsPage say={say} />}
           {section === "alumni" && <AlumniPage say={say} />}

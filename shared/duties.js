@@ -90,6 +90,9 @@ export const DUTIES = {
       { tab: "l-board", label: "שיעורים קרובים" },
       { tab: "l-sheets", label: "גיליונות מרצים" },
       { tab: "l-evals", label: "חוות דעת" },
+      /* ⚠ **הארכיון הוא מה שאחראי הלו״ז ממלא**, והוא גם המסך
+         היחיד בקבוצה הזו שכל חניך רואה. */
+      { tab: "archive", label: "השיעורים שהיו" },
       { tab: "pay", label: "תשלום למרצים" },
       { tab: "gantt", label: "גאנט שנתי" },
     ],

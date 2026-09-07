@@ -21,5 +21,6 @@ import { CSS } from "./styles.js";
 import { LAUNDRY_CSS } from "./Laundry.jsx";
 import { QUOTES_CSS } from "./Quotes.jsx";
 import { MISHMAR_CSS } from "./Mishmar.jsx";
+import { ARCHIVE_CSS } from "./Archive.jsx";
 
-export const ALL_CSS = CSS + LAUNDRY_CSS + QUOTES_CSS + MISHMAR_CSS;
+export const ALL_CSS = CSS + LAUNDRY_CSS + QUOTES_CSS + MISHMAR_CSS + ARCHIVE_CSS;

@@ -31,6 +31,7 @@
     "seed:laundry": "node --env-file=.env tools/seed-laundry.mjs",
     "seed:quotes": "node --env-file=.env tools/seed-quotes.mjs",
     "seed:mishmar": "node --env-file=.env tools/seed-mishmar.mjs",
+    "seed:lesson-content": "node --env-file=.env tools/seed-lesson-content.mjs",
     "clean:defaults": "node --env-file=.env tools/clean-defaults.mjs",
     "check:icons": "node tools/check-icons.mjs",
     "seed:demo": "node --env-file=.env tools/seed-demo.mjs",

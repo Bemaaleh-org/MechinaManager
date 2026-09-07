@@ -16,6 +16,7 @@
 import { withAuth } from "./_session.js";
 import { gql } from "./_monday.js";
 import { LESSON_BOARDS, LESSON_COLS, PLANNED } from "../shared/lessons-boards.js";
+import { loadContent } from "./_lesson-content.js";
 import {
   loadSheets, loadMeetings, loadRatings, ratingFor, invalidateRatings,
 } from "./_lessons-data.js";
@@ -33,32 +34,73 @@ async function handler(req, res, session) {
   return res.status(405).json({ error: "רק GET ו-POST נתמכים כאן" });
 }
 
-async function guestMeetings() {
-  const [sheets, meetings] = await Promise.all([loadSheets(), loadMeetings()]);
-  const guest = new Map(sheets.filter((s) => s.guestLecturer).map((s) => [s.id, s]));
+/* ============================================================
+   ⚠⚠ **שני מסלולים לדירוג, ולא אחד.**
+
+   1. **גיליון "מרצה מתחלף"** — מדעי המדינה, כישורי חיים. כל
+      מפגש בו נפתח לדירוג מעצמו, בחלון של שבועיים. זה היה
+      המסלול היחיד.
+
+   2. **מפגש שסומן "פתוח לדירוג"** — כל מפגש, בכל גיליון,
+      בלי חלון זמן. זו "חוות דעת מזדמנת": סדנה חד-פעמית,
+      שיעור אורח בגיליון רגיל, או שיעור שהתקיים לפני חודש
+      ורוצים עליו משוב עכשיו. עד היום אחראי הלו״ז לא יכול
+      היה לבקש דירוג עליהם **בכלל**.
+
+   ⚠ **החלון חל על הראשון בלבד.** מפגש שנפתח ידנית נפתח כי
+     מישהו החליט שהוא צריך דירוג, וחלון זמן היה סוגר אותו
+     בדיוק כשהוא נדרש. מפגשי המרצה המתחלף, לעומת זאת, נפתחים
+     בכמות — ובלי חלון הרשימה של החניך הייתה מונה 86 שיעורים.
+
+   ⚠ **ו-`planned === "כן"` חל על שניהם.** מפגש שהגיליון אומר
+     עליו שלא יתקיים אינו ניתן לדירוג, גם אם התיבה סומנה
+     בטעות (4כה: ההצהרה על הפריט גוברת).
+   ============================================================ */
+async function ratableMeetings(today) {
+  const [sheets, meetings, content] = await Promise.all([
+    loadSheets(), loadMeetings(), loadContent(),
+  ]);
+  const byId = new Map(sheets.map((s) => [s.id, s]));
+  const from = new Date(new Date(today + "T12:00:00Z").getTime() - WINDOW_DAYS * 86400000)
+    .toISOString().slice(0, 10);
+
   return meetings
-    .filter((m) => guest.has(m.sheetId) && m.planned === PLANNED.yes)
-    .map((m) => ({ ...m, subject: guest.get(m.sheetId).subject }));
+    .filter((m) => m.planned === PLANNED.yes && m.date && m.date <= today)
+    .map((m) => {
+      const sheet = byId.get(m.sheetId);
+      if (!sheet) return null;
+      const open = (content.get(m.id) || {}).openRate === true;
+      const guest = sheet.guestLecturer && m.date >= from;
+      if (!open && !guest) return null;
+      return {
+        ...m,
+        subject: sheet.subject,
+        /* ⚠ המסך מציג מאיפה הדירוג נפתח: "מרצה מתחלף" הוא
+           שגרה, ו"נפתח לדירוג" הוא בקשה מפורשת של אחראי
+           הלו״ז — ושתיהן נראות אחרת ברשימה. */
+        openRate: open,
+      };
+    })
+    .filter(Boolean);
 }
 
 /* ---------- מה אפשר לדרג ---------- */
 async function ratable(req, res, session) {
   try {
     const today = todayFor(req);
-    const from = new Date(new Date(today + "T12:00:00Z").getTime() - WINDOW_DAYS * 86400000)
-      .toISOString().slice(0, 10);
 
-    const [meetings, ratings] = await Promise.all([guestMeetings(), loadRatings()]);
+    const [meetings, ratings] = await Promise.all([ratableMeetings(today), loadRatings()]);
     const mineRated = new Set(
       ratings.filter((r) => r.studentId === session.itemId).map((r) => r.meetingId));
 
     const list = meetings
-      .filter((m) => m.date >= from && m.date <= today)
       .map((m) => ({
         id: m.id,
         subject: m.subject,
         date: m.date,
         lecturer: m.lecturer || null,
+        /* ⚠ נשלח כדי שהמסך יבדיל בין השגרה לבין בקשה מפורשת. */
+        openRate: Boolean(m.openRate),
         rated: mineRated.has(m.id),
         myScore: mineRated.has(m.id)
           ? (ratings.find((r) => r.studentId === session.itemId && r.meetingId === m.id) || {}).score
@@ -89,14 +131,13 @@ async function rate(req, res, session) {
       return res.status(400).json({ error: "דירוג הוא מספר שלם בין 1 ל-10" });
     }
 
-    const meetings = await guestMeetings();
+    /* ⚠ אותה פונקציה בדיוק ששולטת ברשימה. שתי הגדרות של
+       "ניתן לדירוג" היו נפרדות זו מזו בתיקון הראשון, ואז
+       קריאה ישירה לכתובת עוקפת את הרשימה. */
+    const today = todayFor(req);
+    const meetings = await ratableMeetings(today);
     const meeting = meetings.find((m) => m.id === meetingId);
     if (!meeting) return res.status(404).json({ error: "המפגש אינו ניתן לדירוג" });
-
-    const today = todayFor(req);
-    if (meeting.date > today) {
-      return res.status(400).json({ error: "אי אפשר לדרג שיעור שטרם התקיים" });
-    }
 
     const ratings = await loadRatings({ force: true });
     const existing = ratings.find(
