@@ -41,3 +41,6 @@ export const LAUNDRY_COLS = {
   "by": "text_mm6zt817",
   "byId": "text_mm6zmqt5"
 };
+
+/** ⚠ הלוח אינו חובה — בלעדיו המסך אומר מה להריץ (עיקרון 6). */
+export const laundryReady = () => Boolean(LAUNDRY_BOARDS.board);

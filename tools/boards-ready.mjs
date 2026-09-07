@@ -59,12 +59,35 @@ export async function brokenIdFiles() {
   return bad;
 }
 
+/**
+ * ⚠⚠⚠ **הבדיקה שתופסת את מה שהשאר מפספסות.**
+ *   `shared/laundry-ids.js` נטען מצוין בפני עצמו — חסר בו רק
+ *   ה-export של `laundryReady`. מי שנפל הוא **הצרכן**:
+ *   `api/_laundry.js` מייבא את השם הזה, ולכן `api/students.js`
+ *   שמייבא אותו לא נטען, **וכל פעולה במערכת החזירה 500** —
+ *   כולל מסך המשמר, שאין לו שום קשר לחדר הכביסה.
+ *
+ *   טעינת נתב אמיתית היא הדבר היחיד שמוכיח שהשרשרת שלמה.
+ *   ⚠ אינה נוגעת ברשת: ייבוא מודול אינו מריץ שום הנדלר.
+ */
+export async function brokenRouters() {
+  const { readdirSync } = await import("node:fs");
+  const bad = [];
+  const routers = readdirSync("api")
+    .filter((f) => f.endsWith(".js") && !f.startsWith("_")).sort();
+  for (const f of routers) {
+    try { await import("../api/" + f + "?v=" + Date.now()); }
+    catch (e) { bad.push({ file: "api/" + f, why: String(e?.message || e).split("\n")[0] }); }
+  }
+  return bad;
+}
+
 /* ---- הרצה ישירה ---- */
 if (import.meta.url === "file://" + process.argv[1] ||
     process.argv[1]?.endsWith("boards-ready.mjs")) {
   /* ⚠ קובץ שבור נבדק **ראשון**: הוא מפיל את כל המערכת, ולעומתו
      לוח שטרם הוקם הוא מצב תקין שהמסך יודע לתאר (עיקרון 6). */
-  const broken = await brokenIdFiles();
+  const broken = [...await brokenIdFiles(), ...await brokenRouters()];
   if (broken.length) {
     console.error("✗✗ " + broken.length + " קבצי מזהים אינם נטענים.");
     console.error("   כל עוד זה כך, **כל** מסך במערכת מחזיר 500:");
