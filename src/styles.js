@@ -706,6 +706,22 @@ html,body{margin:0;padding:0;background:#012E58}
 .photo-pick{display:block;border-radius:12px;overflow:hidden;border:1px solid var(--line2)}
 .photo-pick img{display:block;width:100%;max-height:220px;object-fit:cover}
 .photo-pick .btn{width:100%;border-radius:0;border:none;border-top:1px solid var(--line)}
+/* ============================================================
+   תא המפתח — שדה ושתי פעולות מהירות
+   ⚠ .kx לפני כל כלל על button: הריסט .kx button מאפס רקע
+     ומסגרת בסגוליות (0,1,1) וגובר על מחלקה בודדת.
+   ============================================================ */
+.par-cell{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+.par-cell input{width:64px;min-height:40px;background:var(--bg);
+  border:1px solid var(--line2);border-radius:9px;padding:0 8px;
+  font-size:14px;text-align:center}
+.par-cell input:disabled{opacity:.55}
+.par-btns{display:flex;flex-direction:column;gap:3px}
+.kx .par-btns button{min-height:19px;padding:0 6px;font-size:10.5px;font-weight:800;
+  border:1px solid var(--line);border-radius:6px;background:var(--surface);
+  color:var(--muted);line-height:1}
+.kx .par-btns button.del{color:var(--clay);font-size:13px}
+.kx .par-btns button:disabled{opacity:.35}
 /* כפתור עריכה קטן בשורת הדיווח של החניך — בתוך שורת המטא */
 .kx .fl-edit{min-height:26px;padding:0 9px;font-size:12px;border-radius:8px}
 .thumb{flex:0 0 auto;width:42px;height:42px;border-radius:9px;overflow:hidden;

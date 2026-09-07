@@ -53,6 +53,13 @@ async function handler(req, res, session) {
 
       return res.status(200).json({
         area, equipment, shopping,
+        /* ⚠ **לפי התחום ולא לפי דגל.** המכולה של אחראי המכולה
+           והניקיון של אב הבית — אותה `mayArea` שכל פעולה כאן
+           אוכפת. המסך חייב לדעת מראש (4יד, 4כב). */
+        canEdit: mayArea(session, area),
+        editHint: area === AREA.cleaning
+          ? "ציוד הניקיון מנוהל על ידי אב הבית"
+          : "ציוד המכולה מנוהל על ידי אחראי המכולה",
         counts: {
           total: equipment.length,
           consumable: equipment.filter((x) => x.kind === EQUIP_KIND.consumable).length,

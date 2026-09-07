@@ -21,7 +21,7 @@
 
 import React, { useState, useEffect, useCallback, useContext, createContext } from "react";
 import { useExcel, downloadTable, shareText } from "./excel.js";
-import { missingFor } from "../shared/par.js";
+import { missingFor, qtyNumber } from "../shared/par.js";
 /* ⚠ הטבלה עצמה מגיעה מהשרת (api.getProduce). מכאן מיובאות רק
    פונקציות החישוב, שמקבלות את הטבלה כפרמטר — כך המסך והשרת
    מחשבים בדיוק אותו דבר. */
@@ -562,7 +562,12 @@ function ShoppingBuilder({ equipment, area, say, onDone, onCancel, preset = null
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const list = equipment.filter((x) => !q.trim() || x.name.includes(q.trim()));
+  const list = equipment
+    .filter((x) => !q.trim() || x.name.includes(q.trim()))
+    .filter((x) => only === "all"
+      || (only === "none" && x.par == null)
+      || (only === "short" && missingFor(x) > 0));
+  const noPar = equipment.filter((x) => x.par == null).length;
   const count = Object.keys(picked).length + extra.filter((x) => x.name.trim()).length;
 
   const submit = () => {
@@ -644,13 +649,39 @@ function ShoppingBuilder({ equipment, area, say, onDone, onCancel, preset = null
    ⚠ המפתח נשמר בלוח ולא בקוד — המכינה משנה אותו מדי חודש בלי
      דיפלוי. שמירה קורית ביציאה מהשדה, כדי שאפשר יהיה למלא
      עשרות שורות ברצף בלי ללחוץ "שמירה" בכל אחת. */
-function ParTab({ equipment, short, say, onChanged }) {
+/* ============================================================
+   ⚠ **המפתח הוא הדבר שהמכינה משנה הכי הרבה, ולכן הוא חייב
+     להיות עצמאי לגמרי.** לפני כן היה כאן שדה מספר בלבד: מי
+     שרצה לקבוע מפתח לשישים פריטים בתחילת חודש הקליד שישים
+     מספרים, ומי שרצה לבטל מפתח לא ידע שמוחקים את השדה.
+
+   מה שנוסף: כפתור שקובע את המפתח לפי הכמות שבמלאי עכשיו (זה
+   מה שעושים בפועל אחרי ספירה), כפתור ניקוי מפורש, וסינון
+   "בלי מפתח" — הרשימה שצריך לעבור עליה.
+
+   ⚠ **ו-`canEdit` מגיע מהשרת.** איש צוות שאינו אחראי המטבח
+     רואה את המפתח ואינו עורך; מסך שיציע לו לערוך יקבל 403
+     אחרי שהקליד (4יד).
+   ============================================================ */
+function ParTab({ equipment, short, say, onChanged, canEdit = true, editHint }) {
   const d = useDomain();
   const [draft, setDraft] = useState({}); // id → מה שהוקלד וטרם נשמר
   const [busyId, setBusyId] = useState(null);
   const [q, setQ] = useState("");
+  /* ⚠ **"בלי מפתח" הוא הסינון שבאמת עוזר.** מי שנכנס לקבוע
+     מפתח מחפש את מה שעוד לא הוגדר, ולא גולל 105 שורות. */
+  const [only, setOnly] = useState("all"); // all · none · short
 
   const valueOf = (x) => (x.id in draft ? draft[x.id] : (x.par == null ? "" : String(x.par)));
+
+  /* קביעה ישירה, בלי מעבר דרך הטיוטה — לכפתורים המהירים. */
+  const setPar = (x, value, msg) => {
+    setBusyId(x.id);
+    d.editEquip({ itemId: x.id, par: value })
+      .then(() => { setDraft((p) => { const n = { ...p }; delete n[x.id]; return n; }); onChanged(); if (msg) say(msg); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusyId(null));
+  };
 
   const commit = (x) => {
     const v = draft[x.id];
@@ -698,11 +729,30 @@ function ParTab({ equipment, short, say, onChanged }) {
         </div>
       )}
 
+      {/* ⚠ מי שאינו רשאי רואה **למי לפנות**, ולא "אין הרשאה". */}
+      {!canEdit && editHint && (
+        <div className="alert a-amber" style={{ marginBottom: 12 }}>
+          <div style={{ flex: 1 }}><div className="bd" style={{ marginTop: 0 }}>{editHint}</div></div>
+        </div>
+      )}
+
       <input className="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="חיפוש פריט" />
+
+      <div className="seg" style={{ marginTop: 10 }}>
+        <button className={only === "all" ? "on" : ""} onClick={() => setOnly("all")}>
+          הכול ({equipment.length})
+        </button>
+        <button className={only === "none" ? "on" : ""} onClick={() => setOnly("none")}>
+          בלי מפתח{noPar ? ` (${noPar})` : ""}
+        </button>
+        <button className={only === "short" ? "on" : ""} onClick={() => setOnly("short")}>
+          חסרים{short.length ? ` (${short.length})` : ""}
+        </button>
+      </div>
 
       <div className="grp-h">
         <span>כמות במלאי · מפתח</span>
-        <span>{totalMissing ? `סה״כ חסר: ${totalMissing}` : "הקלידו מפתח"}</span>
+        <span>{totalMissing ? `סה״כ חסר: ${totalMissing}` : canEdit ? "הקלידו מפתח" : "לצפייה בלבד"}</span>
       </div>
 
       <div className="rows">
@@ -718,14 +768,29 @@ function ParTab({ equipment, short, say, onChanged }) {
                   {miss === 0 && x.par != null && <span className="pill p-ok">מלא</span>}
                 </div>
               </div>
-              <input value={valueOf(x)} inputMode="numeric" placeholder="מפתח"
-                disabled={busyId === x.id}
-                style={{ width: 78, minHeight: 40, background: "var(--bg)",
-                         border: "1px solid var(--line2)", borderRadius: 9,
-                         padding: "0 10px", fontSize: 14, textAlign: "center" }}
-                onChange={(e) => setDraft((d) => ({ ...d, [x.id]: e.target.value }))}
-                onBlur={() => commit(x)}
-                onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} />
+              {/* ⚠ שלוש פעולות ולא אחת: הקלדה, "כמו במלאי" וניקוי.
+                  השתיים האחרונות הן מה שבאמת עושים אחרי ספירה. */}
+              <div className="par-cell">
+                <input value={valueOf(x)} inputMode="numeric" placeholder="מפתח"
+                  disabled={busyId === x.id || !canEdit}
+                  onChange={(e) => setDraft((d2) => ({ ...d2, [x.id]: e.target.value }))}
+                  onBlur={() => commit(x)}
+                  onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} />
+                {canEdit && (
+                  <div className="par-btns">
+                    {/* ⚠ מושבת כשאין מספר בכמות: "40 חבילות של 10"
+                        נותן 40, אבל "כמעט ריק" אינו מספר. */}
+                    <button type="button" title="מפתח כמו הכמות שבמלאי"
+                      disabled={busyId === x.id || qtyNumber(x.qty) == null}
+                      onClick={() => setPar(x, String(qtyNumber(x.qty)), `${x.name}: מפתח ${qtyNumber(x.qty)}`)}>
+                      = מלאי
+                    </button>
+                    <button type="button" title="ביטול המפתח" className="del"
+                      disabled={busyId === x.id || x.par == null}
+                      onClick={() => setPar(x, "", `${x.name}: המפתח בוטל`)}>×</button>
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}
@@ -1073,7 +1138,8 @@ function EquipmentScreen({ say, domain: d, area }) {
 
       {sub === "par" && (
         <>
-          <ParTab equipment={data.equipment} short={short} say={say} onChanged={reload} />
+          <ParTab equipment={data.equipment} short={short} say={say} onChanged={reload}
+            canEdit={data.canEdit !== false} editHint={data.editHint} />
 
           <div className="sticky">
             <button className="btn btn-primary" disabled={!short.length}
