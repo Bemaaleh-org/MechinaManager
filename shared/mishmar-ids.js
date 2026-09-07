@@ -18,40 +18,10 @@
    ============================================================ */
 
 export const MISHMAR_BOARDS = {
-  "events": "",
-  "sessions": ""
+  "events": "5103746421",
+  "sessions": "5103746429"
 };
 
-export const MISHMAR_COLS = {
-  "events": {
-    "date": "",
-    "theme": "",
-    "team": "",
-    "teamName": "",
-    "place": "",
-    "start": "",
-    "end": "",
-    "summary": "",
-    "status": "",
-    "by": "",
-    "byId": ""
-  },
-  "sessions": {
-    "mishmar": "",
-    "time": "",
-    "minutes": "",
-    "lecturer": "",
-    "place": "",
-    "kind": "",
-    "desc": "",
-    "summary": "",
-    "files": "",
-    "order": "",
-    "openRate": ""
-  }
-};
-
-/** ⚠ זהות בתו לתוויות שבלוח. הראשונה היא ברירת המחדל. */
 export const MISHMAR_STATUS = [
   "בתכנון",
   "פורסם",
@@ -59,7 +29,6 @@ export const MISHMAR_STATUS = [
   "בוטל"
 ];
 
-/** ⚠ זהות בתו לתוויות שבלוח. הראשונה היא ברירת המחדל. */
 export const SESSION_KIND = [
   "שיעור",
   "סדנה",
@@ -72,3 +41,32 @@ export const SESSION_KIND = [
 /** ⚠ הלוחות אינם חובה — בלעדיהם המסך אומר מה להריץ (עיקרון 6). */
 export const mishmarReady = () =>
   Boolean(MISHMAR_BOARDS.events && MISHMAR_BOARDS.sessions);
+
+export const MISHMAR_COLS = {
+  "events": {
+    "date": "date_mm6zmsgc",
+    "theme": "text_mm6zh3zs",
+    "team": "text_mm6z1ebg",
+    "teamName": "text_mm6zthaj",
+    "place": "text_mm6zj0fg",
+    "start": "text_mm6z3887",
+    "end": "text_mm6zpmtw",
+    "summary": "long_text_mm6z4d6y",
+    "status": "color_mm6zjyc4",
+    "by": "text_mm6zxksh",
+    "byId": "text_mm6zgj7g"
+  },
+  "sessions": {
+    "mishmar": "text_mm6zrhqg",
+    "time": "text_mm6z9eyc",
+    "minutes": "numeric_mm6z7hmk",
+    "lecturer": "text_mm6ztev",
+    "place": "text_mm6z57yw",
+    "kind": "color_mm6zsea9",
+    "desc": "long_text_mm6zhwpj",
+    "summary": "long_text_mm6zeef2",
+    "files": "file_mm6zxm72",
+    "order": "numeric_mm6z3a3w",
+    "openRate": "boolean_mm6zbykm"
+  }
+};
