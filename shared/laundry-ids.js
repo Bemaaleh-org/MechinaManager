@@ -13,23 +13,9 @@
    ============================================================ */
 
 export const LAUNDRY_BOARDS = {
-  "board": ""
+  "board": "5103746363"
 };
 
-export const LAUNDRY_COLS = {
-  "student": "",
-  "studentName": "",
-  "date": "",
-  "hour": "",
-  "machine": "",
-  "kind": "",
-  "minutes": "",
-  "note": "",
-  "by": "",
-  "byId": ""
-};
-
-/** ⚠ זהות בתו לתוויות שבלוח. */
 export const MACHINES = [
   "מכונת כביסה",
   "מייבש"
@@ -43,5 +29,15 @@ export const KINDS = [
   "מעורב"
 ];
 
-/** ⚠ הלוח אינו חובה — בלעדיו המסך אומר מה להריץ (עיקרון 6). */
-export const laundryReady = () => Boolean(LAUNDRY_BOARDS.board);
+export const LAUNDRY_COLS = {
+  "student": "text_mm6zzy38",
+  "studentName": "text_mm6z8sdf",
+  "date": "date_mm6zdc2z",
+  "hour": "text_mm6zwpgj",
+  "machine": "color_mm6zzk82",
+  "kind": "color_mm6za8xg",
+  "minutes": "numeric_mm6zrh5x",
+  "note": "text_mm6zj1hr",
+  "by": "text_mm6zt817",
+  "byId": "text_mm6zmqt5"
+};
