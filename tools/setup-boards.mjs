@@ -29,19 +29,8 @@
      שנכתב חלקית עובר את קוד היציאה ונופל כאן.
    ============================================================ */
 import { spawnSync } from "node:child_process";
-
-const STEPS = [
-  { script: "tools/seed-laundry.mjs", title: "חדר כביסה",
-    ids: "shared/laundry-ids.js", ready: "laundryReady" },
-  { script: "tools/seed-quotes.mjs", title: "בנק הציטוטים והתגובות",
-    ids: "shared/quotes-ids.js", ready: "quotesReady" },
-  { script: "tools/seed-mishmar.mjs", title: "משמרים ולו״ז משמר",
-    ids: "shared/mishmar-ids.js", ready: "mishmarReady" },
-  { script: "tools/seed-group.mjs", title: "הודעות לקבוצה",
-    ids: "shared/group-ids.js", ready: "groupReady" },
-  { script: "tools/seed-lesson-content.mjs", title: "שלוש עמודות התוכן במפגשים",
-    ids: "shared/lessons-boards.js", ready: "contentReady" },
-];
+/* ⚠ הרשימה מיובאת ואינה כתובה כאן שוב — ראו boards-ready.mjs. */
+import { STEPS, notReady } from "./boards-ready.mjs";
 
 const CLEAN = { script: "tools/clean-defaults.mjs", title: "מחיקת שורות הדמה של monday" };
 
@@ -99,22 +88,13 @@ console.log("\n" + "═".repeat(56));
 console.log("▶ אימות");
 console.log("═".repeat(56));
 
-const bad = [];
-for (const s of STEPS) {
-  try {
-    const m = await import("../" + s.ids + "?v=" + Date.now());
-    const fn = m[s.ready];
-    if (typeof fn !== "function") { bad.push(s.title + " — אין " + s.ready + "()"); continue; }
-    if (!fn()) { bad.push(s.title + " — " + s.ready + "() מחזירה false"); continue; }
-    console.log("  ✓ " + s.title);
-  } catch (e) {
-    bad.push(s.title + " — " + (e?.message || e));
-  }
-}
+const bad = await notReady();
+const badKeys = new Set(bad.map((b) => b.ids));
+for (const s of STEPS) if (!badKeys.has(s.ids)) console.log("  ✓ " + s.title);
 
 if (bad.length) {
   console.error("\n✗ " + bad.length + " לא עברו את האימות:");
-  for (const b of bad) console.error("    " + b);
+  for (const b of bad) console.error("    " + b.title + " — " + b.why);
   console.error("");
   process.exit(1);
 }

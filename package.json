@@ -39,7 +39,9 @@
     "seed:demo": "node --env-file=.env tools/seed-demo.mjs",
     "demo:flag": "node --env-file=.env tools/demo-flag.mjs",
     "push:test": "node --env-file=.env tools/push-test.mjs",
-    "projects:orphans": "node --env-file=.env tools/projects-orphans.mjs"
+    "projects:orphans": "node --env-file=.env tools/projects-orphans.mjs",
+    "go": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/go.ps1",
+    "boards:ready": "node tools/boards-ready.mjs"
   },
   "dependencies": {
     "nodemailer": "^9.0.5",

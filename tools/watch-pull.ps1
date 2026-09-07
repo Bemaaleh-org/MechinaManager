@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # סנכרון אוטומטי מהענן — מריצים פעם אחת ומשאירים פתוח
 # ------------------------------------------------------------
 #   npm run sync
@@ -35,7 +35,12 @@ while ($true) {
         $dirty = git status --porcelain 2>$null
         if ($dirty) {
             if (-not $warned) {
-                Write-Host "  ! יש שינויים מקומיים לא שמורים — לא מושך עד שיטופלו." -ForegroundColor Yellow
+                # ⚠ הודעה שאומרת רק "יש שינויים" משאירה את העמדה
+                #   תקועה לנצח: הקבצים המחוללים משתנים בכל seed,
+                #   וכל pull נחסם בשקט. start.cmd מטפל בזה (stash).
+                Write-Host "  ! יש שינויים מקומיים — הסנכרון עצור." -ForegroundColor Yellow
+                Write-Host "    לשחרור: לסגור את החלון הזה ולהריץ start.cmd" -ForegroundColor DarkGray
+                git status --porcelain | ForEach-Object { Write-Host ("      " + $_) -ForegroundColor DarkGray }
                 $warned = $true
             }
         } else {
