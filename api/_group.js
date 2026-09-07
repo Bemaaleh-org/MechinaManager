@@ -343,7 +343,7 @@ async function create(req, res, session) {
     const cols = {
       [M.group]: groupId,
       [M.groupName]: def.name,
-      [M.date]: { date: today(req) },
+      [M.date]: { date: todayFor(req) },
       [M.by]: String(session.name || "").slice(0, 120),
       [M.byId]: String(session.itemId || ""),
     };
@@ -359,10 +359,6 @@ async function create(req, res, session) {
     res.status(502).json({ error: "פרסום ההודעה נכשל" });
   }
 }
-/* ⚠ עוזר קטן כדי לא לייבא שם שמתנגש עם `todayFor` — משמש רק
-   כאן, לתאריך הפרסום. */
-const today = (req) => todayFor(req);
-
 /* ============================================================
    PUT — עריכה: שלי, או ראש המכינה
    ============================================================ */
