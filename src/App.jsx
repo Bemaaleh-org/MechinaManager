@@ -34,6 +34,7 @@ import LaundryPage from "./Laundry.jsx";
 import QuotesPage from "./Quotes.jsx";
 import MishmarPage from "./Mishmar.jsx";
 import Archive from "./Archive.jsx";
+import GroupPage from "./Group.jsx";
 import RulesPage from "./Rules.jsx";
 import TryoutsPage from "./Tryouts.jsx";
 import AccessPage from "./Access.jsx";
@@ -371,6 +372,11 @@ function Staff({ auth, onSignedOut }) {
               { key: "a-requests", label: "בקשות יציאה", icon: <I.note />, badge: mineList.length,
                 active: section === "mechina" && staffSub === "requests",
                 onClick: () => goStaff("requests") },
+              /* ⚠ **גלוי לכל הצוות, ולא למדריך בלבד.** מפת הקבוצות
+                 שימושית לכל אחד; מה שנפתח למדריך הוא הקבוצה שלו
+                 ומה שנכתב בה, וזה נגזר בשרת. */
+              { key: "group", label: "הקבוצה שלי", icon: <I.users />,
+                active: section === "group", onClick: () => setSection("group") },
             ] },
             /* ============================================================
                ⚠ **"מובילי שבוע" ו"בעלי תפקידים" הופרדו לגמרי.**
@@ -556,6 +562,7 @@ function Staff({ auth, onSignedOut }) {
           {section === "quotes" && <QuotesPage say={say} />}
           {section === "mishmar" && <MishmarPage say={say} />}
           {section === "archive" && <Archive say={say} />}
+          {section === "group" && <GroupPage say={say} />}
           {section === "news" && <MyDataPage say={say} isStudent={false} sub0="news" />}
           {section === "trends" && <TrendsPage say={say} />}
           {section === "alumni" && <AlumniPage say={say} />}

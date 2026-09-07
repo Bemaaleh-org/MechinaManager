@@ -109,6 +109,9 @@ import quotes from "./_quotes.js";
 /* ⚠ משמר — ערב לימוד ארוך, ולו לו״ז משלו. הצוות המזדמן שמארגן
    אותו הוא שעורך, וההרשאה נגזרת ממנו (mayTeam) ולא מדגל. */
 import mishmar from "./_mishmar.js";
+/* ⚠ "הקבוצה שלי" — אותו מסך לשני הצדדים: המדריך רואה את הקבוצה
+   שלו עם הנתונים, והחניך רואה את שלו ואת מפת כל הקבוצות. */
+import group from "./_group.js";
 /* ⚠ מרצים של סדרה — **אותו לוח חוות דעת**, עם שיוך לסדרה.
    כל חברי הסדרה כותבים, ולא רק היו״ר. */
 import teamLecturer from "./_team-lecturer.js";
@@ -124,4 +127,4 @@ export default router({ login, list, year, leader, weeks, role, profile, inciden
   "team-entry": teamEntry, "team-poll": teamPoll, "team-feedback": teamFeedback,
   "team-lecturer": teamLecturer,
   "lead-week": leadWeek, "lead-activity": leadActivity,
-  notices, mpoll, mfeedback, search, mydata, trends, laundry, quotes, mishmar });
+  notices, mpoll, mfeedback, search, mydata, trends, laundry, quotes, mishmar, group });

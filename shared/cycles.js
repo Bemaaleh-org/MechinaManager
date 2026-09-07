@@ -78,6 +78,8 @@ export const CYCLE_BOARDS = [
   { key: "quoteReactions", title: "תגובות לציטוט", path: "quotes.reactions", need: false },
   /* ⚠ **שני לוחות המשמר יחד.** מפגש שמצביע על משמר שאינו קיים
      במחזור הוא שורה שאף מסך לא יציג ואיש לא ימחק (4ק). */
+  /* ⚠ הודעות לקבוצה שייכות למחזור — הן נכתבו לחניכים האלה. */
+  { key: "groupMessages", title: "הודעות לקבוצה", path: "group.messages", need: false },
   { key: "mishmarEvents", title: "משמרים", path: "mishmar.events", need: false },
   { key: "mishmarSessions", title: "לו״ז משמר", path: "mishmar.sessions", need: false },
 ];

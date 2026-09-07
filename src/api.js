@@ -684,6 +684,20 @@ export const api = {
   /* ---------- תקלות ובעיות ----------
      ⚠ מנהל או אב בית בלבד — נאכף בשרת. */
   /* ============================================================
+     הקבוצה שלי — המדריך והחניכים באותו מסך
+     ------------------------------------------------------------
+     ⚠ מדריך מפרסם לקבוצה **שלו** בלבד, וראש המכינה לכל קבוצה.
+       `canPostTo` מוחזר מהשרת ואינו נגזר במסך (4יד).
+     ============================================================ */
+  getGroup: () => get("/api/students?action=group"),
+  getGroupById: (id) => get("/api/students?action=group&group=" + encodeURIComponent(id)),
+  postGroupMessage: ({ group, title, body, pinned }) =>
+    post("/api/students?action=group", { group, title, body, pinned }),
+  editGroupMessage: ({ id, title, body, pinned }) =>
+    put("/api/students?action=group", { id, title, body, pinned }),
+  deleteGroupMessage: (id) => del("/api/students?action=group", { id }),
+
+  /* ============================================================
      משמר — האירוע, הלו״ז שלו, והתוכן שנשאר אחריו
      ------------------------------------------------------------
      ⚠ שלושה מסלולי POST לאותה כתובת, ומה שמבדיל הוא הגוף:

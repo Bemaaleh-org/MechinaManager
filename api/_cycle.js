@@ -40,6 +40,7 @@ import { LEAD_BOARDS } from "../shared/lead-ids.js";
 import { LAUNDRY_BOARDS } from "../shared/laundry-ids.js";
 import { QUOTE_BOARDS } from "../shared/quotes-ids.js";
 import { MISHMAR_BOARDS } from "../shared/mishmar-ids.js";
+import { GROUP_BOARDS } from "../shared/group-ids.js";
 
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
 
@@ -62,6 +63,7 @@ const FALLBACK = JSON.parse(JSON.stringify({
   laundry: LAUNDRY_BOARDS,
   quotes: QUOTE_BOARDS,
   mishmar: MISHMAR_BOARDS,
+  group: GROUP_BOARDS,
 }));
 
 /** לאן כל מרחב שמות כותב */
@@ -84,6 +86,7 @@ const TARGETS = {
   /* ⚠ רק `reactions` ב-CYCLE_BOARDS; הבנק נשאר. */
   quotes: QUOTE_BOARDS,
   mishmar: MISHMAR_BOARDS,
+  group: GROUP_BOARDS,
 };
 
 /**

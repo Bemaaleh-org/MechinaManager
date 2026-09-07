@@ -44,6 +44,7 @@ import LaundryPage from "./Laundry.jsx";
 import QuotesPage, { DailyQuote } from "./Quotes.jsx";
 import MishmarPage from "./Mishmar.jsx";
 import Archive from "./Archive.jsx";
+import GroupPage from "./Group.jsx";
 import RulesPage from "./Rules.jsx";
 import TryoutsPage from "./Tryouts.jsx";
 import LeadershipPage from "./Leadership.jsx";
@@ -121,6 +122,7 @@ const TAB_ICON = {
   quotes: <MI.book />,
   mishmar: <MI.book />,
   archive: <MI.book />,
+  group: <MI.users />,
   laundry: <MI.box />,
   mark: <MI.tick />, lessons: <MI.book />, gantt: <MI.cal />,
   /* ארבעת מסכי השיעורים — ראו LESSON_TABS ב-Lessons.jsx */
@@ -3483,6 +3485,11 @@ export function MechinaApp({ auth, onSignedOut }) {
                כשאין — וזה מצב תקין, לא כשל.
              ============================================================ */
           { label: "השיבוצים שלי", items: [
+            /* ⚠ **ראשון בקבוצה, ובאותו שם שהמדריך רואה.** זו
+               הקבוצה שהחניך שייך אליה — מי המדריך, מי החברים,
+               ומה נכתב לה. */
+            { key: "group", label: "הקבוצה שלי", icon: <MI.users />,
+              active: tab === "group", onClick: () => setTab("group") },
             { key: "placements", label: "הענף והוועדות שלי", icon: <MI.users />,
               active: tab === "placements", onClick: () => setTab("placements") },
             { key: "teams", label: "ועדות וסדרות", icon: <MI.tick />,
@@ -3655,6 +3662,7 @@ export function MechinaApp({ auth, onSignedOut }) {
         {tab === "quotes" && <QuotesPage say={say} />}
         {tab === "mishmar" && <MishmarPage say={say} />}
         {tab === "archive" && <Archive say={say} />}
+        {tab === "group" && <GroupPage say={say} />}
         {tab === "mydata" && <MyDataPage say={say} isStudent />}
         {tab === "projects" && <ProjectsPage say={say} />}
         {/* ⚠ אחראי הלו״ז בלבד — הכניסה נגזרת מ-DUTIES ונאכפת

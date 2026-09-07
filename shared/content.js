@@ -41,6 +41,8 @@ export const CONTENT = [
   { key: "note.faults", where: "faults", title: "על דיווח תקלות",
     hint: "מופיע מעל טופס הדיווח, לכל חניך." },
   { key: "note.menu", where: "menu", title: "על תפריט הארוחות" },
+  { key: "note.group", where: "group", title: "על הקבוצה",
+    hint: "מה הקבוצה ומה תפקידה — מוצג בראש המסך, לחניכים ולמדריכים" },
   { key: "note.archive", where: "archive", title: "על השיעורים שהיו",
     hint: "מה נמצא כאן ואיך משתמשים בו — מוצג בראש הארכיון" },
   { key: "note.mishmar", where: "mishmar", title: "על המשמר",
