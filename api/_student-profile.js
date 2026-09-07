@@ -43,6 +43,7 @@ import { loadLeaderWeeks, leadersForDate } from "./_leader-weeks.js";
 import { placementsFor } from "./_placements.js";
 import { identities } from "./_identity.js";
 import { phoneHe } from "../shared/mechina-boards.js";
+import { editRights } from "./_student-edit.js";
 
 const C = MECHINA_COLS.roster;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -105,7 +106,7 @@ async function read(req, res, session) {
       talksBy: guide ? (guide.short || guide.name) : null,
       /* ⚠ נבנה רק לצוות, ואינו קיים בתשובה לחניך. ראו ההערה
          בראש הקובץ. */
-      ...(session.isManager ? { staff: await staffView(student, guide) } : {}),
+      ...(session.isManager ? { staff: await staffView(student, guide, session) } : {}),
     });
   } catch (e) {
     console.error("[student-profile:read]", e);
@@ -121,7 +122,7 @@ async function read(req, res, session) {
      ומסומנים ב-`partial` — כדי שהמסך יוכל לומר "לא נטען"
      במקום להציג "אין שיבוצים" על חניך שיש לו חמישה.
    ============================================================ */
-async function staffView(student, guide) {
+async function staffView(student, guide, session) {
   const failed = [];
   const safe = async (name, fn) => {
     try { return await fn(); }
@@ -169,6 +170,9 @@ async function staffView(student, guide) {
     /* ⚠ חשבון בדיקה מסומן במפורש. מדריך שיראה אותו ברשימה
        צריך לדעת שהוא אינו חניך. */
     demo: Boolean(student.demo),
+    /* ⚠ מה מותר **לי** לערוך כאן — נגזר מאותו כלל שהשרת אוכף
+       ב-?action=edit, כדי שהכפתור יידע מראש (4יד). */
+    canEdit: editRights(session),
     group: guide ? guide.group || null : null,
     guide: guide ? (guide.short || guide.name) : null,
     roles: student.roles || [],

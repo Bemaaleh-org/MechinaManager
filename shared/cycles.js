@@ -68,6 +68,18 @@ export const CYCLE_BOARDS = [
   { key: "projects", title: "פרויקטים", path: "projects.projects", need: false },
   { key: "projectTasks", title: "משימות פרויקט", path: "projects.tasks", need: false },
   { key: "projectMoney", title: "תקציב פרויקט", path: "projects.budget", need: false },
+  /* ⚠ **חדר הכביסה שייך למחזור.** התור והספירה הם של החניכים
+     האלה; מחזור חדש מתחיל בלוח ריק, כמו הנוכחות. */
+  { key: "laundry", title: "חדר כביסה", path: "laundry.board", need: false },
+  /* ⚠⚠ **התגובות במחזור, ובנק הציטוטים לא.** מה שמחזור אחד
+     אסף הוא בדיוק מה שהבא צריך — אותו נימוק של בנק הפעילויות
+     (5יא) ולוח המנות (4מז). התגובות, לעומת זאת, הן של החניכים
+     האלה על הציטוט של אותו יום, ואין להן משמעות בשנה הבאה. */
+  { key: "quoteReactions", title: "תגובות לציטוט", path: "quotes.reactions", need: false },
+  /* ⚠ **שני לוחות המשמר יחד.** מפגש שמצביע על משמר שאינו קיים
+     במחזור הוא שורה שאף מסך לא יציג ואיש לא ימחק (4ק). */
+  { key: "mishmarEvents", title: "משמרים", path: "mishmar.events", need: false },
+  { key: "mishmarSessions", title: "לו״ז משמר", path: "mishmar.sessions", need: false },
 ];
 
 /** מה נדרש כדי שמחזור ייחשב מוכן */

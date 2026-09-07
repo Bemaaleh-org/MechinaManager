@@ -72,7 +72,7 @@ const UNKNOWN_AUTHOR = "לא ידוע";
    (`src/Quotes.jsx`), כדי שמה שהמסך מקבל השרת יקבל.
    ============================================================ */
 const REACTION_RE =
-  /^(?:\p{Extended_Pictographic}(?:️|\p{Emoji_Modifier})?|(?=[^\s]{1,12}$)[א-תA-Za-z׳״']+!?)$/u;
+  /^(?:\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?|(?=[^\s]{1,12}$)[א-תA-Za-z׳״']+!?)$/u;
 const REACTION_HINT = "תגובה היא אימוג׳י אחד או מילה אחת — עד 12 אותיות, בלי רווחים";
 
 const CURATE_HINT = "בחירת ציטוט היום היא של מובילי השבוע ושל הצוות";

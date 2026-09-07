@@ -18,6 +18,20 @@ html,body{margin:0;padding:0;background:#012E58}
      מקום אחר, ולכן איש לא הבחין. משתנה שאינו קיים אינו שגיאה
      ב-CSS, וזו בדיוק הסיבה שהוא חי כאן חודשים. */
   --sand:#F1ECE0;
+  /* ⚠⚠ **אותה מלכודת בדיוק, פעם שנייה.** --navy שימש
+     ב-19 כללים ולא הוגדר מעולם. background:var(--navy) נפתר
+     לכלום — כלומר שקוף — ולכן .lw-who.me (רקע נייבי, טקסט
+     קרם) היה טקסט קרם על שקוף, בלתי נראה לחלוטין; וכל ה-outline
+     וה-box-shadow שנשענו עליו פשוט לא צוירו.
+
+     ⚠ **ואסור לכתוב כאן בקטיקים** — הקובץ כולו מחרוזת אחת,
+       ובקטיק בהערה סוגר אותה. קרה כאן שוב בדיוק בהערה הזו.
+
+     --navy זהה ל-accent בכוונה ואינו כפילות מיותרת: accent
+     הוא צבע ההדגשה של ערכת הנושא, ו-navy הוא **הכחול של
+     הסמל**. במצב לילה הם נפרדים — ההדגשה מתבהרת, והנייבי
+     נשאר משטח כהה שטקסט קרם נקרא עליו. */
+  --navy:#002454;
   --accent:#002454; --accent-soft:#DDE5F0;
   --amber:#8A5A1E; --amber-soft:#F5EBDA;
   --clay:#9E3626; --clay-soft:#F8E6E2;
@@ -692,6 +706,8 @@ html,body{margin:0;padding:0;background:#012E58}
 .photo-pick{display:block;border-radius:12px;overflow:hidden;border:1px solid var(--line2)}
 .photo-pick img{display:block;width:100%;max-height:220px;object-fit:cover}
 .photo-pick .btn{width:100%;border-radius:0;border:none;border-top:1px solid var(--line)}
+/* כפתור עריכה קטן בשורת הדיווח של החניך — בתוך שורת המטא */
+.kx .fl-edit{min-height:26px;padding:0 9px;font-size:12px;border-radius:8px}
 .thumb{flex:0 0 auto;width:42px;height:42px;border-radius:9px;overflow:hidden;
   border:1px solid var(--line2);background:var(--bg)}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
@@ -3589,6 +3605,9 @@ a.tm-entry-t.tm-link{color:var(--navy);text-decoration:underline;
 .kx[data-theme="dark"]{
   --bg:#0B1826; --surface:#132539; --ink:#EAE3D6; --muted:#A9B6C6; --faint:#71829A;
   --line:#22374F; --line2:#2E4763;
+  /* ⚠ הנייבי במצב לילה אינו מתבהר כמו ההדגשה: הוא משמש כרקע
+     שטקסט קרם יושב עליו, וכחול בהיר היה הופך אותו לבלתי קריא. */
+  --navy:#24466E;
   --accent:#9CC3F0; --accent-soft:#1B3350;
   --amber:#E0AC63; --amber-soft:#3A2C16;
   --clay:#F09480; --clay-soft:#3D211C;

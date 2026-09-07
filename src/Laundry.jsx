@@ -499,8 +499,8 @@ export const LAUNDRY_CSS = `
   box-shadow:var(--sh-1);transition:transform .12s var(--ease),box-shadow .12s var(--ease)}
 .kx .ln-day:active{transform:translateY(1px)}
 .kx .ln-day.past{color:var(--faint)}
-.kx .ln-day.today{border-color:var(--navy)}
-.kx .ln-day.on{background:var(--navy);border-color:var(--navy);color:var(--surface);box-shadow:var(--sh-2)}
+.kx .ln-day.today{border-color:var(--accent)}
+.kx .ln-day.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);box-shadow:var(--sh-2)}
 .ln-dn{font-size:11px;font-weight:800;letter-spacing:.2px}
 .ln-dd{font-size:12px;font-weight:700}
 .ln-dc{font-size:10.5px;font-weight:800;margin-top:2px;min-height:14px}
@@ -514,7 +514,7 @@ export const LAUNDRY_CSS = `
 .ln-hr{font-weight:800;letter-spacing:.2px;display:inline-block}
 .ln-note{color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .ln-kind{background:var(--t-s);color:var(--t)}
-.ln-me{font-size:10px;font-weight:800;color:var(--navy);background:var(--t6-s);
+.ln-me{font-size:10px;font-weight:800;color:var(--accent);background:var(--t6-s);
   border-radius:5px;padding:1px 5px;margin-inline-start:6px;vertical-align:middle}
 .st-row.ln-mine,.ln-trow.ln-mine{background:var(--t6-s)}
 .ln-acts{display:flex;gap:4px;flex:0 0 auto}

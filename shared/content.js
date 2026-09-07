@@ -41,6 +41,12 @@ export const CONTENT = [
   { key: "note.faults", where: "faults", title: "על דיווח תקלות",
     hint: "מופיע מעל טופס הדיווח, לכל חניך." },
   { key: "note.menu", where: "menu", title: "על תפריט הארוחות" },
+  { key: "note.mishmar", where: "mishmar", title: "על המשמר",
+    hint: "מה זה משמר ומה מצופה — הטקסט מוצג בראש המסך" },
+  { key: "note.quotes", where: "quotes", title: "על הציטוט היומי",
+    hint: "מה מתאים לבנק — הטקסט מוצג בראש המסך" },
+  { key: "note.laundry", where: "laundry", title: "על חדר הכביסה",
+    hint: "כללי השימוש — כמה זמן מחזיקים מכונה, מה עושים עם כביסה שנשארה" },
   { key: "note.leaders", where: "weeks", title: "על מובילי השבוע" },
   /* ⚠ **מופנה למובילים עצמם ולא לצוות.** "על מובילי השבוע"
      יושב במסך השיבוץ של המנהל; זה יושב במסך שהמוביל עובד בו,

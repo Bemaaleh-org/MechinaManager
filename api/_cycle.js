@@ -37,6 +37,9 @@ import { DUTY_BOARDS } from "../shared/duty-ids.js";
 import { TEAM_BOARDS } from "../shared/team-ids.js";
 import { PROJECT_BOARDS } from "../shared/projects-ids.js";
 import { LEAD_BOARDS } from "../shared/lead-ids.js";
+import { LAUNDRY_BOARDS } from "../shared/laundry-ids.js";
+import { QUOTE_BOARDS } from "../shared/quotes-ids.js";
+import { MISHMAR_BOARDS } from "../shared/mishmar-ids.js";
 
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
 
@@ -56,6 +59,9 @@ const FALLBACK = JSON.parse(JSON.stringify({
      שהמכינה כיוונה פעם אחת, ואינו מוחלף בהחלפת מחזור. */
   team: TEAM_BOARDS,
   lead: LEAD_BOARDS,
+  laundry: LAUNDRY_BOARDS,
+  quotes: QUOTE_BOARDS,
+  mishmar: MISHMAR_BOARDS,
 }));
 
 /** לאן כל מרחב שמות כותב */
@@ -74,6 +80,10 @@ const TARGETS = {
   /* ⚠ הצ׳ק ליסט והביצוע בלבד. בנק הפעילויות נשאר מחוץ למחזור
      במכוון — ראו ההערה ב-shared/cycles.js. */
   lead: LEAD_BOARDS,
+  laundry: LAUNDRY_BOARDS,
+  /* ⚠ רק `reactions` ב-CYCLE_BOARDS; הבנק נשאר. */
+  quotes: QUOTE_BOARDS,
+  mishmar: MISHMAR_BOARDS,
 };
 
 /**

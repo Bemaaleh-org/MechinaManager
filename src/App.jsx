@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { CSS } from "./styles.js";
+/* ⚠ `ALL_CSS` ולא `CSS` — ראו src/screen-css.js: המסכים
+   החדשים מביאים את ה-CSS שלהם, והצירוף במקום אחד. */
+import { ALL_CSS as CSS } from "./screen-css.js";
 /* ⚠ **הלוגו היה בשלושה מקומות**: base64 ב-src/logo.js, קובץ
    ב-public, ומחרוזת נתיב בכל מסך. החלפת לוגו נגמרה בכך ששניים
    מהמסכים התעדכנו והשניים האחרים לא. src/brand.js הוא המקור
@@ -28,6 +30,9 @@ import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { PlacementsPage } from "./Placements.jsx";
 import TeamsPage from "./Teams.jsx";
 import ChoresPage from "./Chores.jsx";
+import LaundryPage from "./Laundry.jsx";
+import QuotesPage from "./Quotes.jsx";
+import MishmarPage from "./Mishmar.jsx";
 import RulesPage from "./Rules.jsx";
 import TryoutsPage from "./Tryouts.jsx";
 import AccessPage from "./Access.jsx";
@@ -337,6 +342,15 @@ function Staff({ auth, onSignedOut }) {
                  לצוות, וגם את המשוב האנונימי. */
               { key: "board", label: "לוח מודעות", icon: <I.note />,
                 active: section === "board", onClick: () => setSection("board") },
+              /* ⚠ הצוות רואה את אותו מסך, ומובילי השבוע והצוות
+                 הם שבוחרים את ציטוט היום. */
+              { key: "quotes", label: "הציטוט היומי", icon: <I.book />,
+                active: section === "quotes", onClick: () => setSection("quotes") },
+              /* ⚠ המשמר יושב באישי ולא בשיעורים: הוא אירוע של
+                 המכינה כולה, והצוות המזדמן שמארגן אותו אינו
+                 אחראי הלו״ז. */
+              { key: "mishmar", label: "משמר", icon: <I.book />,
+                active: section === "mishmar", onClick: () => setSection("mishmar") },
               /* ⚠ **לאיש צוות זו לשונית "מה חדש" בלבד** — אין
                  עליו נתונים במערכת מלבד חשבון הכניסה, והשרת
                  מחזיר 400 מפורש שאומר בדיוק את זה. */
@@ -455,9 +469,16 @@ function Staff({ auth, onSignedOut }) {
                  אחראי המכולה. */
               { key: "c-clean", label: "ציוד ניקיון", icon: <I.box />,
                 active: section === "container" && cArea === "ניקיון", onClick: () => goContainer("ניקיון") },
+              /* ⚠ פתוח לכל הצוות ולא רק לאב הבית: כל אחד רואה את
+                 התור, וההרשאה לנהל נגזרת בשרת. */
+              { key: "laundry", label: "חדר כביסה", icon: <I.box />,
+                active: section === "laundry", onClick: () => setSection("laundry") },
             ] },
             /* ⚠ ההשאלות יושבות עם המכולה: הציוד שיוצא ונכנס
                הוא אותו ציוד שבמכולה, ואותו אדם אחראי עליו. */
+            /* ⚠ **חדר הכביסה באחריות אב הבית, ולא במכולה.** הוא
+               יושב עם התחזוקה כי זה מה שהוא — מכונה שמתקלקלת
+               ותור שצריך לנהל, ולא ציוד שיוצא ונכנס. */
             { label: "מכולה והשאלת ציוד", items: [
               { key: "c-container", label: "מכולה", icon: <I.box />,
                 active: section === "container" && cArea === "מכולה", onClick: () => goContainer("מכולה") },
@@ -525,6 +546,8 @@ function Staff({ auth, onSignedOut }) {
           {section === "menu" && <MenuPage say={say} />}
           {section === "profile" && <ProfilePage say={say} />}
           {section === "board" && <BoardPage say={say} />}
+          {section === "quotes" && <QuotesPage say={say} />}
+          {section === "mishmar" && <MishmarPage say={say} />}
           {section === "news" && <MyDataPage say={say} isStudent={false} sub0="news" />}
           {section === "trends" && <TrendsPage say={say} />}
           {section === "alumni" && <AlumniPage say={say} />}
@@ -559,6 +582,7 @@ function Staff({ auth, onSignedOut }) {
               ב-go && go(...). מנהל אינו יו״ר ולכן הוא לא יגיע
               לשם, אבל תנאי שמסתיר כשל הוא בדיוק מה שנשכח. */}
           {section === "chores" && <ChoresPage say={say} />}
+          {section === "laundry" && <LaundryPage say={say} />}
           {section === "rules" && <RulesPage say={say} />}
           {section === "tryouts" && <TryoutsPage say={say} />}
           {/* ⚠ **"מובילשיות" ו"תשלום למרצים" כבר אינם מסכים

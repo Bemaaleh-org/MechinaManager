@@ -191,7 +191,13 @@ function validate(b, { manage, today }) {
 /** מי מכבס. ⚠ `studentId` נשמע רק ל-`manage`; חניך מזמין לעצמו. */
 async function whoFor(body, session, manage) {
   const wanted = manage ? String(body?.studentId || "").trim() : "";
-  if (!wanted) return { id: String(session.itemId || ""), name: String(session.name || "").trim() };
+  if (!wanted) {
+    /* ⚠ איש צוות שמזמין לעצמו: `session.name` אצל הצוות מוצהר
+       ויכול להיות ריק, ושורה בשם " · 2026-09-08 07:00" אינה
+       קריאה בלוח. */
+    const name = String(session.name || "").trim() || (session.isStudent ? "" : "צוות");
+    return { id: String(session.itemId || ""), name };
+  }
   /* ⚠ מאומת מול רשימת החניכים ולא נלקח כמות שהוא — מזהה שרירותי
      היה יוצר תור לאיש שאינו קיים, ובלוח הוא היה נראה כמו תור. */
   const s = (await assignableStudents()).find((x) => x.id === wanted);

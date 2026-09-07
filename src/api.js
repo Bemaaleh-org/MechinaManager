@@ -683,6 +683,67 @@ export const api = {
 
   /* ---------- תקלות ובעיות ----------
      ⚠ מנהל או אב בית בלבד — נאכף בשרת. */
+  /* ============================================================
+     משמר — האירוע, הלו״ז שלו, והתוכן שנשאר אחריו
+     ------------------------------------------------------------
+     ⚠ שלושה מסלולי POST לאותה כתובת, ומה שמבדיל הוא הגוף:
+       `mishmar` → מפגש חדש · `session`+`score` → דירוג ·
+       `session`+`fileData` → דף עזר. אותו דפוס כמו התגובות
+       בלוח המודעות.
+
+     ⚠ פירוק מפורש: שדה שלא נכתב כאן נשמט בשקט (4לג).
+     ============================================================ */
+  getMishmarim: () => get("/api/students?action=mishmar"),
+  getMishmar: (id) => get("/api/students?action=mishmar&id=" + encodeURIComponent(id)),
+  addMishmar: ({ title, date, theme, team, place, start, end, status }) =>
+    post("/api/students?action=mishmar", { title, date, theme, team, place, start, end, status }),
+  editMishmar: ({ id, title, date, theme, team, place, start, end, status, summary }) =>
+    put("/api/students?action=mishmar",
+      { id, title, date, theme, team, place, start, end, status, summary }),
+  /* ⚠ `force` נדרש כשיש מפגשים — מחיקה שקטה של לו״ז שלם היא
+     בדיוק סוג הפעולה שאי אפשר לתקן (4ק). */
+  deleteMishmar: (id, force) => del("/api/students?action=mishmar", { id, force }),
+  addMishmarSession: ({ mishmar, title, time, minutes, kind, lecturer, place, desc, order }) =>
+    post("/api/students?action=mishmar",
+      { mishmar, title, time, minutes, kind, lecturer, place, desc, order }),
+  editMishmarSession: ({ session, title, time, minutes, kind, lecturer, place, desc, order, summary, openRate }) =>
+    put("/api/students?action=mishmar",
+      { session, title, time, minutes, kind, lecturer, place, desc, order, summary, openRate }),
+  deleteMishmarSession: (session) => del("/api/students?action=mishmar", { session }),
+  rateMishmarSession: ({ session, score }) =>
+    post("/api/students?action=mishmar", { session, score }),
+  uploadMishmarFile: ({ session, fileData, fileName, fileMime }) =>
+    post("/api/students?action=mishmar", { session, fileData, fileName, fileMime }),
+
+  /* ============================================================
+     הציטוט היומי — בנק, בחירה ותגובות
+     ------------------------------------------------------------
+     ⚠ `reactQuote` ו-`addQuote` הם שניהם POST לאותה כתובת,
+       ומה שמבדיל ביניהם הוא `quote` בגוף. אותו דפוס כמו
+       תגובה למודעה ב-?action=notices.
+     ============================================================ */
+  getQuotes: () => get("/api/students?action=quotes"),
+  addQuote: ({ text, author }) => post("/api/students?action=quotes", { text, author }),
+  reactQuote: ({ quote, reaction }) => post("/api/students?action=quotes", { quote, reaction }),
+  curateQuote: ({ id, shown, text, author, archived }) =>
+    put("/api/students?action=quotes", { id, shown, text, author, archived }),
+  deleteQuote: (id) => del("/api/students?action=quotes", { id }),
+
+  /* ============================================================
+     חדר כביסה — שיבוץ למכונה ולמייבש
+     ------------------------------------------------------------
+     ⚠ פירוק מפורש: שדה שלא נכתב כאן נשמט בשקט ונראה עובד
+       במסך בלי להגיע לשרת (4לג).
+     ============================================================ */
+  getLaundry: (from, to) =>
+    get("/api/students?action=laundry"
+      + (from ? `&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : "")),
+  addLaundry: ({ date, hour, machine, kind, minutes, note, studentId }) =>
+    post("/api/students?action=laundry", { date, hour, machine, kind, minutes, note, studentId }),
+  editLaundry: ({ id, date, hour, machine, kind, minutes, note, studentId }) =>
+    put("/api/students?action=laundry", { id, date, hour, machine, kind, minutes, note, studentId }),
+  deleteLaundry: (id) => del("/api/students?action=laundry", { id }),
+
   getFaults: () => get("/api/students?action=faults"),
   addFault: (body) => post("/api/students?action=faults", body),
   editFault: (body) => put("/api/students?action=faults", body),

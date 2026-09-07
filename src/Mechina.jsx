@@ -40,6 +40,9 @@ import OfflineBar from "./Offline.jsx";
 import SearchOverlay, { SearchButton } from "./Search.jsx";
 import TeamsPage from "./Teams.jsx";
 import ChoresPage from "./Chores.jsx";
+import LaundryPage from "./Laundry.jsx";
+import QuotesPage, { DailyQuote } from "./Quotes.jsx";
+import MishmarPage from "./Mishmar.jsx";
 import RulesPage from "./Rules.jsx";
 import TryoutsPage from "./Tryouts.jsx";
 import LeadershipPage from "./Leadership.jsx";
@@ -114,6 +117,9 @@ function halfQuota(sum) {
 const PERSONAL_TABS = new Set(["leadership", "chores", "year", "requests"]);
 
 const TAB_ICON = {
+  quotes: <MI.book />,
+  mishmar: <MI.book />,
+  laundry: <MI.box />,
   mark: <MI.tick />, lessons: <MI.book />, gantt: <MI.cal />,
   /* ארבעת מסכי השיעורים — ראו LESSON_TABS ב-Lessons.jsx */
   "l-board": <MI.cal />, "l-sheets": <MI.book />, "l-evals": <MI.check />,
@@ -1758,7 +1764,10 @@ const TALK_LABELS = ["תחילת שנה", "אמצע שנה", "סוף שנה"];
      ושינוי שלה מנתק את החניך. הכפתור יודע מראש — אחרת הוא
      נלחץ ומחזיר 403 אחרי שכבר מילאו טופס (4יד).
    ============================================================ */
-function StudentEdit({ f, studentId, isHead, say, onSaved, onCancel }) {
+/* ⚠ `identity` — האם מותר לערוך שם, ת.ז ומין (ראש המכינה).
+   מדריך מקבל את השדות היבשים בלבד, והשדות האחרים אינם נשלחים
+   כלל — שדה שנשלח ונדחה היה מפיל את כל השמירה. */
+function StudentEdit({ f, studentId, identity = false, say, onSaved, onCancel }) {
   const [v, setV] = useState(() => ({
     name: f.name || "", tz: f.tz || "", dob: f.dob || "",
     gender: f.gender || "", phone: f.phoneRaw || f.phone || "",
@@ -1767,12 +1776,13 @@ function StudentEdit({ f, studentId, isHead, say, onSaved, onCancel }) {
   }));
   const [busy, setBusy] = useState(false);
   const set = (k, x) => setV((p) => ({ ...p, [k]: x }));
-  const tzChanged = String(v.tz).replace(/\D/g, "") !== String(f.tz || "").replace(/\D/g, "");
+  const tzChanged = identity && String(v.tz).replace(/\D/g, "") !== String(f.tz || "").replace(/\D/g, "");
 
   const save = () => {
     if (busy) return;
     setBusy(true);
-    api.editStudent({ studentId, ...v })
+    const { name, tz, gender, ...dry } = v;
+    api.editStudent({ studentId, ...dry, ...(identity ? { name, tz, gender } : {}) })
       .then((r) => {
         say(r.changed.length ? "עודכן: " + r.changed.join(" · ") : "לא היה מה לשנות");
         if (r.signedOut) say("תעודת הזהות הוחלפה — החניך נותק וייכנס מחדש עם הסיסמה שלו");
@@ -1794,12 +1804,23 @@ function StudentEdit({ f, studentId, isHead, say, onSaved, onCancel }) {
   return (
     <div className="tm-editor card lift">
       <div className="tm-form-h">עריכת {f.name || "החניך"}</div>
-      <F k="name" label="שם מלא" />
-      <div className="tm-row2">
-        <F k="tz" label="תעודת זהות" type="tel"
-          hint={tzChanged ? "⚠ שינוי ינתק את החניך מכל מכשיר" : "משמשת לכניסה הראשונה"} />
-        <F k="dob" label="תאריך לידה" type="date" />
-      </div>
+      {identity ? (
+        <>
+          <F k="name" label="שם מלא" />
+          <div className="tm-row2">
+            <F k="tz" label="תעודת זהות" type="tel"
+              hint={tzChanged ? "⚠ שינוי ינתק את החניך מכל מכשיר" : "משמשת לכניסה הראשונה"} />
+            <F k="dob" label="תאריך לידה" type="date" />
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="tm-esc-n" style={{ marginBottom: 10 }}>
+            שם, תעודת זהות ומין נערכים על ידי ראש המכינה. כאן — הפרטים שמשתנים בשגרה.
+          </div>
+          <F k="dob" label="תאריך לידה" type="date" />
+        </>
+      )}
       <div className="tm-row2">
         <F k="phone" label="טלפון" type="tel" />
         <F k="mail" label="אימייל אישי" type="email" />
@@ -1809,7 +1830,7 @@ function StudentEdit({ f, studentId, isHead, say, onSaved, onCancel }) {
         <F k="shirt" label="מידת חולצה" hint="חייב להיות ערך שקיים ברשימה שבלוח" />
       </div>
       <div className="tm-row2">
-        <F k="gender" label="מין" hint="זכר או נקבה" />
+        {identity && <F k="gender" label="מין" hint="זכר או נקבה" />}
         <F k="religion" label="הגדרה דתית" hint="ערך מהרשימה שבלוח" />
       </div>
       <F k="allergy" label="אלרגיה או רגישות" />
@@ -1836,12 +1857,16 @@ function StudentEdit({ f, studentId, isHead, say, onSaved, onCancel }) {
   );
 }
 
-function StaffDossier({ f, studentId, isHead, say, reload }) {
+/* ⚠ `isHead` כבר אינו מוכרע כאן — `f.canEdit` מגיע מהשרת, מאותו
+   כלל ש-?action=edit אוכף: מדריך עורך נתונים יבשים, ראש המכינה
+   גם זהות. */
+function StaffDossier({ f, studentId, say, reload }) {
   const [edit, setEdit] = useState(false);
   if (!f) return null;
+  const rights = f.canEdit || { dry: false, identity: false };
   if (edit) {
     return (
-      <StudentEdit f={f} studentId={studentId} isHead={isHead} say={say}
+      <StudentEdit f={f} studentId={studentId} identity={rights.identity} say={say}
         onCancel={() => setEdit(false)}
         onSaved={() => { setEdit(false); reload && reload(); }} />
     );
@@ -1910,9 +1935,11 @@ function StaffDossier({ f, studentId, isHead, say, reload }) {
           </div>
         )}
         {/* ⚠ ראש המכינה בלבד — ת.ז היא סוד הכניסה. */}
-        {isHead && (
+        {rights.dry && (
           <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginTop: 12 }}
-            onClick={() => setEdit(true)}>עריכת הנתונים</button>
+            onClick={() => setEdit(true)}>
+            {rights.identity ? "עריכת הנתונים" : "עריכת הפרטים היבשים"}
+          </button>
         )}
         {(f.leader || (f.roles || []).length > 0 || f.demo || !f.active) && (
           <div className="chips" style={{ marginTop: 4 }}>
@@ -2028,7 +2055,7 @@ function ProfileCard({ studentId, say, withDossier = false, isHead = false }) {
           ולא שלוש קריאות שנוחתות בזו אחר זו וגורמות לתוכן
           לקפוץ מתחת לאצבע. */}
       {withDossier && (
-        <StaffDossier f={data.staff} studentId={studentId} isHead={isHead}
+        <StaffDossier f={data.staff} studentId={studentId}
           say={say} reload={reload} />
       )}
 
@@ -3076,6 +3103,15 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
       <TodayAgenda onOpen={() => go("agenda")} onSettled={bump} />
 
       {/* ============================================================
+          ⚠ **הציטוט במרכז מסך הבית, ומעל כל השאר.**
+            הוא לא נתון ולא מטלה — הוא הדבר היחיד כאן שנועד
+            להיקרא בשביל עצמו. הרכיב מחזיר null בזמן טעינה,
+            בכישלון וכשהבנק ריק, ולכן אינו חוסם את המסך ואינו
+            משאיר קופסה ריקה (עיקרון 6 בכיוון ההפוך).
+          ============================================================ */}
+      <DailyQuote say={say} onOpen={() => go("quotes")} />
+
+      {/* ============================================================
           לוח השיעורים — לאחראי הלו״ז
           ------------------------------------------------------------
           ⚠ אותו רכיב בדיוק שיושב במסך הבית של המנהל. אחראי
@@ -3398,6 +3434,14 @@ export function MechinaApp({ auth, onSignedOut }) {
                היום" בוואטסאפ, ומי שיצטרך לגלול אליו לא ייכנס. */
             { key: "board", label: "לוח מודעות", icon: <MI.note />,
               active: tab === "board", onClick: () => setTab("board") },
+            /* ⚠ אחרי לוח המודעות: שניהם "מה נאמר לכולם", והציטוט
+               הוא הקליל שבהם. */
+            { key: "quotes", label: "הציטוט היומי", icon: <MI.book />,
+              active: tab === "quotes", onClick: () => setTab("quotes") },
+            /* ⚠ כל חניך רואה את המשמר ואת מה שהיה בו; מי שמארגן
+               עורך את אותו מסך בדיוק (4יט). */
+            { key: "mishmar", label: "משמר", icon: <MI.book />,
+              active: tab === "mishmar", onClick: () => setTab("mishmar") },
             { key: "agenda", label: "הלו״ז שלי", icon: <MI.cal />,
               active: tab === "agenda", onClick: () => setTab("agenda") },
             { key: "gantt", label: "גאנט שנתי", icon: <MI.cal />,
@@ -3410,6 +3454,10 @@ export function MechinaApp({ auth, onSignedOut }) {
               active: tab === "chores", onClick: () => setTab("chores") },
             { key: "menu", label: "תפריט ארוחות", icon: <MI.book />,
               active: tab === "menu", onClick: () => setTab("menu") },
+            /* ⚠ **כל חניך משבץ את עצמו**, ואב הבית מנהל את אותו
+               מסך בדיוק — עיקרון 4יט. */
+            { key: "laundry", label: "חדר כביסה", icon: <MI.box />,
+              active: tab === "laundry", onClick: () => setTab("laundry") },
             { key: "rules", label: "נהלים במכינה", icon: <MI.book />,
               active: tab === "rules", onClick: () => setTab("rules") },
             { key: "report", label: "דיווח תקלה", icon: <MI.tool />,
@@ -3583,6 +3631,7 @@ export function MechinaApp({ auth, onSignedOut }) {
         {tab === "duty" && <DutyPage say={say} go={(t) => setTab(t)} />}
         {tab === "teams" && <TeamsPage say={say} go={(t) => setTab(t)} />}
         {tab === "chores" && <ChoresPage say={say} />}
+        {tab === "laundry" && <LaundryPage say={say} />}
         {tab === "rules" && <RulesPage say={say} />}
         {tab === "tryouts" && <TryoutsPage say={say} />}
         {tab === "leadership" && <LeadershipPage say={say} />}
@@ -3596,6 +3645,8 @@ export function MechinaApp({ auth, onSignedOut }) {
             האחריות שהוא נושא; הקריאה היא של כולם, וזו כל התכלית
             של לוח מודעות. */}
         {tab === "board" && <BoardPage say={say} />}
+        {tab === "quotes" && <QuotesPage say={say} />}
+        {tab === "mishmar" && <MishmarPage say={say} />}
         {tab === "mydata" && <MyDataPage say={say} isStudent />}
         {tab === "projects" && <ProjectsPage say={say} />}
         {/* ⚠ אחראי הלו״ז בלבד — הכניסה נגזרת מ-DUTIES ונאכפת

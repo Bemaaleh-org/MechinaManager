@@ -2,8 +2,10 @@
    /api/students?action=faults — תקלות ובעיות
      GET    צוות: כל התקלות. חניך: רק אלה שהוא דיווח.
      POST   { title, place, urgency, desc, photo… }   תקלה חדשה
-     PUT    { id, ...שדות לעדכון }                    עריכה — צוות
-     DELETE { id }                                    מחיקה — צוות
+     PUT    { id, ...שדות לעדכון }   צוות: הכול. המדווח: הדיווח
+                                    שלו, כל עוד לא טופל.
+     DELETE { id }                  צוות: הכול. המדווח: שלו, כל
+                                    עוד "פתוחה".
 
    ⚠ הדיווח פתוח לכל חניך; המעקב שמור לצוות. שתי ההרשאות
      נאכפות כאן, בתוך המודול, ולא ב-withAuth: withAuth מכניס
@@ -252,9 +254,69 @@ async function handler(req, res, session) {
       return res.status(200).json({ ok: true, id, photoUploaded });
     }
 
-    /* ---------- מכאן והלאה: צוות בלבד ---------- */
+    /* ============================================================
+       ⚠ **מי שדיווח עורך את הדיווח שלו — כל עוד לא טופל.**
+
+       טעות בכותרת, מיקום שגוי, תמונה ששכחו לצרף — כולם היו שולחים
+       את החניך לדווח שוב, ואב הבית היה מקבל שתי תקלות על דבר אחד.
+       מה שהחניך עורך הוא **הדיווח**: כותרת, מיקום, אופן תיקון,
+       דחיפות, תיאור ותמונת הבעיה. שדות הטיפול — סטטוס, הערות,
+       איש מקצוע, עלות, תאריך סיום — נשארים של הצוות.
+
+       ⚠ תקלה שטופלה כבר אינה נערכת על ידי המדווח; היא היסטוריית
+         תחזוקה. ומחיקה — רק כשהיא עדיין "פתוחה": ברגע שמישהו
+         התחיל לטפל, הדיווח כבר אינו רק שלו.
+
+       ⚠ 404 ולא 403 על תקלה של חניך אחר — 403 מאשר שהיא קיימת.
+       ============================================================ */
     if (!staff) {
-      return res.status(403).json({ error: "מעקב אחר תקלות שמור לצוות ולאב הבית" });
+      const id = String(body?.id || "").trim();
+      if (!id) return res.status(400).json({ error: "לא צוינה תקלה" });
+      const f = (await loadFaults({ force: true })).find((x) => x.id === id);
+      if (!f || !isMine(f, session)) return res.status(404).json({ error: "התקלה אינה נמצאת" });
+
+      if (req.method === "PUT") {
+        if (f.status === FAULT_STATUS.done) {
+          return res.status(409).json({ error: "התקלה כבר טופלה — לדיווח נוסף פותחים תקלה חדשה" });
+        }
+        const { cost, pro, proPhone, doneDate, notes, status, date, ...clean } = body;
+        const cols = colsFrom(clean, res);
+        if (cols === null) return;
+        if (Object.keys(cols).length) await setColumns(FAULTS.board, id, cols);
+        if (body.title !== undefined) {
+          const title = String(body.title).trim().slice(0, 200);
+          if (!title) return res.status(400).json({ error: "כותרת ריקה" });
+          await renameItem(FAULTS.board, id, title);
+        }
+        /* ⚠ אצל המדווח התמונה היא תמונת **הבעיה** — אותה עמודה
+           של הדיווח, ולא תמונת "אחרי". */
+        let photoUploaded = null;
+        if (body.photoData) {
+          photoUploaded = false;
+          try {
+            const buf = Buffer.from(String(body.photoData), "base64");
+            if (buf.length > 0 && buf.length <= 8 * 1024 * 1024) {
+              await uploadFile(id, C.photo,
+                String(body.photoName || "תמונה.jpg"), buf,
+                String(body.photoMime || "image/jpeg"));
+              photoUploaded = true;
+            }
+          } catch (e) { console.error("[faults:photo]", e); }
+        }
+        invalidate("faults");
+        return res.status(200).json({ ok: true, id, photoUploaded });
+      }
+
+      if (req.method === "DELETE") {
+        if (f.status !== FAULT_STATUS.open) {
+          return res.status(409).json({ error: `התקלה כבר ${f.status} — מחיקה נעשית על ידי אב הבית` });
+        }
+        await deleteItem(id);
+        invalidate("faults");
+        return res.status(200).json({ ok: true, id });
+      }
+
+      return res.status(405).json({ error: "מתודה לא נתמכת" });
     }
 
     if (req.method === "PUT") {

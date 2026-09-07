@@ -100,6 +100,15 @@ import search from "./_search.js";
 import mydata from "./_mydata.js";
 /* ⚠ מגמות — צוות בלבד, ואין בהן מספר על חניך מסוים. */
 import trends from "./_trends.js";
+/* חדר כביסה — שיבוץ למכונה ולמייבש. ⚠ אב הבית מנהל, וכל חניך
+   משבץ את עצמו. ההרשאה בתוך המודול, לא בדגל. */
+import laundry from "./_laundry.js";
+/* הציטוט היומי — בנק שכל חניך מוסיף לו, ומובילי השבוע בוחרים
+   מתוכו את ציטוט היום. */
+import quotes from "./_quotes.js";
+/* ⚠ משמר — ערב לימוד ארוך, ולו לו״ז משלו. הצוות המזדמן שמארגן
+   אותו הוא שעורך, וההרשאה נגזרת ממנו (mayTeam) ולא מדגל. */
+import mishmar from "./_mishmar.js";
 /* ⚠ מרצים של סדרה — **אותו לוח חוות דעת**, עם שיוך לסדרה.
    כל חברי הסדרה כותבים, ולא רק היו״ר. */
 import teamLecturer from "./_team-lecturer.js";
@@ -115,4 +124,4 @@ export default router({ login, list, year, leader, weeks, role, profile, inciden
   "team-entry": teamEntry, "team-poll": teamPoll, "team-feedback": teamFeedback,
   "team-lecturer": teamLecturer,
   "lead-week": leadWeek, "lead-activity": leadActivity,
-  notices, mpoll, mfeedback, search, mydata, trends });
+  notices, mpoll, mfeedback, search, mydata, trends, laundry, quotes, mishmar });

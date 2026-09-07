@@ -15,9 +15,17 @@
      עיר, אלרגיה, הגדרה דתית ומידת חולצה — כולם הגיעו מהרשימה
      שהמכינה קיבלה, וכולם יכולים להשתנות.
 
-   ⚠ **ראש המכינה בלבד.** לא כל איש צוות: ת.ז היא סוד הכניסה,
-     ושינוי שלה מנתק את החניך. זו החלטה של מי שאחראי על
-     המצבה.
+   ⚠ **שתי רמות, לפי מה שהשדה עושה.**
+     שם, תעודת זהות ומין הם **הזהות**: ת.ז היא סוד הכניסה
+     ושינוי שלה מנתק את החניך, ושם ומין הם מה שכל המסכים
+     מזהים לפיו. אלה של ראש המכינה בלבד.
+     טלפון, אימייל אישי, עיר, אלרגיה, הגדרה דתית, מידת חולצה
+     ותאריך לידה הם **נתונים יבשים** שמשתנים בשגרה — חניך
+     החליף מספר, גדל מידה — ואותם עורך גם המדריך. שליחת
+     המדריך לראש המכינה בשביל מידת חולצה היא בדיוק סוג הדבר
+     שמסיים בפתק.
+     `canEdit` בתשובת הפרופיל אומר למסך מראש איזו רמה פתוחה
+     לו (4יד).
 
    ⚠ **מיפוי מפורש ולא פריסה.** שדה שאינו ברשימה כאן פשוט
      אינו נכתב — כדי שעמודה חדשה בלוח לא תיפתח לכתיבה מעצמה
@@ -48,17 +56,25 @@ const FIELDS = {
   allergy: { col: C.allergy, kind: "text", label: "אלרגיה או רגישות", max: 300 },
   religion: { col: C.religion, kind: "status", label: "הגדרה דתית", max: 40 },
   shirt: { col: C.shirt, kind: "status", label: "מידת חולצה", max: 20 },
-  gender: { col: C.gender, kind: "status", label: "מין", max: 20 },
   dob: { col: C.dob, kind: "date", label: "תאריך לידה" },
+  /* ⚠ מין הוא זהות — ראש המכינה בלבד. ראו ההערה בראש. */
+  gender: { col: C.gender, kind: "status", label: "מין", max: 20, identity: true },
 };
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+/** מי רשאי לערוך מה — אותה תשובה שמסך הפרופיל מקבל ב-`canEdit`. */
+export const editRights = (session) => ({
+  dry: Boolean(session.isHead || session.isGuide),
+  identity: Boolean(session.isHead),
+});
+
 async function handler(req, res, session) {
   if (req.method !== "PUT") return res.status(405).json({ error: "רק PUT נתמך כאן" });
-  if (!session.isHead) {
+  const rights = editRights(session);
+  if (!rights.dry) {
     return res.status(403).json({
-      error: "עריכת נתוני חניך נעשית על ידי ראש המכינה",
+      error: "עריכת נתוני חניך נעשית על ידי ראש המכינה או מדריך",
     });
   }
 
@@ -66,6 +82,15 @@ async function handler(req, res, session) {
     const body = req.body ?? (await readJson(req));
     const id = String(body?.studentId || "").trim();
     if (!id) return res.status(400).json({ error: "לא צוין חניך" });
+
+    /* ⚠ שדה זהות בגוף הבקשה של מי שאינו ראש מכינה — 403 ולא
+       התעלמות שקטה: שדה שנשלח ולא נכתב נראה כאילו נשמר. */
+    const identityKeys = ["name", "tz", ...Object.keys(FIELDS).filter((k) => FIELDS[k].identity)];
+    if (!rights.identity && identityKeys.some((k) => body?.[k] !== undefined)) {
+      return res.status(403).json({
+        error: "שם, תעודת זהות ומין נערכים על ידי ראש המכינה בלבד",
+      });
+    }
 
     const rows = await studentRows({ force: true });
     const me = rows.find((r) => r.id === id);

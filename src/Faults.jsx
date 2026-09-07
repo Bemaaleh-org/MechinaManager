@@ -63,9 +63,14 @@ function Pick({ label, options, value, onChange, disabled }) {
   );
 }
 
-/* ---------- טופס תקלה — חדשה או עריכה ---------- */
-function FaultForm({ initial, say, onDone, onCancel }) {
+/* ---------- טופס תקלה — חדשה או עריכה ----------
+   ⚠ `reporter` — המדווח עורך את הדיווח שלו: כותרת, מיקום, אופן
+     תיקון, דחיפות, תיאור ותמונת הבעיה. שדות הטיפול אינם מוצגים
+     לו, והשרת ממילא מתעלם מהם (api/_faults.js). */
+function FaultForm({ initial, say, onDone, onCancel, reporter = false }) {
   const editing = Boolean(initial?.id);
+  /* ⚠ אצל המדווח התמונה שמעלים בעריכה היא תמונת **הבעיה**. */
+  const staffEdit = editing && !reporter;
   const [f, setF] = useState(() => ({
     title: initial?.title || "",
     place: initial?.place || "",
@@ -138,7 +143,9 @@ function FaultForm({ initial, say, onDone, onCancel }) {
       <button className="btn btn-ghost btn-sm" style={{ marginBottom: 14 }} onClick={onCancel}>
         <FI.chev style={{ transform: "rotate(180deg)" }} />חזרה
       </button>
-      <div className="screen-title">{editing ? "עריכת תקלה" : "תקלה חדשה"}</div>
+      <div className="screen-title">
+        {editing ? (reporter ? "עריכת הדיווח" : "עריכת תקלה") : "תקלה חדשה"}
+      </div>
 
       <div className="card lift">
         <div className="fld">
@@ -154,7 +161,7 @@ function FaultForm({ initial, say, onDone, onCancel }) {
           <Pick label="דחיפות" options={URGENCIES} value={f.urgency} onChange={set("urgency")} disabled={busy} />
         </div>
 
-        {editing && (
+        {staffEdit && (
           <Pick label="סטטוס" options={STATUSES} value={f.status} onChange={set("status")} disabled={busy} />
         )}
 
@@ -165,7 +172,7 @@ function FaultForm({ initial, say, onDone, onCancel }) {
         </div>
 
         {/* ---- תמונה ---- */}
-        {!editing ? (
+        {!staffEdit ? (
           <div className="fld">
             <label>תמונה (לא חובה)</label>
             {photo ? (
@@ -174,6 +181,19 @@ function FaultForm({ initial, say, onDone, onCancel }) {
                 <button type="button" className="btn btn-ghost btn-sm" disabled={busy}
                   onClick={() => setPhoto(null)}>הסרת התמונה</button>
               </div>
+            ) : editing && initial.photoUrl ? (
+              /* ⚠ בעריכה של המדווח: התמונה שכבר צורפה מוצגת, וקובץ
+                 חדש מתווסף לצידה — עמודת קובץ אינה נדרסת. */
+              <>
+                <a href={initial.photoUrl} target="_blank" rel="noreferrer" className="photo-pick">
+                  <img src={initial.photoUrl} alt="תמונת התקלה" />
+                </a>
+                <label className="file-drop" style={{ marginTop: 8 }}>
+                  <FI.camera />
+                  <span>הוספת תמונה נוספת</span>
+                  <input type="file" accept="image/*" disabled={busy} onChange={pickPhoto} />
+                </label>
+              </>
             ) : (
               <label className="file-drop">
                 <FI.camera />
@@ -238,7 +258,7 @@ function FaultForm({ initial, say, onDone, onCancel }) {
         )}
 
         {/* ---- מעקב הטיפול — צוות בלבד ---- */}
-        {editing && (
+        {staffEdit && (
           <>
             <div className="fld">
               <label>הערות טיפול</label>
@@ -282,7 +302,9 @@ function FaultForm({ initial, say, onDone, onCancel }) {
           {busy ? "שומר…" : editing ? "שמירת השינויים" : "רישום התקלה"}
         </button>
 
-        {editing && (confirmDel ? (
+        {/* ⚠ המדווח מוחק רק כשהתקלה עדיין "פתוחה" — `canDelete`
+            מגיע מהשרת, כדי שהכפתור לא יופיע ויקבל 409. */}
+        {editing && (!reporter || initial.canDelete) && (confirmDel ? (
           <button className="btn btn-clay" style={{ marginTop: 8 }} disabled={busy} onClick={remove}>
             למחוק לצמיתות?
           </button>
@@ -381,8 +403,9 @@ export function FaultReportPage({ say }) {
     </div>
   );
 
+  /* ⚠ `form` הוא true לדיווח חדש, או התקלה עצמה לעריכה. */
   if (form) return (
-    <FaultForm say={say}
+    <FaultForm say={say} reporter initial={form === true ? null : form}
       onDone={() => { setForm(false); reload(); }}
       onCancel={() => setForm(false)} />
   );
@@ -429,6 +452,11 @@ export function FaultReportPage({ say }) {
                       : x.status === FAULT_STATUS.working ? "p-new" : "p-low")}>{x.status}</span>
                     {x.place && <span>{x.place}</span>}
                     <span className="num">{heDate(x.date)}</span>
+                    {/* ⚠ עריכה רק כשהשרת אמר `canEdit` — עד שטופל. */}
+                    {x.canEdit && (
+                      <button type="button" className="btn btn-ghost btn-sm fl-edit"
+                        onClick={() => setForm(x)}>עריכה</button>
+                    )}
                   </div>
                 </div>
                 {/* ⚠ שתי התמונות זו לצד זו — "כך זה נראה" מול

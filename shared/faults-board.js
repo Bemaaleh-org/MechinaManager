@@ -62,5 +62,12 @@ export function toStudentFault(f) {
        שמראה שהתקלה תוקנה היא התשובה לדיווח שלו — בדיוק מה
        שגורם לאנשים להמשיך לדווח. */
     photoDoneUrl: f.photoDoneUrl || null,
+    /* ⚠ שדות הדיווג שהחניך רשאי לתקן — `fix` נכלל כדי שהטופס
+       יוכל להציג אותו כפי שנשמר. שדות הטיפול אינם כאן. */
+    fix: f.fix || null,
+    /* ⚠ נגזר בשרת כדי שהכפתור יידע מראש (4יד): עריכה עד
+       שטופל, מחיקה רק כשעדיין פתוחה. */
+    canEdit: f.status !== FAULT_STATUS.done,
+    canDelete: f.status === FAULT_STATUS.open,
   };
 }
