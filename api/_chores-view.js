@@ -12,6 +12,7 @@
    ============================================================ */
 
 import { withAuth } from "./_session.js";
+import { mayEdit } from "../shared/edit-rights.js";
 import {
   choresReady, loadSectors, loadRoster, loadAdjusts, loadChecklist, loadDone,
   loadTexts, choreStudents, loadLeaderWeeks, eveningSectors, dailySector,
@@ -155,6 +156,13 @@ async function handler(req, res, session) {
            מ-assign שכולל גם את אב הבית. אלה נהלים של המכינה,
            לא הגדרות של מסך — ולכן דגל נפרד ולא שימוש חוזר. */
         headText: Boolean(session.isHead),
+        /* ⚠ **התפריט השבועי אינו נוהל, ולכן דגל נפרד שלישי.**
+           `headText` הוא לנהלים של המכינה ו-`assign` הוא
+           לשיבוץ תורנויות; התפריט הוא תוכן תפעולי של המטבח,
+           ומי שכותב אותו הוא אחראי המטבח (וראש המכינה).
+           שימוש חוזר באחד מהשניים היה פותח נהלים לאחראי
+           המטבח או סוגר לו את התפריט (5יז). */
+        menuText: mayEdit(session, "kitchen"),
       },
       today,
       sectors: sectors.list.map((s) => ({

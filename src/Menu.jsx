@@ -9,8 +9,9 @@
      שם הפריט בלוח, וההתאמה חלקית — "חסר" כאן פירושו "בדקו".
    ============================================================ */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { api } from "./api.js";
+import TextBlock from "./TextBlock.jsx";
 import { useExcel, downloadTable, shareText } from "./excel.js";
 import { parseItems, scaleItems, mergeItems, DEFAULT_BASE } from "../shared/dishes.js";
 
@@ -43,7 +44,7 @@ function useLoad(fn, deps = []) {
 export function MenuPage({ say }) {
   useExcel();
   const { data, err, busy, reload } = useLoad(() => api.getMenu(), []);
-  const [sub, setSub] = useState("plan");
+  const [sub, setSub] = useState("week");
   const [editing, setEditing] = useState(null);
   const [viewing, setViewing] = useState(null);
   const [picked, setPicked] = useState([]);
@@ -80,11 +81,17 @@ export function MenuPage({ say }) {
       <div className="screen-title">תפריט ארוחות</div>
 
       <div className="seg">
+        {/* ⚠ "ארוחות שבועיות" ראשון — זו השאלה שרוב המכינה
+            נכנסת בשבילה ("מה אוכלים השבוע"), ואילו תכנון ארוחה
+            והמנות הם כלי עבודה של אחראי המטבח. */}
+        <button className={sub === "week" ? "on" : ""} onClick={() => setSub("week")}>ארוחות שבועיות</button>
         <button className={sub === "plan" ? "on" : ""} onClick={() => setSub("plan")}>תכנון ארוחה</button>
         <button className={sub === "dishes" ? "on" : ""} onClick={() => setSub("dishes")}>
           המנות ({data.counts.dishes})
         </button>
       </div>
+
+      {sub === "week" && <WeeklyMeals say={say} />}
 
       {sub === "dishes" && (
         <>
@@ -446,4 +453,79 @@ function DishForm({ initial, defaultBase, say, onDone, onCancel }) {
       <div style={{ height: 40 }} />
     </>
   );
+}
+
+/* ============================================================
+   ארוחות שבועיות
+   ------------------------------------------------------------
+   ⚠⚠ **בלוק טקסט, וזו נקודת המוצא ולא הפתרון.**
+
+   מה שהמכינה צריכה בסוף הוא תפריט מובנה — מנה לכל ארוחה,
+   כמויות, וקישור למלאי ולרשימת הקניות. אבל מבנה שנקבע לפני
+   שראינו איך התפריט **באמת** כתוב יישבר בעריכה הראשונה, וזה
+   בדיוק מה שקרה ב"נהלים במכינה": הקוד אינו מכיר את תוכנו,
+   ובכוונה.
+
+   ⚠ **ובינתיים זה כבר שימושי היום** — אחראי המטבח מדביק את
+     התפריט של השבוע וכל המכינה רואה אותו, בלי דיפלוי ובלי
+     לוח חדש.
+
+   ⚠ **`menuText` ולא `headText`.** התפריט אינו נוהל של
+     המכינה אלא תוכן תפעולי של המטבח, ומי שכותב אותו הוא
+     אחראי המטבח. שימוש חוזר בדגל הנהלים היה סוגר לו את
+     המסך (5יז).
+
+   ⚠ **ומצב "טרם נכתב" מוצג כאן**, בניגוד לכלל של ScreenNote
+     שמחזיר null על בלוק ריק. שם הבלוק הוא תוספת למסך; כאן
+     הוא **כל** הלשונית, ולשונית ריקה בלי מילה נראית שבורה
+     (עיקרון 6).
+   ============================================================ */
+function WeeklyMeals({ say }) {
+  const [block, setBlock] = useState(null);
+  const [canEdit, setCanEdit] = useState(false);
+  const [state, setState] = useState("load"); // load · ok · fail
+  const [n, setN] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    api.getChores()
+      .then((r) => {
+        if (!alive) return;
+        setBlock((r.texts || []).find((t) => t.key === "menu.weekly") || null);
+        setCanEdit(Boolean(r.me && r.me.menuText));
+        setState("ok");
+      })
+      .catch(() => { if (alive) setState("fail"); });
+    return () => { alive = false; };
+  }, [n]);
+
+  if (state === "load") return <div className="skel skel-card" />;
+  /* ⚠ כשל טעינה נראה אחרת מ"טרם נכתב" (עיקרון 6). */
+  if (state === "fail") return (
+    <div className="alert a-clay">
+      <div style={{ flex: 1 }}>
+        <div className="ttl">התפריט לא נטען</div>
+        <div className="bd">בדקו חיבור ונסו שוב.</div>
+        <button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }}
+          onClick={() => { setState("load"); setN((x) => x + 1); }}>נסו שוב</button>
+      </div>
+    </div>
+  );
+
+  if (!block) {
+    return (
+      <div className="empty tone-3">
+        <div className="e-ico"><MI.dish /></div>
+        <div className="e1">התפריט השבועי טרם נכתב</div>
+        <div className="e2">
+          {canEdit
+            ? "אפשר להוסיף אותו במסך \"ניהול תוכן\", תחת \"ארוחות שבועיות\"."
+            : "אחראי המטבח יעלה אותו לכאן."}
+        </div>
+      </div>
+    );
+  }
+
+  return <TextBlock block={block} canEdit={canEdit} say={say}
+    onSaved={() => setN((x) => x + 1)} />;
 }

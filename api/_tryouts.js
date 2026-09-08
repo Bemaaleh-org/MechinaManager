@@ -40,6 +40,7 @@
    ============================================================ */
 
 import { withAuth } from "./_session.js";
+import { labelsOf } from "./_status-labels.js";
 import { allItems, gql } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
 import { setColumns, renameItem, createItem, deleteItem } from "./_items.js";
@@ -73,21 +74,14 @@ const R = MECHINA_COLS.roster;
    ההשבתה יושבת ב-`deactivated_labels` (מערך של מזהי תוויות),
    ולא בתוך `labels_colors`.
    ============================================================ */
-const activeLabels = (settingsStr) => {
-  const st = JSON.parse(settingsStr || "{}");
-  const off = new Set((st.deactivated_labels || []).map(String));
-  return Object.entries(st.labels || {})
-    .filter(([id, t]) => t && !off.has(String(id)))
-    .map(([, t]) => String(t));
-};
+/* ⚠ המימוש עבר ל-_status-labels.js — הוא היה כתוב פעמיים,
+   כאן וב-_alumni.js, ושתי הרשימות אמורות להיות **זהות**. */
 
 async function corpsLabels({ force = false } = {}) {
   if (!armyPlacementReady()) return [];
-  return cached("army-corps", async () => {
-    const d = await gql(`{ boards(ids:[${MECHINA_BOARDS.roster}]){ columns{ id settings_str } } }`);
-    const col = (d.boards[0].columns || []).find((c) => c.id === R.armyCorps);
-    return col ? activeLabels(col.settings_str) : [];
-  }, { force, ttl: 10 * 60_000 });
+  return cached("army-corps",
+    () => labelsOf(MECHINA_BOARDS.roster, R.armyCorps),
+    { force, ttl: 10 * 60_000 });
 }
 
 /** השיבוץ של שורת חניך אחת, בצורה שהמסך מקבל. */

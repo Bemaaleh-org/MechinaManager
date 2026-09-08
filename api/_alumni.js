@@ -30,6 +30,7 @@
    ============================================================ */
 
 import { withAuth } from "./_session.js";
+import { labelsOf } from "./_status-labels.js";
 import { gql, allItems } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
 import { setColumns, createItem } from "./_items.js";
@@ -79,17 +80,12 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
      `loadAlumni` קורא את הערך מהשורה ולא מהרשימה. מה שנסגר
      הוא הבחירה קדימה, לא ההיסטוריה.
    ============================================================ */
+/* ⚠ אותה פונקציה בדיוק של רשימת החילות אצל החניכים — ולכן
+   מימוש אחד ב-_status-labels.js. שתי הרשימות אמורות להיות
+   זהות: "לאיזה חיל" היא אותה שאלה על בוגר ועל חניך. */
 async function branchLabels({ force = false } = {}) {
-  return cached("alumni-branches", async () => {
-    const d = await gql(`{ boards(ids:[${A.board}]){ columns{ id settings_str } } }`);
-    const col = (d.boards[0].columns || []).find((c) => c.id === A.cols.branch);
-    if (!col) return [];
-    const st = JSON.parse(col.settings_str || "{}");
-    const off = new Set((st.deactivated_labels || []).map(String));
-    return Object.entries(st.labels || {})
-      .filter(([id, t]) => t && !off.has(String(id)))
-      .map(([, t]) => String(t));
-  }, { force });
+  return cached("alumni-branches",
+    () => labelsOf(A.board, A.cols.branch), { force });
 }
 
 function colsFrom(body) {
