@@ -506,6 +506,16 @@ html,body{margin:0;padding:0;background:#012E58}
   font-weight:800;font-size:13.5px;cursor:pointer;transition:all .12s var(--ease)}
 .kx .rqd-btns button.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .rqd-n{font-size:11.5px;color:var(--muted);font-weight:700;margin-inline-start:auto}
+/* ---------- שמירת היו״ר ----------
+   ⚠ הכפתור אומר מה יישמר ולא "שמירה" סתם — מי שבחר בטעות
+     רואה את השם לפני שהוא לוחץ. */
+.chair-save{display:flex;gap:8px;align-items:center;margin-top:10px}
+/* ---------- עריכת מכסה בתוך עורך השיבוץ ---------- */
+.cap-edit{display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+  margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.kx .cap-edit input{width:100px;height:38px;border-radius:var(--r-sm);
+  border:1px solid var(--line2);background:var(--soft);color:var(--ink);
+  padding:0 10px;font-size:14px;font-weight:700;text-align:center}
 /* עריכה וביטול של בקשה ממתינה — כפתורי רפאים, לא כפתורי הכרעה */
 .rq-act.rq-own{margin-top:10px}
 .rq-act.rq-own button{flex:0 0 auto;min-height:38px;border-color:var(--line)}

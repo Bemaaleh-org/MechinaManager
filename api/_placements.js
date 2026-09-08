@@ -17,6 +17,7 @@ import { withAuth } from "./_session.js";
 import { gql, allItems } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
 import { invalidateGuides } from "./_guides.js";
+import { setColumns } from "./_items.js";
 import { activeStudents, assignableStudents } from "./_student-rows.js";
 import {
   PLACEMENT_BOARDS, PLACEMENT_COLS, CATEGORIES, PERIOD, placementsReady, semestersFor,
@@ -301,6 +302,75 @@ async function handler(req, res, session) {
         /* ⚠ מוחזר כדי שהמסך יאמר זאת. הסרה שקטה של יו״ר היא
            בדיוק סוג ההפתעה שמתגלה חודש אחר כך. */
         chairCleared,
+      });
+    }
+
+    /* ============================================================
+       ⚠ **המכסה נערכת מהמסך שבו רואים אותה.**
+
+       היא הייתה ניתנת לעריכה רק בטופס "ניהול צוותים", ולכן
+       ראש המכינה שעומד מול "8/6 · חריגה ממכסה" בעורך השיבוצים
+       היה צריך לעזוב את המסך, למצוא מסך אחר, לזהות שם את אותה
+       ועדה ולזכור מה רצה לשנות — בדיוק הטעות של מסך ההצפות
+       (4ס) ושל מטלות התורנות (4ק).
+
+       ⚠ **וכאן זה חל על כל קטגוריה ולא על צוותים בלבד.** לענף
+         ולקבוצה יש מכסה בדיוק כמו לוועדה, והן אינן עוברות
+         דרך `team-admin` (שדורש קטגוריית צוות). הן פשוט לא
+         היו ניתנות לשינוי משום מסך.
+
+       ⚠ **ראש המכינה בלבד.** המכסה קובעת מי נכנס ומי לא —
+         זו החלטה על מבנה השנה, לא נתון תפעולי.
+
+       ⚠ **מכסה נמוכה ממספר המשובצים נדחית ואינה "מותרת
+         זמנית".** היא הופכת כל שמירה עתידית של אותו שיבוץ
+         ל-400, והמסך היה נעול בלי לומר למה (4נ, באג 3).
+       ============================================================ */
+    if (req.method === "PUT") {
+      if (!session.isHead) {
+        return res.status(403).json({ error: "שינוי מכסה מותר לראש המכינה בלבד" });
+      }
+      const body = req.body ?? (await readJson(req));
+      const id = String(body?.placementId || "").trim();
+      if (!id) return res.status(400).json({ error: "לא צוין שיבוץ" });
+
+      const defs = await loadDefinitions();
+      const def = defs.find((d) => d.id === id);
+      /* ⚠ 404 ולא 403 — מזהה שאינו קיים אינו מאשר את קיומו. */
+      if (!def) return res.status(404).json({ error: "השיבוץ אינו נמצא" });
+
+      /* ⚠ ריק מנקה, מספר קובע, שאר הערכים נדחים. `Number("שמונה")`
+         הוא NaN, ו-`length > NaN` תמיד false — כלומר האכיפה
+         מתבטלת בשקט והמסך מציג "X/NaN" (4נ). */
+      const raw = String(body?.capacity ?? "").trim();
+      let capacity = "";
+      if (raw !== "") {
+        const n = Number(raw);
+        if (!Number.isInteger(n) || n < 0) {
+          return res.status(400).json({ error: "מכסה היא מספר שלם, או ריק לבלי הגבלה" });
+        }
+        capacity = n;
+      }
+
+      if (capacity !== "") {
+        const assignments = await loadAssignments();
+        /* ⚠ הבדיקה היא מול **הסמסטר העמוס ביותר** ולא מול הסך
+           הכול: שיבוץ שנתי ושיבוץ סמסטריאלי נספרים בנפרד. */
+        const worst = Math.max(0, ...[...new Set(assignments
+          .filter((a) => a.placement === id).map((a) => a.semester))]
+          .map((sem) => assignments.filter((a) => a.placement === id && a.semester === sem).length));
+        if (worst > capacity) {
+          return res.status(400).json({
+            error: `כבר משובצים ${worst} חניכים, ומכסה של ${capacity} תשאיר את השיבוץ חסום`,
+            assigned: worst,
+          });
+        }
+      }
+
+      await setColumns(PLACEMENT_BOARDS.definitions, id, { [D.capacity]: capacity });
+      invalidatePlacements();
+      return res.status(200).json({
+        ok: true, id, capacity: capacity === "" ? null : capacity,
       });
     }
 

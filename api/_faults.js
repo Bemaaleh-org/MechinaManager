@@ -163,13 +163,34 @@ async function handler(req, res, session) {
       const all = await loadFaults();
 
       if (!staff) {
-        const mine = all.filter((f) => isMine(f, session));
+        /* ============================================================
+           ⚠⚠ **כל התקלות גלויות לכל המכינה, בקריאה בלבד.**
+
+           קודם חניך ראה **רק את שלו**, וזה ייצר בדיוק את הבעיה
+           שהלוח נועד לפתור: שמונה אנשים מדווחים על אותה מזגן
+           שבור, כי לאף אחד מהם אין דרך לדעת שכבר דיווחו. אב
+           הבית מקבל שמונה שורות על תקלה אחת.
+
+           ⚠ **"בקריאה בלבד" נאכף פעמיים.** `canEdit`/`canDelete`
+             נגזרים מהבעלות כאן כדי שהכפתור לא יופיע, והשרת
+             בודק בעלות שוב ב-PUT וב-DELETE — דגל בתשובה אינו
+             הגנה (עיקרון 3).
+
+           ⚠ **ושם המדווח אינו יוצא.** לצורך "כבר דווח" די
+             בכותרת, במקום ובסטטוס; שם היה הופך את הרשימה ליומן
+             של מי דיווח על מה (עיקרון 5).
+           ============================================================ */
+        const mineOnly = all.filter((f) => isMine(f, session));
         return res.status(200).json({
           mine: true,
-          faults: mine.map(toStudentFault),
+          faults: all.map((f) => toStudentFault(f, isMine(f, session))),
           counts: {
-            open: mine.filter((x) => x.status !== FAULT_STATUS.done).length,
-            done: mine.filter((x) => x.status === FAULT_STATUS.done).length,
+            /* ⚠ "שלי" נשאר מספר נפרד — זה מה שהחניך שאל עליו,
+               והוא נבלע ברשימה של כל המכינה. */
+            open: mineOnly.filter((x) => x.status !== FAULT_STATUS.done).length,
+            done: mineOnly.filter((x) => x.status === FAULT_STATUS.done).length,
+            allOpen: all.filter((x) => x.status !== FAULT_STATUS.done).length,
+            allDone: all.filter((x) => x.status === FAULT_STATUS.done).length,
           },
         });
       }

@@ -17,6 +17,7 @@
 
 import React, { useState } from "react";
 import { api } from "./api.js";
+import ScrollTabs from "./Tabs.jsx";
 import {
   FAULT_PLACE, FIXES, URGENCIES, STATUSES, FAULT_STATUS, FAULT_URGENCY,
 } from "../shared/faults-board.js";
@@ -382,6 +383,7 @@ function SetupCard({ say, onDone }) {
 export function FaultReportPage({ say }) {
   const { data, err, busy, reload } = useLoad(() => api.getFaults(), []);
   const [form, setForm] = useState(false);
+  const [tab, setTab] = useState("open"); // open · mine · done
 
   if (busy && !data) return (
     <div className="empty" style={{ paddingTop: 60 }}><div className="e1">טוען…</div></div>
@@ -410,46 +412,80 @@ export function FaultReportPage({ say }) {
       onCancel={() => setForm(false)} />
   );
 
-  const mine = (data && data.faults) || [];
-  const open = mine.filter((x) => x.status !== FAULT_STATUS.done);
+  /* ============================================================
+     ⚠⚠ **קודם "מה כבר דווח", ואז הכפתור לדווח.**
+
+     הרשימה פתוחה עכשיו לכל המכינה, וזו כל התכלית: שמונה
+     אנשים דיווחו על אותו מזגן שבור כי לאף אחד לא הייתה דרך
+     לדעת שכבר דיווחו, ואב הבית קיבל שמונה שורות על תקלה אחת.
+     כפתור "דיווח חדש" שיושב **מעל** הרשימה לא היה פותר את
+     זה — הסדר כאן הוא התיקון.
+
+     ⚠ **ושלי מסומן בתוך הרשימה ולא ברשימה שנייה.** שתי
+       רשימות היו מציגות את אותה תקלה פעמיים למי שדיווח.
+     ============================================================ */
+  const all = (data && data.faults) || [];
+  const c = (data && data.counts) || {};
+  const open = all.filter((x) => x.status !== FAULT_STATUS.done);
+  const done = all.filter((x) => x.status === FAULT_STATUS.done);
+  const list = tab === "open" ? open : tab === "mine" ? all.filter((x) => x.mine) : done;
 
   return (
     <>
-      <div className="screen-title">דיווח תקלה</div>
+      <div className="screen-title">תקלות ובעיות</div>
 
       <div className="card" style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600, lineHeight: 1.6 }}>
-          משהו שבור, דולף או לא עובד? דווחו כאן ואב הבית יראה את זה.
-          אפשר לצרף תמונה — היא חוסכת חצי מהשאלות.
+          משהו שבור, דולף או לא עובד? קודם בדקו ברשימה אם כבר דווח —
+          ואם לא, דווחו ואב הבית יראה את זה. אפשר לצרף תמונה, היא
+          חוסכת חצי מהשאלות.
         </div>
       </div>
 
-      <button className="btn btn-primary" style={{ marginBottom: 16 }} onClick={() => setForm(true)}>
+      <ScrollTabs className="seg">
+        <button className={tab === "open" ? "on" : ""} onClick={() => setTab("open")}>
+          פתוחות{open.length ? ` (${open.length})` : ""}
+        </button>
+        <button className={tab === "mine" ? "on" : ""} onClick={() => setTab("mine")}>
+          שלי{c.open || c.done ? ` (${(c.open || 0) + (c.done || 0)})` : ""}
+        </button>
+        <button className={tab === "done" ? "on" : ""} onClick={() => setTab("done")}>
+          טופלו{done.length ? ` (${done.length})` : ""}
+        </button>
+      </ScrollTabs>
+
+      <button className="btn btn-primary" style={{ margin: "12px 0 16px" }} onClick={() => setForm(true)}>
         <FI.plus />דיווח על תקלה חדשה
       </button>
 
-      <div className="sec-label">הדיווחים שלי</div>
-      {mine.length === 0 ? (
+      {list.length === 0 ? (
         <div className="empty">
-          <div className="e1">עוד לא דיווחת על תקלה</div>
-          <div className="e2">דיווח שתגיש יופיע כאן עם הסטטוס שלו.</div>
+          <div className="e1">
+            {tab === "mine" ? "עוד לא דיווחת על תקלה"
+              : tab === "done" ? "עוד לא טופלה אף תקלה" : "אין תקלות פתוחות"}
+          </div>
+          <div className="e2">
+            {tab === "mine" ? "דיווח שתגיש יופיע כאן עם הסטטוס שלו."
+              : "אם משהו שבור — זה המקום לדווח."}
+          </div>
         </div>
       ) : (
         <>
-          {open.length > 0 && (
-            <div className="grp-h">
-              <span>{open.length === 1 ? "דיווח אחד פתוח" : `${open.length} דיווחים פתוחים`}</span>
-              <span>מתעדכן על ידי אב הבית</span>
-            </div>
-          )}
+          <div className="grp-h">
+            <span>{list.length === 1 ? "תקלה אחת" : `${list.length} תקלות`}</span>
+            <span>מתעדכן על ידי אב הבית</span>
+          </div>
           <div className="rows">
-            {mine.map((x) => (
+            {list.map((x) => (
               <div className="st-row" key={x.id} style={{ cursor: "default" }}>
                 <div className="st-main">
                   <div className="st-n">{x.title}</div>
                   <div className="st-m">
                     <span className={"pill " + (x.status === FAULT_STATUS.done ? "p-ok"
                       : x.status === FAULT_STATUS.working ? "p-new" : "p-low")}>{x.status}</span>
+                    {/* ⚠ "שלי" מסומן ולא מופרד לרשימה שנייה —
+                        שתי רשימות היו מציגות אותה תקלה פעמיים. */}
+                    {x.mine && <span className="pill p-new">שלי</span>}
                     {x.place && <span>{x.place}</span>}
                     <span className="num">{heDate(x.date)}</span>
                     {/* ⚠ עריכה רק כשהשרת אמר `canEdit` — עד שטופל. */}

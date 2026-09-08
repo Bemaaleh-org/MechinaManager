@@ -443,6 +443,10 @@ export const api = {
   deleteDutyNote: (id) => del("/api/students?action=duty-notes", { id }),
 
   /* יו״ר לוועדה או לסדרה — מנהל בלבד */
+  /** ⚠ מכסת שיבוץ — ראש המכינה בלבד. ריק מנקה. */
+  setCapacity: ({ placementId, capacity }) =>
+    put("/api/students?action=placements", { placementId, capacity }),
+
   setChair: ({ placementId, studentId }) =>
     put("/api/students?action=chair", { placementId, studentId }),
 

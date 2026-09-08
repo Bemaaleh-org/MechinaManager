@@ -591,7 +591,7 @@ function Staff({ auth, onSignedOut }) {
             <WeekLeadersPage say={say} key={rolesNav.n} sub0={rolesNav.sub || undefined} />
           )}
           {section === "roles" && isMgr && <RoleHoldersPage say={say} />}
-          {section === "placements" && isMgr && <PlacementsPage say={say} />}
+          {section === "placements" && isMgr && <PlacementsPage say={say} isHead={auth.isHead} />}
           {/* ⚠ go מועבר: בלעדיו הכפתור "למרכז התפקיד" במסך
               הצוות לא עושה כלום, **בלי שגיאה** — Teams.jsx מגן
               ב-go && go(...). מנהל אינו יו״ר ולכן הוא לא יגיע

@@ -47,9 +47,16 @@ export const STATUSES = [FAULT_STATUS.open, FAULT_STATUS.working, FAULT_STATUS.d
      בתצוגה, ובמיפוי מפורש ולא בהשמטה, כדי שעמודה חדשה שתיווסף
      ללוח לא תדלוף מעצמה (עיקרון 4).
    ============================================================ */
-export function toStudentFault(f) {
+export function toStudentFault(f, mine = true) {
   return {
     id: f.id,
+    /* ⚠ **מי דיווח אינו יוצא לחניך — רק "שלי" או לא.** הרשימה
+       פתוחה לכולם כדי שלא ידווחו על אותה תקלה פעמיים, ולשם כך
+       די בכותרת, במקום ובסטטוס. שם המדווח היה הופך את הרשימה
+       ליומן של מי דיווח על מה, וזו אותה הבטחה שבגללה אין שדה
+       "מי ביצע" בתורנויות (עיקרון 5). לצוות השם כן יוצא —
+       הוא במיפוי המלא, לא כאן. */
+    mine: Boolean(mine),
     title: f.title,
     date: f.date,
     place: f.place,
@@ -66,8 +73,10 @@ export function toStudentFault(f) {
        יוכל להציג אותו כפי שנשמר. שדות הטיפול אינם כאן. */
     fix: f.fix || null,
     /* ⚠ נגזר בשרת כדי שהכפתור יידע מראש (4יד): עריכה עד
-       שטופל, מחיקה רק כשעדיין פתוחה. */
-    canEdit: f.status !== FAULT_STATUS.done,
-    canDelete: f.status === FAULT_STATUS.open,
+       שטופל, מחיקה רק כשעדיין פתוחה — ורק על מה שאני דיווחתי.
+       ⚠ **הדגל אינו ההגנה.** השרת בודק בעלות שוב בכל PUT
+         ו-DELETE; זה כאן כדי שהכפתור לא יופיע ויקבל 404. */
+    canEdit: mine && f.status !== FAULT_STATUS.done,
+    canDelete: mine && f.status === FAULT_STATUS.open,
   };
 }

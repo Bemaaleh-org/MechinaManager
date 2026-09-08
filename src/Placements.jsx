@@ -100,7 +100,7 @@ function SetupCard({ say, onDone }) {
 }
 
 /* ---------- עריכת המשובצים בשיבוץ+סמסטר אחד ---------- */
-function AssignEditor({ def, semester, assigned, roster, say, onDone, onCancel }) {
+function AssignEditor({ def, semester, assigned, roster, say, onDone, onCancel, isHead }) {
   /* ============================================================
      ⚠ **חניך שכובה לא יקפיא את העורך.**
 
@@ -118,6 +118,22 @@ function AssignEditor({ def, semester, assigned, roster, say, onDone, onCancel }
     () => new Set(assigned.filter((a) => live.has(a.student)).map((a) => a.student)));
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
+  const [capOpen, setCapOpen] = useState(false);
+  const [cap, setCap] = useState(def.capacity == null ? "" : String(def.capacity));
+  const [capBusy, setCapBusy] = useState(false);
+
+  const saveCap = () => {
+    if (capBusy) return;
+    setCapBusy(true);
+    api.setCapacity({ placementId: def.id, capacity: cap.trim() })
+      .then((r) => {
+        say(r.capacity == null ? "המכסה הוסרה" : `המכסה נקבעה ל-${r.capacity}`);
+        setCapOpen(false);
+        onDone();
+      })
+      .catch((e) => say(e.message))
+      .finally(() => setCapBusy(false));
+  };
 
   const list = roster.filter((r) => !q.trim() || r.name.includes(q.trim()));
   /* ⚠ Number.isFinite ולא != null: מכסה לא-מספרית ב-monday
@@ -148,12 +164,38 @@ function AssignEditor({ def, semester, assigned, roster, say, onDone, onCancel }
       </button>
       <div className="screen-title">{def.name} · {semester}</div>
 
-      <div className="card" style={{ marginBottom: 12, display: "flex", gap: 10, alignItems: "center" }}>
-        <b className="num" style={{ fontSize: 22 }}>{picked.size}</b>
-        <span style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600 }}>
-          משובצים{def.capacity != null ? ` מתוך מכסה של ${def.capacity}` : ""}
-        </span>
-        {over && <span className="pill p-low">מעל המכסה</span>}
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <b className="num" style={{ fontSize: 22 }}>{picked.size}</b>
+          <span style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600 }}>
+            משובצים{def.capacity != null ? ` מתוך מכסה של ${def.capacity}` : ""}
+          </span>
+          {over && <span className="pill p-low">מעל המכסה</span>}
+          {/* ⚠ **עריכת המכסה במסך שבו רואים אותה.** מי שעומד מול
+              "8 מתוך 6" ורוצה לשנות ל-8 לא צריך לעזוב את המסך,
+              למצוא מסך ניהול אחר ולזכור מה רצה — זו בדיוק הטעות
+              של מסך ההצפות (4ס). ראש המכינה בלבד. */}
+          {isHead && (
+            <button className="conv-edit" style={{ marginInlineStart: "auto" }}
+              onClick={() => { setCapOpen(!capOpen); setCap(def.capacity == null ? "" : String(def.capacity)); }}>
+              {capOpen ? "סגירה" : "מכסה"}
+            </button>
+          )}
+        </div>
+        {isHead && capOpen && (
+          <div className="cap-edit">
+            <input type="number" min="0" step="1" dir="ltr" inputMode="numeric"
+              placeholder="בלי הגבלה" value={cap} disabled={capBusy}
+              onChange={(e) => setCap(e.target.value)} />
+            <button className="btn btn-primary btn-sm" disabled={capBusy} onClick={saveCap}>
+              {capBusy ? "שומר…" : "שמירה"}
+            </button>
+            {/* ⚠ אומר מה קורה על ריק, ולא משאיר לנחש. */}
+            <span className="fld-hint" style={{ margin: 0 }}>
+              {cap.trim() === "" ? "ריק = בלי הגבלה" : `מכסה של ${cap}`}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* ⚠ מדווח ולא נשמט בשקט. ראו ההערה למעלה. */}
@@ -214,6 +256,20 @@ function AssignEditor({ def, semester, assigned, roster, say, onDone, onCancel }
 function ChairPicker({ def, roster, picked, say, onDone }) {
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
+  /* ⚠⚠ **הבחירה מקומית, והשמירה מפורשת.**
+
+     קודם כל לחיצה על שם שלחה בקשה לשרת ואז טענה מחדש את כל
+     מסך השיבוצים. התוצאה: הסימון לא זז עד שהכול חזר — בערך
+     שנייה וחצי — ולמי שלוחץ זה נראה כאילו הלחיצה לא נקלטה,
+     אז הוא לוחץ שוב. וגם לא היה שום כפתור שמירה, כלומר אי
+     אפשר היה להתחרט לפני שזה נכתב.
+
+     ⚠ **וזו אינה סתירה לסימון האופטימי (4י).** שם הפעולה
+       אטומית ובלתי הפיכה בעיניה — "נקנה" הוא מצב אחד. כאן
+       הבחירה היא **טיוטה**: המשתמש עשוי להחליף דעתו פעמיים
+       לפני שהוא סוגר, ושלוש כתיבות ללוח על החלטה אחת הן
+       שלוש שורות היסטוריה שגויות. */
+  const [draft, setDraft] = useState(null);
 
   /* ⚠ isTeamCategory מ-shared ולא שתי השוואות: הן היו
      משאירות את "צוות מזדמן" בלי בורר יו״ר, בשקט. */
@@ -224,11 +280,18 @@ function ChairPicker({ def, roster, picked, say, onDone }) {
     ? (roster.find((r) => r.id === def.chair) || { id: def.chair, name: def.chairName || "—" })
     : null;
 
-  const set = (studentId) => {
-    if (busy) return;
+  /* ⚠ null = "לא נגעתי", ולכן ההשוואה היא מול def.chair ולא
+     מולו. מחרוזת ריקה היא בחירה אמיתית — "בלי יו״ר". */
+  const sel = draft === null ? (def.chair || "") : draft;
+  const dirty = sel !== (def.chair || "");
+
+  const close = () => { setOpen(false); setDraft(null); };
+
+  const save = () => {
+    if (busy || !dirty) return;
     setBusy(true);
-    api.setChair({ placementId: def.id, studentId })
-      .then(() => { say(studentId ? "היו״ר נקבע" : "היו״ר הוסר"); setOpen(false); onDone(); })
+    api.setChair({ placementId: def.id, studentId: sel })
+      .then(() => { say(sel ? "היו״ר נקבע" : "היו״ר הוסר"); close(); onDone(); })
       .catch((e) => say(e.message))
       .finally(() => setBusy(false));
   };
@@ -238,7 +301,7 @@ function ChairPicker({ def, roster, picked, say, onDone }) {
       <div className="pf-row" style={{ borderBottom: "none", padding: "2px 0" }}>
         <span className="pf-l">יו״ר</span>
         <span className="pf-v">{cur ? cur.name : "טרם נקבע"}</span>
-        <button className="conv-edit" disabled={busy} onClick={() => setOpen(!open)}>
+        <button className="conv-edit" disabled={busy} onClick={() => (open ? close() : setOpen(true))}>
           {open ? "סגירה" : cur ? "החלפה" : "בחירה"}
         </button>
       </div>
@@ -251,21 +314,40 @@ function ChairPicker({ def, roster, picked, say, onDone }) {
               עוד לא שובצו חברים. משבצים קודם, ואז בוחרים יו״ר מתוכם.
             </div>
           ) : (
-            <div className="rows" style={{ maxHeight: "34vh", overflowY: "auto" }}>
-              {members.map((r) => (
-                <button className="st-row" key={r.id} disabled={busy}
-                  onClick={() => set(r.id === def.chair ? "" : r.id)}>
-                  <div className={"tick" + (r.id === def.chair ? " on" : "")}>
-                    {r.id === def.chair && <span style={{ color: "#fff", fontWeight: 900 }}>✓</span>}
-                  </div>
-                  <div className="st-main"><div className="st-n">{r.name}</div></div>
+            <>
+              {/* ⚠ `scroll-y` הקיימת ולא max-height משלנו:
+                  `.kx .rows{overflow:hidden}` הוא (0,2,0) ובולע
+                  כלל על מחלקה בודדת, גם כשהוא מאוחר יותר (4ק). */}
+              <div className="rows scroll-y">
+                {members.map((r) => (
+                  <button className="st-row" key={r.id} disabled={busy}
+                    onClick={() => setDraft(r.id === sel ? "" : r.id)}>
+                    <div className={"tick" + (r.id === sel ? " on" : "")}>
+                      {r.id === sel && <span style={{ color: "#fff", fontWeight: 900 }}>✓</span>}
+                    </div>
+                    <div className="st-main"><div className="st-n">{r.name}</div></div>
+                  </button>
+                ))}
+              </div>
+              {/* ⚠ הכפתור אומר **מה** יישמר, ולא "שמירה" סתם:
+                  מי שבחר בטעות רואה את השם לפני שהוא לוחץ. */}
+              <div className="chair-save">
+                <button className="btn btn-primary btn-sm" disabled={busy || !dirty} onClick={save}>
+                  {busy ? "שומר…"
+                    : !dirty ? "אין שינוי"
+                      : sel ? `שמירה · ${(members.find((m) => m.id === sel) || {}).name || ""}`
+                        : "שמירה · בלי יו״ר"}
                 </button>
-              ))}
-            </div>
+                {dirty && (
+                  <button className="btn btn-ghost btn-sm" disabled={busy}
+                    onClick={() => setDraft(null)}>ביטול</button>
+                )}
+              </div>
+            </>
           )}
           {cur && (
             <button className="btn btn-ghost btn-sm" style={{ marginTop: 8, color: "var(--clay)" }}
-              disabled={busy} onClick={() => set("")}>הסרת היו״ר</button>
+              disabled={busy} onClick={() => setDraft("")}>הסרת היו״ר</button>
           )}
         </div>
       )}
@@ -413,7 +495,7 @@ function GuideCard({ cat }) {
 }
 
 /* ---------- הדף המלא ---------- */
-export function PlacementsPage({ say }) {
+export function PlacementsPage({ say, isHead = false }) {
   const { data, err, busy, reload } = useLoad(() => api.getPlacements(), []);
   const [cat, setCat] = useState(CATEGORIES[0]);
   const [editing, setEditing] = useState(null); // {def, semester, assigned}
@@ -436,7 +518,7 @@ export function PlacementsPage({ say }) {
 
   if (editing) return (
     <AssignEditor def={editing.def} semester={editing.semester} assigned={editing.assigned}
-      roster={data.roster || []} say={say}
+      roster={data.roster || []} say={say} isHead={isHead}
       onDone={() => { setEditing(null); reload(); }}
       onCancel={() => setEditing(null)} />
   );
