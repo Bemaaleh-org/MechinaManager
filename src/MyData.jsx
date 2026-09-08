@@ -11,7 +11,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { api } from "./api.js";
 import ScrollTabs from "./Tabs.jsx";
-import { WHATS_NEW, newsFor, latestNews } from "../shared/whats-new.js";
+import { WHATS_NEW, newsFor, latestNews, recentTags } from "../shared/whats-new.js";
 
 const DI = {
   me: (p) => (<svg viewBox="0 0 24 24" width="15" height="15" fill="none"
@@ -36,6 +36,49 @@ const writeSeen = (v) => { try { localStorage.setItem(SEEN, v); } catch { /* ר�
 
 /** האם יש חדשות שטרם נקראו. משמש גם את הכפתור במגירה. */
 export const hasNews = (isStudent) => latestNews(isStudent) !== readSeen();
+
+/* ============================================================
+   "מה חדש?" — הרצועה בראש מסך הבית
+   ------------------------------------------------------------
+   ⚠ **כותרות בלבד.** "חדר כביסה", "משמר" — לא פסקה ולא רשימה.
+     מי שרוצה לדעת מה בדיוק נכנס לוחץ ונכנס למסך "מה חדש";
+     פסקה בראש מסך הבית היא הדבר שמפסיקים לקרוא ביום השני.
+
+   ⚠ **נעלמת אחרי שקראו, ולא הופכת לקישוט קבוע.** ברגע
+     שנכנסו למסך "מה חדש" הרצועה יורדת עד הרשומה הבאה — אחרת
+     היא תופסת את השורה הראשונה של מסך הבית לנצח, ואז היא
+     כבר לא אומרת "חדש".
+
+   ⚠ **וגם חלון של שלושה שבועות.** רשומה מלפני חצי שנה אינה
+     חדשה גם אם איש לא פתח את המסך, ורצועה שמכריזה עליה
+     מלמדת להתעלם ממנה (recentTags).
+
+   ⚠ **מחזירה null כשאין מה לומר** — לא קופסה ריקה ולא
+     "אין חדשות". רכיב שתמיד תופס מקום הוא רעש.
+   ============================================================ */
+export function NewsStrip({ isStudent = true, onOpen }) {
+  const [seen, setSeen] = useState(readSeen);
+  const latest = latestNews(isStudent);
+  const tags = recentTags(isStudent);
+  if (!tags.length || latest === seen) return null;
+
+  /* ⚠ סימון כנקרא **גם בסגירה** ולא רק בפתיחה: מי שבחר לא
+     להיכנס החליט, ורצועה שחוזרת מחר אחרי שסגרו אותה היא
+     בדיוק ההתנהגות שגורמת לאנשים להתעלם. */
+  const dismiss = (e) => { e.stopPropagation(); writeSeen(latest); setSeen(latest); };
+
+  return (
+    <button className="news-strip" onClick={onOpen}>
+      <div className="ns-h">
+        <b>מה חדש?</b>
+        <span className="ns-x" role="presentation" onClick={dismiss}>סגירה</span>
+      </div>
+      <div className="ns-tags">
+        {tags.map((t) => <span className="ns-tag" key={t}>{t}</span>)}
+      </div>
+    </button>
+  );
+}
 
 export default function MyDataPage({ say, isStudent = true, sub0 }) {
   const [view, setView] = useState(sub0 === "news" ? "news" : "data");

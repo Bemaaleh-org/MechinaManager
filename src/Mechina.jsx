@@ -35,7 +35,7 @@ import DutyPage from "./Duty.jsx";
 import ProjectsPage from "./Projects.jsx";
 import LeadWeekPage from "./LeadWeek.jsx";
 import BoardPage from "./Board.jsx";
-import MyDataPage from "./MyData.jsx";
+import MyDataPage, { NewsStrip } from "./MyData.jsx";
 import OfflineBar from "./Offline.jsx";
 import SearchOverlay, { SearchButton } from "./Search.jsx";
 import TeamsPage from "./Teams.jsx";
@@ -3103,6 +3103,8 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
       </div>
 
       {year.err && <LoadFail msg={year.err} onRetry={year.reload} />}
+
+      <NewsStrip isStudent onOpen={() => go("mydata")} />
 
       <TodayAgenda onOpen={() => go("agenda")} onSettled={bump} />
 

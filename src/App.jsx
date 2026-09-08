@@ -14,7 +14,7 @@ import { CyclesPage } from "./Cycles.jsx";
 import { ProfilePage } from "./Profile.jsx";
 import { useHomeGate } from "./Agenda.jsx";
 import BoardPage from "./Board.jsx";
-import MyDataPage from "./MyData.jsx";
+import MyDataPage, { NewsStrip } from "./MyData.jsx";
 import TrendsPage from "./Trends.jsx";
 import OfflineBar from "./Offline.jsx";
 import SearchOverlay, { SearchButton } from "./Search.jsx";
@@ -790,6 +790,10 @@ function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goCont
           <div className="h2-date">{hebDate(new Date())}</div>
         </div>
       </div>
+
+      {/* ⚠ "מה חדש" ראשון, לפני הלו״ז — הוא נעלם ברגע שקוראים
+          אותו, ולכן הוא לא דוחף שום דבר למטה לצמיתות. */}
+      <NewsStrip isStudent={false} onOpen={() => setSection("news")} />
 
       <TodayAgenda onOpen={goAgenda} />
 

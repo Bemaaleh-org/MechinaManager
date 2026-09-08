@@ -1743,6 +1743,32 @@ html,body{margin:0;padding:0;background:#012E58}
    שמסתכלים על המסך. */
 .ag-ev.now .ag-body::before{background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}
 .ag-ev.now .ag-name{color:var(--ok)}
+/* ⚠ בדף המלא אירוע שהסתיים מעומעם ואינו מוסר — מי שנכנס בערב
+   רוצה לראות גם מה כבר היה. בכרטיס שבמסך הבית הוא כן יורד:
+   שם המקום מוגבל לארבע שורות, וארבע שורות של אתמול-בבוקר הן
+   בדיוק מה שהפך אותו לתדריך בוקר. */
+.ag-ev.done{opacity:.5}
+.ag-ev.done .ag-name{text-decoration:line-through;text-decoration-thickness:1px}
+.ag-passed{font-size:11.5px;color:var(--muted);font-weight:700;text-align:center;
+  padding-bottom:6px;margin-bottom:2px;border-bottom:1px solid var(--line)}
+.ag-done{font-size:13px;color:var(--muted);font-weight:700;text-align:center;padding:6px 0}
+
+/* ---------- "מה חדש?" בראש מסך הבית ----------
+   ⚠ קידומת מלאה של kx — הכלל kx button מאפס רקע ומסגרת
+     בסגוליות (0,1,1), וכלל על news-strip לבדו נבלע (4מח).
+   ⚠ ובלי בקטיקים בהערה: הקובץ כולו הוא template literal אחד. */
+.kx .news-strip{display:block;width:100%;text-align:right;cursor:pointer;
+  background:var(--accent-soft);border:1px solid var(--accent);
+  border-radius:var(--r-md);padding:10px 13px;margin:0 0 12px;
+  box-shadow:var(--sh-1);transition:transform .12s var(--ease)}
+.kx .news-strip:active{transform:scale(.99)}
+.ns-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
+.ns-h b{font-size:13.5px;font-weight:800;color:var(--accent)}
+.ns-x{font-size:11.5px;font-weight:700;color:var(--muted);
+  padding:2px 6px;border-radius:99px}
+.ns-tags{display:flex;flex-wrap:wrap;gap:6px}
+.ns-tag{font-size:12px;font-weight:800;background:var(--card);color:var(--ink);
+  border:1px solid var(--line2);border-radius:99px;padding:3px 10px}
 .kx .ag-day{border-radius:var(--r-lg);border:1px solid rgba(211,201,182,.5);
   box-shadow:var(--sh-1);padding:14px 16px}
 .kx .ag-day.today{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft),var(--sh-1)}

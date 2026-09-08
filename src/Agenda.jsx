@@ -68,29 +68,84 @@ function useLoad(fn, deps = []) {
 }
 
 /* ⚠ "עכשיו" נקבע בשעון המכשיר ולא בשרת: הלו״ז מוצג לאדם
-   שעומד במכינה, והשעה שרלוונטית לו היא זו שעל הטלפון.
-   אירוע "כל היום" אינו מסומן — הוא נכון לכל שעה, והסימון לא
-   היה אומר דבר. */
-function isNow(e) {
-  if (!e || e.allDay || !e.time) return false;
-  const hm = (t) => {
-    const m = String(t).match(/(\d{1,2}):(\d{2})/);
-    return m ? Number(m[1]) * 60 + Number(m[2]) : null;
-  };
-  const d = new Date();
-  const cur = d.getHours() * 60 + d.getMinutes();
-  const a = hm(e.time);
-  if (a == null) return false;
-  const b = hm(e.endTime);
-  return cur >= a && cur < (b == null ? a + 60 : b);
+   שעומד במכינה, והשעה שרלוונטית לו היא זו שעל הטלפון. */
+const hm = (t) => {
+  const m = String(t || "").match(/(\d{1,2}):(\d{2})/);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+};
+
+/** דקות מתחילת היום, לפי שעון המכשיר. */
+const nowMinutes = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+
+/** ההתחלה והסיום של אירוע בדקות. אירוע בלי סיום — שעה. */
+const spanOf = (e) => {
+  const a = hm(e && e.time);
+  if (a == null) return null;
+  const b = hm(e && e.endTime);
+  return { from: a, to: b == null ? a + 60 : b };
+};
+
+/* ⚠ אירוע "כל היום" אינו מסומן כ"עכשיו" — הוא נכון לכל שעה,
+   והסימון לא היה אומר דבר. ומאותה סיבה הוא גם לעולם אינו
+   "הסתיים": יום חופש אינו נגמר ב-14:00. */
+function isNow(e, cur = nowMinutes()) {
+  if (!e || e.allDay) return false;
+  const s = spanOf(e);
+  return Boolean(s) && cur >= s.from && cur < s.to;
+}
+
+function isDone(e, cur = nowMinutes()) {
+  if (!e || e.allDay) return false;
+  const s = spanOf(e);
+  return Boolean(s) && cur >= s.to;
+}
+
+/* ============================================================
+   ⚠⚠ **שעון שמתקדם, ולא צילום של רגע הטעינה.**
+
+   הלו״ז נטען פעם אחת בבוקר ונשאר תקוע שם: `isNow` חושב את
+   השעה **ברינדור**, ובלי רינדור נוסף היא נשארת השעה שבה
+   המסך נפתח. מי שהשאיר את האפליקציה פתוחה ראה ב-16:00 את
+   מה שהיה נכון ב-08:00 — כלומר "הלו״ז של היום" הפך לתדריך
+   בוקר, וזה בדיוק מה שהמסך לא אמור להיות.
+
+   ⚠ **דקה, ולא שנייה.** הלו״ז מדויק לדקה, ורינדור כל שנייה
+     הוא 60 רינדורים מיותרים בדקה על מסך שמחזיק גם את הגאנט,
+     גם הציטוט וגם הדירוגים.
+
+   ⚠ **מסונכרן לתחילת הדקה** ולא כל 60 שניות מרגע הטעינה:
+     אחרת מסך שנפתח ב-08:00:59 מתעדכן ב-08:01:59, כלומר
+     כמעט דקה שלמה של פיגור קבוע.
+
+   ⚠ **ונעצר כשהלשונית מוסתרת.** טיימר שרץ ברקע על טלפון
+     נעול הוא סוללה, ו-`visibilitychange` ממילא מחזיר את
+     המסך למצב הנכון ברגע שחוזרים אליו.
+   ============================================================ */
+export function useMinuteTick() {
+  const [, tick] = React.useState(0);
+  React.useEffect(() => {
+    let timer = null;
+    const stop = () => { if (timer) { clearTimeout(timer); timer = null; } };
+    const schedule = () => {
+      stop();
+      if (typeof document !== "undefined" && document.hidden) return;
+      const d = new Date();
+      const ms = (60 - d.getSeconds()) * 1000 - d.getMilliseconds();
+      timer = setTimeout(() => { tick((n) => n + 1); schedule(); }, Math.max(1000, ms));
+    };
+    const onVis = () => { tick((n) => n + 1); schedule(); };
+    schedule();
+    document.addEventListener("visibilitychange", onVis);
+    return () => { stop(); document.removeEventListener("visibilitychange", onVis); };
+  }, []);
 }
 
 /* ---------- שורת אירוע ----------
    ⚠ now מסמן את מה שקורה ברגע זה — המידע היחיד במסך שמשתנה
      תוך כדי שמסתכלים עליו, וזו הסיבה שפותחים את הלו״ז. */
-function EventRow({ e, now = false }) {
+function EventRow({ e, now = false, done = false }) {
   return (
-    <div className={"ag-ev" + (now ? " now" : "")}>
+    <div className={"ag-ev" + (now ? " now" : "") + (done ? " done" : "")}>
       <div className="ag-time num">
         {e.allDay ? <span className="ag-allday">כל היום</span> : (
           <>
@@ -109,9 +164,27 @@ function EventRow({ e, now = false }) {
   );
 }
 
-/* ---------- הלו״ז של היום, לשיבוץ במסך הבית ---------- */
+/* ============================================================
+   הלו״ז של היום, לשיבוץ במסך הבית
+   ------------------------------------------------------------
+   ⚠⚠ **מתקדם עם היום ולא נשאר על הבוקר.** הכרטיס הציג תמיד
+     את ארבעת האירועים **הראשונים** של היום, ולכן ב-16:00 הוא
+     עדיין הראה את מה שהיה ב-08:00 — תדריך בוקר, לא לו״ז.
+
+   ⚠ **מה שהסתיים יורד, ומה שקורה עכשיו נשאר בראש.** אירוע
+     שעדיין רץ אינו "הסתיים" גם אם התחיל לפני שעתיים, והוא
+     בדיוק המידע שמחפשים.
+
+   ⚠ **וכשהכול נגמר הכרטיס אומר זאת ואינו נעלם.** כרטיס
+     שנעלם ב-21:00 נראה כמו תקלה בטעינה; שורה שאומרת "הלו״ז
+     של היום הסתיים" היא תשובה (עיקרון 6).
+
+   ⚠ **אירוע "כל היום" תמיד נשאר.** הוא נכון בכל שעה, ואילו
+     סוננו כמו השאר, יום סמינר היה נעלם מהמסך בצהריים.
+   ============================================================ */
 export function TodayAgenda({ onOpen, max = 4, onSettled }) {
   const { data, err, busy } = useLoad(() => api.getAgenda(), []);
+  useMinuteTick();
   /* ⚠ מדווח למסך הבית שסיים — הצלחה או כישלון — כדי שהמסך
      ייפתח בבת אחת ולא יקפוץ כשהלו״ז מגיע. ראו useHomeGate. */
   React.useEffect(() => { if (!busy && onSettled) onSettled(); }, [busy]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -119,13 +192,31 @@ export function TodayAgenda({ onOpen, max = 4, onSettled }) {
   const list = data.todayEvents || [];
   if (list.length === 0) return null;
 
+  const cur = nowMinutes();
+  const live = list.filter((e) => !isDone(e, cur));
+  const passed = list.length - live.length;
+
+  if (live.length === 0) {
+    return (
+      <>
+        <div className="sec-label">הלו״ז של היום</div>
+        <button className="card ag-card" onClick={onOpen}>
+          <div className="ag-done">
+            הלו״ז של היום הסתיים · {list.length} פעילויות
+          </div>
+        </button>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="sec-label">הלו״ז של היום</div>
       <button className="card ag-card" onClick={onOpen}>
-        {list.slice(0, max).map((e, i) => <EventRow key={i} e={e} now={isNow(e)} />)}
-        {list.length > max && (
-          <div className="ag-more">ועוד {list.length - max} בהמשך היום</div>
+        {passed > 0 && <div className="ag-passed">{passed} כבר הסתיימו</div>}
+        {live.slice(0, max).map((e, i) => <EventRow key={i} e={e} now={isNow(e, cur)} />)}
+        {live.length > max && (
+          <div className="ag-more">ועוד {live.length - max} בהמשך היום</div>
         )}
       </button>
     </>
@@ -136,6 +227,7 @@ export function TodayAgenda({ onOpen, max = 4, onSettled }) {
 export function AgendaPage() {
   const { data, err, busy, reload } = useLoad(() => api.getAgenda(), []);
   const [openAll, setOpenAll] = useState(false);
+  useMinuteTick();
 
   if (busy && !data) return (
     <div className="empty" style={{ paddingTop: 60 }}><div className="e1">טוען לו״ז…</div></div>
@@ -182,7 +274,9 @@ export function AgendaPage() {
         </div>
         {today.events.length === 0 ? (
           <div className="ag-empty">אין פעילות ביומן להיום</div>
-        ) : today.events.map((e, i) => <EventRow key={i} e={e} now={isNow(e)} />)}
+        ) : today.events.map((e, i) => (
+          <EventRow key={i} e={e} now={isNow(e)} done={isDone(e)} />
+        ))}
       </div>
 
       <div className="sec-label">השבועיים הקרובים</div>

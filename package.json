@@ -41,7 +41,8 @@
     "push:test": "node --env-file=.env tools/push-test.mjs",
     "projects:orphans": "node --env-file=.env tools/projects-orphans.mjs",
     "go": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/go.ps1",
-    "boards:ready": "node tools/boards-ready.mjs"
+    "boards:ready": "node tools/boards-ready.mjs",
+    "news:check": "node tools/news-check.mjs"
   },
   "dependencies": {
     "nodemailer": "^9.0.5",
