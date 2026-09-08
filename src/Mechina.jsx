@@ -31,6 +31,7 @@ import { HostingPage, LoansPage } from "./Extras.jsx";
 import { useNotify, NotifyBell, NotifyPanel } from "./Notify.jsx";
 import { ProfilePage } from "./Profile.jsx";
 import DutyPage, { DutyShortcuts } from "./Duty.jsx";
+import { WeekExitsCard } from "./LeadWeek.jsx";
 /* ⚠⚠ מסך שהצוות אינו רואה — השרת מחזיר לו 403. ראו api/_projects.js. */
 import ProjectsPage from "./Projects.jsx";
 import LeadWeekPage from "./LeadWeek.jsx";
@@ -3215,6 +3216,11 @@ function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey }) {
 
           ⚠ ומתחת ללו״ז ולא מעליו — "מה עכשיו" קודם ל"מה היה".
           ============================================================ */}
+      {/* ⚠ למוביל שבוע בלבד — `leadsAnyWeek` ולא `isLeader`:
+          מי שמוביל את השבוע **הבא** הוא בדיוק מי שמתכנן עכשיו,
+          ו-`isLeader` הוא "מוביל היום" (5ב). */}
+      {auth.leadsAnyWeek && <WeekExitsCard onOpen={() => go("lead-week")} />}
+
       <RateLessons say={say} onAll={() => go("archive")} />
 
       <DailyQuote say={say} onOpen={() => go("quotes")} />

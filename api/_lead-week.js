@@ -44,7 +44,9 @@ import { setColumns, renameItem, createItem, deleteItem } from "./_items.js";
 import { todayFor } from "./_attendance-data.js";
 import { loadLeaderWeeks, weeksOfStudent } from "./_leader-weeks.js";
 import { assignableStudents } from "./_student-rows.js";
-import { MECHINA_BOARDS, MECHINA_COLS } from "../shared/mechina-boards.js";
+/* ⚠ יציאות השבוע — ראו ההערה ב-weekView. */
+import { loadRequests } from "./_requests.js";
+import { MECHINA_BOARDS, MECHINA_COLS, REQ_STATUS } from "../shared/mechina-boards.js";
 import {
   LEAD_BOARDS as B, LEAD_COLS as C,
   LEAD_WHEN, ACTIVITY_KIND, LEAD_LOG_KIND, leadReady,
@@ -238,6 +240,47 @@ async function weekView(req, res, session) {
     .filter(Boolean)
     .map((s) => ({ id: s.id, name: s.name }));
 
+  /* ============================================================
+     ⚠⚠ יציאות השבוע — מי לא יהיה כאן, ומתי
+     ------------------------------------------------------------
+     מוביל שבוע בונה לו״ז לשבוע שלו בלי לדעת שארבעה חניכים
+     יוצאים ביום רביעי. הנתון קיים בלוח הבקשות מזמן, ופשוט לא
+     הגיע לאף מסך שהוא נכנס אליו.
+
+     ⚠ **חפיפה עם השבוע ולא "מתחיל בו".** יציאה שהתחילה ביום
+       חמישי הקודם וחוזרת ביום שני היא בהחלט יציאה של השבוע
+       הזה — עבור מי שמתכנן את יום ראשון.
+
+     ⚠⚠ **מיפוי מפורש, בלי סוג ובלי פירוט.** מוביל שבוע הוא
+       חניך, וההבחנה בין "חופש" ל"מחלה" היא נתון רפואי על חבר
+       שלו. מה שהוא צריך זה מי, מתי יוצא ומתי חוזר — ולא למה.
+       זה אותו כלל של 4א: לחניך יוצאת תשובה, לא התיק.
+
+     ⚠ **וממתינות נכללות ומסומנות.** בקשה שטרם הוכרעה עשויה
+       להתממש, ומוביל שיתכנן בלעדיה יגלה את זה ביום רביעי.
+       מי שיציג אותה כמאושרת יטעה בכיוון השני — ולכן הסטטוס
+       על השורה.
+     ============================================================ */
+  const reqRows = await loadRequests().catch((e) => {
+    console.error("[lead-week:requests]", e && e.message);
+    return null;
+  });
+  const exits = reqRows === null ? null : reqRows
+    .filter((r) => r.status !== REQ_STATUS.rejected)
+    .filter((r) => r.date <= week.end && (r.endDate || r.date) >= week.start)
+    .map((r) => ({
+      id: r.id,
+      student: (byId.get(String(r.studentId)) || {}).name || "—",
+      date: r.date,
+      endDate: r.endDate || r.date,
+      outAt: r.outAt || null,
+      backAt: r.backAt || null,
+      status: r.status,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date)
+      || String(a.outAt || "").localeCompare(String(b.outAt || ""))
+      || a.student.localeCompare(b.student, "he"));
+
   const wLog = log.filter((r) => r.week === week.id);
   const doneBy = new Map(wLog.filter((r) => r.kind === "משימה").map((r) => [r.ref, r]));
 
@@ -319,6 +362,10 @@ async function weekView(req, res, session) {
          התקדמתי" בעוד שהאמת היא "אין מה למדוד" (4ג, 5ח). */
       pct: tasks.length ? Math.round((doneN / tasks.length) * 100) : null,
     },
+    /* ⚠ `null` = הלוח לא נטען, ריק = אין יציאות. שני מצבים
+       שונים, ומסך שיציג "אין יציאות" על כשל טעינה משקר
+       בדיוק ברגע שמתכננים לפיו (עיקרון 6). */
+    exits,
     used: used.map((r) => ({
       id: r.id, ref: r.ref, title: r.title, date: r.date, note: r.note, by: r.ownerName,
     })),

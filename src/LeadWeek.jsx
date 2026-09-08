@@ -56,6 +56,13 @@ const dmy = (iso) => {
   const [y, m, d] = iso.split("-");
   return `${d}.${m}.${y.slice(2)}`;
 };
+/* ⚠ יום ותאריך קצר — "יום ד׳ 10.09" נקרא, "10.09" דורש יומן. */
+const dm = (iso) => {
+  if (!iso) return "";
+  const [, m, d] = iso.split("-");
+  const w = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "שבת"][new Date(iso + "T12:00:00Z").getUTCDay()];
+  return `${w} ${d}.${m}`;
+};
 const DOW = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 const dowOf = (iso) => (iso ? DOW[new Date(iso + "T12:00:00Z").getUTCDay()] : "");
 const daysOf = (a, b) => {
@@ -302,11 +309,126 @@ function Today({ d, say, reload }) {
         </div>
       )}
 
+      <Exits exits={d.exits} />
+
       {d.week.note && (
         <>
           <div className="grp-h"><span>הערת המכינה לשבוע</span></div>
           <div className="tm-pre">{d.week.note}</div>
         </>
+      )}
+    </>
+  );
+}
+
+/* ============================================================
+   כרטיס יציאות למסך הבית — למוביל בלבד
+   ------------------------------------------------------------
+   ⚠ **מחזיר null בטעינה, בכישלון וכשאין יציאות.** מסך הבית
+     של מוביל אינו אמור לגדול בשורה ריקה, ובכישלון יש למסך
+     שבוע ההובלה עצמו מה לומר (עיקרון 6 — שם, לא כאן).
+
+   ⚠ **ומוצג רק כשיש מה לומר**, ולכן אין לו מצב "אין יציאות":
+     אמירה כזו על מסך הבית היא רעש יומיומי.
+   ============================================================ */
+export function WeekExitsCard({ onOpen }) {
+  const [d, setD] = useState(null);
+  useEffect(() => {
+    let live = true;
+    api.leadWeek()
+      .then((r) => { if (live) setD(r); })
+      .catch(() => { if (live) setD({ exits: [] }); });
+    return () => { live = false; };
+  }, []);
+
+  const exits = (d && d.exits) || [];
+  if (!exits.length) return null;
+
+  const MAX = 4;
+  return (
+    <>
+      <div className="sec-label">
+        יציאות השבוע
+        {onOpen && (
+          <button type="button" className="sec-more" onClick={onOpen}>שבוע ההובלה</button>
+        )}
+      </div>
+      <button className="card ag-card" onClick={onOpen}>
+        {exits.slice(0, MAX).map((x) => (
+          <div className="lx-row" key={x.id}>
+            <b>{x.student}</b>
+            <span>
+              {dm(x.date)}{x.outAt ? " " : ""}
+              {x.outAt && <b className="num" dir="ltr">{x.outAt}</b>}
+              {" → "}
+              {dm(x.endDate)}{x.backAt ? " " : ""}
+              {x.backAt && <b className="num" dir="ltr">{x.backAt}</b>}
+            </span>
+            {x.status !== "מאושר" && <span className="pill p-low">{x.status}</span>}
+          </div>
+        ))}
+        {exits.length > MAX && (
+          <div className="ag-more">ועוד {exits.length - MAX} השבוע</div>
+        )}
+      </button>
+    </>
+  );
+}
+
+/* ============================================================
+   יציאות השבוע
+   ------------------------------------------------------------
+   ⚠ **הנתון היה קיים ולא הגיע לאף מסך שהמוביל נכנס אליו.**
+     הוא בנה לו״ז בלי לדעת שארבעה חניכים יוצאים ביום רביעי.
+
+   ⚠ **בלי סוג ובלי פירוט.** מוביל שבוע הוא חניך, וההבחנה בין
+     "חופש" ל"מחלה" היא נתון רפואי על חבר שלו. מי · מתי יוצא ·
+     מתי חוזר — ולא למה (4א).
+
+   ⚠ **`null` = לא נטען, ריק = אין.** שני מצבים שונים, ומסך
+     שיאמר "אין יציאות" על כשל טעינה משקר בדיוק ברגע
+     שמתכננים לפיו (עיקרון 6).
+   ============================================================ */
+function Exits({ exits }) {
+  if (exits === null || exits === undefined) {
+    return (
+      <>
+        <div className="grp-h"><span>יציאות השבוע</span></div>
+        <div className="fld-hint">רשימת היציאות לא נטענה. רעננו את המסך.</div>
+      </>
+    );
+  }
+  return (
+    <>
+      <div className="grp-h">
+        <span>יציאות השבוע</span>
+        <span>{exits.length ? `${exits.length} בשבוע הזה` : ""}</span>
+      </div>
+      {exits.length === 0 ? (
+        <div className="fld-hint">אף אחד לא יוצא השבוע.</div>
+      ) : (
+        <div className="rows">
+          {exits.map((x) => (
+            <div className="st-row" key={x.id} style={{ cursor: "default" }}>
+              <div className="st-main">
+                <div className="st-n">{x.student}</div>
+                <div className="st-m">
+                  {/* ⚠ ממתינה מסומנת — בקשה שטרם הוכרעה עשויה
+                      להתממש, ומי שיתכנן בלעדיה יגלה ביום רביעי. */}
+                  {x.status !== "מאושר" && <span className="pill p-low">{x.status}</span>}
+                  <span>
+                    יוצא {dm(x.date)}
+                    {x.outAt && <b className="num" dir="ltr"> {x.outAt}</b>}
+                  </span>
+                  <span>
+                    · חוזר {dm(x.endDate)}
+                    {x.backAt && <b className="num" dir="ltr"> {x.backAt}</b>}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </>
   );

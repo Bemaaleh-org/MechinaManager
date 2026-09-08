@@ -526,6 +526,13 @@ html,body{margin:0;padding:0;background:#012E58}
 .ds-n{background:var(--clay);color:#fff;border-radius:99px;min-width:19px;
   height:19px;display:grid;place-items:center;font-size:11px;font-weight:800;padding:0 5px}
 
+/* ---------- יציאות השבוע, בכרטיס מסך הבית ---------- */
+.lx-row{display:flex;align-items:baseline;gap:8px;padding:6px 0;font-size:12.5px}
+.lx-row+.lx-row{border-top:1px solid var(--line)}
+.lx-row>b:first-child{font-weight:800;font-size:13.5px;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lx-row>span{color:var(--muted);font-weight:700;margin-inline-start:auto;white-space:nowrap}
+
 /* ⚠ סגור לדירוג — אומר למה ולא נעלם בשקט (עיקרון 6). */
 .ar-closed{margin-top:10px;font-size:12.5px;color:var(--muted);font-weight:700;
   background:var(--soft);border-radius:var(--r-sm);padding:8px 11px}
