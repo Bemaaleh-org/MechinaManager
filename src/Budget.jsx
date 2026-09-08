@@ -335,9 +335,43 @@ function OrderForm({ months, defaultMonth, today, say, onDone, onCancel }) {
 
    שלושה רכיבים לכל סוג. הקבוע קיים בגלל העשייה הקהילתית —
    900 ₪ ליום, בין אם הגיעו עשרים אנשים או ארבעים. */
-function PriceTab({ types, headcount, say, onChanged }) {
+function PriceTab({ types, headcount, say, onChanged, isHead = false }) {
   const [draft, setDraft] = useState({});
   const [busyId, setBusyId] = useState(null);
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [renaming, setRenaming] = useState(null); // id
+  const [newTitle, setNewTitle] = useState("");
+
+  const addType = () => {
+    const nm = newName.trim();
+    if (!nm || busyId) return;
+    setBusyId("new");
+    /* ⚠ נוצר עם אפסים ולא עם ניחוש — התעריף נקבע מיד אחר כך
+       בשדות שכבר קיימים, ומספר מומצא נראה כמו נתון. */
+    api.addDayType({ name: nm })
+      .then((r) => { say(`"${r.name}" נוסף — עכשיו אפשר לקבוע לו תעריף`); setNewName(""); setAdding(false); onChanged(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusyId(null));
+  };
+
+  const rename = (t) => {
+    const nm = newTitle.trim();
+    if (!nm || busyId) return;
+    setBusyId(t.id);
+    api.renameDayType({ typeId: t.id, name: nm })
+      .then((r) => {
+        /* ⚠ ההודעה אומרת כמה ימים נשארו עם השם הישן. monday
+           אינה מעדכנת תוויות למפרע, ושינוי שקט היה מפצל את
+           התקציב לשני סוגים שנראים כמו אחד. */
+        say(r.renamed && r.renamed.days
+          ? `השם שונה. ⚠ ${r.renamed.days} ימים עדיין מסומנים "${r.renamed.from}" ויש לעדכן אותם`
+          : "השם שונה");
+        setRenaming(null); onChanged();
+      })
+      .catch((e) => say(e.message))
+      .finally(() => setBusyId(null));
+  };
 
   const key = (t, f) => t.id + ":" + f;
   const valueOf = (t, f) => (key(t, f) in draft ? draft[key(t, f)] : String(t[f] ?? 0));
@@ -382,6 +416,26 @@ function PriceTab({ types, headcount, say, onChanged }) {
         <span>× {headcount} סועדים</span>
       </div>
 
+      {/* ⚠ **הוספת סוג יום — ראש המכינה בלבד.** סוג יום משנה
+          את חישוב הכסף של כל השנה, וזו החלטה תקציבית ולא
+          תפעול יומיומי. הכפתור אינו מוצג למי שאינו רשאי,
+          כדי שלא יקבל 403 אחרי שהקליד (4יד). */}
+      {isHead && (adding ? (
+        <div className="bg-add">
+          <input value={newName} autoFocus disabled={busyId === "new"}
+            placeholder="שם סוג היום — למשל: בישול לשבת"
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") addType(); }} />
+          <button className="btn btn-primary btn-sm" disabled={!newName.trim() || busyId === "new"}
+            onClick={addType}>{busyId === "new" ? "מוסיף…" : "הוספה"}</button>
+          <button className="btn btn-ghost btn-sm" disabled={busyId === "new"}
+            onClick={() => { setAdding(false); setNewName(""); }}>ביטול</button>
+        </div>
+      ) : (
+        <button className="btn btn-ghost btn-sm" style={{ marginBottom: 10 }}
+          onClick={() => setAdding(true)}>+ סוג יום חדש</button>
+      ))}
+
       <div className="rows">
         {types.map((t) => {
           const heads = t.fixedHeads > 0 ? t.fixedHeads : headcount;
@@ -389,7 +443,21 @@ function PriceTab({ types, headcount, say, onChanged }) {
           return (
             <div className="bg-type" key={t.id}>
               <div className="bg-type-h">
-                <b>{t.name}</b>
+                {isHead && renaming === t.id ? (
+                  <input className="bg-rename" value={newTitle} autoFocus disabled={busyId === t.id}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") rename(t);
+                      if (e.key === "Escape") setRenaming(null);
+                    }}
+                    onBlur={() => rename(t)} />
+                ) : (
+                  <b>{t.name}</b>
+                )}
+                {isHead && renaming !== t.id && (
+                  <button className="conv-edit" disabled={busyId === t.id}
+                    onClick={() => { setRenaming(t.id); setNewTitle(t.name); }}>שם</button>
+                )}
                 <span className="num">{shekel(perDay)} ₪ ליום</span>
               </div>
               {/* ⚠ שני שדות בלבד. סוג עם מנה קבועה מחושב לפיה
@@ -621,7 +689,7 @@ function YearView({ say, onMonth }) {
 }
 
 /* ---------- הדף ---------- */
-export function BudgetPage({ say }) {
+export function BudgetPage({ say, isHead = false }) {
   useExcel();
   const [view, setView] = useState("month");
   const [month, setMonth] = useState(null);
@@ -713,7 +781,8 @@ export function BudgetPage({ say }) {
       </div>
 
       {view === "prices" ? (
-        <PriceTab types={data.types} headcount={data.headcount} say={say} onChanged={reload} />
+        <PriceTab types={data.types} headcount={data.headcount} say={say}
+          onChanged={reload} isHead={isHead} />
       ) : view === "year" ? (
         <YearView say={say} onMonth={(m) => { setMonth(m); setView("month"); }} />
       ) : (

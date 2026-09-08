@@ -3796,7 +3796,7 @@ export function MechinaApp({ auth, onSignedOut }) {
 
         {/* ⚠ area={null} — התצוגה המאוחדת, אותה אחת של המנהל. */}
         {tab === "k-all" && auth.isKitchen && <KitchenPage say={say} area={null} />}
-        {tab === "budget" && auth.isKitchen && <BudgetPage say={say} />}
+        {tab === "budget" && auth.isKitchen && <BudgetPage say={say} isHead={Boolean(auth.isHead)} />}
 
         {tab === "container" && auth.isContainer && <ContainerPage say={say} area="מכולה" />}
         {tab === "cleaning" && auth.isHouse && <ContainerPage say={say} area="ניקיון" />}

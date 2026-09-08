@@ -361,12 +361,45 @@ async function handler(req, res, session) {
           }
           cols[col] = String(n);
         }
-        if (!Object.keys(cols).length) {
+        /* ============================================================
+           ⚠⚠ **שינוי שם — ראש המכינה בלבד, ומדווח מה נשאר מאחור.**
+
+           השם הוא מה שנכתב בעמודת הסטטוס של לוח הימים, ולכן
+           ימים שכבר סומנו בשם הישן **ממשיכים לשאת אותו** —
+           monday אינה מעדכנת תוויות למפרע. ההודעה אומרת כמה
+           ימים אלה, כי שינוי שקט היה מפצל את התקציב לשני סוגים
+           שנראים כמו אחד.
+           ============================================================ */
+        let renamed = null;
+        if (body.name !== undefined) {
+          if (!session.isHead) {
+            return res.status(403).json({ error: "שינוי שם סוג יום מותר לראש המכינה בלבד" });
+          }
+          const nm = String(body.name).trim().slice(0, 120);
+          if (!nm) return res.status(400).json({ error: "שם ריק" });
+          if (types.some((t) => t.name === nm && t.id !== typeId)) {
+            return res.status(400).json({ error: `"${nm}" כבר קיים ברשימת סוגי היום` });
+          }
+          if (nm !== hit.name) {
+            await renameItem(B.dayTypes, typeId, nm);
+            const days = await loadOverrides();
+            renamed = {
+              from: hit.name, to: nm,
+              /* ⚠ גם `type` וגם `type2` — ליום יכולים להיות שני
+                 סוגים, והשני נשכח בקלות (4ה). */
+              days: days.filter((d) => d.type === hit.name || d.type2 === hit.name).length,
+            };
+          }
+        }
+
+        if (!Object.keys(cols).length && !renamed) {
           return res.status(400).json({ error: "לא נשלח מה לעדכן" });
         }
-        await setCols(B.dayTypes, typeId, cols);
+        if (Object.keys(cols).length) await setCols(B.dayTypes, typeId, cols);
         invalidateBudget();
-        return res.status(200).json({ ok: true, typeId, name: hit.name });
+        return res.status(200).json({
+          ok: true, typeId, name: renamed ? renamed.to : hit.name, renamed,
+        });
       }
 
       /* ---------- מצבת הסועדים ----------
@@ -475,6 +508,58 @@ async function handler(req, res, session) {
       return res.status(200).json({ ok: true, date });
     }
 
+    /* ============================================================
+       ⚠⚠ סוג יום חדש — ראש המכינה, מהמסך
+       ------------------------------------------------------------
+       "בישול לשבת", "יום סיור", "אירוח" — כל אלה הם סוגי יום
+       שלא היו כשהלוח נבנה, וכל אחד מהם דרש עד היום לפתוח את
+       monday ולהוסיף שורה ביד. זה עיקרון 1: מה שאפשר להגדיר
+       בלוח מוגדר בלוח, ומה שמנהל המכינה צריך לשנות — הוא
+       משנה בעצמו, בלי דיפלוי.
+
+       ⚠ **ראש המכינה בלבד**, ולא כל מי ש-`edit:"kitchen"` פותח
+         לו. סוג יום משנה את חישוב הכסף של **כל השנה**, וזו
+         החלטה תקציבית ולא תפעול יומיומי.
+
+       ⚠ **שם כפול נחסם.** שני סוגים באותו שם הם שני תעריפים
+         שונים שנראים אותו דבר בבורר, ואי אפשר לדעת איזה מהם
+         נבחר על יום מסוים.
+
+       ⚠ **התווית בעמודת הסטטוס נוצרת בשימוש הראשון** ולא כאן —
+         `createItemOpen`/`setColsOpen` הם החריג המתועד עם
+         `create_labels_if_missing:true`, והערך נבדק מול לוח
+         סוגי היום לפני הכתיבה. אין כאן סכנת זבל.
+       ============================================================ */
+    if (req.method === "POST" && body?.dayType !== undefined) {
+      if (!session.isHead) {
+        return res.status(403).json({ error: "הוספת סוג יום מותרת לראש המכינה בלבד" });
+      }
+      const name = String(body?.name || "").trim().slice(0, 120);
+      if (!name) return res.status(400).json({ error: "לא הוזן שם סוג היום" });
+
+      const types = await loadDayTypes();
+      if (types.some((t) => t.name === name)) {
+        return res.status(400).json({ error: `"${name}" כבר קיים ברשימת סוגי היום` });
+      }
+
+      const cols = {};
+      for (const [key, col] of [
+        ["catering", C.dayTypes.catering],
+        ["fixedHeads", C.dayTypes.fixedHeads],
+        ["purchases", C.dayTypes.purchases],
+        ["dining", C.dayTypes.dining],
+      ]) {
+        const n = Number(body[key] ?? 0);
+        if (!Number.isFinite(n) || n < 0 || n > 100000) {
+          return res.status(400).json({ error: "סכום לא תקין" });
+        }
+        cols[col] = String(n);
+      }
+      const id = await createItem(B.dayTypes, name, cols);
+      invalidateBudget();
+      return res.status(200).json({ ok: true, typeId: String(id), name });
+    }
+
     if (req.method === "POST") {
       const name = String(body?.name || "").trim().slice(0, 200);
       const amount = Number(body?.amount);
@@ -542,6 +627,33 @@ async function handler(req, res, session) {
       });
     }
 
+    /* ⚠⚠ **מחיקת סוג יום נחסמת כשהוא בשימוש**, ואינה "מוחקת
+       ומשאירה". יום שסומן בסוג שנמחק נשאר עם תווית שאין לה
+       תעריף — כלומר הוא יוצא מחישוב הכסף בשקט, וזה בדיוק סוג
+       הטעות שמתגלה בסוף השנה. ההודעה אומרת כמה ימים (4ק). */
+    if (req.method === "DELETE" && body?.typeId !== undefined) {
+      if (!session.isHead) {
+        return res.status(403).json({ error: "מחיקת סוג יום מותרת לראש המכינה בלבד" });
+      }
+      const typeId = String(body.typeId || "").trim();
+      if (!typeId) return res.status(400).json({ error: "לא צוין סוג יום" });
+      const types = await loadDayTypes();
+      const hit = types.find((t) => t.id === typeId);
+      if (!hit) return res.status(404).json({ error: "סוג היום אינו נמצא" });
+
+      const days = await loadOverrides();
+      const used = days.filter((d) => d.type === hit.name || d.type2 === hit.name).length;
+      if (used) {
+        return res.status(409).json({
+          error: `"${hit.name}" מסומן על ${used} ימים. שינוי שם עדיף על מחיקה — יום שיישאר בלי תעריף ייצא מחישוב התקציב בשקט.`,
+          days: used,
+        });
+      }
+      await gql(`mutation{ delete_item(item_id:${Number(typeId)}){ id } }`);
+      invalidateBudget();
+      return res.status(200).json({ ok: true, typeId, name: hit.name });
+    }
+
     if (req.method === "DELETE") {
       const orderId = String(body?.orderId || "").trim();
       if (!orderId) return res.status(400).json({ error: "לא צוינה הזמנה" });
@@ -567,6 +679,10 @@ async function handler(req, res, session) {
 const setCols = (board, id, v) => gql(
   `mutation($b:ID!,$i:ID!,$v:JSON!){ change_multiple_column_values(board_id:$b,item_id:$i,column_values:$v,create_labels_if_missing:false){ id } }`,
   { b: board, i: String(id), v: JSON.stringify(v) });
+
+const renameItem = (board, id, name) => gql(
+  `mutation($b:ID!,$i:ID!,$v:JSON!){ change_multiple_column_values(board_id:$b,item_id:$i,column_values:$v){ id } }`,
+  { b: board, i: String(id), v: JSON.stringify({ name }) });
 
 const createItem = (board, name, v) => gql(
   `mutation($b:ID!,$n:String!,$v:JSON!){ create_item(board_id:$b,item_name:$n,column_values:$v,create_labels_if_missing:false){ id } }`,

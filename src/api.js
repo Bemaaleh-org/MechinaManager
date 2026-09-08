@@ -190,6 +190,11 @@ export const api = {
     put("/api/kitchen?action=budget", { headcount, mode, from }),
   /** תקציב סוג יום — קייטרינג/קבוע/קניות. ⚠ משנה את כל השנה. */
   setDayTypeBudget: (body) => put("/api/kitchen?action=budget", body),
+  /* ⚠ סוגי יום — ראש המכינה בלבד, ונאכף בשרת. `dayType:true`
+     הוא מה שמבדיל את המסלול הזה מיצירת הזמנה באותה מתודה. */
+  addDayType: (body) => post("/api/kitchen?action=budget", { dayType: true, ...body }),
+  renameDayType: ({ typeId, name }) => put("/api/kitchen?action=budget", { typeId, name }),
+  deleteDayType: (typeId) => del("/api/kitchen?action=budget", { typeId }),
   /** קנייה — שבועית או רבעונית. ⚠ יורדת מתקציב הקניות. */
   addPurchase: (body) => post("/api/kitchen?action=budget", body),
   deletePurchase: (orderId) => del("/api/kitchen?action=budget", { orderId }),

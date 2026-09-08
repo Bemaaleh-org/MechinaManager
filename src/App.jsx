@@ -614,7 +614,7 @@ function Staff({ auth, onSignedOut }) {
 
           {section === "gantt" && <GanttPage say={say} />}
 
-          {section === "budget" && isMgr && <BudgetPage say={say} />}
+          {section === "budget" && isMgr && <BudgetPage say={say} isHead={auth.isHead} />}
 
           {section === "container" && isMgr && <ContainerPage say={say} area={cArea} />}
           </ErrorBoundary>

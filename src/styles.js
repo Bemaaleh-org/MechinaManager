@@ -526,6 +526,14 @@ html,body{margin:0;padding:0;background:#012E58}
 .ds-n{background:var(--clay);color:#fff;border-radius:99px;min-width:19px;
   height:19px;display:grid;place-items:center;font-size:11px;font-weight:800;padding:0 5px}
 
+/* ---------- הוספה ושינוי שם של סוג יום ---------- */
+.bg-add{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.kx .bg-add input{flex:1;min-width:180px;height:38px;border-radius:var(--r-sm);
+  border:1px solid var(--line2);background:var(--soft);color:var(--ink);
+  padding:0 11px;font-size:14px;font-weight:600}
+.kx input.bg-rename{flex:1;min-width:120px;height:30px;border-radius:var(--r-sm);
+  border:1px solid var(--accent);background:var(--card);color:var(--ink);
+  padding:0 9px;font-size:14px;font-weight:800}
 /* ---------- יציאות השבוע, בכרטיס מסך הבית ---------- */
 .lx-row{display:flex;align-items:baseline;gap:8px;padding:6px 0;font-size:12.5px}
 .lx-row+.lx-row{border-top:1px solid var(--line)}
