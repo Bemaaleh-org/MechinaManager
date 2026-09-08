@@ -16,7 +16,7 @@ import { withAuth } from "./_session.js";
 import { gql } from "./_monday.js";
 import { CHORE_BOARDS, CHORE_COLS } from "../shared/chores-ids.js";
 import {
-  mayChores, choreHint, KIND, KINDS, SAME_SECTOR_WARN,
+  mayChores, mayAssign, choreHint, KIND, KINDS, SAME_SECTOR_WARN,
   fridayAfterTuesday,
   WHEN, DOW_LETTERS,
 } from "../shared/chores.js";
@@ -47,7 +47,11 @@ const isDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
 export const assign = withAuth(async (req, res, session) => {
   if (req.method !== "POST") return res.status(405).json({ error: "רק POST נתמך כאן" });
   const perm = mayChores(session);
-  if (!perm.assign) return res.status(403).json({ error: choreHint("assign") });
+  /* ⚠ שער זול לפני העבודה; ההרשאה **האמיתית** נבדקת מול סוג
+     הגזרה אחרי שהיא נטענה, ולא מול מה שהדפדפן שלח. */
+  if (!perm.assign && !perm.assignDaily) {
+    return res.status(403).json({ error: choreHint("assign") });
+  }
   if (!choresReady()) return res.status(503).json({ error: "לוחות התורניות טרם הוקמו", setupRequired: true });
 
   const body = req.body ?? (await readJson(req));
@@ -62,6 +66,16 @@ export const assign = withAuth(async (req, res, session) => {
   const sectors = await loadSectors();
   const sector = sectors.list.find((s) => s.id === sectorId);
   if (!sector) return res.status(404).json({ error: "הגזרה אינה נמצאת" });
+
+  /* ⚠⚠ **הסוג נלקח מהגזרה ולא מהבקשה.** אחראי המטבח משבץ את
+     התורנות היומית ולא את גזרות הערב, ואילו הבדיקה הייתה על
+     שדה בגוף הבקשה אפשר היה לעקוף אותה בשליחת "יומי". אותו
+     כלל כמו התחום בציוד המכולה (4כב). */
+  if (!mayAssign(perm, sector.kind)) {
+    return res.status(403).json({
+      error: choreHint(sector.kind === KIND.daily ? "assignDaily" : "assign"),
+    });
+  }
 
   /* ⚠ **שבוע לגזרת ערב, תאריך לגזרה יומית.** לא "אחד מהם" —
      כל סוג והשדה שלו, ושליחה הפוכה נדחית במפורש. שורה עם
@@ -331,9 +345,22 @@ export const sector = withAuth(async (req, res, session) => {
    ============================================================ */
 export const adjust = withAuth(async (req, res, session) => {
   const perm = mayChores(session);
-  if (!perm.assign) return res.status(403).json({ error: choreHint("assign") });
+  if (!perm.assign && !perm.assignDaily) {
+    return res.status(403).json({ error: choreHint("assign") });
+  }
   if (!CHORE_BOARDS.adjust) return res.status(503).json({ error: "לוחות התורניות טרם הוקמו", setupRequired: true });
   const body = req.body ?? (await readJson(req));
+
+  /* ⚠ **התאמה היא ספירה של גזרה מסוימת**, ולכן ההרשאה עליה
+     היא ההרשאה לשבץ לאותה גזרה — אחראי המטבח מתקן את ספירת
+     המטבח ולא את ספירת גזרות הערב. הסוג נלקח מהגזרה. */
+  const kindOf = async (secId) => {
+    const sec = (await loadSectors()).list.find((x) => x.id === secId);
+    return sec ? sec.kind : null;
+  };
+  const deny = (kind) => ({
+    error: choreHint(kind === KIND.daily ? "assignDaily" : "assign"),
+  });
 
   if (req.method === "DELETE") {
     const id = String(body?.id || "").trim();
@@ -342,6 +369,8 @@ export const adjust = withAuth(async (req, res, session) => {
        שולחת delete_item בלי board_id, וזה בדיוק החור שנסגר
        בהצפות (4ס). */
     if (!hit) return res.status(404).json({ error: "ההתאמה אינה נמצאת" });
+    const k = await kindOf(hit.sector);
+    if (!mayAssign(perm, k)) return res.status(403).json(deny(k));
     await deleteItem(id);
     invalidateChores();
     return res.status(200).json({ ok: true });
@@ -358,6 +387,7 @@ export const adjust = withAuth(async (req, res, session) => {
   if (!st) return res.status(400).json({ error: "החניך אינו פעיל או אינו קיים" });
   const sec = (await loadSectors()).list.find((s) => s.id === sectorId);
   if (!sec) return res.status(404).json({ error: "הגזרה אינה נמצאת" });
+  if (!mayAssign(perm, sec.kind)) return res.status(403).json(deny(sec.kind));
 
   const made = await createItem(CHORE_BOARDS.adjust,
     `${st.name} · ${sec.name} · ${delta > 0 ? "+" : ""}${delta}`, {

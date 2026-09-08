@@ -33,31 +33,50 @@ export const SAME_SECTOR_WARN = 2;
      ו-`mayTeam` (4נ), ומאותה סיבה הוא ב-shared: כדי שהמסך
      יסתיר בדיוק את מה שהשרת יחסום.
 
-   ⚠ **אחראי המטבח אינו משבץ.** הוא רואה את כל הטבלאות ועורך
-     את **הגדרות הגזרה היומית ואת הצ׳ק ליסט שלה** — כי זה
-     המטבח שלו. השיבוץ עצמו נשאר אצל אב הבית, שרואה את התמונה
-     המלאה של כל הגזרות ויודע ממי אפשר לקחת.
+   ⚠⚠ **`assign` הוא גזרות הערב, ו-`assignDaily` הוא תורנות
+     המטבח — שני דגלים ולא אחד.** קודם היה כאן דגל בוליאני אחד,
+     ואחראי המטבח לא יכול היה לשבץ את התורנים של עצמו. המכינה
+     ביקשה לשנות: התורנות היומית היא המטבח שלו, והוא זה שיודע
+     מי צריך להיות שם.
+
+     מה שלא השתנה: **גזרות הערב נשארות אצל אב הבית**, שרואה את
+     התמונה המלאה של כל הגזרות ויודע ממי אפשר לקחת. דגל אחד
+     לשניהם היה מכריח לבחור בין "לא נותן לאחראי המטבח לשבץ
+     במטבח" לבין "פותח לו את כל הגזרות".
+
+   ⚠ **הסוג נלקח מהגזרה ולא מהבקשה.** אותו כלל כמו `mayArea`
+     (4כב): אחרת אפשר היה לשבץ גזרת ערב בכך שכותבים "יומי"
+     בגוף הבקשה.
    ============================================================ */
 export function mayChores(session) {
   const s = session || {};
   if (s.viewOnly) {
-    return { read: true, assign: false, sectors: false, daily: false, role: "viewer" };
+    return { read: true, assign: false, assignDaily: false, sectors: false, daily: false, role: "viewer" };
   }
   if (s.isHead || s.isHouse) {
-    return { read: true, assign: true, sectors: true, daily: true, role: "house" };
+    return { read: true, assign: true, assignDaily: true, sectors: true, daily: true, role: "house" };
   }
   if (s.isKitchen) {
-    /* רואה הכול, עורך את היומי בלבד, ואינו משבץ */
-    return { read: true, assign: false, sectors: false, daily: true, role: "kitchen" };
+    /* משבץ את תורנות המטבח ועורך אותה, ואינו נוגע בגזרות הערב */
+    return { read: true, assign: false, assignDaily: true, sectors: false, daily: true, role: "kitchen" };
   }
   /* ⚠ **כל השאר קוראים.** המכינה ביקשה במפורש שכל החניכים
      ייחשפו לטבלת המעקב — שקיפות היא כל הרעיון כאן, וההפך
      ממנה הוא בדיוק מה שגורם לתחושה ש"תמיד אני". */
-  return { read: true, assign: false, sectors: false, daily: false, role: "view" };
+  return { read: true, assign: false, assignDaily: false, sectors: false, daily: false, role: "view" };
 }
 
+/** ⚠ ההרשאה לשבץ לגזרה נגזרת מהסוג שלה, ולא מדגל אחד. */
+export function mayAssign(perm, kind) {
+  if (!perm) return false;
+  return kind === KIND.daily ? Boolean(perm.assignDaily) : Boolean(perm.assign);
+}
+
+/* ⚠ ההודעה אומרת **מי כן רשאי** ולא "אין הרשאה" — מי שנחסם
+   צריך לדעת למי לפנות (4כב). */
 export const choreHint = (what) => ({
-  assign: "שיבוץ תורניות נעשה על ידי אב הבית או ראש המכינה",
+  assign: "שיבוץ גזרות סוף היום נעשה על ידי אב הבית או ראש המכינה",
+  assignDaily: "שיבוץ תורנות המטבח נעשה על ידי אחראי המטבח, אב הבית או ראש המכינה",
   sectors: "עריכת הגזרות נעשית על ידי אב הבית או ראש המכינה",
   daily: "עריכת תורנות המטבח נעשית על ידי אב הבית, אחראי המטבח או ראש המכינה",
 }[what] || "אין הרשאה");

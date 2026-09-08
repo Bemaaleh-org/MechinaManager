@@ -13,7 +13,9 @@ import { tempRegister } from "./_auth.mjs";
 import { AUTH_BOARD, AUTH_COLS } from "../../shared/auth-board.js";
 import { studentRows } from "../../api/_student-rows.js";
 import { CHORE_BOARDS, CHORE_COLS } from "../../shared/chores-ids.js";
-import { KIND, fridayAfterTuesday, dowOf, TUESDAY } from "../../shared/chores.js";
+import {
+  KIND, fridayAfterTuesday, dowOf, TUESDAY, mayChores, mayAssign,
+} from "../../shared/chores.js";
 
 const B = "http://localhost:5173";
 const DEMO_USER = "bdika";
@@ -177,6 +179,32 @@ try {
 
   r = await call(PLAIN, "POST", "/api/chores?action=sector", { id: SEC, name: EV });
   ok("עריכת גזרה מחניך נחסמת", r.s === 403, r.s + " " + (r.b.error || ""));
+
+  /* ============================================================
+     5ב · הגבול של אחראי המטבח — שני הכיוונים
+     ------------------------------------------------------------
+     ⚠ **טענה טהורה ולא קריאה לשרת.** חשבון הבדיקה נושא את כל
+       חמשת התפקידים (כולל אב בית), ולכן דרכו אי אפשר לבדוק
+       את הגבול הזה כלל — וחשבון אחראי-מטבח-בלבד אינו קיים
+       בנתונים. `mayChores` היא המקום שבו הכלל חי, והשרת
+       והמסך שניהם קוראים לה.
+
+     ⚠ **ושני הכיוונים באותה הרצה.** בדיקה שרק מוודאת שהמטבח
+       נפתח הייתה נשארת ירוקה גם אילו נפתחו איתו כל הגזרות.
+     ============================================================ */
+  console.log("\n5ב · אחראי המטבח");
+  const kPerm = mayChores({ isKitchen: true });
+  ok("אחראי המטבח משבץ תורנות מטבח",
+    mayAssign(kPerm, KIND.daily) === true, JSON.stringify(kPerm));
+  ok("ואינו משבץ גזרת סוף יום",
+    mayAssign(kPerm, KIND.evening) === false, JSON.stringify(kPerm));
+  ok("ואינו עורך גזרות", kPerm.sectors === false);
+  const hPerm = mayChores({ isHouse: true });
+  ok("אב הבית משבץ את שניהם",
+    mayAssign(hPerm, KIND.daily) && mayAssign(hPerm, KIND.evening));
+  const vPerm = mayChores({ viewOnly: true, isKitchen: true });
+  ok("וצפייה בלבד גוברת על התפקיד",
+    mayAssign(vPerm, KIND.daily) === false, JSON.stringify(vPerm));
 
   /* ============ 6 · הצ׳ק ליסט — תורן היום בלבד ============ */
   console.log("\n6 · צ׳ק ליסט");

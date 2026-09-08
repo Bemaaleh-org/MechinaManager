@@ -18,7 +18,7 @@ import {
   loadTexts, choreStudents, loadLeaderWeeks, eveningSectors, dailySector,
 } from "./_chores-data.js";
 import {
-  mayChores, tallySector, suggestFor, KIND, SAME_SECTOR_WARN,
+  mayChores, mayAssign, tallySector, suggestFor, KIND, SAME_SECTOR_WARN,
   onDay, WHEN,
 } from "../shared/chores.js";
 import { israelToday } from "./_attendance-data.js";
@@ -235,10 +235,22 @@ async function handler(req, res, session) {
       body.warnings.push("לוח מובילי השבוע ריק, ולכן אין תקופות לשבץ אליהן");
     }
 
-    /* ---------- מה שרק אב הבית צריך ---------- */
-    if (req.query?.admin && perm.assign) {
+    /* ============================================================
+       מה שדרוש כדי לשבץ
+       ------------------------------------------------------------
+       ⚠ **לא "אב הבית" אלא "מי שמשבץ משהו".** אחראי המטבח משבץ
+         את התורנות היומית (ולא את גזרות הערב), ולכן הוא צריך
+         את רשימת החניכים ואת השבועות בדיוק כמוהו.
+
+       ⚠ **וההצעות וההתאמות מסוננות לגזרות שהקורא באמת משבץ.**
+         מיפוי מפורש ולא השמטה — אחרת גזרה שתיווצר מחר תיפתח
+         מעצמה למי שאינו משבץ אותה.
+       ============================================================ */
+    const mine = sectors.list.filter((s) => mayAssign(perm, s.kind));
+    if (req.query?.admin && mine.length) {
       const wid = near[0] ? near[0].id : null;
       const leaders = wid ? (byLeader.get(wid) || new Set()) : new Set();
+      const mineIds = new Set(mine.map((s) => s.id));
       body.admin = {
         students,
         weeks: weeks.map((w) => ({
@@ -247,9 +259,11 @@ async function handler(req, res, session) {
         })),
         /* ⚠ ההמלצה מחושבת **בלי מובילי השבוע** — הצעה לשבץ את מי
            שאי אפשר לשבץ היא רעש שמלמד להתעלם מההמלצות. */
-        suggest: Object.fromEntries(sectors.list.map((s) =>
+        suggest: Object.fromEntries(mine.map((s) =>
           [s.id, suggestFor(tallies[s.id], { exclude: [...leaders] })])),
-        adjusts: adjusts.map((a) => ({
+        /* הגזרות שמותר לי לתקן בהן ספירה — הבורר במסך נבנה מהן */
+        sectors: mine.map((s) => ({ id: s.id, name: s.name, kind: s.kind })),
+        adjusts: adjusts.filter((a) => mineIds.has(a.sector)).map((a) => ({
           id: a.id, student: a.student, studentName: a.studentName,
           sector: a.sector, sectorName: a.sectorName,
           delta: a.delta, reason: a.reason, by: a.by, at: a.at,

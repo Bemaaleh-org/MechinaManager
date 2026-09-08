@@ -283,7 +283,7 @@ function Sectors({ d, say, reload, goWeek }) {
               </div>
             )}
 
-            {isOpen && d.me.assign && (
+            {isOpen && d.me.assign && d.admin && (
               <div className="ch-sec-b">
                 <Picker students={d.admin.students} leaders={p.leaders}
                   picked={picked} cap={s.cap} busy={busy}
@@ -415,7 +415,7 @@ function Daily({ d, say, reload, goWeek }) {
                   </div>
                 )}
               </div>
-              {d.me.assign && <CI.chev style={{ transform: isOpen ? "rotate(-90deg)" : "none", color: "var(--line2)" }} />}
+              {d.me.assignDaily && <CI.chev style={{ transform: isOpen ? "rotate(-90deg)" : "none", color: "var(--line2)" }} />}
             </button>
 
             {/* ⚠ מתריע ואינו חוסם — יום שבו אין ברירה הוא מצב אמיתי. */}
@@ -435,7 +435,10 @@ function Daily({ d, say, reload, goWeek }) {
               </div>
             )}
 
-            {isOpen && d.me.assign && (
+            {/* ⚠ **`assignDaily` ולא `assign`.** תורנות המטבח היא של
+                אחראי המטבח, וגזרות הערב של אב הבית — שני דגלים
+                ולא אחד (shared/chores.js). */}
+            {isOpen && d.me.assignDaily && d.admin && (
               <div className="ch-sec-b">
                 <Picker students={d.admin.students.map((s) => ({
                   ...s,
@@ -939,7 +942,10 @@ function Setup({ d, say, reload }) {
       ))}
 
       {/* ---------- תיקון ספירה ---------- */}
-      {d.me.assign && d.admin && (
+      {/* ⚠ **התאמת ספירה היא לגזרות שאני משבץ.** הבורר נבנה
+          מ-`d.admin.sectors` שהשרת סינן, ולא מכל הגזרות —
+          אחרת אחראי המטבח היה בוחר גזרת ערב ומקבל 403. */}
+      {(d.me.assign || d.me.assignDaily) && d.admin && (
         <>
           <div className="sec-label">תיקון ספירה</div>
           <div className="card">
@@ -959,7 +965,8 @@ function Setup({ d, say, reload }) {
                 <label>גזרה</label>
                 <select value={adj.sector} onChange={(e) => setAdj((p) => ({ ...p, sector: e.target.value }))}>
                   <option value="">—</option>
-                  {d.sectors.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {(d.admin.sectors || d.sectors).map((s) =>
+                    <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
             </div>
