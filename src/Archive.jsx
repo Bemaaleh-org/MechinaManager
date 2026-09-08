@@ -237,6 +237,27 @@ function LessonCard({ l, d, say, open, onToggle, editing, onEdit, onDone, onCanc
           {/* ⚠ הדירוג כאן ולא במסך נפרד: מי שקרא את הסיכום הוא
               מי שיכול לדרג, וזה הרגע שבו הוא זוכר את השיעור. */}
           {l.canRate && d.me.isStudent && <Rate l={l} say={say} />}
+
+          {/* ============================================================
+              ⚠ **סגור לדירוג אומר למה, ולא סתם נעלם.**
+
+              שני מצבים שונים לגמרי: "עברו שבועיים" הוא חלון
+              שנסגר, ו"טרם נכתב תוכן" הוא משהו שעוד יקרה. חניך
+              שרואה שיעור בלי כפתור דירוג ובלי הסבר מסיק שהמסך
+              שבור (עיקרון 6).
+
+              ⚠ ומוצג לחניך בלבד — לצוות אין מה לדרג.
+              ============================================================ */}
+          {!l.canRate && d.me.isStudent && l.rateClosed && (
+            <div className="ar-closed">
+              {l.rateClosed === "late"
+                ? (l.myScore != null
+                  ? `דירגת ${l.myScore}/10 · חלון הדירוג נסגר`
+                  : "חלון הדירוג נסגר — עברו שבועיים מהשיעור")
+                : "טרם נכתב תוכן לשיעור. כשייכתב, אפשר יהיה לדרג."}
+            </div>
+          )}
+
           {l.avg != null && !l.canRate && (
             <div className="ar-avg">
               ממוצע הכיתה <b className={"num " + scoreTone(l.avg)}>{l.avg}</b>
@@ -297,7 +318,10 @@ function Rate({ l, say }) {
    ============================================================ */
 function ContentForm({ l, say, onDone, onCancel }) {
   const [summary, setSummary] = useState(l.summary || "");
-  const [openRate, setOpenRate] = useState(Boolean(l.canRate));
+  /* ⚠⚠ **מאתחל מ-`openRate` ולא מ-`canRate`.** מאז ש-canRate
+     נגזר גם מהתוכן וגם מחלון הזמן, טופס שמאתחל ממנו היה מכבה
+     תיבה שאחראי הלו״ז סימן — בשקט, ברגע שעברו שבועיים. */
+  const [openRate, setOpenRate] = useState(Boolean(l.openRate));
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
 

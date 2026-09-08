@@ -2275,7 +2275,7 @@ function Incidents({ studentId, say }) {
    הדירוג 1–10, אישי, פעם אחת למפגש (דירוג חוזר מעדכן). הממוצע
    בין כל החניכים מוצג בחוות הדעת של מחזור ב׳.
    ============================================================ */
-function RateLessons({ say }) {
+function RateLessons({ say, onAll }) {
   const { data, err, busy, reload } = useLoad(() => api.getRatable(), []);
   const [patch, setPatch] = useState({});
   const [busyId, setBusyId] = useState(null);
@@ -2284,6 +2284,23 @@ function RateLessons({ say }) {
   if (err || !data || !data.meetings.length) return null;
 
   const scoreOf = (m) => (m.id in patch ? patch[m.id] : m.myScore);
+
+  /* ============================================================
+     ⚠⚠ **שיעור שדורג יורד ממסך הבית.**
+
+     קודם הוא נשאר עם הציון עליו, ואחרי שבוע מסך הבית החזיק
+     חמישה שיעורים שכבר דורגו — כלומר רשימה של מטלות גמורות.
+     ברשימה כזו מפסיקים להבחין במה שבאמת ממתין.
+
+     ⚠ **והוא אינו נעלם לאחר לחיצה, אלא בטעינה הבאה.** `patch`
+       מחזיק את הציון שזה עתה נשלח, והשורה נשארת על המסך עם
+       הסימון — אחרת הלחיצה נראית כאילו לא נקלטה (4לח).
+
+     ⚠ **ומה שיורד מכאן ניתן לשינוי ב"השיעורים שהיו"**, כל עוד
+       לא עברו שבועיים. הכרטיס אומר את זה במפורש, אחרת נראה
+       שהדירוג נעלם. */
+  const waiting = data.meetings.filter((m) => !m.rated || m.id in patch);
+  if (!waiting.length) return null;
 
   const rate = (m, score) => {
     setBusyId(m.id);
@@ -2296,8 +2313,13 @@ function RateLessons({ say }) {
 
   return (
     <>
-      <div className="sec-label">דירוג שיעורים</div>
-      {data.meetings.map((m) => {
+      <div className="sec-label">
+        דירוג שיעורים
+        {onAll && (
+          <button type="button" className="sec-more" onClick={onAll}>כל השיעורים שהיו</button>
+        )}
+      </div>
+      {waiting.map((m) => {
         const my = scoreOf(m);
         return (
           <div className="rq" key={m.id}>
@@ -2315,7 +2337,7 @@ function RateLessons({ say }) {
             </div>
             {my && (
               <div style={{ fontSize: 12, color: "var(--muted)", fontWeight: 700, marginTop: 6 }}>
-                הדירוג שלך: {my}/10 · אפשר לשנות בלחיצה
+                הדירוג שלך: {my}/10 · אפשר לשנות ב״השיעורים שהיו״ עוד שבועיים
               </div>
             )}
           </div>
@@ -3178,6 +3200,18 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
             בכישלון וכשהבנק ריק, ולכן אינו חוסם את המסך ואינו
             משאיר קופסה ריקה (עיקרון 6 בכיוון ההפוך).
           ============================================================ */}
+      {/* ============================================================
+          ⚠ **הדירוג גבוה, ומתחת ללו״ז בלבד.**
+
+          הוא ישב בתחתית מסך הבית, אחרי הנוכחות, הבקשות
+          והשיבוצים — כלומר מי שגלל עד אליו כבר סיים את מה
+          שבא לעשות. ולדירוג יש **חלון של שבועיים**: מטלה
+          שנסגרת מעצמה ואיש לא ראה אותה היא מטלה שלא קיימת.
+
+          ⚠ ומתחת ללו״ז ולא מעליו — "מה עכשיו" קודם ל"מה היה".
+          ============================================================ */}
+      <RateLessons say={say} onAll={() => go("archive")} />
+
       <DailyQuote say={say} onOpen={() => go("quotes")} />
 
       {/* ============================================================
@@ -3304,8 +3338,6 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
           <span>אין דבר שממתין לך</span>
         </div>
       )}
-
-      <RateLessons say={say} />
 
       {reqs.data && reqs.data.requests.length > 0 && (
         <>

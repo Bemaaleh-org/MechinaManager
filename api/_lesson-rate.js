@@ -15,7 +15,9 @@
 
 import { withAuth } from "./_session.js";
 import { gql } from "./_monday.js";
-import { LESSON_BOARDS, LESSON_COLS, PLANNED } from "../shared/lessons-boards.js";
+import {
+  LESSON_BOARDS, LESSON_COLS, PLANNED, lessonRatable, RATE_WINDOW_DAYS,
+} from "../shared/lessons-boards.js";
 import { loadContent } from "./_lesson-content.js";
 import {
   loadSheets, loadMeetings, loadRatings, ratingFor, invalidateRatings,
@@ -26,7 +28,8 @@ const RT = LESSON_COLS.ratings;
 
 /* כמה ימים אחורה מפגש עדיין ניתן לדירוג. מוגבל כדי שהמסך של
    החניך יציג את השיעורים הטריים ולא את כל השנה. */
-const WINDOW_DAYS = 14;
+/* ⚠ מיובא ואינו מוגדר כאן שוב — ראו lessonRatable ב-shared. */
+const WINDOW_DAYS = RATE_WINDOW_DAYS;
 
 async function handler(req, res, session) {
   if (req.method === "GET") return ratable(req, res, session);
@@ -61,24 +64,25 @@ async function ratableMeetings(today) {
     loadSheets(), loadMeetings(), loadContent(),
   ]);
   const byId = new Map(sheets.map((s) => [s.id, s]));
-  const from = new Date(new Date(today + "T12:00:00Z").getTime() - WINDOW_DAYS * 86400000)
-    .toISOString().slice(0, 10);
 
+  /* ⚠⚠ **הכלל מיובא ואינו מחושב כאן.** היו כאן שתי הגדרות של
+     "ניתן לדירוג" — זו ו-`canRate` בארכיון — והן כבר לא הסכימו
+     זו עם זו: הארכיון בדק רק את התיבה, וכאן נבדקו גם "מרצה
+     מתחלף" וגם חלון זמן. חניך ראה כפתור דירוג בארכיון על שיעור
+     שהשמירה שלו נדחית. ראו lessonRatable ב-shared. */
   return meetings
-    .filter((m) => m.planned === PLANNED.yes && m.date && m.date <= today)
     .map((m) => {
       const sheet = byId.get(m.sheetId);
       if (!sheet) return null;
-      const open = (content.get(m.id) || {}).openRate === true;
-      const guest = sheet.guestLecturer && m.date >= from;
-      if (!open && !guest) return null;
+      const c = content.get(m.id) || {};
+      if (!lessonRatable(m, c, today)) return null;
       return {
         ...m,
         subject: sheet.subject,
-        /* ⚠ המסך מציג מאיפה הדירוג נפתח: "מרצה מתחלף" הוא
-           שגרה, ו"נפתח לדירוג" הוא בקשה מפורשת של אחראי
-           הלו״ז — ושתיהן נראות אחרת ברשימה. */
-        openRate: open,
+        /* ⚠ המסך מציג **למה** השיעור פתוח: תוכן שנכתב הוא
+           השגרה, ותיבה שסומנה היא בקשה מפורשת של אחראי הלו״ז. */
+        openRate: c.openRate === true,
+        hasSummary: Boolean(String(c.summary || "").trim()),
       };
     })
     .filter(Boolean);

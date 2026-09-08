@@ -324,3 +324,56 @@ export const payFilterReady = () => Boolean(LESSON_COLS.sheets.noPay);
 export const contentReady = () =>
   Boolean(LESSON_COLS.meetings.summary && LESSON_COLS.meetings.files
     && LESSON_COLS.meetings.openRate);
+
+/* ============================================================
+   ⚠⚠⚠ מתי חניך יכול לדרג מפגש — הגדרה אחת בלבד
+   ------------------------------------------------------------
+   היו כאן **שתי** הגדרות: `ratableMeetings` ב-_lesson-rate.js
+   קבעה מה מופיע ברשימת הדירוג ומה מותר לשמור, ו-`canRate`
+   ב-_lesson-content.js קבע מה הארכיון מציג. הן כבר לא הסכימו
+   זו עם זו — הארכיון בדק רק את התיבה, ורשימת הדירוג בדקה גם
+   "מרצה מתחלף" וגם חלון זמן. חניך ראה כפתור דירוג בארכיון על
+   שיעור שהשמירה שלו נדחית.
+
+   ⚠ **התוכן הוא השער.** דירוג בלי לדעת מה היה בשיעור הוא
+     דירוג של הזיכרון, לא של השיעור. אחראי הלו״ז כותב בכמה
+     משפטים מה היה ומצרף דפי עזר — ומאותו רגע השיעור פתוח
+     לדירוג, בכל גיליון ובלי קשר לסוגו.
+
+   ⚠ **והתיבה "פתוח לדירוג" נשארת כעוקף מפורש.** סדנה שהתוכן
+     שלה עוד לא נכתב, ואחראי הלו״ז רוצה משוב עליה עכשיו.
+
+   ⚠⚠ **החלון של שבועיים חל עכשיו על שניהם.** קודם הוא חל על
+     מסלול "מרצה מתחלף" בלבד, והתיבה נפתחה לנצח (5כ). זו
+     החלטה של המכינה שהתהפכה: דירוג של שיעור מלפני חודשיים
+     אינו זיכרון של השיעור אלא של המרצה בכלל, וזה נתון אחר.
+     מי שירצה להחזיר — לשאול קודם.
+
+   ⚠ **`planned === "לא"` גובר על הכול** — הצהרה מפורשת על
+     הפריט מנצחת גזירה מהקשר (4כה).
+   ============================================================ */
+export const RATE_WINDOW_DAYS = 14;
+
+/** התאריך המוקדם ביותר שעדיין ניתן לדרג בו, לפי היום. */
+export function rateFrom(today, days = RATE_WINDOW_DAYS) {
+  const t = Date.parse(String(today) + "T12:00:00Z");
+  if (!Number.isFinite(t)) return null;
+  return new Date(t - days * 864e5).toISOString().slice(0, 10);
+}
+
+/**
+ * האם המפגש פתוח לדירוג היום.
+ * @param m {date, planned}  שורת המפגש
+ * @param c {summary, openRate}  התוכן שלו
+ */
+export function lessonRatable(m, c, today, days = RATE_WINDOW_DAYS) {
+  if (!m || !m.date || !today) return false;
+  if (m.planned === PLANNED.no) return false;
+  if (m.date > today) return false;
+  const from = rateFrom(today, days);
+  if (!from || m.date < from) return false;
+  const content = c || {};
+  /* ⚠ סיכום ריק אינו סיכום — רווחים בלבד אינם תוכן. */
+  const hasSummary = Boolean(String(content.summary || "").trim());
+  return hasSummary || content.openRate === true;
+}

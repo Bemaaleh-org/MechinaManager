@@ -1,0 +1,64 @@
+/* ============================================================
+   מתי מפגש פתוח לדירוג — הגדרה אחת
+   ------------------------------------------------------------
+     node tools/tests/ratable-test.mjs
+
+   ⚠ **בדיקה טהורה, בלי רשת.** הכלל כולו ב-`lessonRatable`,
+     ושתי נקודות הקצה מייבאות אותו. לפני זה היו כאן **שתי**
+     הגדרות שכבר לא הסכימו: הארכיון בדק את התיבה בלבד, ורשימת
+     הדירוג בדקה גם "מרצה מתחלף" וגם חלון זמן — כלומר חניך
+     ראה כפתור דירוג על שיעור שהשמירה שלו נדחית.
+
+   ⚠ **הבדיקה נועלת גם את מה שהשתנה:** החלון של שבועיים חל
+     עכשיו על **שני** המסלולים, והתיבה כבר אינה נפתחת לנצח.
+   ============================================================ */
+import { lessonRatable, rateFrom, RATE_WINDOW_DAYS } from "../../shared/lessons-boards.js";
+
+const T = "2026-09-08";
+let pass = 0, fail = 0;
+const is = (got, want, why) => {
+  const ok = got === want;
+  ok ? pass++ : fail++;
+  console.log(`${ok ? "V" : "X"} ${why}${ok ? "" : `  (ציפינו ${want}, קיבלנו ${got})`}`);
+};
+const m = (date, planned = "כן") => ({ date, planned });
+
+console.log("\n— מתי אפשר לדרג —\n");
+
+/* התוכן הוא השער */
+is(lessonRatable(m("2026-09-05"), { summary: "דיברנו על העלייה השנייה" }, T), true,
+  "תוכן נכתב, בתוך שבועיים");
+is(lessonRatable(m("2026-09-05"), {}, T), false,
+  "בלי תוכן ובלי תיבה — סגור");
+is(lessonRatable(m("2026-09-05"), { summary: "   " }, T), false,
+  "סיכום של רווחים אינו תוכן");
+
+/* התיבה כעוקף מפורש */
+is(lessonRatable(m("2026-09-05"), { openRate: true }, T), true,
+  "תיבה סומנה בלי תוכן");
+
+/* ⚠ החלון חל על שניהם — זה מה שהשתנה */
+is(lessonRatable(m("2026-08-20"), { summary: "היה" }, T), false,
+  "תוכן, אבל עברו שבועיים");
+is(lessonRatable(m("2026-08-20"), { openRate: true }, T), false,
+  "תיבה סומנה, אבל עברו שבועיים");
+
+/* הגבולות המדויקים */
+is(lessonRatable(m(rateFrom(T)), { summary: "x" }, T), true,
+  `היום ה-${RATE_WINDOW_DAYS} עדיין פתוח`);
+is(lessonRatable(m("2026-08-24"), { summary: "x" }, T), false,
+  "יום אחד לפני הגבול — סגור");
+is(lessonRatable(m(T), { summary: "x" }, T), true, "היום עצמו");
+
+/* הצהרה מפורשת גוברת על הכול (4כה) */
+is(lessonRatable(m("2026-09-05", "לא"), { summary: "x", openRate: true }, T), false,
+  'מתוכנן="לא" גובר גם על תוכן וגם על תיבה');
+
+/* עתיד, וקלט חסר */
+is(lessonRatable(m("2026-09-20"), { summary: "x" }, T), false, "שיעור עתידי");
+is(lessonRatable(m(""), { summary: "x" }, T), false, "בלי תאריך");
+is(lessonRatable(null, { summary: "x" }, T), false, "בלי מפגש");
+is(lessonRatable(m("2026-09-05"), null, T), false, "בלי תוכן כלל");
+
+console.log(`\n${pass} עברו, ${fail} נכשלו\n`);
+process.exit(fail ? 1 : 0);

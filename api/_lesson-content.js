@@ -40,6 +40,7 @@ import { todayFor } from "./_attendance-data.js";
 import {
   LESSON_BOARDS, LESSON_COLS, HAPPENED, PLANNED, contentReady,
   timeOf, minutesOf,
+  lessonRatable, rateFrom,
 } from "../shared/lessons-boards.js";
 import {
   loadSheets, loadMeetings, loadRatings, ratingFor, invalidateLessons,
@@ -109,7 +110,7 @@ const EMPTY = { summary: null, files: [], openRate: false };
      ראו ההערה בראש הקובץ: הגיליון נושא פרטי מרצה חיצוני
      ומחיר, ופריסה הייתה מדליפה אותם.
    ============================================================ */
-function toStudentLesson(m, sheet, content, rating, myScore) {
+function toStudentLesson(m, sheet, content, rating, myScore, today) {
   return {
     id: m.id,
     date: m.date,
@@ -126,7 +127,20 @@ function toStudentLesson(m, sheet, content, rating, myScore) {
     avg: rating ? rating.avg : null,
     votes: rating ? rating.votes : 0,
     myScore: myScore ?? null,
-    canRate: content.openRate,
+    /* ⚠⚠ **אותו כלל בדיוק של רשימת הדירוג.** קודם כאן נבדקה
+       התיבה בלבד, ובמסלול השני נבדקו גם "מרצה מתחלף" וגם חלון
+       זמן — כלומר הארכיון הציע דירוג על שיעור שהשמירה שלו
+       נדחית ב-403. הגדרה אחת, ב-shared. */
+    canRate: lessonRatable(m, content, today),
+    /* ⚠ התיבה הגולמית, בנפרד מ-`canRate` הנגזר. טופס הצוות
+       מאתחל ממנה — אחרת הוא מכבה תיבה שסומנה ברגע שחלון
+       הזמן נסגר. */
+    openRate: content.openRate === true,
+    /* ⚠ נשלח כדי שהמסך יאמר **למה** סגור: "עברו שבועיים" ו"טרם
+       נכתב תוכן" הם שני מצבים שונים, ו"אי אפשר לדרג" לבדו
+       נראה כמו תקלה (עיקרון 6). */
+    rateClosed: !lessonRatable(m, content, today)
+      && (m.date < rateFrom(today) ? "late" : content.summary ? null : "nocontent"),
   };
 }
 
@@ -152,7 +166,7 @@ async function archive(req, res, session) {
         const sheet = byId.get(m.sheetId) || null;
         const c = content.get(m.id) || EMPTY;
         const mine = ratings.find((r) => r.meetingId === m.id && r.studentId === me);
-        return toStudentLesson(m, sheet, c, ratingFor(m.id, ratings), mine ? mine.score : null);
+        return toStudentLesson(m, sheet, c, ratingFor(m.id, ratings), mine ? mine.score : null, today);
       })
       /* החדש למעלה — מי שמחפש שיעור מחפש את מה שהיה השבוע. */
       .sort((a, b) => b.date.localeCompare(a.date)

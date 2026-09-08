@@ -511,6 +511,9 @@ html,body{margin:0;padding:0;background:#012E58}
      רואה את השם לפני שהוא לוחץ. */
 .chair-save{display:flex;gap:8px;align-items:center;margin-top:10px}
 /* ---------- עריכת מכסה בתוך עורך השיבוץ ---------- */
+/* ⚠ סגור לדירוג — אומר למה ולא נעלם בשקט (עיקרון 6). */
+.ar-closed{margin-top:10px;font-size:12.5px;color:var(--muted);font-weight:700;
+  background:var(--soft);border-radius:var(--r-sm);padding:8px 11px}
 .cap-edit{display:flex;gap:8px;align-items:center;flex-wrap:wrap;
   margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
 .kx .cap-edit input{width:100px;height:38px;border-radius:var(--r-sm);
