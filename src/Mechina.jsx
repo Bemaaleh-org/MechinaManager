@@ -30,7 +30,7 @@ import { KitchenPage } from "./Kitchen.jsx";
 import { HostingPage, LoansPage } from "./Extras.jsx";
 import { useNotify, NotifyBell, NotifyPanel } from "./Notify.jsx";
 import { ProfilePage } from "./Profile.jsx";
-import DutyPage from "./Duty.jsx";
+import DutyPage, { DutyShortcuts } from "./Duty.jsx";
 /* ⚠⚠ מסך שהצוות אינו רואה — השרת מחזיר לו 403. ראו api/_projects.js. */
 import ProjectsPage from "./Projects.jsx";
 import LeadWeekPage from "./LeadWeek.jsx";
@@ -3040,7 +3040,7 @@ const MONTHS_HE = ["ינואר","פברואר","מרץ","אפריל","מאי","�
 const longDate = (d = new Date()) =>
   DAYS_HE[d.getDay()] + ", " + d.getDate() + " ב" + MONTHS_HE[d.getMonth()];
 
-function StudentDash({ auth, year, reqs, unseen, go, say }) {
+function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey }) {
   const [profile, setProfile] = useState(null);
   const [faults, setFaults] = useState(null);
   const [ratable, setRatable] = useState(null);
@@ -3190,6 +3190,11 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
       {year.err && <LoadFail msg={year.err} onRetry={year.reload} />}
 
       <NewsStrip isStudent onOpen={() => go("mydata")} />
+
+      {/* ⚠ קיצור לכל אחריות, בראש המסך. בעל תפקיד נכנס כדי
+          לעשות את מה שהתפקיד דורש, ומרכז התפקיד היה קבור
+          במגירה — שתי לחיצות לפני הדבר שבשבילו נכנס. */}
+      <DutyShortcuts onOpen={(k) => { setDutyKey(k); go("duty"); }} />
 
       <TodayAgenda onOpen={() => go("agenda")} onSettled={bump} />
 
@@ -3370,6 +3375,9 @@ function StudentDash({ auth, year, reqs, unseen, go, say }) {
 export function MechinaApp({ auth, onSignedOut }) {
   const td = testDate();
   const [tab, setTab] = useState("home");
+  /* ⚠ איזו אחריות לפתוח במרכז התפקיד, כשמגיעים מקיצור הדרך
+     שבמסך הבית. נצרך פעם אחת ב-DutyPage ואז נשכח. */
+  const [dutyKey, setDutyKey] = useState(null);
   const [toast, setToast] = useState(null);
   const say = useCallback((m) => { setToast(m); setTimeout(() => setToast(null), 2600); }, []);
 
@@ -3651,7 +3659,7 @@ export function MechinaApp({ auth, onSignedOut }) {
 
         {tab === "home" && (
           <StudentDash auth={auth} year={year} reqs={reqs} unseen={unseen}
-            go={setTab} say={say} />
+            go={setTab} say={say} setDutyKey={setDutyKey} />
         )}
 
         {tab === "year" && (
@@ -3739,7 +3747,7 @@ export function MechinaApp({ auth, onSignedOut }) {
             רשימה שמזינה את המגירה. קיצור שיצביע על טאב שאינו
             קיים פשוט לא יעשה כלום, ולכן שתי הרשימות חייבות
             להישאר אותה רשימה. */}
-        {tab === "duty" && <DutyPage say={say} go={(t) => setTab(t)} />}
+        {tab === "duty" && <DutyPage say={say} go={(t) => setTab(t)} startKey={dutyKey} />}
         {tab === "teams" && <TeamsPage say={say} go={(t) => setTab(t)} />}
         {tab === "chores" && <ChoresPage say={say} />}
         {tab === "laundry" && <LaundryPage say={say} />}

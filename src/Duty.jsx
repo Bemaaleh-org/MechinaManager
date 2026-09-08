@@ -279,12 +279,72 @@ function Inbox({ duty, say, reload }) {
 }
 
 /* ============================================================
+   קיצור הדרך במסך הבית — אחריות אחת לכל צ׳יפ
+   ------------------------------------------------------------
+   ⚠ **הבעיה שזה פותר:** בעל תפקיד נכנס לאפליקציה כדי לעשות
+     את מה שהתפקיד שלו דורש, ומרכז התפקיד היה קבור בתוך
+     המגירה — כלומר שתי לחיצות ומסך ביניים לפני הדבר שבשבילו
+     הוא נכנס. ליו״ר של שתי ועדות זה שתי לחיצות לכל אחת.
+
+   ⚠ **צ׳יפ לכל אחריות, ולא כפתור אחד "מרכז התפקיד".** ליו״ר
+     של שתי ועדות יש שתי רשימות משימות נפרדות (`scope`), ואחת
+     מהן היא לא "התפקיד שלו" — היא אחת משתיים.
+
+   ⚠ **המונה הוא כל התועלת.** "3" על כרטיס אחראי המטבח הוא
+     הסיבה ללחוץ; בלעדיו זה עוד שורת ניווט.
+
+   ⚠ **מחזיר null בטעינה, בכישלון ולמי שאין לו תפקיד** — לא
+     קופסה ריקה ולא שלד. מסך הבית של רוב החניכים לא אמור
+     לגדול בגלל רכיב שאין לו מה לומר להם (עיקרון 6 בכיוון
+     ההפוך, כמו DailyQuote).
+
+   ⚠ **וזו קריאה נוספת אחת.** `dutiesForStudent` מחזירה רשימה
+     ריקה מהר וההנדלר יוצא מיד — כלומר חניך בלי תפקיד אינו
+     משלם על ארבע שליפות הלוחות.
+   ============================================================ */
+export function DutyShortcuts({ onOpen }) {
+  const [duties, setDuties] = useState(null);
+  useEffect(() => {
+    let live = true;
+    api.getDuty()
+      .then((d) => { if (live) setDuties(d.duties || []); })
+      .catch(() => { if (live) setDuties([]); });
+    return () => { live = false; };
+  }, []);
+
+  if (!duties || !duties.length) return null;
+
+  return (
+    <>
+      <div className="sec-label">האחריות שלי</div>
+      <div className="duty-short">
+        {duties.map((d) => {
+          const Icon = icon(d.icon);
+          return (
+            <button key={d.key} className={"ds-chip tone-" + d.tone}
+              onClick={() => onOpen(d.key)}>
+              <span className="tile"><Icon /></span>
+              <b>{d.label}</b>
+              {d.counts.open > 0 && <span className="ds-n num">{d.counts.open}</span>}
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+/* ============================================================
    המסך
    ============================================================ */
-export default function DutyPage({ say, go }) {
+export default function DutyPage({ say, go, startKey = null }) {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
   const [pick, setPick] = useState(0);
+  /* ⚠ נצרך פעם אחת ואז נשכח: אחרת חזרה למרכז התפקיד הייתה
+     קופצת בכל פעם לאחריות שנפתחה מהקיצור, גם אחרי שהמשתמש
+     בחר אחרת. אותו כלל כמו החודש הנוכחי בלוח הנוכחות (4פ). */
+  const used = React.useRef(false);
 
   const load = useCallback(() => api.getDuty()
     .then((d) => { setData(d); setErr(null); })
@@ -319,6 +379,14 @@ export default function DutyPage({ say, go }) {
         </div>
       </>
     );
+  }
+
+  if (startKey && !used.current) {
+    const i = duties.findIndex((x) => x.key === startKey);
+    used.current = true;
+    /* ⚠ מפתח שאינו נמצא אינו שגיאה — התפקיד עשוי היה להישלל
+       בין הטעינות, והמסך פשוט נפתח על הראשונה. */
+    if (i > 0) setPick(i);
   }
 
   const d = duties[Math.min(pick, duties.length - 1)];

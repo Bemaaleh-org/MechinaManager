@@ -511,6 +511,21 @@ html,body{margin:0;padding:0;background:#012E58}
      רואה את השם לפני שהוא לוחץ. */
 .chair-save{display:flex;gap:8px;align-items:center;margin-top:10px}
 /* ---------- עריכת מכסה בתוך עורך השיבוץ ---------- */
+/* ---------- קיצור לאחריות, בראש מסך הבית ----------
+   ⚠ קידומת kx מלאה: הכלל kx button מאפס רקע ומסגרת (4מח).
+   ⚠ המונה הוא כל התועלת — בלעדיו זו עוד שורת ניווט. */
+.duty-short{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.kx .ds-chip{display:flex;align-items:center;gap:8px;cursor:pointer;
+  background:var(--card);border:1px solid var(--line2);border-radius:99px;
+  padding:5px 12px 5px 6px;box-shadow:var(--sh-1);
+  transition:transform .12s var(--ease)}
+.kx .ds-chip:active{transform:scale(.97)}
+.kx .ds-chip b{font-size:13px;font-weight:800}
+.kx .ds-chip .tile{width:26px;height:26px;border-radius:8px;flex:0 0 auto;
+  display:grid;place-items:center}
+.ds-n{background:var(--clay);color:#fff;border-radius:99px;min-width:19px;
+  height:19px;display:grid;place-items:center;font-size:11px;font-weight:800;padding:0 5px}
+
 /* ⚠ סגור לדירוג — אומר למה ולא נעלם בשקט (עיקרון 6). */
 .ar-closed{margin-top:10px;font-size:12.5px;color:var(--muted);font-weight:700;
   background:var(--soft);border-radius:var(--r-sm);padding:8px 11px}
