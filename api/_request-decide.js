@@ -44,6 +44,7 @@ import { loadRequests, invalidateRequests } from "./_requests.js";
 import {
   MECHINA_BOARDS, MECHINA_COLS, ABSENCE, ABSENCE_SOURCE, REQ_STATUS,
   REQ_STAGE, requestStage,
+  vacationCost,
 } from "../shared/mechina-boards.js";
 import { guideMap, isGuideOf } from "./_guides.js";
 
@@ -113,6 +114,8 @@ async function handler(req, res, session) {
     const endDate = request.endDate || request.date;
     const span = cal.days.filter((d) => d.date >= request.date && d.date <= endDate);
     let created = 0, skipped = 0;
+    /* ימי החופש שנגבו בפועל. רלוונטי לחופש בלבד. */
+    let charge = null;
 
     if (decision === "approve") {
       if (!span.length) return res.status(400).json({ error: "הטווח אינו בלוח השנה של המכינה" });
@@ -122,22 +125,67 @@ async function handler(req, res, session) {
           const rule = vacationRule(d);
           if (!rule.allowed) return res.status(400).json({ error: rule.reason });
         }
-        const sum = summarize(request.studentId, { absences, marked, byDate: cal.byDate });
-        const perHalf = {};
-        for (const d of span) perHalf[d.half] = (perHalf[d.half] || 0) + 1;
-        for (const [half, needed] of Object.entries(perHalf)) {
-          const q = sum.quota.find((x) => x.half === half);
-          if (!q) return res.status(400).json({ error: "התאריך אינו בתוך מחצית" });
-          if (q.left < needed) {
-            return res.status(400).json({ error: `הבקשה דורשת ${needed} ימי חופש ב${half}, ונשארו ${q.left}` });
+        const auto = vacationCost(request.date, request.outAt, endDate, request.backAt);
+        if (auto == null) {
+          return res.status(400).json({ error: "לא ניתן לחשב את משך היציאה — בדקו תאריכים ושעות" });
+        }
+
+        /* ============================================================
+           ⚠⚠ **המכריע בוחר כמה ימים לגבות, והברירה היא החישוב.**
+
+           היציאה עשויה להיות 26 שעות — כלומר שני ימים לפי הכלל —
+           והמדריך מכיר את הקושי להגיע ובוחר לגבות אחד. זו החלטה
+           שלו, ועד היום לא הייתה לה שום דרך ביטוי: הוא היה מאשר
+           ומקווה, או דוחה בקשה שהיא בסדר.
+
+           ⚠ **אפס מותר.** "אני מאשר ולא גובה" הוא מצב אמיתי —
+             חתונה של אח, לוויה, יום מיון. בלעדיו המדריך היה
+             נאלץ לרשום את זה כ"מוצדקת", וזה נתון אחר.
+
+           ⚠ **אבל לא יותר מהחישוב.** גבייה מעבר למה שהיציאה
+             באמת לקחה אינה החלטה שקולה אלא כמעט תמיד טעות
+             הקלדה, והיא יורדת ממכסה שהחניך אינו יכול להשיב.
+           ============================================================ */
+        charge = auto;
+        if (body?.days !== undefined && String(body.days).trim() !== "") {
+          const n = Number(body.days);
+          if (!Number.isInteger(n) || n < 0 || n > auto) {
+            return res.status(400).json({
+              error: `ימי החופש לגבייה — מספר שלם בין 0 ל-${auto}`,
+              suggested: auto,
+            });
           }
+          charge = n;
+        }
+
+        const sum = summarize(request.studentId, { absences, marked, byDate: cal.byDate });
+        /* ⚠ החיוב נזקף למחצית של תאריך היציאה — כמו בהגשה. */
+        const half = (cal.byDate.get(request.date) || {}).half;
+        const q = half && sum.quota.find((x) => x.half === half);
+        if (!q) return res.status(400).json({ error: "התאריך אינו בתוך מחצית" });
+        if (q.left < charge) {
+          return res.status(400).json({ error: `הבקשה עולה ${charge} ימי חופש ב${half}, ונשארו ${q.left}` });
         }
       }
 
+      /* ============================================================
+         ⚠⚠ **שורה לכל יום לימודים, ומחיר רק על הראשונות.**
+
+         לנוכחות הנתון הנכון הוא "לא היה" בכל יום שבטווח, ולכן
+         נוצרת שורה לכל אחד מהם. למכסה הנתון הנכון הוא `charge`.
+         שני המספרים אינם זהים, ולכן `cost` על השורה: הימים
+         הראשונים עולים 1 והשאר 0.
+
+         ⚠ **ולא "שורה אחת ששווה שלוש".** יום בלי שורה נראה
+           בנוכחות כאילו החניך היה כאן, וזו טענה שגויה עליו.
+         ============================================================ */
+      let left = charge;
       for (const d of span) {
         const already = absences.find(
           (a) => a.studentId === request.studentId && a.date === d.date);
         if (already) { skipped++; continue; }
+        const isVac = request.type === ABSENCE.vacation;
+        const price = isVac ? Math.min(1, left) : 1;
         await createAbsence({
           studentId: request.studentId,
           studentName: student.name,
@@ -145,7 +193,9 @@ async function handler(req, res, session) {
           type: request.type,
           detail: request.detail,
           source: ABSENCE_SOURCE.request,
+          cost: price,
         });
+        if (isVac) left -= price;
         created++;
       }
     }
@@ -176,6 +226,9 @@ async function handler(req, res, session) {
       ok: true, id: requestId, status, stage: REQ_STAGE.done,
       absenceCreated: created > 0,
       daysCreated: created,
+      /* ⚠ כמה ימי חופש נגבו בפועל — המסך אומר את זה במילים.
+         "אושר" בלי המספר משאיר את החניך לגלות אותו במכסה. */
+      charged: charge,
       /* ימים שכבר הייתה בהם היעדרות — המסך מודיע ולא שותק */
       alreadyAbsent: decision === "approve" && skipped > 0,
     });

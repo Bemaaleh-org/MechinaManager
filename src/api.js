@@ -608,8 +608,12 @@ export const api = {
   deleteRequest: (id) => del("/api/attendance?action=requests", { id }),
 
   /** אישור או דחייה. מנהל בלבד. אישור יוצר את שורת ההיעדרות. */
-  decideRequest: ({ requestId, decision }) =>
-    post("/api/attendance?action=decide", { requestId, decision }),
+  /* ⚠ **`days` מפורק במפורש ואינו פריסה.** שדה שלא נכתב כאן
+     נשמט בשקט — זו הדרך שבה שדה חדש נראה עובד במסך ואינו
+     מגיע לשרת (4לג). */
+  decideRequest: ({ requestId, decision, days }) =>
+    post("/api/attendance?action=decide",
+      days === undefined ? { requestId, decision } : { requestId, decision, days }),
 
   /** נוכחות פרטנית באימון — שלוש רשימות, מצב מלא */
   markTraining: ({ meetingId, present, absent, kitchen }, today) =>

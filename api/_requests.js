@@ -39,6 +39,7 @@ import {
 } from "./_attendance-data.js";
 import {
   MECHINA_BOARDS, MECHINA_COLS, ABSENCE, REQ_STATUS, REQ_STAGE, requestStage,
+  vacationCost,
 } from "../shared/mechina-boards.js";
 import { guideMap, isGuideOf } from "./_guides.js";
 
@@ -146,6 +147,10 @@ async function list(req, res, session) {
             status: r.status,
             decidedBy: r.decidedBy,
             decidedAt: r.decidedAt,
+            /* ⚠ **גם לחניך.** כמה עלתה לו היציאה הוא נתון עליו,
+               לא על אחרים, והוא הדבר שהוא ישאל עליו ראשון. */
+            cost: r.type === ABSENCE.vacation
+              ? vacationCost(r.date, r.outAt, r.endDate, r.backAt) : null,
             /* ⚠ נגזר בשרת כדי שהכפתור יידע מראש (4יד). */
             canEdit: r.status === REQ_STATUS.pending,
           };
@@ -163,6 +168,12 @@ async function list(req, res, session) {
              במיפוי של החניך בלבד, והמדריך — שבשבילו הן נאספו —
              לא ראה אותן. */
           outAt: r.outAt, backAt: r.backAt,
+          /* ⚠ **המחיר נגזר בשרת ונשלח.** הוא נבדק בשרת בכל
+             מקרה, ומסך שיחשב אותו בעצמו הוא הגדרה שנייה שתתפצל
+             מהראשונה בתיקון הבא — אותה מלכודת של canEdit (4יד).
+             null לכל מה שאינו חופש: למחלה אין מחיר במכסה. */
+          cost: r.type === ABSENCE.vacation
+            ? vacationCost(r.date, r.outAt, r.endDate, r.backAt) : null,
           status: r.status,
           decidedBy: r.decidedBy,
           decidedAt: r.decidedAt,
@@ -280,30 +291,48 @@ async function validate({ body, session, excludeId = null }) {
 
   const others = all.filter((r) => r.studentId === session.itemId && r.id !== excludeId);
 
+  const cost = vacationCost(date, outAt, endDate, backAt);
+
   if (type === ABSENCE.vacation) {
-    /* ⚠ כל יום בטווח חייב לעמוד בכלל, והמכסה נבדקת על סך הימים */
+    /* ⚠ כל יום בטווח חייב לעמוד בכלל */
     for (const d of span) {
       const rule = vacationRule(d);
       if (!rule.allowed) {
         return { error: `${d.date.split("-").reverse().join("/")}: ${rule.reason}` };
       }
     }
-    const sum = summarize(session.itemId, { absences, marked, byDate: cal.byDate });
-    const perHalf = {};
-    for (const d of span) perHalf[d.half] = (perHalf[d.half] || 0) + 1;
+    if (cost == null) return { error: "לא ניתן לחשב את משך היציאה — בדקו תאריכים ושעות" };
 
-    for (const [half, needed] of Object.entries(perHalf)) {
-      const q = sum.quota.find((x) => x.half === half);
-      if (!q) return { error: "התאריך אינו בתוך מחצית" };
-      const pendingSameHalf = others
-        .filter((r) => r.type === ABSENCE.vacation && r.status === REQ_STATUS.pending)
-        .reduce((n, r) => n + cal.days.filter((d) =>
-          d.date >= r.date && d.date <= r.endDate && d.half === half).length, 0);
-      if (q.used + pendingSameHalf + needed > q.total) {
-        return {
-          error: `הבקשה דורשת ${needed} ימי חופש ב${half}, ונשארו ${Math.max(0, q.total - q.used - pendingSameHalf)}`,
-        };
-      }
+    /* ============================================================
+       ⚠⚠ **המכסה נמדדת בשעות ולא בתאריכים שהטווח נוגע בהם.**
+
+       יציאה ב-8.9 ב-08:00 וחזרה ב-9.9 ב-08:00 נגעה בשני
+       תאריכים ולכן עלתה שני ימי חופש — בעוד שהיא 24 שעות
+       בדיוק, כלומר יום אחד. מתוך מכסה של שלושה למחצית, זו
+       טעות של שליש.
+
+       ⚠ **והחיוב נזקף למחצית של תאריך היציאה.** בקשה שחוצה
+         את שבוע האמצע היא מקרה נדיר, ופיצול של יום אחד בין
+         שתי מכסות אינו ניתן להסבר למי שקורא את המספר.
+       ============================================================ */
+    const sum = summarize(session.itemId, { absences, marked, byDate: cal.byDate });
+    const half = (cal.byDate.get(date) || {}).half;
+    const q = half && sum.quota.find((x) => x.half === half);
+    if (!q) return { error: "התאריך אינו בתוך מחצית" };
+
+    /* ⚠ בקשה ממתינה **שומרת** את הימים שלה. אחרת אפשר להגיש
+       שלוש בקשות של שלושה ימים ולקבל אישור לכולן. וברגע
+       שבקשה נדחית או מבוטלת היא מפסיקה להיות ממתינה, והימים
+       חוזרים מעצמם — אין מה "להחזיר". */
+    const held = others
+      .filter((r) => r.type === ABSENCE.vacation && r.status === REQ_STATUS.pending
+        && (cal.byDate.get(r.date) || {}).half === half)
+      .reduce((n, r) => n + (vacationCost(r.date, r.outAt, r.endDate, r.backAt) ?? 1), 0);
+
+    if (q.used + held + cost > q.total) {
+      return {
+        error: `הבקשה עולה ${cost} ימי חופש ב${half}, ונשארו ${Math.max(0, q.total - q.used - held)}`,
+      };
     }
   }
 
@@ -312,7 +341,7 @@ async function validate({ body, session, excludeId = null }) {
     r.status === REQ_STATUS.pending && r.date <= endDate && r.endDate >= date);
   if (overlap) return { error: "כבר קיימת בקשה שממתינה להחלטה בתאריכים האלה", status: 409 };
 
-  return { fields: { type, date, endDate, detail, outAt, backAt }, span, student };
+  return { fields: { type, date, endDate, detail, outAt, backAt }, span, student, cost };
 }
 
 /* ---------- הקובץ המצורף ---------- */
@@ -379,6 +408,10 @@ async function create(req, res, session) {
     res.status(200).json({
       ok: true, id, status: REQ_STATUS.pending,
       days: span.length,
+      /* ⚠ `days` הוא כמה ימי לימוד הטווח נוגע בהם, ו-`cost` הוא
+         כמה ימי חופש הוא עולה. מאז שהמכסה נמדדת בשעות אלה שני
+         מספרים שונים, ומספר אחד לשניהם היה מטעה בשניהם (4יח). */
+      cost: v.cost,
       fileUploaded,
     });
   } catch (e) {
@@ -475,7 +508,7 @@ async function edit(req, res, session) {
     }
 
     res.status(200).json({
-      ok: true, id: r.id, changed, days: span.length,
+      ok: true, id: r.id, changed, days: span.length, cost: v.cost,
       guideReset: resetGuide,
       fileUploaded,
     });

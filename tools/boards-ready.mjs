@@ -24,6 +24,8 @@ export const STEPS = [
     ids: "shared/group-ids.js", ready: "groupReady" },
   { script: "tools/seed-lesson-content.mjs", title: "שלוש עמודות התוכן במפגשים",
     ids: "shared/lessons-boards.js", ready: "contentReady" },
+  { script: "tools/seed-vacation-cost.mjs", title: "עמודת ימי החופש בהיעדרויות",
+    ids: "shared/mechina-boards.js", ready: "vacationCostReady" },
 ];
 
 /** מחזיר את השלבים שאינם מוכנים. ייבוא טרי בכל קריאה. */

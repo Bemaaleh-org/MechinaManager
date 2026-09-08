@@ -147,6 +147,15 @@ const DOW_HE = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
 const MON_HE = ["ינו׳","פבר׳","מרץ","אפר׳","מאי","יוני","יולי","אוג׳","ספט׳","אוק׳","נוב׳","דצמ׳"];
 const dm = (iso) => iso ? iso.slice(8, 10) + "/" + iso.slice(5, 7) : "";
 const dmy = (iso) => iso ? dm(iso) + "/" + iso.slice(0, 4) : "";
+/* ⚠ שם היום ולא רק התאריך: "יום ג׳ 08/09" נקרא, "08/09" דורש
+   ללכת ליומן. ⚠ ו-T12:00:00Z ולא T00:00 — חצות בשעון ישראל
+   הוא היום הקודם ב-UTC, והיום היה זז אחורה. */
+const DOW_LONG = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "שבת"];
+const dowDm = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso + "T12:00:00Z");
+  return `יום ${DOW_LONG[d.getUTCDay()]} · ${dm(iso)}`;
+};
 const initials = (name) => String(name || "").trim().split(/\s+/).slice(0, 2).map((w) => w[0] || "").join("");
 
 const TYPE_CLASS = { "חופש": "vac", "מחלה": "sick", "מוצדקת": "just" };
@@ -730,6 +739,9 @@ function RequestTrack({ r }) {
 function RequestCard({ r, onDecide, busyId, onEdit, onWithdraw }) {
   const busy = busyId === r.id;
   const [confirm, setConfirm] = useState(false);
+  /* ⚠ ברירת המחדל היא החישוב עצמו — המכריע משנה רק כשהוא
+     מתכוון לשנות, ולחיצה על "אישור" בלי לגעת מתנהגת כמו קודם. */
+  const [days, setDays] = useState(r.cost ?? 1);
   /* ⚠ המדריך ממליץ, ראש המכינה מכריע. אותם כפתורים, טקסט אחר —
      כדי שהמדריך לא יחשוב שסגר את הבקשה. */
   const isRec = r.decideAs === "guide";
@@ -752,12 +764,25 @@ function RequestCard({ r, onDecide, busyId, onEdit, onWithdraw }) {
           : <span className="pill p-ok">צורף מסמך</span>)}
         {r.groupName && <span>· {r.groupName}</span>}
       </div>
-      {/* ⚠ **השעות מוצגות לכולם** — הן הדבר הראשון שהמדריך צריך,
-          והן היו במיפוי של החניך בלבד. */}
+      {/* ============================================================
+          ⚠ **יום ושעה יחד, בשתי שורות מסומנות.** קודם היה טווח
+            תאריכים בכותרת ושורת שעות נפרדת מתחתיו, ומי שקרא
+            היה צריך להרכיב בעצמו מתי בדיוק החניך יוצא וחוזר —
+            וזו השאלה היחידה שהמדריך שואל.
+          ⚠ `dir="ltr"` על השעה — בלעדיו 19:30 מוצג 30:19 (4ר).
+          ============================================================ */}
       {(r.outAt || r.backAt) && (
-        <div className="rq-hours">
-          <span>יציאה <b className="num" dir="ltr">{r.outAt || "—"}</b></span>
-          <span>חזרה <b className="num" dir="ltr">{r.backAt || "—"}</b></span>
+        <div className="rq-when">
+          <div className="rqw">
+            <span className="rqw-l">יום יציאה</span>
+            <b>{dowDm(r.date)}</b>
+            <b className="num rqw-t" dir="ltr">{r.outAt || "—"}</b>
+          </div>
+          <div className="rqw">
+            <span className="rqw-l">יום חזרה</span>
+            <b>{dowDm(r.endDate || r.date)}</b>
+            <b className="num rqw-t" dir="ltr">{r.backAt || "—"}</b>
+          </div>
         </div>
       )}
       {r.detail && <div className="rq-detail">{r.detail}</div>}
@@ -785,9 +810,42 @@ function RequestCard({ r, onDecide, busyId, onEdit, onWithdraw }) {
           הבקשה עדיין אצל {r.guideName} — החלטה שלך תסגור אותה בלי להמתין להמלצה
         </div>
       )}
+      {/* ============================================================
+          ⚠⚠ **כמה ימי חופש לגבות — בחירה של המכריע.**
+
+          החישוב הוא לפי שעות (24 שעות = יום), והוא ברירת המחדל.
+          אבל היציאה עשויה להיות 26 שעות, והמדריך מכיר את הקושי
+          להגיע ובוחר לגבות אחד. עד היום לא הייתה לזה שום דרך
+          ביטוי: או לאשר ולקוות, או לדחות בקשה שהיא בסדר.
+
+          ⚠ **אפס מותר** — "מאשר ולא גובה" הוא מצב אמיתי.
+          ⚠ **ולא יותר מהחישוב**, שם השרת חוסם: גבייה מעבר למה
+            שהיציאה לקחה היא כמעט תמיד טעות הקלדה, והיא יורדת
+            ממכסה שהחניך אינו יכול להשיב.
+          ⚠ **מוצג רק לחופש ורק למי שמכריע** — למדריך שממליץ
+            אין מה לגבות, ולמחלה אין מחיר במכסה.
+          ============================================================ */}
+      {onDecide && r.canDecide && !isRec && r.cost != null && (
+        <div className="rq-days">
+          <span className="rqd-l">ימי חופש לגבייה</span>
+          <div className="rqd-btns">
+            {Array.from({ length: r.cost + 1 }, (_, i) => i).map((n) => (
+              <button key={n} type="button" disabled={busy}
+                className={days === n ? "on" : ""}
+                onClick={() => setDays(n)}>{n}</button>
+            ))}
+          </div>
+          <span className="rqd-n">
+            {r.cost === days
+              ? `היציאה לקחה ${r.cost === 1 ? "יום" : r.cost + " ימים"}`
+              : `במקום ${r.cost}`}
+          </span>
+        </div>
+      )}
       {onDecide && r.canDecide && (
         <div className="rq-act">
-          <button className="ok" disabled={busy} onClick={() => onDecide(r.id, "approve")}>
+          <button className="ok" disabled={busy}
+            onClick={() => onDecide(r.id, "approve", r.cost != null && !isRec ? days : undefined)}>
             {busy ? "…" : isRec ? "ממליץ לאשר" : "אישור"}
           </button>
           <button className="no" disabled={busy} onClick={() => onDecide(r.id, "reject")}>
@@ -1571,17 +1629,22 @@ function ManagerRequests({ say }) {
   const { data, err, busy, reload } = useLoad(() => api.getRequests(), []);
   const [busyId, setBusyId] = useState(null);
 
-  const decide = (requestId, decision) => {
+  const decide = (requestId, decision, days) => {
     setBusyId(requestId);
-    api.decideRequest({ requestId, decision })
+    api.decideRequest({ requestId, decision, days })
       .then((r) => {
         /* ⚠ המלצת מדריך אינה הכרעה. השרת מחזיר stage, והטקסט
            נגזר ממנו — אחרת המדריך היה מקבל "אושר" ומניח שסיים. */
         if (r.stage === "אצל ראש המכינה") {
           say(`ההמלצה נרשמה — הבקשה הועברה לראש המכינה`);
         } else {
+          /* ⚠ ההודעה אומרת **כמה נגבה**. "אושר" לבדו משאיר את
+             החניך לגלות את המספר במכסה שלו בעוד שבוע. */
+          const paid = r.charged == null ? ""
+            : r.charged === 0 ? " · בלי גבייה ממכסת החופש"
+              : ` · נגבו ${r.charged === 1 ? "יום חופש אחד" : r.charged + " ימי חופש"}`;
           say(r.status === "מאושר"
-            ? (r.alreadyAbsent ? "אושר. כבר הייתה היעדרות ליום הזה" : "אושר ונרשמה היעדרות")
+            ? (r.alreadyAbsent ? "אושר. כבר הייתה היעדרות ליום הזה" : "אושר ונרשמה היעדרות") + paid
             : "הבקשה נדחתה");
         }
         reload();

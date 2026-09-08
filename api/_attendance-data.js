@@ -72,6 +72,19 @@ export async function loadCalendar({ force = false } = {}) {
 }
 
 /* ---------- היעדרויות ---------- */
+/**
+ * מחיר שורת ההיעדרות במכסת החופש.
+ * ⚠ העמודה אופציונלית — בלעדיה כל שורה עולה 1, בדיוק
+ *   ההתנהגות שהייתה לפני שהמדריך יכול היה לבחור (עיקרון 6).
+ */
+function absCost(item) {
+  if (!ABS.cost) return 1;
+  const t = val(item, ABS.cost);
+  if (t === "") return 1;
+  const n = Number(t);
+  return Number.isFinite(n) && n >= 0 ? n : 1;
+}
+
 export async function loadAbsences({ force = false } = {}) {
   return cached("mechina-absences", async () => {
     const items = await allItems(MECHINA_BOARDS.absence);
@@ -83,6 +96,10 @@ export async function loadAbsences({ force = false } = {}) {
         type: val(i, ABS.type),
         detail: val(i, ABS.detail),
         source: val(i, ABS.source),
+        /* ⚠ מחיר השורה במכסה. ריק = 1, ולא 0: כל שורה שנוצרה
+           לפני שהעמודה נוספה נכתבה בעולם שבו יום = יום, ואפס
+           היה מוחק למפרע את כל ימי החופש שנוצלו. */
+        cost: absCost(i),
       }))
       .filter((a) => a.studentId && a.date && a.type);
   }, { force });
@@ -157,8 +174,13 @@ export function summarize(studentId, { absences, marked, byDate }, today = israe
 
   /* מכסת חופש לפי מחצית. שבוע האמצע מאפס — ולכן שתי מכסות
      נפרדות ולא מספר אחד. */
+  /* ⚠⚠ **סכום המחירים ולא ספירת שורות.** שורת היעדרות נוצרת
+     לכל יום לימודים בטווח כי לנוכחות זה הנתון הנכון, אבל
+     המכסה נמדדת בשעות והמדריך רשאי לגבות פחות — ולכן יום
+     שנספר בנוכחות יכול לעלות 0 במכסה. ראו MECHINA_COLS.absence.cost. */
   const usedIn = (half) =>
-    mine.filter((a) => a.type === ABSENCE.vacation && (byDate.get(a.date) || {}).half === half).length;
+    mine.filter((a) => a.type === ABSENCE.vacation && (byDate.get(a.date) || {}).half === half)
+        .reduce((n, a) => n + (a.cost == null ? 1 : a.cost), 0);
 
   const quota = (half) => {
     const used = usedIn(half);
@@ -255,7 +277,7 @@ export async function stampMarked(date, by, presentIds = null, at = new Date()) 
 }
 
 /** יוצר שורת היעדרות. מחזיר את המזהה. */
-export async function createAbsence({ studentId, studentName, date, type, detail, source }) {
+export async function createAbsence({ studentId, studentName, date, type, detail, source, cost }) {
   const cols = {
     [ABS.student]: { item_ids: [Number(studentId)] },
     [ABS.date]: { date },
@@ -263,6 +285,9 @@ export async function createAbsence({ studentId, studentName, date, type, detail
     [ABS.source]: { label: source },
   };
   if (detail) cols[ABS.detail] = String(detail).slice(0, 2000);
+  /* ⚠ נכתב רק כשהעמודה קיימת וכשנמסר ערך. שליחת מזהה עמודה
+     ריק ל-monday מפילה את כל הקריאה, ולא רק את השדה הזה. */
+  if (ABS.cost && Number.isFinite(cost)) cols[ABS.cost] = String(cost);
 
   const d = await gql(
     `mutation($b:ID!,$n:String!,$v:JSON!){ create_item(board_id:$b,item_name:$n,column_values:$v,create_labels_if_missing:false){ id } }`,
