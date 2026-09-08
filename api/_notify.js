@@ -140,6 +140,47 @@ async function faultNotes(today) {
   return out;
 }
 
+/* ============================================================
+   "התקלה שדיווחת תוקנה" — למי שדיווח
+   ------------------------------------------------------------
+   ⚠ **נגזרת מהמצב ולא מתור** (4כו): התקלה שלי, סטטוס "טופלה",
+     בתוך חלון של שבועיים. ברגע שהחלון עובר היא נעלמת מעצמה,
+     ואם אב הבית יחזיר את הסטטוס ל"בטיפול" — היא נעלמת מיד.
+
+   ⚠ **חלון, ולא "עד שנקרא".** תקלה שתוקנה לפני חודשיים אינה
+     חדשה, ורשימה שמחזיקה אותה מלמדת להתעלם מהפעמון.
+
+   ⚠ **לפי `doneDate` וכשאין — לפי תאריך הדיווח.** אב בית שסימן
+     "טופלה" בלי למלא תאריך סיום הוא המקרה הרגיל, ובלי הנפילה
+     הזו ההתראה פשוט לא הייתה מגיעה (עיקרון 6 בגרסה שקטה).
+
+   ⚠ **לחניך שדיווח בלבד.** אב הבית מקבל את התקלות הפתוחות
+     ב-`faultNotes`; זו התשובה לדיווח, ולכן היא של המדווח.
+   ============================================================ */
+const FIXED_WINDOW_DAYS = 14;
+
+async function faultFixedNotes(session, today) {
+  if (!session.isStudent) return [];
+  const me = String(session.itemId || "");
+  if (!me) return [];
+  const from = new Date(Date.parse(today + "T12:00:00Z") - FIXED_WINDOW_DAYS * 864e5)
+    .toISOString().slice(0, 10);
+
+  const all = await loadFaults();
+  return all
+    .filter((f) => f.status === FAULT_STATUS.done && f.reporterId === me)
+    .filter((f) => (f.doneDate || f.date || "") >= from)
+    .map((f) => note({
+      /* ⚠ המזהה נגזר מהתוכן ומהתאריך — כך ש"נקרא" אינו מתאפס
+         בכל רענון, ותקלה שנסגרה מחדש מתריעה מחדש (4כו). */
+      id: `fault:fixed:${f.id}:${f.doneDate || f.date || ""}`,
+      kind: "תקלה", level: "רגיל",
+      title: `תוקן · ${f.title}`,
+      body: [f.place, f.fix].filter(Boolean).join(" · ") || "התקלה שדיווחת סומנה כטופלה",
+      tab: "report", when: f.doneDate || f.date,
+    }));
+}
+
 async function stockNotes(kind, area) {
   const list = kind === "kitchen"
     ? await loadKitchenEquipment()
@@ -1005,6 +1046,9 @@ export async function buildNotes(session, today = israelToday()) {
     /* ⚠ **מחוץ לשני הענפים** — הבונה עצמו מפצל לפי מי המשתמש,
        כי זו אותה התראה בשני תכנים. */
     jobs.push(weeklyNote(session, today));
+    /* ⚠ **מחוץ לענפים ולכל חניך** — התשובה לדיווח שייכת למדווח,
+       ולא לבעל תפקיד. הבונה מסנן בעצמו לפי `session.itemId`. */
+    jobs.push(faultFixedNotes(session, today));
 
     /* ⚠ מנהל מקבל את הכול. זה מה שהתבקש, וזה גם נכון: הוא
        האדם שאמור לדעת שדבר לא נפל בין הכיסאות. */

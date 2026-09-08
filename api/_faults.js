@@ -19,7 +19,7 @@
    ============================================================ */
 
 import { withAuth, actorName } from "./_session.js";
-import { nudgeMany } from "./_push-now.js";
+import { nudge, nudgeMany } from "./_push-now.js";
 import { activeStudents } from "./_student-rows.js";
 import { ROLE_HOUSE } from "../shared/lessons-boards.js";
 import { allItems, uploadFile } from "./_monday.js";
@@ -344,7 +344,11 @@ async function handler(req, res, session) {
       const id = String(body?.id || "").trim();
       if (!id) return res.status(400).json({ error: "לא צוינה תקלה" });
       const faults = await loadFaults();
-      if (!faults.some((x) => x.id === id)) return res.status(404).json({ error: "התקלה אינה נמצאת" });
+      const f0 = faults.find((x) => x.id === id);
+      if (!f0) return res.status(404).json({ error: "התקלה אינה נמצאת" });
+      /* ⚠ המצב **לפני** הכתיבה — אחריה אי אפשר לדעת אם זה
+         היה מעבר ל"טופלה" או שמירה חוזרת על מה שכבר סגור. */
+      const wasOpen = f0.status !== FAULT_STATUS.done;
 
       const cols = colsFrom(body, res);
       if (cols === null) return;
@@ -387,6 +391,26 @@ async function handler(req, res, session) {
       }
 
       invalidate("faults");
+
+      /* ============================================================
+         ⚠ **"תוקן" — נקישה למי שדיווח, ברגע שזה קורה.**
+
+         זו התשובה לדיווח שלו, וזה בדיוק מה שגורם לאנשים
+         להמשיך לדווח (אותו נימוק של תמונת "אחרי" ב-4יג).
+         הסבב היומי היה מגיע אליה למחרת בערב.
+
+         ⚠ **רק במעבר ל"טופלה"**, ולא בכל שמירה: אב בית שמתקן
+           הקלדה בהערות אינו מודיע לאיש שהתקלה תוקנה.
+         ⚠ **ולא למי שסגר את התקלה בעצמו** — נקישה על פעולה
+           שהרגע עשית היא רעש.
+         ⚠ fire-and-forget: התקלה כבר נשמרה.
+         ============================================================ */
+      if (body.status === FAULT_STATUS.done && wasOpen && f0 && f0.reporterId
+          && f0.reporterId !== String(session.itemId)) {
+        try { nudge("student", f0.reporterId, "התקלה שדיווחת תוקנה"); }
+        catch (e) { console.error("[faults:fixed-push]", e && e.message); }
+      }
+
       return res.status(200).json({ ok: true, id, photoUploaded });
     }
 

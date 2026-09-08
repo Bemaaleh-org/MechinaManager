@@ -44,7 +44,8 @@
     "boards:ready": "node tools/boards-ready.mjs",
     "news:check": "node tools/news-check.mjs",
     "seed:vacation-cost": "node --env-file=.env tools/seed-vacation-cost.mjs",
-    "army:parity": "node --env-file=.env tools/army-parity.mjs"
+    "army:parity": "node --env-file=.env tools/army-parity.mjs",
+    "check:undef": "eslint"
   },
   "dependencies": {
     "nodemailer": "^9.0.5",
@@ -53,6 +54,8 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.39.5",
+    "globals": "^17.12.0",
     "vite": "^6.0.7"
   }
 }

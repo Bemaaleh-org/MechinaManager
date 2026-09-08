@@ -551,6 +551,7 @@ function Staff({ auth, onSignedOut }) {
               goSafety={() => setSection("safety")}
               goFaults={() => setSection("faults")}
               goGantt={() => setSection("gantt")}
+              goNews={() => setSection("news")}
               goBudget={() => setSection("budget")}
               goAgenda={() => setSection("agenda")} />
           )}
@@ -635,7 +636,7 @@ function Staff({ auth, onSignedOut }) {
    ⚠ כל שליפה נכשלת בשקט ומורידה את הרכיב שלה בלבד — מסך
      הבית לעולם לא נופל בגלל תחום אחד (או תחום שטרם הוקם). */
 function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goContainer,
-  goPlacements, goSafety, goFaults, goGantt, goBudget, goAgenda }) {
+  goPlacements, goSafety, goFaults, goGantt, goBudget, goAgenda, goNews }) {
   /* ⚠ מה שממתין *לי*, מתוך כל מה שממתין. ראו ההערה למעלה. */
   const mineList = pendingList.filter((r) => r.canDecide);
   const [today, setToday] = useState(null);
@@ -793,7 +794,7 @@ function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goCont
 
       {/* ⚠ "מה חדש" ראשון, לפני הלו״ז — הוא נעלם ברגע שקוראים
           אותו, ולכן הוא לא דוחף שום דבר למטה לצמיתות. */}
-      <NewsStrip isStudent={false} onOpen={() => setSection("news")} />
+      <NewsStrip isStudent={false} onOpen={goNews} />
 
       <TodayAgenda onOpen={goAgenda} />
 

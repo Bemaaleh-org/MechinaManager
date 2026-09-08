@@ -45,12 +45,21 @@ async function handler(req, res, session) {
         const name = String(raw?.name || "").trim();
         const qty = String(raw?.qty || "").trim().slice(0, 60);
         if (!name) continue;
+        /* ⚠⚠ **התחום של הפריט גובר על התחום של הבקשה.**
+           במסך המאוחד ("אוכל וחד״פ" / "מכולה וניקיון") אין
+           תחום אחד לרשימה, ופריט ניקיון היה נרשם למכולה כי זו
+           ברירת המחדל של הבקשה — בשקט. זה אותו כלל של 4כב:
+           התחום נלקח מהפריט ולא ממה שהדפדפן הצהיר.
+           ⚠ ונבדק בהרשאה בנפרד — אחרת אפשר היה לכתוב לתחום
+             שאין לי גישה אליו בכך ששולחים אותו על הפריט. */
+        const rowArea = AREAS.includes(String(raw?.area || "")) ? String(raw.area) : area;
+        if (!mayArea(session, rowArea)) return deny(res, rowArea);
         await createItem(CONTAINER_BOARDS.shopping, name, {
           [S.qty]: qty,
           [S.date]: { date: today },
           [S.status]: { label: SHOP_STATUS.open },
           [S.by]: by,
-          [S.area]: { label: area },
+          [S.area]: { label: rowArea },
         });
         created++;
       }

@@ -62,6 +62,28 @@ const dow = (iso) => {
   return DOW[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
 };
 const dm = (iso) => { const [, m, d] = parts(iso); return `${d}.${m}`; };
+/** ראשון של השבוע. ⚠ UTC — חצות בשעון ישראל הוא היום הקודם
+    ב-UTC, והשבוע היה זז אחורה (4פ). */
+const weekStart = (iso) => {
+  const [y, m, d] = parts(iso);
+  const t = new Date(Date.UTC(y, m - 1, d));
+  return new Date(Date.UTC(y, m - 1, d - t.getUTCDay())).toISOString().slice(0, 10);
+};
+const MONTH_HE = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+  "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
+/** שנים־עשר חודשים סביב היום, לבורר. */
+const monthsAround = (today) => {
+  const [y, m] = parts(today);
+  const out = [];
+  for (let i = -3; i <= 8; i++) {
+    const t = new Date(Date.UTC(y, m - 1 + i, 1));
+    out.push({
+      v: t.toISOString().slice(0, 7),
+      l: `${MONTH_HE[t.getUTCMonth()]} ${t.getUTCFullYear()}`,
+    });
+  }
+  return out;
+};
 const dmy = (iso) => { const [y, m, d] = parts(iso); return `${d}.${m}.${String(y).slice(2)}`; };
 
 const minutesOf = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
@@ -98,25 +120,51 @@ export default function LaundryPage({ say }) {
   const [form, setForm] = useState(null);
   const [busy, setBusy] = useState(null);
 
+  /* ⚠⚠ **תשובה שאיחרה נזרקת.** שתי לחיצות מהירות על החץ שולחות
+     שתי בקשות, ובלי המונה הזה הישנה עשויה לנחות אחרונה ולהחזיר
+     את המסך לשבוע שכבר עזבנו — בלי שום סימן שמשהו קרה. אותו
+     כלל של החיפוש (5יג), ושם ההשוואה היא מול המחרוזת הנוכחית
+     ולא מונה, כי שם יש מפתח טבעי. */
+  const reqId = React.useRef(0);
+
   const load = useCallback((start) => {
-    let alive = true;
+    const mine = ++reqId.current;
     setLoading(true);
     const to = start ? addDays(start, 6) : undefined;
     api.getLaundry(start || undefined, to)
       .then((r) => {
-        if (!alive) return;
+        if (reqId.current !== mine) return;
         setD(r); setErr(null);
         setFrom(r.from);
         setSel((s) => (s && s >= r.from && s <= r.to ? s : (r.today >= r.from && r.today <= r.to ? r.today : r.from)));
       })
-      .catch((e) => { if (alive) setErr(e); })
-      .finally(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
+      .catch((e) => { if (reqId.current === mine) setErr(e); })
+      .finally(() => { if (reqId.current === mine) setLoading(false); });
   }, []);
-  useEffect(() => load(null), [load]);
+  useEffect(() => { load(null); }, [load]);
 
   const reload = () => load(from);
-  const move = (n) => { const f = addDays(from, n); setSel(null); load(f); };
+
+  /* ⚠⚠ **הדילוג שומר על אותו יום בשבוע.** קודם `setSel(null)`
+     הפיל את הבחירה, והתשובה החזירה אותה ל-`r.from` — כלומר מי
+     שעמד על יום רביעי ולחץ "קדימה" נחת על יום ראשון, ולחיצה
+     "אחורה" לא החזירה אותו לרביעי. אותו יום בשבוע הוא מה
+     שמצפים לו כשמדפדפים שבוע. */
+  const move = (n) => {
+    const f = addDays(from, n);
+    setSel((s) => (s ? addDays(s, n) : f));
+    load(f);
+  };
+
+  /* ⚠ **קפיצה לחודש.** דפדוף שבוע-שבוע אל אמצע השנה הוא
+     עשרים לחיצות. הבורר קופץ לשבוע שבו ה-1 בחודש — ולא
+     ל-1 עצמו, כי הרצועה היא שבוע ולא חודש. */
+  const jumpMonth = (ym) => {
+    if (!ym) return;
+    const f = weekStart(ym + "-01");
+    setSel(ym + "-01");
+    load(f);
+  };
 
   const days = useMemo(() => (d ? Array.from({ length: 7 }, (_, i) => addDays(d.from, i)) : []), [d]);
   const dayRows = useMemo(() => (d && sel ? d.bookings.filter((b) => b.date === sel) : []), [d, sel]);
@@ -189,6 +237,25 @@ export default function LaundryPage({ say }) {
             <div className="band-l">כביסות השנה</div>
           </div>
         </div>
+      </div>
+
+      {/* ---- בורר החודש ----
+          ⚠ מעל הרצועה ולא בתוכה: הרצועה היא שבוע, והבורר מזיז
+            אותה. שניהם באותה שורה היו נראים כמו שני מסננים. */}
+      <div className="ln-month">
+        <label htmlFor="ln-m">חודש</label>
+        <select id="ln-m" value={(sel || d.today).slice(0, 7)} disabled={loading}
+          onChange={(e) => jumpMonth(e.target.value)}>
+          {monthsAround(d.today).map((m) => (
+            <option key={m.v} value={m.v}>{m.l}</option>
+          ))}
+        </select>
+        {/* ⚠ חזרה להיום — אחרי דפדוף רחוק זו הפעולה הנפוצה, והיא
+            הייתה דורשת לספור שבועות אחורה. */}
+        {(sel || "").slice(0, 7) !== d.today.slice(0, 7) && (
+          <button type="button" className="btn btn-ghost btn-sm" disabled={loading}
+            onClick={() => { setSel(d.today); load(weekStart(d.today)); }}>היום</button>
+        )}
       </div>
 
       {/* ---- רצועת השבוע ---- */}
@@ -493,6 +560,10 @@ export const LAUNDRY_CSS = `
 .kx .ln-arrow{flex:0 0 34px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface);
   color:var(--muted);display:grid;place-items:center;box-shadow:var(--sh-1)}
 .kx .ln-arrow:disabled{opacity:.4}
+.ln-month{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.ln-month label{font-size:12.5px;font-weight:700;color:var(--muted)}
+.kx .ln-month select{height:34px;border-radius:var(--r-sm);border:1px solid var(--line2);
+  background:var(--card);color:var(--ink);font-size:13px;font-weight:700;padding:0 8px}
 .ln-days{flex:1;display:grid;grid-template-columns:repeat(7,1fr);gap:5px;min-width:0}
 .kx .ln-day{display:flex;flex-direction:column;align-items:center;gap:1px;padding:7px 2px 6px;
   border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface);color:var(--ink);

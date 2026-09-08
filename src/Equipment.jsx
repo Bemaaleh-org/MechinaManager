@@ -562,24 +562,31 @@ function ShoppingBuilder({ equipment, area, say, onDone, onCancel, preset = null
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
 
+  /* ⚠⚠ **כאן ישבו שלוש שורות סינון של מסך אחר.**
+     המסנן "בלי מפתח / חסרים" שייך ל-ParTab, ו-`only` מוגדר שם.
+     כאן הוא לא היה מוגדר בכלל — כלומר `ReferenceError` ומסך
+     לבן ברגע שנפתחה "רשימת קניות חדשה". `vite build` עבר.
+     זו הפעם הרביעית שהמלכודת הזו נתפסת (ראו CLAUDE.md), ולכן
+     נוספה בדיקת `check:undef`. */
   const list = equipment
-    .filter((x) => !q.trim() || x.name.includes(q.trim()))
-    .filter((x) => only === "all"
-      || (only === "none" && x.par == null)
-      || (only === "short" && missingFor(x) > 0));
-  const noPar = equipment.filter((x) => x.par == null).length;
+    .filter((x) => !q.trim() || x.name.includes(q.trim()));
   const count = Object.keys(picked).length + extra.filter((x) => x.name.trim()).length;
 
   const submit = () => {
     if (busy || !count) return;
     setBusy(true);
     const items = [
-      ...Object.entries(picked).map(([id, qty]) => ({
-        name: (equipment.find((x) => x.id === id) || {}).name, qty,
-      })),
+      ...Object.entries(picked).map(([id, qty]) => {
+        const it = equipment.find((x) => x.id === id) || {};
+        return { name: it.name, qty, area: it.area || undefined };
+      }),
       ...extra.filter((x) => x.name.trim()).map((x) => ({ name: x.name.trim(), qty: x.qty })),
     ];
-    d.addShopping(items, area)
+    /* ⚠⚠ **`area` הוא null במסך המאוחד**, והשרת נופל אז ל"מכולה"
+       בשקט — כלומר פריטי ניקיון היו נרשמים לתחום הלא נכון, בלי
+       שגיאה ובלי שאיש ישים לב. התחום נלקח מהפריט עצמו כשאפשר,
+       בדיוק כמו ב-PUT וב-DELETE של הציוד (4כב). */
+    d.addShopping(items, area || d.areas[0])
       .then((r) => { say(`נוצרה רשימה — ${r.created} פריטים`); onDone(); })
       .catch((e) => say(e.message))
       .finally(() => setBusy(false));
@@ -671,6 +678,10 @@ function ParTab({ equipment, short, say, onChanged, canEdit = true, editHint }) 
   /* ⚠ **"בלי מפתח" הוא הסינון שבאמת עוזר.** מי שנכנס לקבוע
      מפתח מחפש את מה שעוד לא הוגדר, ולא גולל 105 שורות. */
   const [only, setOnly] = useState("all"); // all · none · short
+  /* ⚠ הוגדר בטעות ב-ShoppingBuilder ונקרא כאן — שני סקופים
+     שונים, כלומר `ReferenceError` ומסך לבן בלשונית המפתח.
+     נתפס על ידי check:undef. */
+  const noPar = equipment.filter((x) => x.par == null).length;
 
   const valueOf = (x) => (x.id in draft ? draft[x.id] : (x.par == null ? "" : String(x.par)));
 

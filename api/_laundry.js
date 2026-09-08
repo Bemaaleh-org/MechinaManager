@@ -209,6 +209,13 @@ const rowName = (name, date, hour) => `${name} · ${date} ${hour}`;
 
 /* ---------------- הנתיב ---------------- */
 
+/** ראשון של השבוע שבו התאריך. ⚠ UTC כדי שלא יזוז אזור זמן. */
+function weekStart(iso) {
+  const [y, m, d] = String(iso).split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d));
+  return new Date(Date.UTC(y, m - 1, d - t.getUTCDay())).toISOString().slice(0, 10);
+}
+
 async function handler(req, res, session) {
   if (!laundryReady()) return notReady(res);
   const today = todayFor(req);
@@ -218,7 +225,13 @@ async function handler(req, res, session) {
   try {
     if (req.method === "GET") {
       const q = req.query || {};
-      const from = DATE_RE.test(String(q.from || "")) ? String(q.from) : today;
+      /* ⚠⚠ **ברירת המחדל היא ראשון של השבוע, ולא "היום".**
+
+         קודם הרצועה הייתה "היום ועוד שישה", כלומר שבוע שמתחיל
+         ביום אקראי: מי שנכנס ביום רביעי ראה ד׳-ג׳, והחצים הזיזו
+         חלון של שבעה ימים שאינו שבוע. במכינה שבוע מתחיל ביום
+         ראשון (shared/week.js), וזה מה שהמסך צריך להראות. */
+      const from = DATE_RE.test(String(q.from || "")) ? String(q.from) : weekStart(today);
       let to = DATE_RE.test(String(q.to || "")) ? String(q.to) : addDays(from, 6);
       if (to < from) to = addDays(from, 6);
 
