@@ -192,6 +192,13 @@ export function dutiesOf({ roles = [], isLeader = false, chairOf = [] } = {}) {
       scopeName: c.name,
       category: c.category || null,
       label: `יו״ר ${c.name}`,
+      /* ⚠⚠ **לשונית לפי המופע ולא לפי הסוג.** לכל יו״ר אותה
+         אחריות, אבל רק ליו״ר ועדת הגיוסים יש מסך פניות —
+         והוא נגזר מהתיבה בלוח (`army`), לא משם ועדה מוקלד.
+         לשונית על `DUTIES[DUTY_CHAIR]` הייתה נותנת אותה לכל
+         יו״ר במכינה, וכל אחד מהם היה מקבל 403 אחרי הלחיצה
+         (4יד). */
+      tabs: c.army ? [{ tab: "recruit", label: "פניות גיוס" }] : [],
     });
   }
   return out.map((d) => ({ ...d, label: d.label || d.name }));

@@ -26,6 +26,8 @@ export const STEPS = [
     ids: "shared/lessons-boards.js", ready: "contentReady" },
   { script: "tools/seed-vacation-cost.mjs", title: "עמודת ימי החופש בהיעדרויות",
     ids: "shared/mechina-boards.js", ready: "vacationCostReady" },
+  { script: "tools/seed-recruit.mjs", title: "לוח פניות הגיוס",
+    ids: "shared/recruit-ids.js", ready: "recruitReady" },
 ];
 
 /** מחזיר את השלבים שאינם מוכנים. ייבוא טרי בכל קריאה. */

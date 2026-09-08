@@ -199,9 +199,12 @@ function LessonCard({ l, d, say, open, onToggle, editing, onEdit, onDone, onCanc
             {l.files.length > 0 && (
               <span className="pill p-ok"><AI.file /> {l.files.length}</span>
             )}
+            {/* ⚠ המניין גם בשורה המכווצת. ציון בלי כמה דירגו אינו
+                אומר אם הוא של הכיתה או של שני אנשים (4יח). */}
             {l.avg != null && (
               <span className={"ar-sc " + scoreTone(l.avg)}>
                 <AI.star />{l.avg}
+                <b className="ar-sc-n">{l.votes}</b>
               </span>
             )}
           </div>
@@ -261,7 +264,7 @@ function LessonCard({ l, d, say, open, onToggle, editing, onEdit, onDone, onCanc
           {l.avg != null && !l.canRate && (
             <div className="ar-avg">
               ממוצע הכיתה <b className={"num " + scoreTone(l.avg)}>{l.avg}</b>
-              <span> · {l.votes} מדרגים</span>
+              <span> · {l.votes === 1 ? "מדרג אחד" : `${l.votes} מדרגים`}</span>
             </div>
           )}
 

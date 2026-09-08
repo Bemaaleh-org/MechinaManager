@@ -534,6 +534,12 @@ html,body{margin:0;padding:0;background:#012E58}
 .kx input.bg-rename{flex:1;min-width:120px;height:30px;border-radius:var(--r-sm);
   border:1px solid var(--accent);background:var(--card);color:var(--ink);
   padding:0 9px;font-size:14px;font-weight:800}
+/* ---------- כמה חניכים דירגו ----------
+   ⚠ היה בטולטיפ, ו-title אינו עובד במגע (4מח). ציון בלי מניין
+     אינו אומר אם הוא של הכיתה או של שני אנשים (4יח). */
+.rate-n{font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap}
+.ar-sc-n{font-size:10.5px;font-weight:800;opacity:.7;margin-inline-start:3px}
+
 /* ---------- יציאות השבוע, בכרטיס מסך הבית ---------- */
 .lx-row{display:flex;align-items:baseline;gap:8px;padding:6px 0;font-size:12.5px}
 .lx-row+.lx-row{border-top:1px solid var(--line)}

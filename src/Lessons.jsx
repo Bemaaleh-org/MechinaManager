@@ -439,10 +439,16 @@ function SheetDetail({ sheet, onBack, say }) {
                       ) : s === "כן" ? <span className="pill p-ok">התקיים</span>
                         : s === "לא" ? <span className="pill p-low">לא התקיים</span>
                         : <span className="pill p-new">טרם דווח</span>}
+                      {/* ⚠⚠ **מספר המדרגים גלוי ולא ב-`title`.** הוא ישב
+                          בטולטיפ, ו-`title` **אינו עובד במגע** (4מח) — כלומר
+                          על טלפון הוא לא היה קיים. וזה בדיוק הנתון שקובע
+                          מה שווה הציון: 8.4 משנים־עשר חניכים ו-8.4 משניים
+                          הם שני דברים, ובלי המספר אי אפשר להבדיל (4יח). */}
                       {m.votes > 0 && (
-                        <span className="pill pp-ok num" title={`${m.votes} מדרגים`}>
-                          ★ {m.avg}
-                        </span>
+                        <>
+                          <span className="pill pp-ok num">★ {m.avg}</span>
+                          <span className="rate-n">{m.votes} מדרגים</span>
+                        </>
                       )}
                       {m.evalId && m.votes === 0 && <span>ממתין לדירוגי החניכים</span>}
                       {m.note && <span>{m.note}</span>}
@@ -793,11 +799,18 @@ const scoreTone = (n) =>
 function Score({ e }) {
   if (e.score == null) return null;
   const students = e.source === "students";
+  /* ⚠ **המקור והמניין גלויים, לא בטולטיפ.** `title` אינו עובד
+     במגע (4מח), ושניהם נתונים שבלעדיהם המספר מטעה: כמה חניכים
+     דירגו, ואם בכלל אלה חניכים או ציון שמדריך זכר (4ב). */
   return (
-    <span className={`pill num sc ${scoreTone(e.score)}`}
-      title={students ? `${e.votes} מדרגים` : "דירוג שהוזן ידנית"}>
-      {students ? "★ " : ""}{e.score}
-    </span>
+    <>
+      <span className={`pill num sc ${scoreTone(e.score)}`}>
+        {students ? "★ " : ""}{e.score}
+      </span>
+      <span className="rate-n">
+        {students ? `${e.votes} מדרגים` : "הוזן ידנית"}
+      </span>
+    </>
   );
 }
 

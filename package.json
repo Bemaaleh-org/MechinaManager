@@ -45,7 +45,8 @@
     "news:check": "node tools/news-check.mjs",
     "seed:vacation-cost": "node --env-file=.env tools/seed-vacation-cost.mjs",
     "army:parity": "node --env-file=.env tools/army-parity.mjs",
-    "check:undef": "eslint"
+    "check:undef": "eslint",
+    "seed:recruit": "node --env-file=.env tools/seed-recruit.mjs"
   },
   "dependencies": {
     "nodemailer": "^9.0.5",

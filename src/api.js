@@ -448,6 +448,13 @@ export const api = {
   deleteDutyNote: (id) => del("/api/students?action=duty-notes", { id }),
 
   /* יו״ר לוועדה או לסדרה — מנהל בלבד */
+  /* ---- פניות גיוס ----
+     ⚠ אין כאן `addEnquiry`. פנייה נכנסת מטופס monday ציבורי
+       ולא מהמערכת — ראו api/_recruit.js. */
+  getEnquiries: () => get("/api/students?action=recruit"),
+  setEnquiry: (b) => put("/api/students?action=recruit", b),
+  deleteEnquiry: (id) => del("/api/students?action=recruit", { id }),
+
   /** ⚠ מכסת שיבוץ — ראש המכינה בלבד. ריק מנקה. */
   setCapacity: ({ placementId, capacity }) =>
     put("/api/students?action=placements", { placementId, capacity }),

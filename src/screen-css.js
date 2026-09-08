@@ -23,5 +23,7 @@ import { QUOTES_CSS } from "./Quotes.jsx";
 import { MISHMAR_CSS } from "./Mishmar.jsx";
 import { ARCHIVE_CSS } from "./Archive.jsx";
 import { GROUP_CSS } from "./Group.jsx";
+import { RECRUIT_CSS } from "./Recruit.jsx";
 
-export const ALL_CSS = CSS + LAUNDRY_CSS + QUOTES_CSS + MISHMAR_CSS + ARCHIVE_CSS + GROUP_CSS;
+export const ALL_CSS = CSS + LAUNDRY_CSS + QUOTES_CSS + MISHMAR_CSS + ARCHIVE_CSS
+  + GROUP_CSS + RECRUIT_CSS;

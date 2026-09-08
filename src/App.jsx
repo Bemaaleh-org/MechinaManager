@@ -28,6 +28,7 @@ import { BudgetPage } from "./Budget.jsx";
 import { GanttPage } from "./Gantt.jsx";
 import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { PlacementsPage } from "./Placements.jsx";
+import RecruitPage from "./Recruit.jsx";
 import TeamsPage from "./Teams.jsx";
 import ChoresPage from "./Chores.jsx";
 import LaundryPage from "./Laundry.jsx";
@@ -414,6 +415,13 @@ function Staff({ auth, onSignedOut }) {
                  תיבה בלוח ולא לפי שם בקוד. */
               { key: "a-tryouts", label: "מיונים ושיבוצים", icon: <I.users />,
                 active: section === "tryouts", onClick: () => setSection("tryouts") },
+              /* ⚠ **פניות גיוס — לכל הצוות.** הן נכנסות מטופס
+                 ציבורי באתר מועצת המכינות וברשתות, ומי שמטפל
+                 בהן הוא ועדת הגיוסים; הצוות רואה כדי לדעת מה
+                 קורה בגיוס. חניך מגיע לאותו מסך דרך מרכז
+                 התפקיד, ורק אם הוא בוועדה. */
+              { key: "a-recruit", label: "פניות גיוס", icon: <I.note />,
+                active: section === "recruit", onClick: () => setSection("recruit") },
             ] },
             /* ============================================================
                ⚠ **"ניהול" — מה שמגדיר את המערכת, ולא מה שמפעיל
@@ -601,6 +609,7 @@ function Staff({ auth, onSignedOut }) {
           {section === "laundry" && <LaundryPage say={say} />}
           {section === "rules" && <RulesPage say={say} />}
           {section === "tryouts" && <TryoutsPage say={say} />}
+          {section === "recruit" && <RecruitPage say={say} />}
           {/* ⚠ **"מובילשיות" ו"תשלום למרצים" כבר אינם מסכים
               עצמאיים בתפריט.** הראשון הוא לשונית של "מובילי
               שבוע", והשני לשונית של "שיעורים במכינה" — כל אחד

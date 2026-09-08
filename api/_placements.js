@@ -131,6 +131,10 @@ export async function chairMap({ force = false } = {}) {
     if (!out.has(d.chair)) out.set(d.chair, []);
     out.get(d.chair).push({
       id: d.id, name: d.name, category: d.category, chairName: d.chairName,
+      /* ⚠ ועדת הגיוסים היא **תיבה בלוח ולא שם בקוד** (5ד),
+         והדגל נוסע הלאה כדי שמרכז התפקיד ייתן ליו״ר שלה את
+         מסך הפניות — ורק לו. */
+      army: Boolean(d.army),
     });
   }
   return out;

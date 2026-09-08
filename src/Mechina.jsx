@@ -31,6 +31,7 @@ import { HostingPage, LoansPage } from "./Extras.jsx";
 import { useNotify, NotifyBell, NotifyPanel } from "./Notify.jsx";
 import { ProfilePage } from "./Profile.jsx";
 import DutyPage, { DutyShortcuts } from "./Duty.jsx";
+import RecruitPage from "./Recruit.jsx";
 import { WeekExitsCard } from "./LeadWeek.jsx";
 /* ⚠⚠ מסך שהצוות אינו רואה — השרת מחזיר לו 403. ראו api/_projects.js. */
 import ProjectsPage from "./Projects.jsx";
@@ -120,6 +121,7 @@ function halfQuota(sum) {
 const PERSONAL_TABS = new Set(["leadership", "chores", "year", "requests"]);
 
 const TAB_ICON = {
+  recruit: <MI.note />,
   quotes: <MI.book />,
   mishmar: <MI.book />,
   archive: <MI.book />,
@@ -2307,7 +2309,9 @@ function RateLessons({ say, onAll }) {
     setBusyId(m.id);
     setPatch((p) => ({ ...p, [m.id]: score })); // מיד על המסך
     api.rateLesson({ meetingId: m.id, score })
-      .then((r) => say(`דורג ${score}/10 · ממוצע הכיתה ${r.avg}`))
+      /* ⚠ המניין גם בהודעה. "ממוצע הכיתה 8" אחרי שדירגת ראשון
+         נשמע כמו ממוצע של כולם, והוא הציון שלך בלבד. */
+      .then((r) => say(`דורג ${score}/10 · ממוצע ${r.avg} מ-${r.votes} מדרגים`))
       .catch((e) => { setPatch((p) => ({ ...p, [m.id]: m.myScore })); say(e.message); })
       .finally(() => setBusyId(null));
   };
@@ -3772,6 +3776,10 @@ export function MechinaApp({ auth, onSignedOut }) {
         {tab === "laundry" && <LaundryPage say={say} />}
         {tab === "rules" && <RulesPage say={say} />}
         {tab === "tryouts" && <TryoutsPage say={say} />}
+        {/* ⚠ הכניסה נגזרת מהתיבה "ועדת גיוסים" בלוח ההגדרות
+            ונאכפת בשרת (mayRecruit); הלשונית מגיעה ממרכז
+            התפקיד של יו״ר הוועדה בלבד. */}
+        {tab === "recruit" && <RecruitPage say={say} />}
         {tab === "leadership" && <LeadershipPage say={say} />}
         {/* ⚠ **`leadsAnyWeek` ולא `isLeader`.** הראשון הוא "מוביל
             שבוע כלשהו השנה" והשני "מוביל **היום**"; שער שנשען
