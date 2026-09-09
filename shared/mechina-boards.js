@@ -198,7 +198,7 @@ export const MECHINA_COLS = {
 
        להקמה: npm run seed:vacation-cost
        ============================================================ */
-    cost: "",
+    cost: "numeric_mm70afd8",
   },
   marked: {
     date: "date_mm6cysxr",
@@ -263,8 +263,8 @@ export const MECHINA_COLS = {
        ⚠ ריק עד ש-`npm run seed:appeal` ירוץ, והכול עובד
          בלעדיו בדיוק כמו קודם (עיקרון 6).
        ============================================================ */
-    appeal: "",
-    appealAt: "",
+    appeal: "long_text_mm71v33b",
+    appealAt: "date_mm71a7s8",
   },
 };
 

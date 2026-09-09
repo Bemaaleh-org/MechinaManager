@@ -36,7 +36,7 @@ export const BUDGET_COLS = {
        ראו ההערה ב-shared/budget-boards.js.
        ⚠ ריק עד ש-`npm run seed:dining` ירוץ — ובלעדיו הכול
          עובד בדיוק כמו קודם (עיקרון 6). */
-    diningHeads: "",
+    diningHeads: "numeric_mm71c2r4",
   },
   orders: {
     amount: "numeric_mm6jnhh2", startMonth: "text_mm6j7pqm",

@@ -22,39 +22,33 @@
    ============================================================ */
 
 export const PLENARY_BOARDS = {
-  events: "",
-  notes: "",
+  "events": "5103855466",
+  "notes": "5103855491"
 };
 
 export const PLENARY_COLS = {
-  events: {
-    date: "",
-    status: "",
-    /* מי מארגן — עד שלושה, מזהים ושמות. ⚠ שם כאן אינו מעקב
-       אלא "מי מוביל את המליאה הזו", בדיוק כמו מי סימן בצ׳ק
-       ליסט ההובלה (5יא) ו"מי לקח" בפניות הגיוס (5כו). */
-    owners: "",
-    ownerNames: "",
-    /* ⚠ תיבת הפתקים פתוחה או סגורה. סגורה = החניכים כבר
-       אינם מוסיפים, והוועדה בונה סדר יום. */
-    open: "",
-    agenda: "",
-    summary: "",
-    summaryBy: "",
-    file: "",
-    note: "",
+  "events": {
+    "date": "date_mm71gx52",
+    "status": "color_mm71e80g",
+    "owners": "text_mm71gfhw",
+    "ownerNames": "text_mm71arsj",
+    "open": "boolean_mm71v5fx",
+    "agenda": "long_text_mm71f8wg",
+    "summary": "long_text_mm714g76",
+    "summaryBy": "text_mm717975",
+    "file": "file_mm712nsz",
+    "note": "text_mm714k6d"
   },
-  notes: {
-    plenary: "",
-    text: "",
-    anon: "",
-    /* ⚠ ריקים לחלוטין בפתק אנונימי. ראו ההערה בראש. */
-    authorId: "",
-    authorName: "",
-    order: "",
-    inAgenda: "",
-    date: "",
-  },
+  "notes": {
+    "plenary": "text_mm71jwd3",
+    "text": "long_text_mm71e5xv",
+    "anon": "boolean_mm71xfrw",
+    "authorId": "text_mm714gmx",
+    "authorName": "text_mm71ttza",
+    "order": "numeric_mm71b4rk",
+    "inAgenda": "boolean_mm71z06g",
+    "date": "date_mm71s0dv"
+  }
 };
 
 /** ⚠ בלי הלוחות המסך אומר מה להריץ ואינו מציג רשימה ריקה (עיקרון 6). */

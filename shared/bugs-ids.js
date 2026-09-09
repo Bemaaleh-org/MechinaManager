@@ -15,18 +15,18 @@
    ============================================================ */
 
 export const BUG_BOARDS = {
-  board: "",
+  "board": "5103855413"
 };
 
 export const BUG_COLS = {
-  kind: "",
-  where: "",
-  detail: "",
-  status: "",
-  reporter: "",
-  reporterId: "",
-  date: "",
-  reply: "",
+  "kind": "color_mm717dmn",
+  "where": "text_mm719sgk",
+  "detail": "long_text_mm71x0xt",
+  "status": "color_mm711fbw",
+  "reporter": "text_mm71vp1g",
+  "reporterId": "text_mm718v18",
+  "date": "date_mm713q94",
+  "reply": "long_text_mm71beth"
 };
 
 /** ⚠ בלי הלוח המסך אומר מה להריץ ואינו מציג רשימה ריקה (עיקרון 6). */

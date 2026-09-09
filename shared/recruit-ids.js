@@ -10,21 +10,21 @@
    ============================================================ */
 
 export const RECRUIT_BOARDS = {
-  board: "",
+  "board": "5103846003"
 };
 
 export const RECRUIT_COLS = {
-  phone: "",
-  email: "",
-  kind: "",
-  message: "",
-  source: "",
-  status: "",
-  owner: "",
-  ownerId: "",
-  handledAt: "",
-  notes: "",
-  date: "",
+  "phone": "text_mm714576",
+  "email": "text_mm71kv4j",
+  "kind": "color_mm71wx2w",
+  "message": "long_text_mm71chp8",
+  "source": "color_mm71czny",
+  "date": "date_mm71ay0p",
+  "status": "color_mm71d4yq",
+  "owner": "text_mm711f8z",
+  "ownerId": "text_mm717tbg",
+  "handledAt": "date_mm71kpjp",
+  "notes": "long_text_mm71e6hx"
 };
 
 /* ============================================================
