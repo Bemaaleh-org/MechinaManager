@@ -32,6 +32,26 @@ import { spawnSync } from "node:child_process";
 /* ⚠ הרשימה מיובאת ואינה כתובה כאן שוב — ראו boards-ready.mjs. */
 import { STEPS, notReady } from "./boards-ready.mjs";
 
+/* ⚠ **`--no-push` קיים, וברירת המחדל היא כן לדחוף.** קבצי
+   המזהים הם הדבר היחיד שעומד בין הקמה מוצלחת לבין מסך שאומר
+   "טרם הוקם" בייצור, והשלב הזה הוא בדיוק זה שנשכח. */
+const PUSH = !process.argv.includes("--no-push");
+
+const git = (args) => {
+  const r = spawnSync("git", args, { encoding: "utf8" });
+  return { ok: r.status === 0, out: String(r.stdout || ""), err: String(r.stderr || "") };
+};
+
+/* כל קובץ ש-seed כלשהו כותב. ⚠ רחב יותר מ-STEPS[].ids: seed
+   אחד כותב שניים (plenary → plenary+lecturers, stulesson →
+   stulesson+placements), וקובץ שיישאר מחוץ לרשימה יישאר שינוי
+   מקומי שחוסם את ה-pull הבא. */
+const GENERATED = [...new Set([
+  ...STEPS.map((s) => s.ids),
+  "shared/budget-ids.js", "shared/placements-ids.js",
+  "shared/plenary-ids.js", "shared/lecturers-ids.js",
+])];
+
 const CLEAN = { script: "tools/clean-defaults.mjs", title: "מחיקת שורות הדמה של monday" };
 
 /* ⚠ בדיקה ש-monday בכלל עונה — לפני שמריצים שישה סקריפטים
@@ -52,6 +72,37 @@ try {
   } else {
     console.error("  לבדוק ש-MONDAY_TOKEN נמצא ב-.env ושהוא בתוקף.\n");
   }
+  process.exit(1);
+}
+
+/* ⚠⚠ **עותק שמאחור מדווח הצלחה על רשימה ישנה.** זה קרה: עמדה
+   שנשארה על גרסה עם 7 שלבים הריצה את שבעתם, הדפיסה "הכול הוקם
+   ואומת", והמסכים החדשים המשיכו לומר "טרם הוקם" — כי הם כלל
+   לא היו ברשימה. אימות שמסתמך על STEPS אינו יכול לתפוס את זה,
+   כי STEPS עצמו הוא מה שמיושן.
+   ⚠ ומה שהשאיר אותה מאחור הוא קבצי המזהים: seed משנה אותם, העץ
+   מתלכלך, וכל pull נחסם (5כג). */
+async function behind() {
+  const f = git(["fetch", "origin", "main", "--quiet"]);
+  if (!f.ok) return null;                 /* בלי רשת — לא טוענים כלום */
+  const n = git(["rev-list", "--count", "HEAD..origin/main"]);
+  return n.ok ? Number(n.out.trim()) || 0 : null;
+}
+
+const gap = await behind();
+if (gap) {
+  console.error("\n" + "═".repeat(56));
+  console.error("✗ העותק הזה מאחור ב-" + gap + " קומיטים אחרי origin/main.");
+  console.error("═".repeat(56));
+  console.error("  רשימת השלבים כאן ישנה, ולכן ההקמה תדווח הצלחה על");
+  console.error("  חלק מהמסכים בלבד — והשאר ימשיכו לומר \"טרם הוקם\".");
+  console.error("\n  לסנכרן קודם. הדרך הבטוחה, שגם דוחפת בסוף:");
+  console.error("      start.cmd            (לחיצה כפולה, או: npm run go)");
+  console.error("\n  או ביד, אם העץ מלוכלך מקבצי מזהים:");
+  console.error("      git stash push -u -m ids");
+  console.error("      git pull origin main");
+  console.error("      npm install");
+  console.error("      npm run setup:boards\n");
   process.exit(1);
 }
 
@@ -117,11 +168,96 @@ if (bad.length) {
 }
 
 console.log("\n✓ הכול הוקם ואומת.\n");
-console.log("⚠ הקבצים שנכתבו חייבים להיכנס לקומיט — בלעדיהם");
-console.log("  הדיפלוי ב-Vercel לא ימצא את הלוחות:\n");
-for (const s of STEPS) console.log("    " + s.ids);
-console.log("\n  git add " + STEPS.map((s) => s.ids).join(" "));
-console.log("  git commit -m \"הקמת הלוחות החדשים\"");
-console.log("  git push -u origin HEAD");
-console.log("  git push origin HEAD:lessons");
-console.log("  git push origin HEAD:main\n");
+
+/* ============================================================
+   קומיט ודחיפה של קבצי המזהים
+   ------------------------------------------------------------
+   ⚠⚠ **זה השלב שנשכח, וכשהוא נשכח הכול נראה כאילו לא עבד.**
+     ההקמה הצליחה, monday מלאה — והייצור ממשיך לומר "טרם הוקם",
+     כי Vercel בונה מהענף ולא מהמחשב. הסקריפט הדפיס עד היום את
+     הפקודות וקיווה שיריצו אותן. עכשיו הוא מריץ אותן.
+
+   ⚠ **ובנוסף זה משחרר את ה-pull הבא.** קובץ מזהים שנשאר שינוי
+     מקומי חוסם כל משיכה, וזו הלולאה שתקעה את העמדה (5כג).
+
+   ⚠ **דחיפה ל-main רק כשההפרש הוא קבצי מזהים בלבד.** `main` רץ
+     במטבח תוך דקה, ודחיפה שלו גוררת גם כל קומיט אחר שיושב על
+     הענף. עבודה שלא נבדקה אינה עולה למטבח כתופעת לוואי של
+     הקמת לוחות — ואז נדחף רק הענף הנוכחי, ונאמר מה נשאר.
+   ============================================================ */
+function publish() {
+  if (!git(["rev-parse", "--is-inside-work-tree"]).ok) return manual("אין כאן מאגר גיט");
+  if (!PUSH) return manual("--no-push");
+
+  const have = GENERATED.filter((f) => git(["ls-files", "--error-unmatch", f]).ok ||
+    git(["status", "--porcelain", "--", f]).out.trim());
+  git(["add", "--", ...have]);
+
+  const staged = !git(["diff", "--cached", "--quiet"]).ok;
+  if (staged) {
+    /* ⚠ מוגבל לנתיבים: קומיט שסוחף שינוי אחר שכבר היה ב-stage
+       הוא בדיוק מה שדוחף למטבח משהו שלא נבדק. */
+    const c = git(["commit", "-q", "-m", "הקמת הלוחות מהעמדה המקומית", "--", ...have]);
+    if (!c.ok) return manual("הקומיט נכשל: " + (c.err || c.out).trim());
+    console.log("✓ נוצר קומיט עם קבצי המזהים");
+  } else {
+    console.log("• אין שינוי בקבצי המזהים — כבר בקומיט");
+  }
+
+  /* ⚠ אין מה לדחוף? עדיין ייתכן קומיט מקומי שלא עלה. */
+  git(["fetch", "origin", "main", "--quiet"]);
+  const ahead = git(["rev-list", "--count", "origin/main..HEAD"]);
+  if (ahead.ok && Number(ahead.out.trim()) === 0) {
+    console.log("✓ הענף כבר זהה ל-origin/main — אין מה לדחוף.\n");
+    return;
+  }
+
+  const branch = git(["rev-parse", "--abbrev-ref", "HEAD"]).out.trim();
+  const push = (ref) => {
+    const r = git(["push", "origin", "HEAD:" + ref]);
+    console.log((r.ok ? "  ✓ " : "  ✗ ") + ref + (r.ok ? "" : " — " + (r.err || "").trim().split("\n")[0]));
+    return r.ok;
+  };
+
+  /* מה בדיוק ההפרש מול main? */
+  const diff = git(["diff", "--name-only", "origin/main...HEAD"]);
+  const files = diff.out.split("\n").map((s) => s.trim()).filter(Boolean);
+  const onlyIds = files.length > 0 && files.every((f) => GENERATED.includes(f));
+
+  const side = branch && branch !== "HEAD" && branch !== "main" ? branch : null;
+  if (side || onlyIds) console.log("\nדוחף:");
+  if (side) push(side);
+
+  if (!onlyIds) {
+    const extra = files.filter((f) => !GENERATED.includes(f));
+    console.log("\n⚠ לא נדחף ל-main: יש כאן גם שינויים שאינם קבצי מזהים.");
+    for (const f of extra.slice(0, 12)) console.log("    " + f);
+    if (extra.length > 12) console.log("    ועוד " + (extra.length - 12));
+    console.log("\n  main רץ במטבח. לבדוק מה אלה, ואז:");
+    console.log("      git push origin HEAD:lessons");
+    console.log("      git push origin HEAD:main\n");
+    return;
+  }
+
+  const a = push("lessons");
+  const b = push("main");
+  if (a && b) {
+    console.log("\n✓ נדחף. Vercel בונה עכשיו — 40 עד 90 שניות,");
+    console.log("  ואז לרענן את האתר (חלון פרטי, כדי לא לקבל מטמון).\n");
+  } else {
+    console.log("\n  להריץ שוב ביד את מה שנכשל.\n");
+  }
+}
+
+function manual(why) {
+  console.log("(לא נדחף אוטומטית — " + why + ")\n");
+  console.log("⚠ הקבצים שנכתבו חייבים להיכנס לקומיט — בלעדיהם");
+  console.log("  הדיפלוי ב-Vercel לא ימצא את הלוחות:\n");
+  console.log("  git add " + GENERATED.join(" "));
+  console.log("  git commit -m \"הקמת הלוחות החדשים\"");
+  console.log("  git push -u origin HEAD");
+  console.log("  git push origin HEAD:lessons");
+  console.log("  git push origin HEAD:main\n");
+}
+
+publish();
