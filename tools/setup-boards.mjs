@@ -119,7 +119,15 @@ const run = (s, args = []) => {
    ובכל זאת להשאיר קובץ מזהים שאינו נטען — קרה כאן: קובץ ב-CRLF
    קיבל הצהרת export כפולה, וזה SyntaxError. אימות רק בסוף אמר
    "אחד נכשל" אחרי חמישה שלבים, בלי לומר איזה מהם באמת שבר. */
-const stepOk = async (s) => (await notReady()).every((b) => b.ids !== s.ids);
+/* ⚠⚠ **הזיהוי הוא הצמד `ids`+`ready`, ולא הקובץ לבדו.** שני
+   שלבים חולקים את shared/mechina-boards.js — עמודת ימי החופש
+   ועמודות הערר — והשוואה לפי הקובץ בלבד הפילה את הראשון מהם
+   על כך ש**השני** טרם רץ. ההודעה אמרה "הסתיים בהצלחה אבל
+   הקובץ אינו נטען" בזמן שהקובץ נטען מצוין, וההקמה נעצרה
+   בשלב 6 מתוך 14 בכל הרצה. אותו דבר יקרה לכל קובץ שיקבל
+   שלב שני. */
+const stepOk = async (s) =>
+  (await notReady()).every((b) => !(b.ids === s.ids && b.ready === s.ready));
 
 const done = [];
 for (const s of STEPS) {
@@ -127,10 +135,20 @@ for (const s of STEPS) {
   if (ranOk && await stepOk(s)) { done.push(s); continue; }
   console.error("\n" + "═".repeat(56));
   if (ranOk) {
-    console.error("✗ " + s.title + " הסתיים בהצלחה, אבל " + s.ids);
-    console.error("  עדיין אינו נטען. זה כמעט תמיד הצהרת export כפולה");
-    console.error("  בקובץ — למחוק אותו ולהריץ שוב:");
-    console.error("      del " + s.ids.replace(/\//g, "\\") + "   (או rm בלינוקס)");
+    console.error("✗ " + s.title + " הסתיים בהצלחה, אבל " + s.ready + "()");
+    console.error("  ב-" + s.ids + " עדיין מחזירה false.");
+    /* ⚠⚠ **"למחוק ולהריץ שוב" נכון רק לקובץ מחולל.**
+       shared/mechina-boards.js, lessons-boards.js ו-budget-boards.js
+       נכתבים ביד, מלאים בהערות, ו-seed רק מחליף בהם מזהה אחד
+       בהחלפה כירורגית. עצה למחוק אותם היא עצה למחוק קוד. */
+    if (/-ids\.js$/.test(s.ids)) {
+      console.error("  זה כמעט תמיד הצהרת export כפולה בקובץ המחולל —");
+      console.error("  למחוק אותו ולהריץ שוב:");
+      console.error("      del " + s.ids.replace(/\//g, "\\") + "   (או rm בלינוקס)");
+    } else {
+      console.error("  ⚠ זה **אינו** קובץ מחולל — אין למחוק אותו.");
+      console.error("  לבדוק את השורה שהסקריפט אמור היה למלא, ולהריץ שוב.");
+    }
   } else {
     console.error("✗ נעצר על: " + s.title + "  (" + s.script + ")");
   }
@@ -157,8 +175,11 @@ console.log("▶ אימות");
 console.log("═".repeat(56));
 
 const bad = await notReady();
-const badKeys = new Set(bad.map((b) => b.ids));
-for (const s of STEPS) if (!badKeys.has(s.ids)) console.log("  ✓ " + s.title);
+/* ⚠ גם כאן הצמד ולא הקובץ — אחרת שני השלבים שחולקים קובץ
+   מדווחים יחד, וזה שעבר נראה כאילו נכשל. */
+const key = (x) => x.ids + "#" + x.ready;
+const badKeys = new Set(bad.map(key));
+for (const s of STEPS) if (!badKeys.has(key(s))) console.log("  ✓ " + s.title);
 
 if (bad.length) {
   console.error("\n✗ " + bad.length + " לא עברו את האימות:");
