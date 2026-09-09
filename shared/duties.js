@@ -207,6 +207,9 @@ export function dutiesOf({ roles = [], isLeader = false, chairOf = [] } = {}) {
           { tab: "stu-lessons", label: "שיעורי חניך" },
           { tab: "plenary", label: "מליאות" },
           { tab: "lecturers", label: "מאגר מרצים" },
+          /* ⚠ הסמכות שנמסרה לוועדה: לכתוב את חוות הדעת על
+             המרצים המתחלפים. השרת פותח לה בדיוק את זה. */
+          { tab: "l-evals", label: "חוות דעת על מרצים" },
         ] : []),
       ],
     });

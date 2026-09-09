@@ -10,6 +10,7 @@
 import { requireAuth, setSession, traineeRoster, AuthError } from "./_session.js";
 import { ensureCycle } from "./_cycle.js";
 import { teamsForStudent } from "./_team-data.js";
+import { mayContent } from "./_content-team.js";
 
 export default async function handler(req, res) {
   try {
@@ -78,6 +79,7 @@ export default async function handler(req, res) {
                מיד גם אם הדגל בדפדפן עדיין ישן.
              ============================================================ */
           ...(await teamFlags(session.itemId)),
+          ...(await contentFlag(session)),
         } : {}),
       });
     }
@@ -153,5 +155,28 @@ async function teamFlags(studentId) {
   } catch (e) {
     console.error("[me:teams]", e);
     return { isChair: false, teams: [] };
+  }
+}
+
+/* ============================================================
+   ⚠ **חבר ועדת קבוצה ותוכן — דגל, כדי שהמגירה תדע**
+   ------------------------------------------------------------
+   שלושת המסכים שלה (שיעורי חניך, מליאות, מאגר מרצים) פתוחים
+   לכל חניך ממילא, אבל **חוות הדעת אינן**: הן נושאות שמות
+   וטלפונים של מרצים חיצוניים. `dutiesOf` נותן לשוניות ליו״ר
+   בלבד, וחבר ועדה שאינו יו״ר לא היה מגיע אליהן.
+
+   ⚠ **והדגל אינו הרשאה.** `mayContent` בשרת קורא את ההקשר
+     טרי בכל בקשה, ולכן חניך שהוסר מהוועדה נחסם מיד גם אם
+     הדגל בדפדפן עדיין ישן — אותו כלל בדיוק שכתוב כאן על
+     `teams`.
+   ============================================================ */
+async function contentFlag(session) {
+  try {
+    const may = await mayContent(session);
+    return { isContentTeam: Boolean(may.ok) };
+  } catch (e) {
+    console.error("[me:content]", e && e.message);
+    return { isContentTeam: false };
   }
 }

@@ -5,8 +5,16 @@
    31 חוות הדעת ממחזור א׳ יובאו כפי שהן. חדשות נוספות עם
    מחזור ב׳ ועם שם מי שכתב אותן.
 
-   ⚠ צוות או אחראי לו״ז. חוות דעת נושאות שמות של מרצים חיצוניים
-     ומספרי טלפון שלהם, ואין סיבה שיגיעו לחניך שאינו אחראי הלו״ז.
+   ⚠ צוות, אחראי לו״ז, **וועדת קבוצה ותוכן**. חוות דעת נושאות
+     שמות של מרצים חיצוניים ומספרי טלפון שלהם, ואין סיבה שיגיעו
+     לחניך שאינו אחד מאלה.
+
+   ⚠⚠ **הרחבה מכוונת לוועדת קבוצה ותוכן.** הסמכות שלה, כפי
+     שנמסרה, היא **לכתוב את חוות הדעת על המרצים המתחלפים** —
+     והיא זו שמביאה אותם. `withAuth` אינו יכול לבטא "אחראי
+     לו״ז **או** חברי הוועדה" (דגליו AND), ולכן השער הוא
+     `student:true` וההכרעה בתוך המודול — אותו דפוס בדיוק כמו
+     `mayArea` (4כב), `mayTeam` (4נ) ו-`mayRecruit` (5כו).
 
    ⚠ לדירוג יש שני מקורות, והם לעולם לא מתערבבים:
 
@@ -20,6 +28,10 @@
    ============================================================ */
 
 import { withAuth, actorName } from "./_session.js";
+import { mayEdit } from "../shared/edit-rights.js";
+import { mayContent, contentHint } from "./_content-team.js";
+import { setColumns } from "./_items.js";
+import { invalidateContent } from "./_lesson-content.js";
 import { gql } from "./_monday.js";
 import { LESSON_BOARDS, LESSON_COLS, CYCLE } from "../shared/lessons-boards.js";
 import {
@@ -32,15 +44,43 @@ const E = LESSON_COLS.evals;
    date נדחית על ידי monday **בשקט** ואינה כותבת דבר (4ש). */
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+/* ============================================================
+   ⚠ מי נכנס לכאן — איחוד ולא AND
+   ------------------------------------------------------------
+   קריאה: צוות · אחראי הלו״ז · ועדת קבוצה ותוכן.
+   כתיבה: ראש המכינה ואחראי הלו״ז (`mayEdit`), **וגם** הוועדה
+   — זו הסמכות שנמסרה לה במפורש.
+
+   ⚠ `viewOnly` גובר, ו-`mayEdit` כבר אוכף אותו; לוועדה הוא
+     נבדק כאן במפורש, אחרת מנכ״ל שהוא גם חבר ועדה היה כותב.
+   ============================================================ */
+async function gate(session) {
+  const staff = Boolean(session.isManager) || Boolean(session.isScheduler);
+  const may = await mayContent(session);
+  const content = may.ok && !session.viewOnly;
+  return {
+    read: staff || may.ok,
+    write: mayEdit(session, "scheduler") || content,
+    hint: contentHint(may),
+  };
+}
+
 async function handler(req, res, session) {
-  if (req.method === "GET") return list(req, res);
+  const g = await gate(session);
+  if (!g.read) {
+    return res.status(403).json({ error: "חוות הדעת מוצגות לצוות, לאחראי הלו״ז ולוועדת קבוצה ותוכן" });
+  }
+  if (req.method !== "GET" && !g.write) {
+    return res.status(403).json({ error: g.hint });
+  }
+  if (req.method === "GET") return list(req, res, g);
   if (req.method === "POST") return add(req, res, session);
   if (req.method === "PUT") return edit(req, res, session);
   if (req.method === "DELETE") return remove(req, res, session);
   return res.status(405).json({ error: "רק GET, POST, PUT ו-DELETE נתמכים כאן" });
 }
 
-async function list(req, res) {
+async function list(req, res, g) {
   try {
     const [evals, ratings] = await Promise.all([loadEvals(), loadRatings()]);
     const wanted = req.query?.cycle ? String(req.query.cycle) : null;
@@ -72,6 +112,10 @@ async function list(req, res) {
       count: shown.length,
       fields,
       cycles: [...new Set(evals.map((e) => e.cycle).filter(Boolean))],
+      /* ⚠ מהשרת ולא נגזר במסך — כפתור שמופיע ומקבל 403 אחרי
+         שהמשתמש כבר הקליד הוא בדיוק מה ש-4יד אוסר. */
+      canEdit: g.write,
+      editHint: g.write ? null : g.hint,
     });
   } catch (e) {
     console.error("[lesson-evals:list]", e);
@@ -129,7 +173,37 @@ async function add(req, res, session) {
     );
     invalidateEvals();
 
-    res.status(200).json({ ok: true, id: String(d.create_item.id), name });
+    /* ============================================================
+       ⚠⚠ **חוות דעת מזדמנת פותחת דירוג — אלא אם ביקשו שלא**
+       ------------------------------------------------------------
+       מי שכותב חוות דעת על מרצה שהגיע רוצה כמעט תמיד גם את
+       דעת החניכים, ופתיחת הדירוג הייתה פעולה שנייה במסך אחר
+       שאיש לא זכר לעשות — כלומר שיעור שעבר בלי משוב.
+
+       ⚠ **`rate:false` הוא הכפתור שמכבה.** יש מרצים שאין
+         טעם לדרג — מנחה של חצי שעה, אורח של החניכים — וכפייה
+         הייתה מייצרת רשימת דירוג שמפסיקים להסתכל עליה (5כ).
+
+       ⚠ **ורק כשיש מפגש.** הדירוג יושב על שורת המפגש
+         (`openRate`), ולחוות דעת בלי מפגש אין למה לחבר אותו.
+       ⚠ **וכישלון אינו מפיל את השמירה** — חוות הדעת כבר
+         נשמרה, ו-502 כאן היה נראה כאילו כלום לא נשמר. מוחזר
+         `rateOpened` והמסך אומר זאת.
+       ============================================================ */
+    let rateOpened = null;
+    if (body?.meetingId && body?.rate !== false) {
+      rateOpened = false;
+      try {
+        await setColumns(LESSON_BOARDS.meetings, String(body.meetingId),
+          { [LESSON_COLS.meetings.openRate]: { checked: "true" } });
+        invalidateContent();
+        rateOpened = true;
+      } catch (err) {
+        console.error("[lesson-evals:open-rate]", err && err.message);
+      }
+    }
+
+    res.status(200).json({ ok: true, id: String(d.create_item.id), name, rateOpened });
   } catch (e) {
     console.error("[lesson-evals:add]", e);
     res.status(502).json({ error: "הוספת חוות הדעת נכשלה" });
@@ -261,4 +335,7 @@ async function readJson(req) {
   return raw ? JSON.parse(raw) : {};
 }
 
-export default withAuth(handler, { scheduler: true, edit: "scheduler" });
+/* ⚠ `student:true` והכרעה בתוך המודול — ראו `gate` למעלה.
+   בלי זה `withAuth` חוסם חניכים כברירת מחדל (4טו), וחברי
+   ועדת קבוצה ותוכן הם חניכים. */
+export default withAuth(handler, { student: true });

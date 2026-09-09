@@ -1120,14 +1120,31 @@ function NewEval({ fields, onDone, onCancel, say, preset }) {
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+  /* ⚠ **דלוק כברירת מחדל.** מי שכותב חוות דעת רוצה כמעט תמיד
+     גם את דעת החניכים, ופתיחת הדירוג הייתה פעולה שנייה במסך
+     אחר שאיש לא זכר — כלומר שיעור שעבר בלי משוב. הכפתור כאן
+     הוא כדי לכבות, לא כדי להדליק. */
+  const [rate, setRate] = useState(true);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+  const hasMeeting = Boolean(preset && preset.meetingId);
 
   const submit = (e) => {
     e.preventDefault();
     if (busy || !f.name.trim() || !f.opinion.trim()) return;
     setBusy(true); setErr(null);
-    api.addLessonEval({ ...f, cycle: "מחזור ב׳", meetingId: preset && preset.meetingId })
-      .then(() => { say("חוות הדעת נוספה"); onDone(); })
+    api.addLessonEval({
+      ...f, cycle: "מחזור ב׳",
+      meetingId: preset && preset.meetingId,
+      ...(hasMeeting ? { rate } : {}),
+    })
+      .then((r) => {
+        /* ⚠ **התשובה אומרת מה קרה בפועל.** "נוספה" לבדו משאיר
+           את מי שכתב להניח שהדירוג נפתח גם כשהוא נכשל. */
+        say(r.rateOpened === true ? "חוות הדעת נוספה, והשיעור נפתח לדירוג"
+          : r.rateOpened === false ? "חוות הדעת נוספה. פתיחת הדירוג נכשלה — אפשר לפתוח אותו בארכיון"
+            : "חוות הדעת נוספה");
+        onDone();
+      })
       .catch((e2) => setErr(e2.message))
       .finally(() => setBusy(false));
   };
@@ -1180,6 +1197,20 @@ function NewEval({ fields, onDone, onCancel, say, preset }) {
           <input id="ev-op" value={f.opinion} disabled={busy} onChange={set("opinion")}
             placeholder="מה היה טוב, למי להמליץ, דירוג" />
         </div>
+
+        {/* ============================================================
+            ⚠ **פתיחת דירוג — רק כשיש מפגש מאחורי חוות הדעת.**
+              הדירוג יושב על שורת המפגש, ולחוות דעת בלי מפגש
+              אין למה לחבר אותו. תיבה שמופיעה תמיד ואינה עושה
+              דבר בחצי מהמקרים מלמדת להתעלם ממנה (4צ).
+            ============================================================ */}
+        {hasMeeting && (
+          <label className="pl-anon" style={{ marginBottom: 12 }}>
+            <input type="checkbox" checked={rate} disabled={busy}
+              onChange={(e2) => setRate(e2.target.checked)} />
+            <span>לפתוח את השיעור לדירוג החניכים</span>
+          </label>
+        )}
         <button className="btn btn-primary" type="submit"
           disabled={busy || !f.name.trim() || !f.opinion.trim()}>
           {busy ? "שומר…" : "שמירה"}

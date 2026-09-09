@@ -3786,6 +3786,14 @@ export function MechinaApp({ auth, onSignedOut }) {
               active: tab === "plenary", onClick: () => setTab("plenary") },
             { key: "lecturers", label: "מאגר מרצים", icon: <MI.note />,
               active: tab === "lecturers", onClick: () => setTab("lecturers") },
+            /* ⚠ **חוות דעת — לחברי ועדת קבוצה ותוכן בלבד**, ולא
+               לכל חניך: הן נושאות שמות וטלפונים של מרצים
+               חיצוניים. `isContentTeam` מגיע מ-`?action=me`
+               ונקרא טרי בכל בקשה, כמו התפקידים (4יט). */
+            ...(auth.isContentTeam ? [{
+              key: "l-evals", label: "חוות דעת על מרצים", icon: <MI.check />,
+              active: tab === "l-evals", onClick: () => setTab("l-evals"),
+            }] : []),
           ] },
 
           /* ⚠ קבוצה משלה, ורק למי שמוביל. ראו leaderTabs. */
@@ -4024,7 +4032,12 @@ export function MechinaApp({ auth, onSignedOut }) {
         {(tab === "l-board" || tab === "lessons") && (auth.isScheduler || auth.isLeader)
           && <LessonsPage say={say} solo sub0="board" />}
         {tab === "l-sheets" && auth.isScheduler && <LessonsPage say={say} solo sub0="sheets" />}
-        {tab === "l-evals" && auth.isScheduler && <LessonsPage say={say} solo sub0="evals" />}
+        {/* ⚠ **גם לוועדת קבוצה ותוכן.** הסמכות שנמסרה לה היא
+            לכתוב את חוות הדעת על המרצים המתחלפים, והשרת פותח
+            לה בדיוק את זה (`gate` ב-_lesson-evals.js). התנאי
+            כאן הוא תצוגה בלבד — ההרשאה נאכפת שם. */}
+        {tab === "l-evals" && (auth.isScheduler || auth.isContentTeam)
+          && <LessonsPage say={say} solo sub0="evals" />}
 
         {tab === "new" && (
           <>

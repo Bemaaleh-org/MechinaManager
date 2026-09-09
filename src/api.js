@@ -959,9 +959,12 @@ export const api = {
   /* ⚠ lessonDate — תאריך שבו התקיים השיעור, ולא תאריך הכתיבה.
      כשיש meetingId הוא **נגזר בשרת מהמפגש** ומה שנשלח כאן
      מתעלמים ממנו. */
-  addLessonEval: ({ name, topic, field, phone, opinion, cycle, meetingId, lessonDate }) =>
+  /* ⚠ `rate` — לפתוח את המפגש לדירוג החניכים. **דלוק כברירת
+     מחדל בשרת**, ולכן הוא נשלח רק כדי לכבות; השמטה = לפתוח.
+     ⚠ ופירוק מפורש: שדה שלא נכתב כאן נשמט בשקט (4לג). */
+  addLessonEval: ({ name, topic, field, phone, opinion, cycle, meetingId, lessonDate, rate }) =>
     post("/api/lessons?action=evals",
-      { name, topic, field, phone, opinion, cycle, meetingId, lessonDate }),
+      { name, topic, field, phone, opinion, cycle, meetingId, lessonDate, rate }),
 
   /** עריכת חוות דעת — בעיקר ההערה על שורה שנפתחה אוטומטית */
   /** ⚠ manualScore: מספר 1–10, או null לניקוי. השמטה = בלי שינוי. */
