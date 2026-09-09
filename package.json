@@ -54,7 +54,8 @@
     "check:undef": "eslint",
     "seed:recruit": "node --env-file=.env tools/seed-recruit.mjs",
     "check:seeds": "node tools/tests/seed-dry.mjs",
-    "check:css": "node tools/check-css.mjs"
+    "check:css": "node tools/check-css.mjs",
+    "check:nav": "node tools/check-nav.mjs"
   },
   "dependencies": {
     "nodemailer": "^9.0.5",

@@ -500,14 +500,6 @@ function Staff({ auth, onSignedOut }) {
                  שמתחזק את הקוד. שני לוחות, שתי רשימות. */
               { key: "bugs", label: "באגים והערות", icon: <I.gear />, active: section === "bugs",
                 onClick: () => setSection("bugs") },
-              /* ⚠ אותו מסך בדיוק של החניך והוועדה — ולא גרסה
-                 מקוצצת (4יט). */
-              { key: "stu-lessons", label: "שיעורי חניך", icon: <I.book />,
-                active: section === "stu-lessons", onClick: () => setSection("stu-lessons") },
-              { key: "plenary", label: "מליאות", icon: <I.users />,
-                active: section === "plenary", onClick: () => setSection("plenary") },
-              { key: "lecturers", label: "מאגר מרצים", icon: <I.book />,
-                active: section === "lecturers", onClick: () => setSection("lecturers") },
               /* ⚠ ציוד הניקיון עבר לכאן מקבוצת המכולה. הוא
                  באחריות אב הבית, בדיוק כמו התקלות — ולא של
                  אחראי המכולה. */
@@ -517,6 +509,37 @@ function Staff({ auth, onSignedOut }) {
                  התור, וההרשאה לנהל נגזרת בשרת. */
               { key: "laundry", label: "חדר כביסה", icon: <I.box />,
                 active: section === "laundry", onClick: () => setSection("laundry") },
+            ] },
+            /* ============================================================
+               קבוצה ותוכן
+               ------------------------------------------------------------
+               ⚠⚠ **שלושת המסכים ישבו תחת "בטיחות ותחזוקה".** לא
+                 בהחלטה — הם נוספו לקבוצה שהייתה פתוחה על המסך
+                 באותו רגע. מליאה, שיעור חניך ומאגר מרצים אינם
+                 בטיחות ואינם תחזוקה, ומי שחיפש אותם לא מצא.
+
+               ⚠⚠ **וזו בדיוק ההפרה של 4יט**: הקבוצה נוספה
+                 ל-`Mechina.jsx` ולא לכאן, כלומר החניך והמנהל ראו
+                 שני ניווטים שונים לאותם מסכים. **תוספת לניווט של
+                 מעטפת אחת חייבת להיבדק מול השנייה.**
+
+               ⚠ והסדר זהה לזה שבמעטפת החניך.
+               ============================================================ */
+            { label: "קבוצה ותוכן", items: [
+              { key: "plenary", label: "מליאות", icon: <I.users />,
+                active: section === "plenary", onClick: () => setSection("plenary") },
+              /* ⚠ אותו מסך בדיוק של החניך והוועדה — ולא גרסה
+                 מקוצצת (4יט). */
+              { key: "stu-lessons", label: "שיעורי חניך", icon: <I.book />,
+                active: section === "stu-lessons", onClick: () => setSection("stu-lessons") },
+              { key: "lecturers", label: "מאגר מרצים", icon: <I.book />,
+                active: section === "lecturers", onClick: () => setSection("lecturers") },
+              /* ⚠ **חוות הדעת הן לשונית של "שיעורים במכינה"**, ולכן
+                 `goLessons("evals")` ולא `setSection` — אותו מסך,
+                 ולא עותק שני שיתפצל ממנו (4יט). */
+              { key: "l-evals", label: "חוות דעת על מרצים", icon: <I.check />,
+                active: section === "lessons" && lessonsSub === "evals",
+                onClick: () => goLessons("evals") },
             ] },
             /* ⚠ ההשאלות יושבות עם המכולה: הציוד שיוצא ונכנס
                הוא אותו ציוד שבמכולה, ואותו אדם אחראי עליו. */
