@@ -82,6 +82,17 @@ export const CYCLE_BOARDS = [
   { key: "groupMessages", title: "הודעות לקבוצה", path: "group.messages", need: false },
   { key: "mishmarEvents", title: "משמרים", path: "mishmar.events", need: false },
   { key: "mishmarSessions", title: "לו״ז משמר", path: "mishmar.sessions", need: false },
+  /* ⚠ **שיעורי החניך שייכים למחזור.** מי לימד מה בשנה שעברה
+     אינו רלוונטי לרשימה של "מי עוד לא עשה", ומחזור חדש חייב
+     להתחיל מ-66 משבצות ריקות. */
+  { key: "stuLessons", title: "שיעורי חניך", path: "stu.board", need: false },
+  /* ⚠⚠ **המליאות במחזור, ומאגר המרצים לא.** מליאה של מחזור ב׳
+     אינה רלוונטית למחזור ג׳; מרצה ששווה להביא הוא בדיוק מה
+     שהבא צריך, ולוח שמשוכפל ריק בכל שנה מבטל את הסיבה שהוא
+     קיים — אותו נימוק כמו בנק הפעילויות ובנק הציטוטים
+     (4מז, 5יא, 5כא). */
+  { key: "plenaryEvents", title: "מליאות", path: "plenary.events", need: false },
+  { key: "plenaryNotes", title: "פתקי מליאה", path: "plenary.notes", need: false },
 ];
 
 /** מה נדרש כדי שמחזור ייחשב מוכן */

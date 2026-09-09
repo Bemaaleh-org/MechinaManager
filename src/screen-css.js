@@ -29,6 +29,8 @@ import { MENU_CSS } from "./Menu.jsx";
 import { DUTYTODAY_CSS } from "./DutyToday.jsx";
 import { ABSENT_CSS } from "./AbsentToday.jsx";
 import { BUGS_CSS } from "./Bugs.jsx";
+import { STULESSON_CSS } from "./StuLessons.jsx";
+import { PLENARY_CSS } from "./Plenary.jsx";
 
 export const ALL_CSS = CSS + LAUNDRY_CSS + QUOTES_CSS + MISHMAR_CSS + ARCHIVE_CSS
-  + GROUP_CSS + RECRUIT_CSS + MENU_CSS + DUTYTODAY_CSS + ABSENT_CSS + BUGS_CSS;
+  + GROUP_CSS + RECRUIT_CSS + MENU_CSS + DUTYTODAY_CSS + ABSENT_CSS + BUGS_CSS + STULESSON_CSS + PLENARY_CSS;

@@ -596,6 +596,42 @@ export const api = {
   clearWeekMenuCell: ({ day, meal }) =>
     del("/api/kitchen?action=weekmenu", { day, meal }),
 
+  /* ---------- שיעורי חניך ----------
+     ⚠ פירוק מפורש — שדה שלא נכתב כאן נשמט בשקט (4לג).
+     ⚠ `happened` הוא **שלושה מצבים**: true · false · null
+       ("טרם"), ולכן הוא נשלח תמיד ולא רק כשהוא אמת. */
+  getStuLessons: () => get("/api/students?action=stu-lessons"),
+  addStuLesson: ({ date, kind, studentId, topic }) =>
+    post("/api/students?action=stu-lessons", { date, kind, studentId, topic }),
+  editStuLesson: ({ id, date, kind, topic, note, happened }) =>
+    put("/api/students?action=stu-lessons", { id, date, kind, topic, note, happened }),
+  deleteStuLesson: (id) => del("/api/students?action=stu-lessons", { id }),
+
+  /* ---------- מליאות ----------
+     ⚠ פירוק מפורש (4לג). ⚠ ופתק אנונימי אינו מקבל מזהה בחזרה
+       — ראו api/_plenary.js. */
+  getPlenaries: () => get("/api/students?action=plenary"),
+  getPlenary: (id) => get("/api/students?action=plenary&id=" + encodeURIComponent(id)),
+  addPlenary: ({ title, date }) => post("/api/students?action=plenary", { title, date }),
+  addPlenaryNote: ({ plenary, text, anon }) =>
+    post("/api/students?action=plenary", { plenary, text, anon }),
+  editPlenary: ({ id, title, date, status, open, agenda, summary, owners, note }) =>
+    put("/api/students?action=plenary",
+      { id, title, date, status, open, agenda, summary, owners, note }),
+  editPlenaryNote: ({ noteId, text, inAgenda, order }) =>
+    put("/api/students?action=plenary", { noteId, text, inAgenda, order }),
+  deletePlenary: (id) => del("/api/students?action=plenary", { id }),
+  deletePlenaryNote: (noteId) => del("/api/students?action=plenary", { noteId }),
+
+  /* ---------- מאגר מרצים ---------- */
+  getLecturers: () => get("/api/students?action=lecturers"),
+  addLecturer: ({ name, topic, about, phone, email, link }) =>
+    post("/api/students?action=lecturers", { name, topic, about, phone, email, link }),
+  editLecturer: ({ id, name, topic, about, phone, email, link, status, notes }) =>
+    put("/api/students?action=lecturers",
+      { id, name, topic, about, phone, email, link, status, notes }),
+  deleteLecturer: (id) => del("/api/students?action=lecturers", { id }),
+
   /* ---------- באגים והערות לשיפור ----------
      ⚠ פירוק מפורש — שדה שלא נכתב כאן נשמט בשקט (4לג). */
   getBugs: () => get("/api/students?action=bugs"),

@@ -36,6 +36,14 @@ export const STEPS = [
     ids: "shared/bugs-ids.js", ready: "bugsReady" },
   { script: "tools/seed-appeal.mjs", title: "עמודות הערר בבקשות היציאה",
     ids: "shared/mechina-boards.js", ready: "appealReady" },
+  { script: "tools/seed-stulesson.mjs", title: "לוח שיעורי החניך",
+    ids: "shared/stulesson-ids.js", ready: "stuLessonReady" },
+  /* ⚠ סקריפט אחד לשלושת לוחות ועדת קבוצה ותוכן, ולכן שתי
+     שורות שמצביעות עליו — כל אחת בודקת קובץ מזהים אחר. */
+  { script: "tools/seed-plenary.mjs", title: "לוחות המליאות",
+    ids: "shared/plenary-ids.js", ready: "plenaryReady" },
+  { script: "tools/seed-plenary.mjs", title: "מאגר המרצים",
+    ids: "shared/lecturers-ids.js", ready: "lecturersReady" },
 ];
 
 /** מחזיר את השלבים שאינם מוכנים. ייבוא טרי בכל קריאה. */

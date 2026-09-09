@@ -53,6 +53,8 @@ export async function loadDefinitions({ force = false } = {}) {
           /* ⚠ "זו ועדת הגיוסים" — תיבה בלוח ולא שם מקובע בקוד.
              ראו ההערה ב-shared/placements-ids.js. */
           army: val(i, D.army) === "v",
+          /* ⚠ ריק עד שהעמודה תוקם — ואז false לכולן. */
+          content: D.content ? val(i, D.content) === "v" : false,
           /* ⚠ סיכום הסדרה. נקרא כאן ונחשף רק במסך הצוות. */
           summary: val(i, D.summary) || null,
           summaryBy: val(i, D.summaryBy) || null,
@@ -135,6 +137,9 @@ export async function chairMap({ force = false } = {}) {
          והדגל נוסע הלאה כדי שמרכז התפקיד ייתן ליו״ר שלה את
          מסך הפניות — ורק לו. */
       army: Boolean(d.army),
+      /* ⚠ אותו דפוס בדיוק: הדגל נוסע הלאה כדי שמרכז התפקיד
+         ייתן ליו״ר ועדת קבוצה ותוכן את המסכים שלה — ורק לו. */
+      content: Boolean(d.content),
     });
   }
   return out;

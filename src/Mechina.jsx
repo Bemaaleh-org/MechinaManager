@@ -40,6 +40,8 @@ import MyDataPage, { NewsStrip } from "./MyData.jsx";
 import { DutyTodayCard, NextChoreCard } from "./DutyToday.jsx";
 import { AbsentTodayCard } from "./AbsentToday.jsx";
 import { BugsPage } from "./Bugs.jsx";
+import { StuLessonsPage, MyStuLessonCard } from "./StuLessons.jsx";
+import { PlenaryPage, LecturersPage } from "./Plenary.jsx";
 import OfflineBar from "./Offline.jsx";
 import SearchOverlay, { SearchButton } from "./Search.jsx";
 import TeamsPage from "./Teams.jsx";
@@ -124,6 +126,8 @@ const PERSONAL_TABS = new Set(["leadership", "chores", "year", "requests"]);
 
 const TAB_ICON = {
   recruit: <MI.note />,
+  /* שלושת המסכים של ועדת קבוצה ותוכן */
+  "stu-lessons": <MI.book />, plenary: <MI.users />, lecturers: <MI.note />,
   quotes: <MI.book />,
   mishmar: <MI.book />,
   archive: <MI.book />,
@@ -3337,6 +3341,11 @@ function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey }) {
           תורנות היום, ושתי אמירות על אותו דבר הן רעש. */}
       <NextChoreCard onOpen={() => go("chores")} />
 
+      {/* ⚠ **השיעור הבא שלי** — מוצג רק כשיש שיבוץ עתידי.
+          "עוד לא שובצת" אינו מטלה של החניך אלא של הוועדה,
+          וכרטיס כזה מלמד להתעלם מהמקום שבו כן תופיע הודעה. */}
+      <MyStuLessonCard onOpen={() => go("stu-lessons")} />
+
       <TodayAgenda onOpen={() => go("agenda")} onSettled={bump} />
 
       {/* ============================================================
@@ -3766,6 +3775,17 @@ export function MechinaApp({ auth, onSignedOut }) {
               active: tab === "placements", onClick: () => setTab("placements") },
             { key: "teams", label: "ועדות וסדרות", icon: <MI.tick />,
               active: tab === "teams", onClick: () => setTab("teams") },
+            /* ⚠ **פתוח לכל חניך, וזו כל התכלית.** הרשימה נועדה
+               כדי שכל אחד יראה מתי הוא ומי עוד לא — הוועדה
+               משבצת בה, וכולם קוראים אותה (4יט). */
+            { key: "stu-lessons", label: "שיעורי חניך", icon: <MI.book />,
+              active: tab === "stu-lessons", onClick: () => setTab("stu-lessons") },
+            /* ⚠ **הפתקים והמאגר פתוחים לכל חניך** — הוועדה
+               מנהלת, וכולם מכניסים ומציעים (4יט). */
+            { key: "plenary", label: "מליאות", icon: <MI.users />,
+              active: tab === "plenary", onClick: () => setTab("plenary") },
+            { key: "lecturers", label: "מאגר מרצים", icon: <MI.note />,
+              active: tab === "lecturers", onClick: () => setTab("lecturers") },
           ] },
 
           /* ⚠ קבוצה משלה, ורק למי שמוביל. ראו leaderTabs. */
@@ -3941,6 +3961,10 @@ export function MechinaApp({ auth, onSignedOut }) {
             ונאכפת בשרת (mayRecruit); הלשונית מגיעה ממרכז
             התפקיד של יו״ר הוועדה בלבד. */}
         {tab === "recruit" && <RecruitPage say={say} />}
+
+        {tab === "stu-lessons" && <StuLessonsPage say={say} />}
+        {tab === "plenary" && <PlenaryPage say={say} />}
+        {tab === "lecturers" && <LecturersPage say={say} />}
         {tab === "leadership" && <LeadershipPage say={say} />}
         {/* ⚠ **`leadsAnyWeek` ולא `isLeader`.** הראשון הוא "מוביל
             שבוע כלשהו השנה" והשני "מוביל **היום**"; שער שנשען

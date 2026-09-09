@@ -29,6 +29,8 @@ import { GanttPage } from "./Gantt.jsx";
 import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { AbsentTodayCard } from "./AbsentToday.jsx";
 import { BugsPage } from "./Bugs.jsx";
+import { StuLessonsPage } from "./StuLessons.jsx";
+import { PlenaryPage, LecturersPage } from "./Plenary.jsx";
 import { PlacementsPage } from "./Placements.jsx";
 import RecruitPage from "./Recruit.jsx";
 import TeamsPage from "./Teams.jsx";
@@ -492,6 +494,14 @@ function Staff({ auth, onSignedOut }) {
                  שמתחזק את הקוד. שני לוחות, שתי רשימות. */
               { key: "bugs", label: "באגים והערות", icon: <I.gear />, active: section === "bugs",
                 onClick: () => setSection("bugs") },
+              /* ⚠ אותו מסך בדיוק של החניך והוועדה — ולא גרסה
+                 מקוצצת (4יט). */
+              { key: "stu-lessons", label: "שיעורי חניך", icon: <I.book />,
+                active: section === "stu-lessons", onClick: () => setSection("stu-lessons") },
+              { key: "plenary", label: "מליאות", icon: <I.users />,
+                active: section === "plenary", onClick: () => setSection("plenary") },
+              { key: "lecturers", label: "מאגר מרצים", icon: <I.book />,
+                active: section === "lecturers", onClick: () => setSection("lecturers") },
               /* ⚠ ציוד הניקיון עבר לכאן מקבוצת המכולה. הוא
                  באחריות אב הבית, בדיוק כמו התקלות — ולא של
                  אחראי המכולה. */
@@ -627,6 +637,9 @@ function Staff({ auth, onSignedOut }) {
           {section === "safety" && isMgr && <SafetyPage say={say} />}
           {section === "faults" && isMgr && <FaultsPage say={say} />}
           {section === "bugs" && <BugsPage say={say} />}
+          {section === "stu-lessons" && <StuLessonsPage say={say} />}
+          {section === "plenary" && <PlenaryPage say={say} />}
+          {section === "lecturers" && <LecturersPage say={say} />}
           {section === "agenda" && <AgendaPage />}
 
           {section === "gantt" && <GanttPage say={say} />}

@@ -198,7 +198,17 @@ export function dutiesOf({ roles = [], isLeader = false, chairOf = [] } = {}) {
          לשונית על `DUTIES[DUTY_CHAIR]` הייתה נותנת אותה לכל
          יו״ר במכינה, וכל אחד מהם היה מקבל 403 אחרי הלחיצה
          (4יד). */
-      tabs: c.army ? [{ tab: "recruit", label: "פניות גיוס" }] : [],
+      tabs: [
+        ...(c.army ? [{ tab: "recruit", label: "פניות גיוס" }] : []),
+        /* ⚠ אותו דפוס בדיוק, ותיבה משלה: שלושת המסכים של ועדת
+           קבוצה ותוכן. `content` הוא checkbox בלוח ההגדרות ולא
+           שם מוקלד — השם עשוי להשתנות, להתאחד או להתפצל (5ד). */
+        ...(c.content ? [
+          { tab: "stu-lessons", label: "שיעורי חניך" },
+          { tab: "plenary", label: "מליאות" },
+          { tab: "lecturers", label: "מאגר מרצים" },
+        ] : []),
+      ],
     });
   }
   return out.map((d) => ({ ...d, label: d.label || d.name }));

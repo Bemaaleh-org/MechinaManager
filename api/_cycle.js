@@ -41,6 +41,8 @@ import { LAUNDRY_BOARDS } from "../shared/laundry-ids.js";
 import { QUOTE_BOARDS } from "../shared/quotes-ids.js";
 import { MISHMAR_BOARDS } from "../shared/mishmar-ids.js";
 import { GROUP_BOARDS } from "../shared/group-ids.js";
+import { STU_BOARDS } from "../shared/stulesson-ids.js";
+import { PLENARY_BOARDS } from "../shared/plenary-ids.js";
 
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
 
@@ -64,6 +66,8 @@ const FALLBACK = JSON.parse(JSON.stringify({
   quotes: QUOTE_BOARDS,
   mishmar: MISHMAR_BOARDS,
   group: GROUP_BOARDS,
+  stu: STU_BOARDS,
+  plenary: PLENARY_BOARDS,
 }));
 
 /** לאן כל מרחב שמות כותב */
@@ -87,6 +91,12 @@ const TARGETS = {
   quotes: QUOTE_BOARDS,
   mishmar: MISHMAR_BOARDS,
   group: GROUP_BOARDS,
+  /* ⚠ שיעורי החניך — בלי השורה הזו מחזור חדש היה נוצר
+     בלעדיהם, ותקלה כזו מתגלה רק בעוד שנה (4ל). */
+  stu: STU_BOARDS,
+  /* ⚠ שני לוחות המליאה יחד. פתק שמצביע על מליאה שאינה קיימת
+     במחזור הוא שורה שאף מסך לא יציג ואיש לא ימחק (4ק). */
+  plenary: PLENARY_BOARDS,
 };
 
 /**
