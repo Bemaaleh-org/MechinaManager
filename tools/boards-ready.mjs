@@ -46,8 +46,32 @@ export const STEPS = [
     ids: "shared/lecturers-ids.js", ready: "lecturersReady" },
 ];
 
-/** מחזיר את השלבים שאינם מוכנים. ייבוא טרי בכל קריאה. */
+/**
+ * מחזיר את השלבים שאינם מוכנים.
+ *
+ * ⚠⚠ **בתהליך נפרד, ולא ב-`import(...?v=)`.** מחרוזת השאילתה
+ *   מבטלת את המטמון של המודול שנטען — **ולא של מה שהוא מייבא**.
+ *   `budget-boards.js` מייצא את `diningHeadsReady` וקורא את
+ *   המספר מ-`budget-ids.js`, ו-seed:dining כותב את השני; תהליך
+ *   שכבר טען פעם את budget-ids.js המשיך לראות אותו ריק לנצח,
+ *   וההקמה נעצרה על שלב שהצליח באמת. ראו tools/ready-probe.mjs.
+ *
+ * ⚠ **נפילה של התהליך אינה "הכול מוכן".** ברירת המחדל אז היא
+ *   הבדיקה בתוך התהליך — פחות מדויקת, אבל לעולם לא שקטה.
+ */
 export async function notReady() {
+  const { spawnSync } = await import("node:child_process");
+  const { fileURLToPath } = await import("node:url");
+  const probe = fileURLToPath(new URL("./ready-probe.mjs", import.meta.url));
+  const r = spawnSync(process.execPath, [probe], { encoding: "utf8", cwd: process.cwd() });
+  if (r.status === 0 && r.stdout) {
+    try { return JSON.parse(r.stdout); } catch { /* נופלים לגיבוי */ }
+  }
+  return inProcessNotReady();
+}
+
+/** גיבוי בלבד — ראו האזהרה מעל. */
+async function inProcessNotReady() {
   const bad = [];
   for (const s of STEPS) {
     try {
