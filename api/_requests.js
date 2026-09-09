@@ -478,7 +478,7 @@ async function ownPending(body, session, res) {
 async function appeal(body, session, res) {
   if (!appealReady()) {
     return res.status(503).json({
-      error: "עמודות הערר טרם הוקמו. הריצו: npm run seed:appeal",
+      error: "עמודות הערר טרם הוקמו. הריצו: npm run setup:boards  (או רק: npm run seed:appeal)",
       setupRequired: true,
     });
   }

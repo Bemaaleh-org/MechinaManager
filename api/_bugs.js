@@ -81,7 +81,7 @@ const toStaff = (b) => ({ ...toStudent(b, false), reporter: b.reporter, mine: fa
 async function handler(req, res, session) {
   if (!bugsReady()) {
     return res.status(503).json({
-      error: "לוח הבאגים טרם הוקם. הריצו: npm run seed:bugs",
+      error: "לוח הבאגים טרם הוקם. הריצו: npm run setup:boards  (או רק: npm run seed:bugs)",
       setupRequired: true,
     });
   }

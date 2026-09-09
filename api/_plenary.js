@@ -118,7 +118,7 @@ const toTeamNote = (n) => ({
 async function handler(req, res, session) {
   if (!plenaryReady()) {
     return res.status(503).json({
-      error: "לוחות המליאות טרם הוקמו. הריצו: npm run seed:plenary",
+      error: "לוחות המליאות טרם הוקמו. הריצו: npm run setup:boards  (או רק: npm run seed:plenary)",
       setupRequired: true,
     });
   }

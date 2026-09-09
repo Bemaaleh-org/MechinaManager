@@ -72,7 +72,7 @@ const invalidateStu = () => invalidate("stu-lessons");
 async function handler(req, res, session) {
   if (!stuLessonReady()) {
     return res.status(503).json({
-      error: "לוח שיעורי החניך טרם הוקם. הריצו: npm run seed:stulesson",
+      error: "לוח שיעורי החניך טרם הוקם. הריצו: npm run setup:boards  (או רק: npm run seed:stulesson)",
       setupRequired: true,
     });
   }

@@ -550,7 +550,7 @@ async function handler(req, res, session) {
         }
         if (!diningHeadsReady()) {
           return res.status(503).json({
-            error: 'עמודת "אכלו בחד״א" טרם הוקמה. הריצו: npm run seed:dining',
+            error: 'עמודת "אכלו בחד״א" טרם הוקמה. הריצו: npm run setup:boards  (או רק: npm run seed:dining)',
             setupRequired: true,
           });
         }

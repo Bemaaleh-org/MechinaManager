@@ -66,7 +66,7 @@ const invalidateLect = () => invalidate("lecturers");
 async function handler(req, res, session) {
   if (!lecturersReady()) {
     return res.status(503).json({
-      error: "מאגר המרצים טרם הוקם. הריצו: npm run seed:plenary",
+      error: "מאגר המרצים טרם הוקם. הריצו: npm run setup:boards  (או רק: npm run seed:plenary)",
       setupRequired: true,
     });
   }

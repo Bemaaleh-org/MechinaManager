@@ -67,7 +67,7 @@ const invalidateWeekMenu = () => invalidate("weekmenu");
 async function handler(req, res, session) {
   if (!weekMenuReady()) {
     return res.status(503).json({
-      error: "לוח התפריט השבועי טרם הוקם. הריצו: npm run seed:weekmenu",
+      error: "לוח התפריט השבועי טרם הוקם. הריצו: npm run setup:boards  (או רק: npm run seed:weekmenu)",
       setupRequired: true,
     });
   }
