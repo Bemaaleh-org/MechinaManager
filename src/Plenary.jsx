@@ -337,6 +337,12 @@ function PlenaryView({ id, canEdit, roster, statuses, say, onBack }) {
       <div className="seg">
         <button className={tab === "notes" ? "on" : ""} onClick={() => setTab("notes")}>פתקים</button>
         <button className={tab === "agenda" ? "on" : ""} onClick={() => setTab("agenda")}>סדר יום</button>
+        {/* ⚠ **הפרוטוקול מוצג רק למי שרשאי לערוך.** הוא אינו
+            בגוף התשובה של חניך כלל (השרת אינו שולח אותו), ולכן
+            לשונית ריקה כאן הייתה נראית כמו תקלה. */}
+        {canEdit && (
+          <button className={tab === "prot" ? "on" : ""} onClick={() => setTab("prot")}>פרוטוקול</button>
+        )}
         <button className={tab === "sum" ? "on" : ""} onClick={() => setTab("sum")}>סיכום</button>
         {canEdit && (
           <button className={tab === "set" ? "on" : ""} onClick={() => setTab("set")}>הגדרות</button>
@@ -445,6 +451,27 @@ function PlenaryView({ id, canEdit, roster, statuses, say, onBack }) {
         </>
       )}
 
+      {/* ---------- פרוטוקול ---------- */}
+      {/* ============================================================
+          ⚠⚠ **שלושה שדות ולא אחד**: סדר היום הוא מה שתכננו,
+            הפרוטוקול הוא מה שנאמר, והסיכום הוא מה שמספרים
+            למכינה. עמודה אחת לשלושתם הייתה מכריחה לבחור בין
+            לאבד את הפרוטוקול לבין לפרסם אותו כמות שהוא.
+
+          ⚠ **ולמי שאינו רשאי הלשונית כלל אינה קיימת** — לא
+            ריקה ולא נעולה. השרת אינו שולח את השדה (4מא).
+          ============================================================ */}
+      {tab === "prot" && canEdit && (
+        <>
+          <div className="tm-sub lct-note">
+            רישום פנימי של המליאה — מי אמר מה ומה הוחלט. אינו מוצג לחניכים;
+            מה שהם קוראים הוא הסיכום.
+          </div>
+          <EditBlock label="פרוטוקול המליאה" value={p.protocol || ""} busy={busy}
+            rows={16} onSave={(v) => patch({ protocol: v })} />
+        </>
+      )}
+
       {/* ---------- סיכום ---------- */}
       {tab === "sum" && (
         canEdit ? (
@@ -537,14 +564,16 @@ function OwnerPick({ roster, value, busy, onSave }) {
   );
 }
 
-function EditBlock({ label, value, busy, onSave }) {
+/* ⚠ `rows` הוא prop ולא קבוע: פרוטוקול ארוך מסדר יום, ותיבה
+   של עשר שורות מכריחה לגלול בתוך תיבה בתוך דף. */
+function EditBlock({ label, value, busy, onSave, rows = 10 }) {
   const [v, setV] = useState(value);
   useEffect(() => { setV(value); }, [value]);
   return (
     <div className="card lift">
       <div className="fld">
         <label>{label}</label>
-        <textarea rows={10} value={v} disabled={busy} onChange={(e) => setV(e.target.value)} />
+        <textarea rows={rows} value={v} disabled={busy} onChange={(e) => setV(e.target.value)} />
       </div>
       <button className="btn btn-primary" style={{ width: "100%" }}
         disabled={busy || v === value} onClick={() => onSave(v)}>שמירה</button>
@@ -555,6 +584,20 @@ function EditBlock({ label, value, busy, onSave }) {
 /* ============================================================
    מאגר מרצים
    ============================================================ */
+
+/* ⚠ **שם אחד, במקום אחד.** הכותרת חוזרת בארבעה מקומות במסך
+   הזה ועוד בניווט; שני נוסחים שנפרדים זה מזה הם בדיוק איך
+   שמסך מקבל שני שמות ומשתמש חושב שאלה שני מסכים (5ט). */
+export const LECT_TITLE = "מרצה שכדאי להביא";
+/* ⚠⚠ **שני מסכים באותו רכיב, ובכוונה.**
+   לוועדה זה **מאגר** — רשימה מלאה, סטטוסים, פרטי קשר והערות
+   פנימיות. לחניך זה **טופס הצעה** ורשימת ההצעות שלו בלבד: את
+   המאגר עצמו הוא אינו רואה (השרת אינו שולח אותו), כי הוא נושא
+   טלפונים של אנשים מחוץ למכינה ושיקולים פנימיים של הוועדה.
+
+   ⚠ **הכותרת אינה "מאגר מרצים" לחניך.** מסך ששמו "מאגר" ומציג
+     שתי שורות נראה כמו מאגר שבור. השם אומר מה עושים כאן.
+   ⚠ **ו-`canBrowse` מגיע מהשרת** ואינו נגזר מאורך הרשימה (4יד). */
 export function LecturersPage({ say }) {
   const [d, setD] = useState(null);
   const [err, setErr] = useState(null);
@@ -573,17 +616,17 @@ export function LecturersPage({ say }) {
 
   if (err) return (
     <>
-      <div className="screen-title">מאגר מרצים</div>
+      <div className="screen-title">{LECT_TITLE}</div>
       <div className={"alert " + (err.setupRequired ? "a-amber" : "a-clay")}>
         <PI.warn />
         <div style={{ flex: 1 }}>
-          <div className="ttl">{err.setupRequired ? "המאגר טרם הוקם" : "לא הצלחנו לטעון"}</div>
+          <div className="ttl">{err.setupRequired ? "הלוח טרם הוקם" : "לא הצלחנו לטעון"}</div>
           <div className="bd">{err.message}</div>
         </div>
       </div>
     </>
   );
-  if (!d) return <><div className="screen-title">מאגר מרצים</div>
+  if (!d) return <><div className="screen-title">{LECT_TITLE}</div>
     <div className="skel skel-card" /></>;
 
   if (form) return (
@@ -591,30 +634,49 @@ export function LecturersPage({ say }) {
       onDone={() => { setForm(null); reload(); }} onCancel={() => setForm(null)} />
   );
 
-  const list = d.lecturers.filter((x) =>
-    filter === "mine" ? x.mine : filter === "all" ? true : isOpenLect(x.status));
+  const browse = d.canBrowse !== false;
+  const list = browse
+    ? d.lecturers.filter((x) =>
+      filter === "mine" ? x.mine : filter === "all" ? true : isOpenLect(x.status))
+    : d.lecturers;
 
   return (
     <>
-      <div className="screen-title">מאגר מרצים</div>
+      <div className="screen-title">{browse ? "מאגר מרצים" : LECT_TITLE}</div>
       <div className="tm-sub">
-        מרצה ששווה להביא — כל אחד מוסיף, וועדת קבוצה ותוכן מטפלת.
-        {/* ⚠ נאמר במפורש: הרשימה עוברת בין מחזורים. */}
-        {" "}המאגר נשאר גם למחזור הבא.
+        {browse ? (
+          <>מרצה ששווה להביא — כל אחד מציע, וועדת קבוצה ותוכן מטפלת.
+            {/* ⚠ נאמר במפורש: הרשימה עוברת בין מחזורים. */}
+            {" "}המאגר נשאר גם למחזור הבא.</>
+        ) : (
+          <>שמעתם מרצה שכדאי שיגיע למכינה? הציעו אותו כאן.
+            {" "}ועדת קבוצה ותוכן עוברת על ההצעות ומחליטה את מי להביא.</>
+        )}
       </div>
 
-      <div className="seg">
-        <button className={filter === "open" ? "on" : ""} onClick={() => setFilter("open")}>
-          פתוחים{d.counts.open ? ` (${d.counts.open})` : ""}
-        </button>
-        <button className={filter === "mine" ? "on" : ""} onClick={() => setFilter("mine")}>שלי</button>
-        <button className={filter === "all" ? "on" : ""} onClick={() => setFilter("all")}>הכול</button>
-      </div>
+      {/* ⚠ **המחיר מוצהר במסך** ולא רק נאכף בשרת: חניך שיראה
+          רשימה קצרה יניח שהמאגר ריק, וזה עיקרון 6 בכיוון
+          ההפוך — מסך שנראה כמו נתון והוא סינון. */}
+      {!browse && (
+        <div className="tm-sub lct-note">
+          המאגר המלא נמצא אצל הוועדה, ומופיעות כאן ההצעות שלכם בלבד.
+        </div>
+      )}
+
+      {browse && (
+        <div className="seg">
+          <button className={filter === "open" ? "on" : ""} onClick={() => setFilter("open")}>
+            פתוחים{d.counts.open ? ` (${d.counts.open})` : ""}
+          </button>
+          <button className={filter === "mine" ? "on" : ""} onClick={() => setFilter("mine")}>שלי</button>
+          <button className={filter === "all" ? "on" : ""} onClick={() => setFilter("all")}>הכול</button>
+        </div>
+      )}
 
       {list.length === 0 ? (
         <div className="empty tone-3">
           <div className="e-ico"><PI.note /></div>
-          <div className="e1">{filter === "mine" ? "עוד לא הצעתם" : "המאגר ריק"}</div>
+          <div className="e1">{browse && filter !== "mine" ? "המאגר ריק" : "עוד לא הצעתם"}</div>
           <div className="e2">שמעתם מרצה טוב? זה המקום.</div>
         </div>
       ) : (
@@ -769,6 +831,12 @@ export const PLENARY_CSS = `
 .pl-box{margin-bottom:14px}
 .pl-anon{display:flex;align-items:center;gap:7px;margin-bottom:10px;
   font-size:12.5px;font-weight:800;color:var(--muted)}
+/* ⚠ lct-note ולא pl-note — האחרון הוא כרטיס הפתק במליאה,
+   ושימוש חוזר בשם היה נותן לשורת הסבר ריפוד ומסגרת של
+   כרטיס. אותה מלכודת של bg- במסך הבאגים.
+   ⚠⚠ ואין בקטיקים בהערה הזו: הבלוק כולו הוא מחרוזת תבנית,
+   ובקטיק בתוכו סוגר אותה. קרה כאן, וזו הפעם הרביעית במאגר. */
+.lct-note{color:var(--clay);margin-top:-4px}
 .pl-note{padding:11px 13px;margin-bottom:7px}
 .pl-note.in{border-color:var(--t1)}
 .pl-nt{font-size:13px;font-weight:700;color:var(--ink);line-height:1.55;white-space:pre-wrap}

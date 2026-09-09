@@ -40,13 +40,13 @@
    ============================================================ */
 
 import { withAuth } from "./_session.js";
+import { mayFlagged } from "./_flag-team.js";
 import { labelsOf } from "./_status-labels.js";
 import { allItems, gql } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
 import { setColumns, renameItem, createItem, deleteItem } from "./_items.js";
 import { TRYOUT_BOARD, TRYOUT_COLS as T, TRYOUT_STATUS, tryoutsReady } from "../shared/tryouts-ids.js";
 import { activeStudents, studentRows } from "./_student-rows.js";
-import { loadDefinitions } from "./_placements.js";
 import { MECHINA_BOARDS, MECHINA_COLS, armyPlacementReady } from "../shared/mechina-boards.js";
 
 const R = MECHINA_COLS.roster;
@@ -152,20 +152,20 @@ export async function loadTryouts({ force = false } = {}) {
 
 /**
  * האם המשתמש רשאי לראות את המיונים של **כולם**.
- * ⚠ צוות, או יו״ר של ועדה שסומנה בלוח כוועדת גיוסים.
+ *
+ * ⚠⚠ **חבר הוועדה ולא רק היו״ר.** עד היום זו הייתה הבדיקה
+ *   היחידה במאגר שפתחה ליו״ר בלבד, וזה לא היה החלטה — היא
+ *   נכתבה לפני `mayRecruit` ואיש לא חזר אליה. התוצאה: חבר
+ *   ועדת ההכנה לצה״ל לא ראה את המיונים של הוועדה שהוא חבר
+ *   בה, בעוד חבר ועדת הגיוסים כן ראה את הפניות — שתי תשובות
+ *   שונות לאותה שאלה. עכשיו `mayFlagged` היא המקום היחיד.
+ *
+ * ⚠ **הכתיבה לא נפתחה.** `army`/`tryouts` ממולאים על ידי
+ *   החניך על עצמו, וגם ראש המכינה חסום (5ד). קריאה בלבד.
  */
 async function maySeeAll(session) {
-  if (!session.isStudent) return { all: true, why: "צוות" };
-  try {
-    const defs = await loadDefinitions();
-    const mine = defs.filter((d) => d.army && String(d.chair || "") === String(session.itemId));
-    if (mine.length) return { all: true, why: "יו״ר " + mine.map((d) => d.name).join(", ") };
-  } catch (e) {
-    /* ⚠ כשל בטעינת ההגדרות אינו פותח גישה — ואינו מפיל את
-       המסך: החניך רואה את שלו, כמו כל חניך. */
-    console.error("[tryouts:maySeeAll]", e);
-  }
-  return { all: false, why: null };
+  const may = await mayFlagged(session, "army");
+  return { all: Boolean(may.ok), why: may.why };
 }
 
 async function handler(req, res, session) {

@@ -40,8 +40,7 @@ import { allItems } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
 import { setColumns, deleteItem } from "./_items.js";
 import { israelToday } from "./_attendance-data.js";
-import { loadDefinitions } from "./_placements.js";
-import { teamsForStudent } from "./_team-data.js";
+import { mayFlagged } from "./_flag-team.js";
 import {
   RECRUIT_BOARDS as B, RECRUIT_COLS as C,
   RECRUIT_STATUS, RECRUIT_STATUSES, recruitReady,
@@ -105,29 +104,7 @@ export async function loadRecruit({ force = false } = {}) {
      "צוות **או** מישהו בוועדת הגיוסים". אותו דפוס של `mayArea`
      (4כב) ו-`mayTeam` (4נ).
    ============================================================ */
-export async function mayRecruit(session) {
-  if (!session.isStudent) return { ok: true, why: "צוות" };
-  try {
-    const defs = await loadDefinitions();
-    const army = defs.filter((d) => d.army && !d.archived);
-    if (!army.length) return { ok: false, why: null };
-
-    /* יו״ר של ועדת גיוסים */
-    const chaired = army.filter((d) => String(d.chair || "") === String(session.itemId));
-    if (chaired.length) return { ok: true, why: "יו״ר " + chaired[0].name };
-
-    /* ⚠ **וגם חבר בוועדה.** פניות מטופלות על ידי הוועדה, ויו״ר
-       לבדו הוא צוואר בקבוק — וגם נקודת כשל ביום שהוא במיונים. */
-    const ids = new Set(army.map((d) => d.id));
-    const mine = await teamsForStudent(session.itemId);
-    const inTeam = mine.find((t) => ids.has(t.id));
-    if (inTeam) return { ok: true, why: "חבר " + inTeam.name };
-  } catch (e) {
-    /* ⚠ כשל בטעינת ההגדרות אינו פותח גישה. */
-    console.error("[recruit:may]", e && e.message);
-  }
-  return { ok: false, why: null };
-}
+export const mayRecruit = (session) => mayFlagged(session, "army");
 
 /* ============================================================
    ⚠ מיפוי מפורש. הלוח נושא פרטי קשר של אדם מחוץ למכינה,

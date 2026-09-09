@@ -41,7 +41,7 @@ import { DutyTodayCard, NextChoreCard } from "./DutyToday.jsx";
 import { AbsentTodayCard } from "./AbsentToday.jsx";
 import { BugsPage } from "./Bugs.jsx";
 import { StuLessonsPage, MyStuLessonCard } from "./StuLessons.jsx";
-import { PlenaryPage, LecturersPage } from "./Plenary.jsx";
+import { PlenaryPage, LecturersPage, LECT_TITLE } from "./Plenary.jsx";
 import OfflineBar from "./Offline.jsx";
 import SearchOverlay, { SearchButton } from "./Search.jsx";
 import TeamsPage from "./Teams.jsx";
@@ -126,7 +126,9 @@ const PERSONAL_TABS = new Set(["leadership", "chores", "year", "requests"]);
 
 const TAB_ICON = {
   recruit: <MI.note />,
-  /* שלושת המסכים של ועדת קבוצה ותוכן */
+  /* ⚠ אייקון משלו: המסך של ועדת ההכנה לצה״ל, ולא עוד "פתק". */
+  tryouts: <MI.flag />,
+  /* ארבעת המסכים של ועדת קבוצה ותוכן */
   "stu-lessons": <MI.book />, plenary: <MI.users />, lecturers: <MI.note />,
   quotes: <MI.book />,
   mishmar: <MI.book />,
@@ -3775,21 +3777,40 @@ export function MechinaApp({ auth, onSignedOut }) {
               active: tab === "placements", onClick: () => setTab("placements") },
             { key: "teams", label: "ועדות וסדרות", icon: <MI.tick />,
               active: tab === "teams", onClick: () => setTab("teams") },
-            /* ⚠ **פתוח לכל חניך, וזו כל התכלית.** הרשימה נועדה
-               כדי שכל אחד יראה מתי הוא ומי עוד לא — הוועדה
-               משבצת בה, וכולם קוראים אותה (4יט). */
-            { key: "stu-lessons", label: "שיעורי חניך", icon: <MI.book />,
-              active: tab === "stu-lessons", onClick: () => setTab("stu-lessons") },
-            /* ⚠ **הפתקים והמאגר פתוחים לכל חניך** — הוועדה
-               מנהלת, וכולם מכניסים ומציעים (4יט). */
+          ] },
+
+          /* ============================================================
+             קבוצה ותוכן — קבוצה משלה
+             ------------------------------------------------------------
+             ⚠ **שלושת המסכים ישבו ב"השיבוצים שלי", והם אינם
+               שיבוץ.** מליאה, שיעור חניך והצעת מרצה הם שלושה
+               דברים שהוועדה הזו מנהלת ושכל המכינה משתתפת בהם,
+               והם נבלעו בין "הענף שלי" ל"ועדות וסדרות". קבוצה
+               בשמה של הוועדה אומרת למי לפנות כשמשהו לא ברור.
+
+             ⚠ **מוצגת לכולם ולא רק לוועדה.** מליאה ושיעור חניך
+               הם של כל חניך — הוועדה מנהלת, וכולם משתתפים
+               (4יט). מה שנפתח רק לוועדה הוא חוות הדעת.
+             ============================================================ */
+          { label: "קבוצה ותוכן", items: [
+            /* ⚠ **הפתקים פתוחים לכל חניך** — הוועדה בונה את סדר
+               היום, וכולם מכניסים. בנק הפתקים עצמו אינו יוצא
+               אליהם בגוף התשובה (5כח). */
             { key: "plenary", label: "מליאות", icon: <MI.users />,
               active: tab === "plenary", onClick: () => setTab("plenary") },
-            { key: "lecturers", label: "מאגר מרצים", icon: <MI.note />,
+            /* ⚠ **הרשימה גלויה לכולם, וזו כל התכלית.** כל אחד
+               רואה מתי הוא ומי עוד לא; השיבוץ הוא של הוועדה. */
+            { key: "stu-lessons", label: "שיעורי חניך", icon: <MI.book />,
+              active: tab === "stu-lessons", onClick: () => setTab("stu-lessons") },
+            /* ⚠ **השם לפי מה שעושים כאן.** לחניך זה טופס הצעה
+               ולא מאגר — הוא אינו רואה את המאגר, והשרת אינו
+               שולח אותו (ראו LECT_TITLE ב-Plenary.jsx). */
+            { key: "lecturers", label: auth.isContentTeam ? "מאגר מרצים" : LECT_TITLE,
+              icon: <MI.note />,
               active: tab === "lecturers", onClick: () => setTab("lecturers") },
-            /* ⚠ **חוות דעת — לחברי ועדת קבוצה ותוכן בלבד**, ולא
-               לכל חניך: הן נושאות שמות וטלפונים של מרצים
-               חיצוניים. `isContentTeam` מגיע מ-`?action=me`
-               ונקרא טרי בכל בקשה, כמו התפקידים (4יט). */
+            /* ⚠ **חוות דעת — לוועדה בלבד**, כי הן נושאות שמות
+               וטלפונים של מרצים חיצוניים. `isContentTeam` מגיע
+               מ-`?action=me` ונקרא טרי בכל בקשה (4יט). */
             ...(auth.isContentTeam ? [{
               key: "l-evals", label: "חוות דעת על מרצים", icon: <MI.check />,
               active: tab === "l-evals", onClick: () => setTab("l-evals"),

@@ -2932,6 +2932,11 @@ html,body{margin:0;padding:0;background:#012E58}
 .tm-hero-p{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;
   color:var(--muted);font-weight:700}
 .tm-band{margin-bottom:12px}
+/* שורת הקישורים למסכים של ועדה שנושאת תיבה — ראו Teams.jsx.
+   קישורים ולא לשוניות, כי רצועת הלשוניות קבועה בכוונה. */
+.tm-scr{padding:11px 13px;margin-bottom:12px}
+.tm-scr-h{font-size:12px;font-weight:800;color:var(--muted);margin-bottom:7px}
+.tm-scr-r{display:flex;flex-wrap:wrap;gap:6px}
 
 /* ---------- אזהרה ---------- */
 /* ⚠ הגדרה חסרה נראית אחרת ממצב ריק (עיקרון 6), ולכן זו

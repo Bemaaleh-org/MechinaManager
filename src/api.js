@@ -615,9 +615,11 @@ export const api = {
   addPlenary: ({ title, date }) => post("/api/students?action=plenary", { title, date }),
   addPlenaryNote: ({ plenary, text, anon }) =>
     post("/api/students?action=plenary", { plenary, text, anon }),
-  editPlenary: ({ id, title, date, status, open, agenda, summary, owners, note }) =>
+  /* ⚠ **פירוק מפורש** — שדה שלא ייכתב כאן נשמט בשקט, וזו הדרך
+     שבה שדה חדש נראה עובד במסך ואינו מגיע לשרת (4לג). */
+  editPlenary: ({ id, title, date, status, open, agenda, protocol, summary, owners, note }) =>
     put("/api/students?action=plenary",
-      { id, title, date, status, open, agenda, summary, owners, note }),
+      { id, title, date, status, open, agenda, protocol, summary, owners, note }),
   editPlenaryNote: ({ noteId, text, inAgenda, order }) =>
     put("/api/students?action=plenary", { noteId, text, inAgenda, order }),
   deletePlenary: (id) => del("/api/students?action=plenary", { id }),

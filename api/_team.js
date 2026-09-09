@@ -160,6 +160,13 @@ async function handler(req, res, session) {
         desc: ctx.def.desc, hours: ctx.def.hours,
         lead: ctx.def.lead, chair: ctx.def.chair, chairName: ctx.def.chairName,
         archived: ctx.def.archived,
+        /* ⚠ **שתי התיבות, ולא שם הוועדה.** ועדה שמסומנת נושאת
+           מסכים משלה — פניות גיוס ומיונים, או ארבעת המסכים של
+           קבוצה ותוכן — והמסך צריך לדעת להציע קישור אליהם.
+           התאמת שם ("ועדת גיוסים") הייתה נשברת ביום שהמכינה
+           תשנה את השם, וזו כל הסיבה שאלה תיבות (5ד, 5כו). */
+        army: Boolean(ctx.def.army),
+        content: Boolean(ctx.def.content),
       },
       me: { id: String(session.itemId || ""), ...perm },
       members: ctx.members,

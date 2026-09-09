@@ -71,6 +71,8 @@ const eventsC = {
   ownerNames: await make(eventsB, "אחראי המליאה", "text"),
   open: await make(eventsB, "תיבת הפתקים פתוחה", "checkbox"),
   agenda: await make(eventsB, "סדר היום", "long_text"),
+  /* ⚠ שלוש עמודות ולא אחת — ראו ההערה ב-shared/plenary-ids.js. */
+  protocol: await make(eventsB, "פרוטוקול", "long_text"),
   summary: await make(eventsB, "סיכום", "long_text"),
   summaryBy: await make(eventsB, "סיכום מאת", "text"),
   file: await make(eventsB, "קבצים", "file"),

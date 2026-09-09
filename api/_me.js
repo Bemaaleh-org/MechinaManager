@@ -10,7 +10,7 @@
 import { requireAuth, setSession, traineeRoster, AuthError } from "./_session.js";
 import { ensureCycle } from "./_cycle.js";
 import { teamsForStudent } from "./_team-data.js";
-import { mayContent } from "./_content-team.js";
+import { mayFlagged } from "./_flag-team.js";
 
 export default async function handler(req, res) {
   try {
@@ -172,11 +172,23 @@ async function teamFlags(studentId) {
      `teams`.
    ============================================================ */
 async function contentFlag(session) {
-  try {
-    const may = await mayContent(session);
-    return { isContentTeam: Boolean(may.ok) };
-  } catch (e) {
-    console.error("[me:content]", e && e.message);
-    return { isContentTeam: false };
+  /* ⚠ **שתי הוועדות שנושאות תיבה, ולא אחת.** `content` פותחת
+     את ארבעת המסכים של קבוצה ותוכן, ו-`army` את נתוני המיונים
+     והגיבושים. שתיהן נגזרות מאותה `mayFlagged`, ולכן חבר ועדה
+     ויו״ר מקבלים את אותה תשובה — וזה בדיוק מה שלא היה נכון עד
+     היום במיונים.
+
+     ⚠ **וכל אחת נתפסת בנפרד.** תחום שנופל אינו מפיל את הכניסה
+     (4כו): מי שנכשל מקבל false, כלומר מסך פחות — ולא מסך
+     שבור. */
+  const out = { isContentTeam: false, isArmyTeam: false };
+  for (const [flag, key] of [["content", "isContentTeam"], ["army", "isArmyTeam"]]) {
+    try {
+      const may = await mayFlagged(session, flag);
+      out[key] = Boolean(may.ok);
+    } catch (e) {
+      console.error("[me:" + flag + "]", e && e.message);
+    }
   }
+  return out;
 }

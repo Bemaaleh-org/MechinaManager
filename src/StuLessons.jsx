@@ -126,6 +126,40 @@ function WhoTable({ d }) {
 
   return (
     <>
+      {/* ============================================================
+          ⚠ **הפיצול לשני הסוגים הוא כל התועלת.** מספר כולל אחד
+            יכול לתאר מכינה שבה עשרים חניכים העבירו שיעור ואיש
+            לא הביא את עולמו — ואז "20 מתוך 66" נשמע כמו
+            התקדמות ומסתיר בדיוק את מה שחסר.
+          ⚠ ו**שובץ** ו**התקיים** בנפרד, כמו בטבלה עצמה: שיבוץ
+            לעתיד אינו "עשה" (4ח).
+          ============================================================ */}
+      {d.byKind && (
+        <div className="rows stl-sum">
+          {STU_KINDS.map((k) => {
+            const c = d.byKind[k] || {};
+            return (
+              <div className="card stl-sc" key={k}>
+                <div className="stl-scn">{shortKind(k)}</div>
+                <div className="stl-scv">
+                  <b>{c.done ?? 0}</b> התקיימו
+                  {(c.planned ?? 0) > (c.done ?? 0) && (
+                    <span className="stl-scp"> · {c.planned - c.done} משובצים</span>
+                  )}
+                </div>
+                {/* ⚠ `left === null` פירושו שאין מכנה, ואז לא
+                    מוצג מספר (עיקרון 6). */}
+                {c.left !== null && c.left !== undefined && (
+                  <div className={"stl-scl" + (c.left > 0 ? " miss" : "")}>
+                    {c.left > 0 ? `${c.left} עוד לא שובצו` : "כולם שובצו"}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <label className="stl-only">
         <input type="checkbox" checked={only} onChange={(e) => setOnly(e.target.checked)} />
         <span>רק מי שחסר לו</span>
@@ -212,38 +246,44 @@ function SlotList({ d, say, onPick, onReload }) {
               {s.blocked && <span className="stl-why">{s.reason}</span>}
             </div>
 
-            {STU_KINDS.map((k) => {
-              const t = s.taken.find((x) => x.kind === k);
-              return (
-                <div className="stl-row" key={k}>
-                  <span className="stl-k">{shortKind(k)}</span>
-                  {t ? (
-                    <>
-                      <b className="stl-who">{t.student}</b>
-                      {d.canEdit && (
-                        <div className="stl-act">
-                          <button className={"btn btn-ghost btn-sm" + (t.happened === true ? " on" : "")}
-                            disabled={busy === t.id}
-                            onClick={() => mark(t.id, t.happened === true ? null : true)}>
-                            {t.happened === true ? "התקיים ✓" : "סמן התקיים"}
-                          </button>
-                          <button className="esc-del" title="ביטול השיבוץ"
-                            disabled={busy === t.id} onClick={() => remove(t.id)}>✕</button>
-                        </div>
-                      )}
-                      {!d.canEdit && t.happened === true && <span className="stl-done">התקיים</span>}
-                    </>
-                  ) : d.canEdit && !s.blocked ? (
+            {/* ⚠⚠ **שורה אחת למועד.** קודם נוצרה כאן שורה לכל
+                סוג, כלומר כל תאריך הציע שני שיעורים — וזו הייתה
+                הכפלת השיעורים. ביום כזה מתקיים שיעור אחד,
+                והסוג נבחר בטופס. */}
+            {(() => {
+              const t = s.taken;
+              if (t) {
+                return (
+                  <div className="stl-row">
+                    <span className="stl-k">{shortKind(t.kind)}</span>
+                    <b className="stl-who">{t.student}</b>
+                    {d.canEdit ? (
+                      <div className="stl-act">
+                        <button className={"btn btn-ghost btn-sm" + (t.happened === true ? " on" : "")}
+                          disabled={busy === t.id}
+                          onClick={() => mark(t.id, t.happened === true ? null : true)}>
+                          {t.happened === true ? "התקיים ✓" : "סמן התקיים"}
+                        </button>
+                        <button className="esc-del" title="ביטול השיבוץ"
+                          disabled={busy === t.id} onClick={() => remove(t.id)}>✕</button>
+                      </div>
+                    ) : t.happened === true && <span className="stl-done">התקיים</span>}
+                  </div>
+                );
+              }
+              if (d.canEdit && !s.blocked) {
+                return (
+                  <div className="stl-row">
+                    <span className="stl-free">מועד פנוי</span>
                     <button className="btn btn-ghost btn-sm"
-                      onClick={() => onPick({ date: s.date, kind: k, dowName: s.dowName })}>
-                      שיבוץ
+                      onClick={() => onPick({ date: s.date, dowName: s.dowName })}>
+                      שיבוץ שיעור
                     </button>
-                  ) : (
-                    <span className="stl-free">פנוי</span>
-                  )}
-                </div>
-              );
-            })}
+                  </div>
+                );
+              }
+              return <div className="stl-row"><span className="stl-free">פנוי</span></div>;
+            })()}
           </div>
         ))}
       </div>
@@ -253,6 +293,9 @@ function SlotList({ d, say, onPick, onReload }) {
 
 /* ---------- שיבוץ ---------- */
 function AssignForm({ slot, students, say, onDone, onCancel }) {
+  /* ⚠ **הסוג נבחר כאן ולא במועד.** המועד הוא משבצת אחת, והשאלה
+     הראשונה היא מה יתקיים בה. */
+  const [kind, setKind] = useState(STU_KIND.lesson);
   const [id, setId] = useState("");
   const [topic, setTopic] = useState("");
   const [q, setQ] = useState("");
@@ -266,7 +309,7 @@ function AssignForm({ slot, students, say, onDone, onCancel }) {
   const save = () => {
     if (busy || !id) return;
     setBusy(true);
-    api.addStuLesson({ date: slot.date, kind: slot.kind, studentId: id, topic })
+    api.addStuLesson({ date: slot.date, kind, studentId: id, topic })
       .then(() => { say("שובץ"); onDone(); })
       .catch((e) => say(e.message))
       .finally(() => setBusy(false));
@@ -277,10 +320,22 @@ function AssignForm({ slot, students, say, onDone, onCancel }) {
       <button className="btn btn-ghost btn-sm" style={{ marginBottom: 14 }} onClick={onCancel}>
         <SI.chev style={{ transform: "rotate(180deg)" }} />חזרה
       </button>
-      <div className="screen-title">{shortKind(slot.kind)}</div>
+      <div className="screen-title">שיבוץ שיעור</div>
       <div className="tm-sub">{slot.dowName} · {dmy(slot.date)}</div>
 
       <div className="card lift">
+        {/* ⚠ **הסוג ראשון.** במועד הזה מתקיים שיעור אחד, ומה
+            שנבחר כאן קובע איזה — ולכן הוא לפני החניך ולפני
+            הנושא, ולא שדה שאפשר לפספס בסוף הטופס. */}
+        <div className="fld">
+          <label>מה יתקיים במועד הזה</label>
+          <div className="seg stl-kseg">
+            {STU_KINDS.map((k) => (
+              <button key={k} className={kind === k ? "on" : ""} disabled={busy}
+                onClick={() => { setKind(k); setId(""); }}>{shortKind(k)}</button>
+            ))}
+          </div>
+        </div>
         <div className="fld">
           <label>נושא (לא חובה)</label>
           <input value={topic} onChange={(e) => setTopic(e.target.value)} disabled={busy} />
@@ -291,7 +346,7 @@ function AssignForm({ slot, students, say, onDone, onCancel }) {
             onChange={(e) => setQ(e.target.value)} />
           <div className="rows scroll-y stl-pick">
             {list.map((s) => {
-              const done = s.kinds[slot.kind] && s.kinds[slot.kind].planned;
+              const done = s.kinds[kind] && s.kinds[kind].planned;
               return (
                 <button className="st-row" key={s.id} disabled={busy || done}
                   onClick={() => setId(s.id)}>
@@ -300,7 +355,7 @@ function AssignForm({ slot, students, say, onDone, onCancel }) {
                   </div>
                   <div className="st-main">
                     <div className="st-n">{s.name}</div>
-                    {done && <div className="st-sub">כבר שובץ ל{shortKind(slot.kind)}</div>}
+                    {done && <div className="st-sub">כבר שובץ ל{shortKind(kind)}</div>}
                   </div>
                 </button>
               );
@@ -372,6 +427,15 @@ export const STULESSON_CSS = `
 .stl-v.plan{color:var(--t2);font-variant-numeric:tabular-nums}
 .stl-v.none{color:var(--faint)}
 
+.stl-sum{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.stl-sc{padding:10px 12px}
+.stl-scn{font-size:12px;color:var(--muted);margin-bottom:2px}
+.stl-scv{font-size:15px}
+.stl-scv b{font-size:19px}
+.stl-scp{color:var(--muted);font-size:13px}
+.stl-scl{font-size:12px;color:var(--muted);margin-top:2px}
+.stl-scl.miss{color:var(--clay)}
+.stl-kseg{width:100%}
 .stl-slot{margin-bottom:8px}
 .stl-slot.off{opacity:.62}
 .stl-sh{display:flex;align-items:baseline;gap:8px;margin-bottom:7px}

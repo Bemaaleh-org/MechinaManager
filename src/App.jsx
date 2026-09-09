@@ -262,6 +262,12 @@ function Staff({ auth, onSignedOut }) {
     const direct = new Set([
       "profile", "board", "agenda", "gantt", "chores", "menu", "rules",
       "faults", "safety", "budget", "teams", "placements", "hosting", "loans",
+      /* ⚠ **חמשת אלה חסרו, והמסכים קיימים.** `plenary`,
+         `stu-lessons`, `lecturers`, `recruit` ו-`tryouts` כולם
+         מרונדרים במעטפת הזו — ומי שהגיע אליהם מהחיפוש או
+         מכרטיס הוועדה נשאר במקומו בשקט, כי הם לא היו ברשימה.
+         זו בדיוק "הנפילה השקטה" שההערה מעל מזהירה ממנה. */
+      "plenary", "stu-lessons", "lecturers", "recruit", "tryouts",
     ]);
     if (direct.has(tab)) { setSection(tab); return; }
     if (tab === "home") { setSection("dash"); return; }
@@ -633,7 +639,15 @@ function Staff({ auth, onSignedOut }) {
               נשען על המסך שממנו נגזרים הנתונים שלו. */}
           {section === "access" && <AccessPage />}
           {section === "content" && auth.isHead && <ContentPage say={say} />}
-          {section === "teams" && isMgr && <TeamsPage say={say} go={() => setSection("roles")} />}
+          {/* ⚠⚠ **`go` העביר כל יעד ל-"roles" והתעלם מהארגומנט.**
+              זה עבד כל עוד הקורא היחיד היה כפתור ההצפה, ומרגע
+              שכרטיס הוועדה מציע שישה מסכים — כולם היו נוחתים
+              על אותו מסך. "duty" נשאר ממופה ל-roles (זה מרכז
+              התפקיד של הצוות), והשאר עוברים למפה האמיתית. */}
+          {section === "teams" && isMgr && (
+            <TeamsPage say={say}
+              go={(t) => (t === "duty" ? setSection("roles") : goSearch(t))} />
+          )}
           {section === "safety" && isMgr && <SafetyPage say={say} />}
           {section === "faults" && isMgr && <FaultsPage say={say} />}
           {section === "bugs" && <BugsPage say={say} />}

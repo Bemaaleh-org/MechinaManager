@@ -76,13 +76,41 @@ async function handler(req, res, session) {
   try {
     if (req.method === "GET") {
       const rows = await loadLect();
+      /* ============================================================
+         ⚠⚠ **המאגר עצמו אינו יוצא לחניך.**
+         ------------------------------------------------------------
+         הבנק פתוח לכל אחד **להוסיף** אליו, ולא **לקרוא** אותו.
+         שתי סיבות, ושתיהן מספיקות:
+
+         · השורות נושאות **טלפון ואימייל של אנשים מחוץ למכינה**,
+           שנמסרו כדי שהוועדה תיצור קשר. זה עיקרון 4 — מיפוי
+           מפורש בשרת, ולא סינון בתצוגה.
+         · ומה שהוועדה כותבת עליהם ("יקר מדי", "לא חזר אלינו")
+           הוא שיקול פנימי. מי שהציע מרצה וקורא את זה מפסיק
+           להציע.
+
+         ⚠ **ומה שכן יוצא לו: ההצעות שלו.** בלי זה הוא אינו יודע
+           אם ההצעה נקלטה, ואינו יכול לתקן טעות — והוא היה מציע
+           שוב (5יח).
+         ============================================================ */
+      const canBrowse = may.ok;
+      const visible = canBrowse ? rows : rows.filter((r) => r.byId && r.byId === me);
       return res.status(200).json({
+        /* ⚠ **נשלח במפורש** כדי שהמסך ידע אילו שתי כותרות
+           להציג — "מאגר המרצים" מול "המרצים שהצעתי" — ולא
+           ינחש לפי אורך הרשימה. רשימה ריקה של חניך שטרם הציע
+           נראית בדיוק כמו מאגר ריק (עיקרון 6). */
+        canBrowse,
         /* ⚠ מיפוי מפורש — עמודה חדשה בלוח לא תדלוף מעצמה
            (עיקרון 4). פרטי הקשר **כן** יוצאים: זו הצעה של
            חניך על מרצה, ולא נתון פרטי של אדם מהמכינה. */
-        lecturers: rows.map((r) => ({
+        lecturers: visible.map((r) => ({
           id: r.id, name: r.name, topic: r.topic, about: r.about,
-          phone: r.phone, email: r.email, link: r.link,
+          /* ⚠ **פרטי קשר לוועדה, או למי שהוא עצמו מסר אותם.**
+             חניך שהציע מרצה וכתב את הטלפון צריך לראות מה הוא
+             כתב כדי לתקן; חניך אחר אינו צריך אותו כלל. */
+          ...(canBrowse || (r.byId && r.byId === me)
+            ? { phone: r.phone, email: r.email, link: r.link } : {}),
           status: r.status, by: r.byName || null, date: r.date,
           /* ⚠ ההערות הפנימיות של הוועדה — לוועדה בלבד. */
           ...(may.ok ? { notes: r.notes } : {}),
@@ -92,10 +120,13 @@ async function handler(req, res, session) {
           canDelete: r.byId === me && r.status === LECT_STATUS.idea,
         })),
         statuses: LECT_STATUSES,
+        /* ⚠ **הספירה היא של מה שגלוי ולא של הלוח.** מספר כולל
+           שנשלח לחניך מספר לו כמה הצעות יש במאגר שהוא אינו
+           רואה — דליפה קטנה ומיותרת של אותו נתון בדיוק. */
         counts: {
-          total: rows.length,
-          open: rows.filter((r) => isOpenLect(r.status)).length,
-          came: rows.filter((r) => r.status === LECT_STATUS.came).length,
+          total: visible.length,
+          open: visible.filter((r) => isOpenLect(r.status)).length,
+          came: visible.filter((r) => r.status === LECT_STATUS.came).length,
         },
         canManage: may.ok,
         manageHint: may.ok ? null : contentHint(may),

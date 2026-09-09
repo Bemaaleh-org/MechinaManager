@@ -59,6 +59,7 @@ async function loadEvents({ force = false } = {}) {
         ownerNames: list(val(i, E.ownerNames)),
         open: val(i, E.open) === "v",
         agenda: val(i, E.agenda),
+        protocol: val(i, E.protocol),
         summary: val(i, E.summary),
         summaryBy: val(i, E.summaryBy),
         note: val(i, E.note),
@@ -101,6 +102,10 @@ const toPublicEvent = (e, notes) => ({
   id: e.id, title: e.title, date: e.date, status: e.status,
   ownerNames: e.ownerNames,
   agenda: e.agenda,
+  /* ⚠⚠ **הפרוטוקול אינו כאן, ובכוונה.** הוא רישום של מי אמר
+     מה בחדר — כולל דעות שנאמרו בפה מלא דווקא מפני שהן נשארות
+     בין המשתתפים. מה שהמכינה קוראת הוא ה**סיכום**, שנכתב כדי
+     להיקרא. שדה שאינו נשלח אינו יכול לדלוף מטעות בתצוגה (4מא). */
   summary: e.summary, summaryBy: e.summaryBy,
   /* ⚠ **כמה פתקים נכנסו לסדר היום** ולא כמה הוגשו: המספר
      השני הוא נתון על הבנק, והבנק אינו של החניכים. */
@@ -138,7 +143,7 @@ async function handler(req, res, session) {
         return res.status(200).json({
           plenary: toPublicEvent(e, notes),
           /* ⚠⚠ בנק הפתקים לוועדה בלבד. ראו ההערה בראש. */
-          ...(may.ok ? { notes: mine.map(toTeamNote), owners: e.owners } : {}),
+          ...(may.ok ? { notes: mine.map(toTeamNote), owners: e.owners, protocol: e.protocol } : {}),
           canEdit: may.ok,
           statuses: PLENARY_STATUSES,
         });
@@ -306,6 +311,10 @@ async function handler(req, res, session) {
     }
     if (body.open !== undefined) cols[E.open] = { checked: body.open ? "true" : "false" };
     if (body.agenda !== undefined) cols[E.agenda] = clip(body.agenda, MAX.summary);
+    /* ⚠ **נכתב על ידי מי שרשאי לערוך את המליאה** — הוועדה
+       ואחראי המליאה. אותו שער בדיוק של סדר היום; פרוטוקול
+       שרק היו״ר יכול לכתוב נשאר ריק ברוב המליאות. */
+    if (body.protocol !== undefined) cols[E.protocol] = clip(body.protocol, MAX.summary);
     if (body.note !== undefined) cols[E.note] = clip(body.note, MAX.note);
     if (body.summary !== undefined) {
       cols[E.summary] = clip(body.summary, MAX.summary);

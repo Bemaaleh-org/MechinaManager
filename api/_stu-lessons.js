@@ -36,7 +36,7 @@ import {
   STU_BOARDS as B, STU_COLS as C, stuLessonReady, HAPPENED, HAPPENED_LABELS,
 } from "../shared/stulesson-ids.js";
 import {
-  STU_KIND, STU_KINDS, stuSlots, doneMap, dowOf, DOW_HE, STU_DOWS,
+  STU_KIND, STU_KINDS, stuSlots, doneMap, kindCounts, dowOf, DOW_HE, STU_DOWS,
 } from "../shared/stulesson.js";
 
 const val = (i, c) => (c && (i.column_values.find((x) => x.id === c) || {}).text) || "";
@@ -98,8 +98,9 @@ async function handler(req, res, session) {
       const to = dates[dates.length - 1] || today;
       const slots = stuSlots(gantt, from, to);
 
-      const byDateKind = new Map();
-      for (const r of rows) byDateKind.set(`${r.date}|${r.kind}`, r);
+      /* ⚠ **מפה לפי תאריך בלבד** — מועד נושא שיעור אחד. */
+      const byDate = new Map();
+      for (const r of rows) if (!byDate.has(r.date)) byDate.set(r.date, r);
 
       const done = doneMap(rows);
       const mine = String(session.itemId || "");
@@ -110,15 +111,18 @@ async function handler(req, res, session) {
         dows: STU_DOWS.map((w) => DOW_HE[w]),
         /* ⚠ **מועד חסום מוחזר ומסומן ואינו נמחק.** רשימה של
            שמונה מועדים בשנה בלי הסבר נראית כמו מסך שבור (4כ). */
-        slots: slots.map((s) => ({
-          ...s,
-          taken: STU_KINDS
-            .filter((k) => byDateKind.has(`${s.date}|${k}`))
-            .map((k) => {
-              const r = byDateKind.get(`${s.date}|${k}`);
-              return { kind: k, id: r.id, student: r.studentName, happened: r.happened };
-            }),
-        })),
+        slots: slots.map((s) => {
+          const r = byDate.get(s.date);
+          return {
+            ...s,
+            /* ⚠ **`taken` הוא אובייקט או `null`, ולא מערך.**
+               מערך הוא מה שהזמין את המסך לצייר שורה לכל סוג,
+               וזו הייתה הכפילות. */
+            taken: r
+              ? { id: r.id, kind: r.kind, student: r.studentName, happened: r.happened }
+              : null,
+          };
+        }),
         rows: rows.map((r) => ({
           id: r.id, studentId: r.studentId, student: r.studentName,
           kind: r.kind, date: r.date, topic: r.topic,
@@ -140,16 +144,22 @@ async function handler(req, res, session) {
               [k, e[k] || { planned: false, done: false, date: null }])),
           };
         }),
+        /* ⚠ **"מי עשה כמה", מפוצל לשני הסוגים.** המספר הכולל
+           לבדו אינו אומר אם 20 חניכים עשו שיעור ואיש לא הביא
+           את עולמו — וזו בדיוק השאלה שהרשימה קיימת בשבילה. */
+        byKind: kindCounts(rows, roster),
         counts: {
           students: roster.length,
-          /* ⚠ המכנה הוא 66 ולא 33: כל חניך אמור לעשות את שניהם. */
+          /* ⚠ **המכנה הוא 66 ולא 33**: כל חניך אמור לעשות את
+             שניהם. ⚠ ואין לבלבל אותו עם `openSlots`, שסופר
+             **מועדים** — ומועד נושא שיעור אחד. שני מספרים
+             שנראים דומים ואינם (4מג). */
           total: roster.length * STU_KINDS.length,
           planned: rows.length,
           done: rows.filter((r) => r.happened === true).length,
           /* ⚠ **כמה מועדים פנויים** — המספר שאומר אם בכלל אפשר
              להשלים את מה שחסר, וזו השאלה של הוועדה (4יח). */
-          openSlots: slots.filter((s) => !s.blocked && s.date >= today)
-            .reduce((a, s) => a + STU_KINDS.filter((k) => !byDateKind.has(`${s.date}|${k}`)).length, 0),
+          openSlots: slots.filter((s) => !s.blocked && s.date >= today && !byDate.has(s.date)).length,
         },
         canEdit: may.ok,
         editHint: may.ok ? null : contentHint(may),
@@ -190,10 +200,16 @@ async function handler(req, res, session) {
       if (!st) return res.status(400).json({ error: "החניך אינו פעיל או אינו קיים" });
 
       const rows = await loadStu({ force: true });
-      /* ⚠ **תא אחד, שיבוץ אחד.** שני חניכים לאותו תאריך ואותו
-         סוג הם שני שיעורים באותה משבצת — כמעט תמיד טעות. */
-      if (rows.some((r) => r.date === date && r.kind === kind)) {
-        return res.status(409).json({ error: "המשבצת הזו כבר תפוסה" });
+      /* ⚠⚠ **מועד אחד, שיעור אחד — בלי קשר לסוג.** קודם החסימה
+         הייתה על הצמד תאריך+סוג, כלומר אותו יום יכול היה לשאת
+         גם "שיעור חניך" וגם "מביא עולמו" — וזה הכפיל את מספר
+         השיעורים בפועל. ביום כזה מתקיים שיעור אחד, והבחירה
+         היא מה הוא יהיה. */
+      const busy = rows.find((r) => r.date === date);
+      if (busy) {
+        return res.status(409).json({
+          error: `בתאריך הזה כבר משובץ ${busy.studentName || "שיעור"} — ${busy.kind}`,
+        });
       }
       /* ⚠ **ואותו חניך פעם אחת לכל סוג.** הרשימה כולה קיימת
          כדי לוודא שכל אחד עשה את שניהם; שיבוץ כפול מסתיר
@@ -226,8 +242,14 @@ async function handler(req, res, session) {
 
     const cols = {};
     if (date && date !== hit.date) {
-      if (rows.some((r) => r.id !== id && r.date === date && r.kind === (kind || hit.kind))) {
-        return res.status(409).json({ error: "המשבצת הזו כבר תפוסה" });
+      /* ⚠ אותו כלל כמו ביצירה: התאריך הוא המשבצת, ולא הצמד
+         תאריך+סוג. שתי בדיקות שונות היו מאפשרות להגיע בעריכה
+         בדיוק למצב שהיצירה חוסמת. */
+      const busy = rows.find((r) => r.id !== id && r.date === date);
+      if (busy) {
+        return res.status(409).json({
+          error: `בתאריך הזה כבר משובץ ${busy.studentName || "שיעור"} — ${busy.kind}`,
+        });
       }
       cols[C.date] = { date };
     }
@@ -240,7 +262,12 @@ async function handler(req, res, session) {
        היא status ולא checkbox. */
     if (body.happened !== undefined) {
       const v = body.happened;
-      if (v === null || v === "") cols[C.happened] = { label: "" };
+      /* ⚠⚠ **`null` ולא `{label:""}`** — ניקוי תא סטטוס
+           במחרוזת ריקה כותב `{"index":5}` במפורש, כלומר
+           **קובע** את התווית שיושבת במשבצת הריקה של monday
+           במקום לנקות (5ז). כאן זה היה הופך "טרם" ל"לא
+           התקיים" בשקט — טענה על שיעור שלא בוטל. */
+      if (v === null || v === "") cols[C.happened] = null;
       else if (v === true || v === HAPPENED.yes) cols[C.happened] = { label: HAPPENED.yes };
       else if (v === false || v === HAPPENED.no) cols[C.happened] = { label: HAPPENED.no };
       else return res.status(400).json({ error: `ערך לא מוכר. האפשרויות: ${HAPPENED_LABELS.join(" · ")}` });

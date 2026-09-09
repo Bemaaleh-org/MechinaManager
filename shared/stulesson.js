@@ -105,8 +105,13 @@ export function stuSlots(gantt, from, to) {
       date: iso,
       dow: w,
       dowName: DOW_HE[w],
-      /* ⚠ שני הסוגים בכל מועד. המכינה לא ביקשה להפריד בין
-         ימים לסוגים, וחלוקה שנמציא כאן תישבר בשבוע הראשון. */
+      /* ⚠⚠ **המועד אחד, והסוג נבחר בתוכו.** קודם כל תאריך
+         הציע את **שני** הסוגים, כלומר הרשימה הכפילה את מספר
+         השיעורים: 33 מועדים נראו כמו 66 משבצות, ויום אחד יכול
+         היה לשאת גם שיעור חניך וגם "מביא עולמו". במכינה מתקיים
+         שיעור **אחד** ביום כזה, והבחירה היא מה הוא יהיה.
+         ⚠ ולכן `kinds` היא **רשימת האפשרויות לבחירה** ואינה
+         רשימת משבצות — מי שיציג אותה כשורות יחזיר את הכפילות. */
       kinds: STU_KINDS,
       blocked: b.blocked,
       reason: b.reason,
@@ -137,4 +142,33 @@ export function doneMap(rows) {
     };
   }
   return m;
+}
+
+/* ============================================================
+   כמה מכל סוג — "מי עשה כמה", מפוצל לשניים
+   ------------------------------------------------------------
+   ⚠ **שובץ ו-התקיים נספרים בנפרד**, כמו ב-`doneMap`. רשימה
+     שסופרת שיבוצים עתידיים כ"נעשה" אומרת שהמכינה סיימה
+     כשהיא בקושי התחילה.
+
+   ⚠ **והמכנה הוא מספר החניכים ולא מספר השורות.** השאלה היא
+     "כמה חניכים עוד לא", ולא "כמה שורות יש בלוח".
+   ============================================================ */
+export function kindCounts(rows, students) {
+  const n = Array.isArray(students) ? students.length : Number(students) || 0;
+  const out = {};
+  for (const k of STU_KINDS) {
+    const of = (rows || []).filter((r) => r.kind === k);
+    const planned = new Set(of.map((r) => r.studentId).filter(Boolean));
+    const done = new Set(of.filter((r) => r.happened === true).map((r) => r.studentId).filter(Boolean));
+    out[k] = {
+      planned: planned.size,
+      done: done.size,
+      /* ⚠ `null` ולא 0 כשאין חניכים — 0 מתוך 0 נראה כמו נתון
+         (עיקרון 6, 4נ). */
+      left: n ? n - planned.size : null,
+      of: n || null,
+    };
+  }
+  return out;
 }

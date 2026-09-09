@@ -576,7 +576,10 @@ async function handler(req, res, session) {
         [C.days.date]: { date },
         ...(body.type ? { [C.days.type]: { label: String(body.type) } } : {}),
         /* ריק מנקה את הסוג הנוסף ומשאיר את הראשי */
-        [C.days.type2]: body.type2 ? { label: String(body.type2) } : { label: "" },
+        /* ⚠ **`null` ולא `{label:""}`** — ראו 5ז: מחרוזת ריקה
+           כותבת index 5 ומדביקה ליום את התווית שיושבת שם,
+           כלומר סוג יום שני שאיש לא בחר, ועלות שנוספת. */
+        [C.days.type2]: body.type2 ? { label: String(body.type2) } : null,
         [C.days.cost]: cost === null ? "" : String(cost),
         [C.days.flat]: flat === null ? "" : String(flat),
         [C.days.note]: String(body.note || "").slice(0, 200),
