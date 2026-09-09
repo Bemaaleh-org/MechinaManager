@@ -19,6 +19,7 @@ import {
 } from "./_chores-data.js";
 import {
   mayChores, mayAssign, tallySector, suggestFor, KIND, SAME_SECTOR_WARN,
+  countedRows,
   onDay, WHEN,
 } from "../shared/chores.js";
 import { israelToday } from "./_attendance-data.js";
@@ -26,6 +27,37 @@ import { israelToday } from "./_attendance-data.js";
 /** יום בשבוע בעברית מתאריך ISO */
 const DOW = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
 const dowOf = (iso) => DOW[new Date(iso + "T00:00:00Z").getUTCDay()];
+
+/**
+ * התורנות הבאה של חניך אחד — היומית והערבית.
+ * ⚠ **מהיום והלאה**, כולל היום עצמו: תורן מטבח שנכנס בבוקר
+ *   צריך לראות "היום", ולא את השבוע הבא.
+ * ⚠ ומחזיר `null` כשאין — ולא תאריך ריק שנראה כמו תקלה.
+ */
+function myNext(rows, sectors, me, today, weeks) {
+  if (!me) return { nextDaily: null, nextEvening: null };
+  const byId = new Map(sectors.list.map((s) => [s.id, s]));
+  const mine = rows.filter((r) => r.student === me);
+
+  const daily = mine
+    .filter((r) => r.date && r.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date))[0] || null;
+
+  const wById = new Map(weeks.map((w) => [w.id, w]));
+  const evening = mine
+    .filter((r) => r.week && wById.has(r.week) && wById.get(r.week).end >= today)
+    .sort((a, b) => wById.get(a.week).start.localeCompare(wById.get(b.week).start))[0] || null;
+
+  return {
+    nextDaily: daily ? { date: daily.date, sector: (byId.get(daily.sector) || {}).name || null } : null,
+    nextEvening: evening ? {
+      sector: (byId.get(evening.sector) || {}).name || null,
+      start: wById.get(evening.week).start,
+      end: wById.get(evening.week).end,
+      num: wById.get(evening.week).num,
+    } : null,
+  };
+}
 
 async function handler(req, res, session) {
   if (req.method !== "GET") return res.status(405).json({ error: "רק GET נתמך כאן" });
@@ -81,7 +113,9 @@ async function handler(req, res, session) {
     for (const s of sectors.list) {
       tallies[s.id] = tallySector(
         students,
-        roster.list.filter((r) => r.sector === s.id),
+        /* ⚠ יום ג׳ ויום ו׳ הם תורנות אחת — ראו `countedRows`
+           ב-shared/chores.js. הספירה בלבד; השורות נשארות. */
+        countedRows(roster.list.filter((r) => r.sector === s.id)),
         adjusts.filter((a) => a.sector === s.id));
     }
 
@@ -163,6 +197,14 @@ async function handler(req, res, session) {
            שימוש חוזר באחד מהשניים היה פותח נהלים לאחראי
            המטבח או סוגר לו את התפריט (5יז). */
         menuText: mayEdit(session, "kitchen"),
+        /* ============================================================
+           ⚠ **התורנות הבאה שלי — נגזרת מכל הלוח ולא משבועיים.**
+             `periods` מחזיק שבועיים קדימה בלבד, כי זה מה שאב
+             הבית משבץ. השאלה של החניך היא אחרת לגמרי — "מתי
+             אני במטבח" — והתשובה עשויה להיות בעוד שלושה שבועות.
+           ⚠ ומיפוי מפורש: תאריך ושם הגזרה, בלי שמות של אחרים.
+           ============================================================ */
+        ...myNext(roster.list, sectors, String(session.itemId || ""), today, weeks),
       },
       today,
       sectors: sectors.list.map((s) => ({

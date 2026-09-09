@@ -12,3 +12,14 @@ export function testDate() {
   const raw = new URLSearchParams(window.location.search).get("date");
   return /^\d{4}-\d{2}-\d{2}$/.test(raw || "") ? raw : null;
 }
+
+/**
+ * תאריך היום כפי שהמסך צריך לראות אותו: `?date=` אם ניתן,
+ * ואחרת **היום בשעון ישראל**.
+ *
+ * ⚠ `new Date().toISOString()` הוא UTC, ולכן בערב הוא כבר מחר.
+ *   הדפוס הזה חזר בכמה מסכים בכל פעם מחדש; זהו המקום האחד
+ *   שקורא את היום, כמו שהקובץ הזה כבר עושה ל-`?date=`.
+ */
+export const israelDateStr = () =>
+  testDate() || new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Jerusalem" });

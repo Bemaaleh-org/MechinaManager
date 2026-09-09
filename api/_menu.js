@@ -29,6 +29,7 @@ import {
   parseItems, scaleItems, mergeItems, matchStock, DEFAULT_BASE,
 } from "../shared/dishes.js";
 import { EXTRA } from "../shared/extras-ids.js";
+import { mayEdit, editHint } from "../shared/edit-rights.js";
 
 const D = EXTRA.dishes, M = EXTRA.menus;
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
@@ -90,9 +91,14 @@ async function handler(req, res, session) {
 
      ⚠ ההפרדה כאן ולא ב-withAuth: withAuth שומר על "מחובר",
        והבחנת הכתיבה תלויה בשיטה. */
-  const canWrite = session.isManager || session.isKitchen;
+  /* ⚠⚠ **`mayEdit` ולא `isManager || isKitchen`.** `isManager`
+     הוא כל כניסת צוות, ולכן מדריך, רואה חשבון ומנכ״ל יכלו
+     לערוך ולמחוק מנות. זו בדיוק התקלה שנסגרה בשלוש נקודות
+     הקצה האחרות של המטבח (5יז), וכאן היא נשארה מאחור.
+     עכשיו: ראש המכינה ואחראי המטבח, וקריאה לכולם. */
+  const canWrite = mayEdit(session, "kitchen");
   if (req.method !== "GET" && !canWrite) {
-    return res.status(403).json({ error: "התפריט מנוהל על ידי אחראי המטבח" });
+    return res.status(403).json({ error: editHint("kitchen") });
   }
 
   try {

@@ -31,6 +31,12 @@ export const BUDGET_COLS = {
     /* ⚠ סכום מדויק ליום — מתווסף ואינו תלוי במספר הסועדים.
        cost דורס, flat מוסיף. */
     flat: "numeric_mm6kqpxv",
+    /* ⚠⚠ **כמה אכלו בחד״א בפועל.** ריק = לא נספר, ואז נשאר
+       התעריף הקבוע של סוג היום; מספר (כולל 0) גובר עליו.
+       ראו ההערה ב-shared/budget-boards.js.
+       ⚠ ריק עד ש-`npm run seed:dining` ירוץ — ובלעדיו הכול
+         עובד בדיוק כמו קודם (עיקרון 6). */
+    diningHeads: "",
   },
   orders: {
     amount: "numeric_mm6jnhh2", startMonth: "text_mm6j7pqm",

@@ -21,6 +21,8 @@ import { loadGantt } from "./_lessons-gantt.js";
 import {
   BUDGET_BOARDS as B, BUDGET_COLS as C, budgetReady,
   DEFAULT_HEADCOUNT, SETTING_HEADCOUNT,
+  SETTING_DINING_RATE, SETTING_DINING_BUDGET, DEFAULT_DINING_RATE,
+  diningHeadsReady,
   dayCost, perPersonOf, sortTypes, orderShareFor, monthsOf,
   headcountAt, ORDER_KIND, ORDER_KINDS,
 } from "../shared/budget-boards.js";
@@ -60,6 +62,8 @@ async function loadOverrides({ force = false } = {}) {
         type2: val(i, C.days.type2) || null,
         cost: num(i, C.days.cost),
         flat: num(i, C.days.flat),
+        /* ⚠ ריק = לא נספר (null), ולא אפס. ראו shared/budget-boards.js. */
+        diningHeads: C.days.diningHeads ? num(i, C.days.diningHeads) : null,
         note: val(i, C.days.note) || null,
       }))
       .filter((x) => x.date);
@@ -105,9 +109,23 @@ async function loadHeadcount({ force = false } = {}) {
   }, { force });
 }
 
+/**
+ * שורת הגדרה יחידה לפי שם, כמספר.
+ * ⚠ מחזירה `null` כשהשורה אינה קיימת או ריקה — ולא ברירת מחדל
+ *   שקטה. מי שקורא מחליט מה לעשות עם "לא הוגדר" (4ט).
+ */
+async function loadSettingNum(name, { force = false } = {}) {
+  const items = await cached("budget-settings-raw", () => allItems(B.settings), { force });
+  const hit = items.find((i) => String(i.name || "").trim() === name);
+  if (!hit) return null;
+  const n = num(hit, C.settings.value);
+  return Number.isFinite(n) ? n : null;
+}
+
 const invalidateBudget = () => {
   invalidate("budget-daytypes"); invalidate("budget-days");
   invalidate("budget-orders"); invalidate("budget-settings");
+  invalidate("budget-settings-raw");
 };
 
 /* ------------------------------------------------------------
@@ -194,7 +212,7 @@ function datesOfMonth(month) {
 }
 
 /* ---------- חישוב חודש ---------- */
-function buildMonth(month, { types, overrides, calendar, gantt, heads }) {
+function buildMonth(month, { types, overrides, calendar, gantt, heads, diningRate }) {
   const byName = new Map(types.map((t) => [t.name, t]));
   const byDate = calendar.byDate;
   const evByDate = eventsByDate(gantt);
@@ -211,9 +229,15 @@ function buildMonth(month, { types, overrides, calendar, gantt, heads }) {
        אינו רטרואקטיבי, ולכן ספטמבר ממשיך להיות מחושב במצבה
        שהייתה בספטמבר. */
     const head = headcountAt(heads, date);
-    const cost = dayCost(type, head, over, extra, ov && ov.flat != null ? ov.flat : null);
+    /* ⚠ **מספר שנספר גובר על התעריף** — כולל 0, שפירושו "אף
+       אחד לא אכל". `null` פירושו "לא נספר" ומשאיר את התעריף. */
+    const dHeads = ov && Number.isFinite(ov.diningHeads) ? ov.diningHeads : null;
+    const dOver = dHeads == null ? null : dHeads * diningRate;
+    const cost = dayCost(type, head, over, extra,
+      ov && ov.flat != null ? ov.flat : null, dOver);
     return {
       date,
+      diningHeads: dHeads,
       kind: (byDate.get(date) || {}).kind || null,
       type: typeName,
       type2: ov ? ov.type2 : null,
@@ -233,6 +257,10 @@ function buildMonth(month, { types, overrides, calendar, gantt, heads }) {
     days,
     catering: days.reduce((a, d) => a + d.catering, 0),
     dining: days.reduce((a, d) => a + d.dining, 0),
+    /* ⚠ סכום הראשים שנספרו, ו**כמה ימים בכלל נספרו** — מספר
+       בלי לדעת מכמה ימים הוא נראה כמו התמונה המלאה (4יח). */
+    diningHeads: days.reduce((a, d) => a + (d.diningHeads || 0), 0),
+    diningDays: days.filter((d) => d.diningHeads != null).length,
     purchases: days.reduce((a, d) => a + d.purchases, 0),
     foodTotal: days.reduce((a, d) => a + d.total, 0),
   };
@@ -254,10 +282,15 @@ async function handler(req, res, session) {
 
   try {
     if (req.method === "GET") {
-      const [types, overrides, orders, settings, calendar, gantt] = await Promise.all([
+      const [types, overrides, orders, settings, calendar, gantt,
+        rateSet, diningBudget] = await Promise.all([
         loadDayTypes(), loadOverrides(), loadOrders(), loadHeadcount(),
         loadCalendar(), loadGantt(),
+        loadSettingNum(SETTING_DINING_RATE), loadSettingNum(SETTING_DINING_BUDGET),
       ]);
+      /* ⚠ המחיר לראש מהלוח; הקבוע בקוד הוא נפילה לאחור לשורה
+         שטרם נוצרה, ולא מקור אמת (עיקרון 1). */
+      const diningRate = rateSet != null && rateSet > 0 ? rateSet : DEFAULT_DINING_RATE;
 
       const months = [...new Set(calendar.days.map((d) => d.date.slice(0, 7)))].sort();
 
@@ -266,7 +299,7 @@ async function handler(req, res, session) {
          החודשי — נקרא מאותה פונקציה ולא משוכפל. */
       if (String(req.query?.view || "") === "year") {
         const rows = months.map((m) => {
-          const b = buildMonth(m, { types, overrides, calendar, gantt, heads: settings });
+          const b = buildMonth(m, { types, overrides, calendar, gantt, heads: settings, diningRate });
           const spent = orders.reduce((a, o) => a + orderShareFor(o, m), 0);
           return {
             month: m, days: b.days.length,
@@ -295,7 +328,7 @@ async function handler(req, res, session) {
         return res.status(400).json({ error: "החודש אינו בשנת הלימודים", months });
       }
 
-      const b = buildMonth(month, { types, overrides, calendar, gantt, heads: settings });
+      const b = buildMonth(month, { types, overrides, calendar, gantt, heads: settings, diningRate });
 
       /* ⚠ הקניות אינן מוסיפות לתקציב אלא יורדות ממנו: התקציב
          נקבע מסוגי הימים, והקניות הן ההוצאה מולו. ההפרש הוא
@@ -316,11 +349,34 @@ async function handler(req, res, session) {
 
       return res.status(200).json({
         month, months, days: b.days, types: sortTypes(types),
+        /* ⚠ **היום האמיתי בשעון ישראל**, ולא היום הראשון של החודש
+           המוצג. טופס "קנייה חדשה" נפל ל-`days[0].date`, כלומר
+           פתיחתו באמצע ספטמבר הציעה 1.9 — תאריך סביר לגמרי,
+           ולכן טעות שנשמרת בלי שאיש שם לב. `?date=` נשמר. */
+        today: israelToday(),
         /* המצבה שתקפה בסוף החודש — היא שמוצגת ככותרת */
         headcount: headcountAt(settings, b.days[b.days.length - 1].date),
         headcounts: settings,
         catering: b.catering,
         dining: b.dining,
+        /* ============================================================
+           ⚠ **החד״א כשלושה מספרים ולא אחד**: מה נוצל, כמה נספרו,
+             וכמה נשאר. `diningBudget === null` פירושו שלא הוגדר
+             תקציב — והמסך אומר זאת במילים ולא מציג 0, שנראה כמו
+             נתון (עיקרון 6).
+           ⚠ ו-`diningDays` הוא כמה ימים בכלל נספרו: "1,240 ₪"
+             לבדו נקרא כחשבון החודש כשהוא חשבון של שלושה ימים
+             מתוך שלושים (4יח).
+           ⚠ **וההגדרה עצמה נדרשת פעם אחת**: בלי עמודת
+             "אכלו בחד״א" בלוח אין מה לספור, ו-`diningReady`
+             אומר למסך להציע להריץ ולא להציג שדה מת.
+           ============================================================ */
+        diningRate,
+        diningHeads: b.diningHeads,
+        diningDays: b.diningDays,
+        diningBudget,
+        diningLeft: diningBudget == null ? null : diningBudget - b.dining,
+        diningReady: diningHeadsReady(),
         purchases: b.purchases,
         total: b.foodTotal,
         spent,
@@ -480,13 +536,36 @@ async function handler(req, res, session) {
         }
       }
 
+      /* ⚠ **כמה אכלו בחד״א.** מחרוזת ריקה = "לא נספר" ומנקה את
+         השדה; 0 הוא ערך אמיתי ומאפס את היום. שלושה מצבים (4ט). */
+      let dHeads = null;
+      let dTouched = false;
+      if (body.diningHeads !== undefined) {
+        dTouched = true;
+        if (String(body.diningHeads).trim() !== "") {
+          dHeads = Number(body.diningHeads);
+          if (!Number.isFinite(dHeads) || dHeads < 0 || dHeads !== Math.floor(dHeads)) {
+            return res.status(400).json({ error: "מספר הסועדים בחד״א הוא מספר שלם, או ריק" });
+          }
+        }
+        if (!diningHeadsReady()) {
+          return res.status(503).json({
+            error: 'עמודת "אכלו בחד״א" טרם הוקמה. הריצו: npm run seed:dining',
+            setupRequired: true,
+          });
+        }
+      }
+
       const overrides = await loadOverrides({ force: true });
       const hit = overrides.find((o) => o.date === date);
 
       /* ריקון מלא = חזרה לגזירה מהלו״ז, כלומר מחיקת החריגה */
       const empty = (body.type === null || body.type === undefined || body.type === "")
         && (body.type2 === null || body.type2 === undefined || body.type2 === "")
-        && cost === null && flat === null && !String(body.note || "").trim();
+        && cost === null && flat === null && !String(body.note || "").trim()
+        /* ⚠ יום שכל מה שיש בו הוא ספירת חד״א אינו "ריק" — מחיקת
+           השורה הייתה מוחקת את המספר שמישהו ספר. */
+        && dHeads === null;
       if (empty) {
         if (hit) { await gql(`mutation{ delete_item(item_id:${Number(hit.id)}){ id } }`); }
         invalidateBudget();
@@ -501,6 +580,9 @@ async function handler(req, res, session) {
         [C.days.cost]: cost === null ? "" : String(cost),
         [C.days.flat]: flat === null ? "" : String(flat),
         [C.days.note]: String(body.note || "").slice(0, 200),
+        ...(dTouched && C.days.diningHeads
+          ? { [C.days.diningHeads]: dHeads === null ? "" : String(dHeads) }
+          : {}),
       };
       if (hit) await setColsOpen(B.days, hit.id, cols);
       else await createItemOpen(B.days, date, cols);

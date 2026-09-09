@@ -14,6 +14,8 @@ import { api } from "./api.js";
 import TextBlock from "./TextBlock.jsx";
 import { useExcel, downloadTable, shareText } from "./excel.js";
 import { parseItems, scaleItems, mergeItems, DEFAULT_BASE } from "../shared/dishes.js";
+import { DAYS, MEALS, DAY_LETTER, dayNameOf } from "../shared/weekmenu.js";
+import { israelDateStr } from "./testDate.js";
 
 const MI = {
   chev: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
@@ -480,10 +482,307 @@ function DishForm({ initial, defaultBase, say, onDone, onCancel }) {
      הוא **כל** הלשונית, ולשונית ריקה בלי מילה נראית שבורה
      (עיקרון 6).
    ============================================================ */
+/* ============================================================
+   ארוחות שבועיות — טבלה, לא בלוק טקסט
+   ------------------------------------------------------------
+   ⚠⚠ **התפריט חוזר על עצמו ואינו תלוי בתאריך.** "יום שני —
+     ארוחת ערב" הוא התפריט של כל יום שני, עד שאחראי המטבח
+     ישנה אותו. ראו shared/weekmenu.js, ולמה זה לוח נפרד
+     מלוח `menus` שמחזיק ארוחה לתאריך.
+
+   ⚠ **נפתח על היום של היום.** מי שנכנס למסך שואל "מה אוכלים
+     היום", וזו התשובה שצריכה להיות מול העיניים בלי לחיצה.
+     ⚠ ובשעון ישראל ודרך `?date=` — `new Date()` גולמי היה
+       פותח על היום הלא-נכון בערב וב-UTC (4פ).
+
+   ⚠ **יום שלם ולא רשת של 21 תאים.** רשת שלמה בטלפון נותנת
+     תאים של שישה פיקסלים: קריאה כרשת, בלתי קריאה כתפריט —
+     אותו לקח של לוח הנוכחות (4פ). מי שרוצה את כל השבוע מקבל
+     אותו בלשונית "כל השבוע", דחוס ובלי המצרכים.
+
+   ⚠ **תא ריק מוצג ואינו מדולג.** יום בלי ארוחת צהריים אינו
+     יום שאין בו צהריים — הוא יום שטרם הוזן, וזו הבחנה שאי
+     אפשר לעשות ברשימה שמדלגת (עיקרון 6).
+   ============================================================ */
 function WeeklyMeals({ say }) {
+  const today = dayNameOf(israelDateStr()) || DAYS[0];
+  const [day, setDay] = useState(today);
+  const [view, setView] = useState("day"); // day · week
+  const [edit, setEdit] = useState(null);  // { day, meal, ...cell }
+  const [n, setN] = useState(0);
+  const { data, err, busy, reload } = useLoad(() => api.getWeekMenu(), [n]);
+
+  useEffect(() => { if (n) reload(); }, [n]); // eslint-disable-line
+
+  if (busy && !data) return <div className="skel skel-card" />;
+  if (err) return (
+    <div className={"alert " + (err.setupRequired ? "a-amber" : "a-clay")}>
+      <MI.warn />
+      <div style={{ flex: 1 }}>
+        <div className="ttl">{err.setupRequired ? "התפריט השבועי טרם הוקם" : "התפריט לא נטען"}</div>
+        <div className="bd">{err.message}</div>
+        {!err.setupRequired && (
+          <button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }}
+            onClick={() => setN((x) => x + 1)}>נסו שוב</button>
+        )}
+      </div>
+    </div>
+  );
+  if (!data) return null;
+
+  if (edit) return (
+    <CellForm cell={edit} dishes={data.dishes} say={say}
+      onDone={() => { setEdit(null); setN((x) => x + 1); }}
+      onCancel={() => setEdit(null)} />
+  );
+
+  const row = data.grid.find((g) => g.day === day) || data.grid[0];
+
+  return (
+    <>
+      {/* ⚠ הרצועה אומרת כמה מהתמונה כבר מולא. "התפריט" שמוצג
+          כשמולאו בו שלושה תאים מתוך 21 נראה שלם עד שמחפשים
+          בו משהו (4יח). */}
+      <div className="wm-bar">
+        <span>{data.counts.filled} מתוך {data.counts.total} ארוחות הוזנו</span>
+        {data.canEdit
+          ? <b>אפשר לערוך</b>
+          : <b title={data.editHint || ""}>לצפייה בלבד</b>}
+      </div>
+
+      <div className="seg wm-seg">
+        <button className={view === "day" ? "on" : ""} onClick={() => setView("day")}>יום אחד</button>
+        <button className={view === "week" ? "on" : ""} onClick={() => setView("week")}>כל השבוע</button>
+      </div>
+
+      {view === "day" ? (
+        <>
+          <div className="wm-days">
+            {data.grid.map((g) => (
+              <button key={g.day} className={(g.day === day ? "on " : "") + (g.day === today ? "now" : "")}
+                onClick={() => setDay(g.day)}>
+                {g.letter}
+                {g.day === today && <i>היום</i>}
+              </button>
+            ))}
+          </div>
+
+          {row.meals.map((c) => (
+            <MealCard key={c.meal} c={c} canEdit={data.canEdit}
+              onEdit={() => setEdit({ ...c, day: row.day })} />
+          ))}
+        </>
+      ) : (
+        /* ⚠ **גלילה אופקית בתוך מכל משלה** — טבלה רחבה שגורמת
+            לגוף הדף לגלול לצדדים היא בדיוק מה שאסור. */
+        <div className="wm-wrap">
+          <table className="wm-tbl">
+            <thead>
+              <tr>
+                <th />
+                {DAYS.map((d) => (
+                  <th key={d} className={d === today ? "now" : ""}>{DAY_LETTER[d]}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {MEALS.map((m) => (
+                <tr key={m}>
+                  <th className="wm-rh">{m.replace("ארוחת ", "")}</th>
+                  {DAYS.map((d) => {
+                    const g = data.grid.find((x) => x.day === d);
+                    const c = g ? g.meals.find((x) => x.meal === m) : null;
+                    return (
+                      <td key={d} className={c && c.filled ? "" : "wm-e"}>
+                        {c && c.filled
+                          ? <button className="wm-cell" onClick={() => { setDay(d); setView("day"); }}>
+                              {String(c.main || "").split("\n")[0] || "—"}
+                            </button>
+                          : "—"}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {data.missingDishes.length > 0 && (
+        /* ⚠ מנה שנמחקה מדווחת ואינה נעלמת — חלק מהמצרכים לא
+            יחושבו, ומי שמסתכל צריך לדעת למה (4ט). */
+        <div className="note-warn"><MI.warn />
+          {data.missingDishes.length} מנות מקושרות אינן קיימות עוד בלוח המנות
+        </div>
+      )}
+
+      <WeeklyNote say={say} />
+    </>
+  );
+}
+
+/* ---------- ארוחה אחת ---------- */
+function MealCard({ c, canEdit, onEdit }) {
+  const line = (label, v) => (String(v || "").trim() ? (
+    <div className="wm-l"><span>{label}</span><div>{v}</div></div>
+  ) : null);
+
+  return (
+    <div className="card wm-card">
+      <div className="wm-h">
+        <b>{c.meal}</b>
+        {canEdit && (
+          <button className="btn btn-ghost btn-sm" onClick={onEdit}>
+            {c.filled ? "עריכה" : "מילוי"}
+          </button>
+        )}
+      </div>
+
+      {!c.filled ? (
+        <div className="wm-empty">טרם הוזן</div>
+      ) : (
+        <>
+          {c.main && <div className="wm-main">{c.main}</div>}
+          {line("ללא גלוטן", c.gf)}
+          {line("תוספת", c.side)}
+          {line("חלבון נוסף", c.protein)}
+          {line("מצרכים", c.items)}
+          {c.dishNames && c.dishNames.length > 0 && (
+            <div className="wm-l">
+              <span>מנות</span>
+              <div>{c.dishNames.map((d) => d.name).join(" · ")}</div>
+            </div>
+          )}
+          {/* ⚠ **מחושב בשרת ומוצג כאן.** אותה רשימה בדיוק שמסך
+              התכנון מקבל — שני חישובים היו נותנים שני מספרים. */}
+          {c.computed && c.computed.length > 0 && (
+            <div className="wm-calc">
+              <div className="wm-calc-h">מצרכים מחושבים מהמנות</div>
+              {c.computed.map((it, i) => (
+                <div className="wm-calc-r" key={i}>
+                  <span>{it.name}</span>
+                  <b>{qty(it.qty)}{it.unit ? " " + it.unit : ""}</b>
+                </div>
+              ))}
+            </div>
+          )}
+          {c.note && <div className="wm-note">{c.note}</div>}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ---------- עריכת תא ---------- */
+function CellForm({ cell, dishes, say, onDone, onCancel }) {
+  const [f, setF] = useState({
+    main: cell.main || "", gf: cell.gf || "", side: cell.side || "",
+    protein: cell.protein || "", items: cell.items || "", note: cell.note || "",
+  });
+  const [picked, setPicked] = useState(cell.dishes || []);
+  const [busy, setBusy] = useState(false);
+  const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+
+  const save = () => {
+    if (busy) return;
+    setBusy(true);
+    api.setWeekMenuCell({ day: cell.day, meal: cell.meal, ...f, dishes: picked })
+      .then(() => { say("נשמר"); onDone(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+  const clear = () => {
+    if (busy) return;
+    setBusy(true);
+    api.clearWeekMenuCell({ day: cell.day, meal: cell.meal })
+      .then(() => { say("התא נוקה"); onDone(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <>
+      <button className="btn btn-ghost btn-sm" style={{ marginBottom: 14 }} onClick={onCancel}>
+        <MI.chev style={{ transform: "rotate(180deg)" }} />חזרה
+      </button>
+      <div className="screen-title">{cell.day} · {cell.meal}</div>
+
+      <div className="card lift">
+        <div className="fld">
+          <label>מנה עיקרית</label>
+          <textarea rows={2} value={f.main} onChange={set("main")} disabled={busy}
+            placeholder="למשל: פסטה ברוטב שמנת פטריות" />
+        </div>
+        <div className="fld">
+          <label>ללא גלוטן</label>
+          <input value={f.gf} onChange={set("gf")} disabled={busy}
+            placeholder="מה מקבל מי שאינו אוכל גלוטן" />
+        </div>
+        <div className="fld">
+          <label>תוספת</label>
+          <textarea rows={2} value={f.side} onChange={set("side")} disabled={busy} />
+        </div>
+        <div className="fld">
+          <label>חלבון נוסף</label>
+          <input value={f.protein} onChange={set("protein")} disabled={busy} />
+        </div>
+
+        {/* ============================================================
+            ⚠ **המנות אינן מחליפות את שדה המצרכים.** חלק מהארוחות
+              אינן "מנה" — לחם, גבינות, ממרחים — ומי שיאלץ להגדיר
+              להן מנה פשוט לא ימלא כלום. מי שכן מקשר מנה מקבל את
+              המצרכים מחושבים לכמות הסועדים ואינו מקליד אותם.
+            ============================================================ */}
+        <div className="fld">
+          <label>מנות מלוח המנות (לא חובה)</label>
+          <div className="rows scroll-y wm-pick">
+            {dishes.length === 0 && <div className="wm-empty">אין עדיין מנות בלוח</div>}
+            {dishes.map((d) => {
+              const on = picked.includes(d.id);
+              return (
+                <button className="st-row" key={d.id} disabled={busy}
+                  onClick={() => setPicked((p) => on ? p.filter((x) => x !== d.id) : [...p, d.id])}>
+                  <div className={"tick" + (on ? " on" : "")} />
+                  <div className="st-main">
+                    <div className="st-n">{d.name}</div>
+                    <div className="st-m"><span>מצרכים ל-{d.baseHeads}</span></div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="fld">
+          <label>מצרכים (טקסט חופשי)</label>
+          <textarea rows={3} value={f.items} onChange={set("items")} disabled={busy}
+            placeholder="למשל: 3 קג פסטה, 3 חב׳ שמנת, פטריות, תבלינים" />
+        </div>
+        <div className="fld">
+          <label>הערה</label>
+          <input value={f.note} onChange={set("note")} disabled={busy} />
+        </div>
+
+        <button className="btn btn-primary" style={{ width: "100%" }} disabled={busy} onClick={save}>
+          {busy ? "שומר…" : "שמירה"}
+        </button>
+        {cell.id && (
+          <button className="btn btn-ghost" style={{ width: "100%", marginTop: 8 }}
+            disabled={busy} onClick={clear}>ניקוי התא</button>
+        )}
+      </div>
+    </>
+  );
+}
+
+/* ---------- הערת המטבח, מתחת לטבלה ----------
+   ⚠ **הבלוק נשאר ולא נמחק.** מה שכבר נכתב ב"ארוחות שבועיות"
+     הוא טקסט של המכינה, ומחיקתו הייתה מוחקת עבודה של מישהו.
+     הוא יורד לתחתית ומופיע רק כשיש בו משהו (4ש). */
+function WeeklyNote({ say }) {
   const [block, setBlock] = useState(null);
   const [canEdit, setCanEdit] = useState(false);
-  const [state, setState] = useState("load"); // load · ok · fail
   const [n, setN] = useState(0);
 
   useEffect(() => {
@@ -493,39 +792,70 @@ function WeeklyMeals({ say }) {
         if (!alive) return;
         setBlock((r.texts || []).find((t) => t.key === "menu.weekly") || null);
         setCanEdit(Boolean(r.me && r.me.menuText));
-        setState("ok");
       })
-      .catch(() => { if (alive) setState("fail"); });
+      .catch(() => {});
     return () => { alive = false; };
   }, [n]);
 
-  if (state === "load") return <div className="skel skel-card" />;
-  /* ⚠ כשל טעינה נראה אחרת מ"טרם נכתב" (עיקרון 6). */
-  if (state === "fail") return (
-    <div className="alert a-clay">
-      <div style={{ flex: 1 }}>
-        <div className="ttl">התפריט לא נטען</div>
-        <div className="bd">בדקו חיבור ונסו שוב.</div>
-        <button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }}
-          onClick={() => { setState("load"); setN((x) => x + 1); }}>נסו שוב</button>
-      </div>
+  if (!block) return null;
+  return (
+    <div style={{ marginTop: 16 }}>
+      <TextBlock block={block} canEdit={canEdit} say={say}
+        onSaved={() => setN((x) => x + 1)} />
     </div>
   );
-
-  if (!block) {
-    return (
-      <div className="empty tone-3">
-        <div className="e-ico"><MI.dish /></div>
-        <div className="e1">התפריט השבועי טרם נכתב</div>
-        <div className="e2">
-          {canEdit
-            ? "אפשר להוסיף אותו במסך \"ניהול תוכן\", תחת \"ארוחות שבועיות\"."
-            : "אחראי המטבח יעלה אותו לכאן."}
-        </div>
-      </div>
-    );
-  }
-
-  return <TextBlock block={block} canEdit={canEdit} say={say}
-    onSaved={() => setN((x) => x + 1)} />;
 }
+
+export const MENU_CSS = `
+.wm-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  font-size:12px;font-weight:800;color:var(--muted);background:var(--soft);
+  border-radius:var(--r-md);padding:9px 12px;margin-bottom:10px}
+.wm-seg{margin-bottom:12px}
+
+/* ⚠ שבע אותיות ברוחב שווה — לא רצועה נגללת. שבעה פריטים
+   נכנסים תמיד, וחץ גלילה עליהם היה רעש (4ר). */
+.wm-days{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:12px;
+  direction:rtl}
+.kx .wm-days button{position:relative;padding:9px 0;border-radius:var(--r-sm);
+  border:1px solid var(--line2);background:var(--surface);color:var(--muted);
+  font-size:14px;font-weight:900;transition:all .12s var(--ease)}
+.kx .wm-days button.now{border-color:var(--accent)}
+.kx .wm-days button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.wm-days button i{display:block;font-size:8.5px;font-style:normal;font-weight:800;
+  opacity:.75;margin-top:1px}
+
+.wm-card{margin-bottom:10px}
+.wm-h{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin-bottom:8px}
+.wm-h b{font-size:14px;font-weight:900;color:var(--ink)}
+.wm-main{font-size:15px;font-weight:900;color:var(--ink);line-height:1.45;
+  white-space:pre-wrap;margin-bottom:8px}
+.wm-l{display:flex;gap:9px;font-size:12.5px;line-height:1.55;margin-top:5px}
+.wm-l span{flex:0 0 74px;color:var(--faint);font-weight:800}
+.wm-l div{flex:1;color:var(--ink);font-weight:600;white-space:pre-wrap}
+.wm-empty{font-size:12.5px;font-weight:700;color:var(--faint);padding:4px 0}
+.wm-note{margin-top:9px;font-size:11.5px;font-weight:700;color:var(--faint);
+  white-space:pre-wrap}
+.wm-calc{margin-top:10px;background:var(--soft);border-radius:var(--r-sm);padding:9px 11px}
+.wm-calc-h{font-size:11px;font-weight:900;color:var(--faint);margin-bottom:5px}
+.wm-calc-r{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;
+  font-weight:700;color:var(--ink);padding:2px 0}
+.wm-calc-r b{font-variant-numeric:tabular-nums}
+
+.wm-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:12px}
+.wm-tbl{width:100%;min-width:520px;border-collapse:collapse;direction:rtl}
+.wm-tbl th,.wm-tbl td{border:1px solid var(--line2);padding:7px 6px;font-size:11.5px;
+  text-align:center;vertical-align:middle}
+.wm-tbl thead th{background:var(--soft);font-weight:900;color:var(--muted);width:13%}
+.wm-tbl thead th.now{color:var(--accent)}
+.wm-rh{background:var(--soft);font-weight:900;color:var(--muted);white-space:nowrap;width:9%}
+.wm-e{color:var(--faint)}
+.kx .wm-cell{padding:0;background:none;border:0;font-size:11.5px;font-weight:700;
+  color:var(--ink);line-height:1.4;text-align:center;width:100%}
+
+/* ⚠ scroll-y הקיימת ולא max-height חדש: כלל כזה בתוך
+   .rows נבלע על ידי .kx .rows overflow:hidden (4ק).
+   ⚠⚠ ואין בקטיקים בהערות CSS — הבלוק הזה הוא template literal,
+   ובקטיק סוגר אותו ומפיל את כל הקובץ (ראו styles.js). */
+.wm-pick{max-height:38vh}
+`;

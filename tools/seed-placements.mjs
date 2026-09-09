@@ -19,7 +19,7 @@
 
 import fs from "node:fs";
 import { PLACEMENT_BOARDS } from "../shared/placements-ids.js";
-import { CATEGORY, PERIOD } from "../shared/placements.js";
+import { CATEGORY, CATEGORIES, PERIOD } from "../shared/placements.js";
 import { MECHINA_BOARDS } from "../shared/mechina-boards.js";
 import { ROLES_COL } from "../shared/lessons-boards.js";
 
@@ -50,8 +50,16 @@ async function gql(query, variables = {}) {
   return json.data;
 }
 
+/* ⚠⚠ **מדלג על מפתח 5** — המשבצת הריקה של monday (5ז). תא בלי
+   בחירה מחזיר value:null אבל `text` של התווית שיושבת על 5, וכל
+   קוד שקורא `text` היה רואה את כל השורות הריקות כמסומנות בה. */
+const LABEL_KEYS = (() => {
+  const out = [];
+  for (let k = 0; out.length < 30; k++) if (k !== 5) out.push(k);
+  return out;
+})();
 const labels = (...names) =>
-  JSON.stringify({ labels: Object.fromEntries(names.map((n, i) => [String(i), n])) });
+  JSON.stringify({ labels: Object.fromEntries(names.map((n, i) => [String(LABEL_KEYS[i]), n])) });
 
 async function createBoard(name) {
   const d = await gql(
@@ -104,7 +112,12 @@ ok(`שיבוץ: ${asgnBoard}`);
 step("3. יצירת העמודות");
 const D = {
   category: await createColumn(defsBoard, "קטגוריה", "status",
-    labels(CATEGORY.branch, CATEGORY.series, CATEGORY.committee, CATEGORY.group)),
+    /* ⚠⚠ **`CATEGORIES` ולא רשימה מוקלדת.** כאן ישבו ארבע
+         תוויות בלבד, ו"צוות מזדמן" — הקטגוריה החמישית שנוספה
+         ב-4ס — פשוט לא נוצרה בלוח. הקמת צוות מזדמן נפלה
+         ב-502 גנרי, ומי שהריץ את המחולל מחדש היה **מוחק** את
+         התווית שנוספה ביד. זה בדיוק המוקש של 4מו. */
+        labels(...CATEGORIES)),
   period: await createColumn(defsBoard, "תקופה", "status",
     labels(PERIOD.perSemester, PERIOD.yearly, PERIOD.firstOnly, PERIOD.secondOnly)),
   capacity: await createColumn(defsBoard, "מכסה", "numbers"),

@@ -45,13 +45,19 @@ function useLoad(fn, deps = []) {
 }
 
 /* ---------- עריכת יום אחד ---------- */
-function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
+function DayEditor({ day, types, headcount, say, onDone, onCancel, dining }) {
   const [type, setType] = useState(day.type);
   const [type2, setType2] = useState(day.type2 || null);
   const [cost, setCost] = useState("");
   const [flat, setFlat] = useState(day.flat != null ? String(day.flat) : "");
   const [note, setNote] = useState(day.note || "");
+  /* ⚠ מחרוזת ריקה = "לא נספר", ו-"0" = "אף אחד לא אכל". שני
+     מצבים שונים, ולכן מחרוזת ולא מספר. */
+  const [dHeads, setDHeads] = useState(day.diningHeads != null ? String(day.diningHeads) : "");
   const [busy, setBusy] = useState(false);
+  const dRate = (dining && dining.rate) || 45;
+  const dReady = Boolean(dining && dining.ready);
+  const dNum = dHeads.trim() !== "" && Number.isFinite(Number(dHeads)) ? Number(dHeads) : null;
 
   const chosen = types.find((t) => t.name === type);
   const chosen2 = types.find((t) => t.name === type2);
@@ -67,15 +73,21 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
     : { catering: 0, dining: 0, purchases: 0 };
   const a = one(chosen), b = one(chosen2);
   const flatN = flat.trim() !== "" ? Number(flat) || 0 : 0;
+  /* ⚠ מה שנספר גובר על התעריף, בדיוק כמו בשרת. */
+  const dSum = dNum != null ? dNum * dRate : null;
   const preview = per != null
     ? { catering: 0, dining: 0, purchases: per * headcount, flat: flatN }
-    : { catering: a.catering + b.catering, dining: a.dining + b.dining,
+    : { catering: a.catering + b.catering,
+        dining: dSum != null ? dSum : a.dining + b.dining,
         purchases: a.purchases + b.purchases, flat: flatN };
 
   const save = () => {
     if (busy) return;
     setBusy(true);
-    api.setBudgetDay({ date: day.date, type, type2, cost: cost.trim(), flat: flat.trim(), note: note.trim() })
+    api.setBudgetDay({
+      date: day.date, type, type2, cost: cost.trim(), flat: flat.trim(), note: note.trim(),
+      ...(dReady ? { diningHeads: dHeads.trim() } : {}),
+    })
       .then(() => { say("היום עודכן"); onDone(); })
       .catch((e) => say(e.message))
       .finally(() => setBusy(false));
@@ -84,7 +96,10 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
   const clear = () => {
     if (busy) return;
     setBusy(true);
-    api.setBudgetDay({ date: day.date, type: null, type2: null, cost: "", flat: "", note: "" })
+    api.setBudgetDay({
+      date: day.date, type: null, type2: null, cost: "", flat: "", note: "",
+      ...(dReady ? { diningHeads: "" } : {}),
+    })
       .then(() => { say("היום חזר ללו״ז"); onDone(); })
       .catch((e) => say(e.message))
       .finally(() => setBusy(false));
@@ -162,6 +177,36 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel }) {
           </div>
         </div>
 
+        {/* ============================================================
+            ⚠⚠ **כמה אכלו בחד״א — מספר שנספר, לא תעריף שנגזר**
+
+            עד היום החד״א היה סכום קבוע על סוג היום (750 ₪ ליום
+            עשייה קהילתית). זו הערכה. מי שסופר בפועל 22 סועדים
+            יודע שזה 22 × {dRate} ₪, ו**מה שנספר גובר**.
+
+            ⚠ ריק אינו אפס: ריק = "לא נספר" ומשאיר את התעריף;
+              0 = "אף אחד לא אכל" ומאפס את היום (4ט).
+            ============================================================ */}
+        <div className="fld">
+          <label>כמה אכלו בחד״א (לא חובה)</label>
+          {dReady ? (
+            <>
+              <input value={dHeads} onChange={(e) => setDHeads(e.target.value)} disabled={busy}
+                inputMode="numeric" placeholder="ריק = לפי תעריף סוג היום" />
+              <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 600, marginTop: 4 }}>
+                {dNum != null
+                  ? <>{dNum} סועדים × {dRate} ₪ = <b>{shekel(dSum)} ₪</b> — <b>גובר</b> על התעריף הקבוע.</>
+                  : <>ריק = לא נספר, ונשאר התעריף של סוג היום. 0 = אף אחד לא אכל.</>}
+              </div>
+            </>
+          ) : (
+            /* ⚠ אומר מה להריץ ולא מציג שדה מת (עיקרון 6). */
+            <div className="bg-fixed">
+              העמודה טרם הוקמה בלוח. הריצו פעם אחת: <b>npm run seed:dining</b>
+            </div>
+          )}
+        </div>
+
         <div className="fld">
           <label>הערה</label>
           <input value={note} onChange={(e) => setNote(e.target.value)} disabled={busy}
@@ -209,6 +254,8 @@ function OrderForm({ months, defaultMonth, today, say, onDone, onCancel }) {
      ⚠ ברירת המחדל נשארת שלושה רצופים מהחודש הנוכחי, כי זה
        המקרה השכיח — משנים רק כשצריך.
      ============================================================ */
+  /* ⚠ **`today` הוא היום בשעון ישראל מהשרת**, ולא היום הראשון
+     של החודש שמוצג. ראו ההערה ב-`_kitchen-budget.js`. */
   const [f, setF] = useState({ name: "", amount: "", date: today, note: "" });
   const [picked, setPicked] = useState(() =>
     consecutiveMonths(defaultMonth).filter((m) => months.includes(m)));
@@ -724,11 +771,13 @@ export function BudgetPage({ say, isHead = false }) {
 
   if (editing) return (
     <DayEditor day={editing} types={data.types} headcount={data.headcount} say={say}
+      dining={{ rate: data.diningRate, ready: data.diningReady }}
       onDone={() => { setEditing(null); reload(); }}
       onCancel={() => setEditing(null)} />
   );
   if (adding) return (
-    <OrderForm months={data.months} defaultMonth={data.month} today={data.days[0].date} say={say}
+    <OrderForm months={data.months} defaultMonth={data.month}
+      today={data.today || data.days[0].date} say={say}
       onDone={() => { setAdding(false); reload(); }}
       onCancel={() => setAdding(false)} />
   );
@@ -813,6 +862,41 @@ export function BudgetPage({ say, isHead = false }) {
         {/* ---------- הקניות מול תקציב הקניות ---------- */}
         <UtilBlock spent={data.spent} budget={data.purchases}
           title={`ניצול תקציב הקניות · ${monthLabel(data.month)}`} />
+
+        {/* ============================================================
+            ⚠⚠ **החד״א — כמה נאכל, ומה נשאר**
+
+            ⚠ **המספר לבדו אינו התמונה.** "1,240 ₪" נקרא כחשבון
+              החודש כשהוא חשבון של שלושה ימים מתוך שלושים, ולכן
+              כתוב כאן **בכמה ימים בכלל נספרו סועדים** (4יח).
+
+            ⚠ **ובלי תקציב אין "נשאר".** `diningBudget === null`
+              פירושו שהשורה בלוח ההגדרות טרם נכתבה, והמסך אומר
+              זאת במילים — 0 היה נראה כמו תקציב שנגמר (עיקרון 6).
+            ============================================================ */}
+        {(data.dining > 0 || data.diningBudget != null) && (
+          <div className="card bg-hada">
+            <div className="bg-hada-h">
+              <span>חדר האוכל של הקיבוץ</span>
+              <b className="num">{shekel(data.dining)} ₪</b>
+            </div>
+            <div className="bg-hada-s">
+              {data.diningDays > 0
+                ? <>{data.diningHeads} סועדים נספרו ב-{data.diningDays} ימים
+                    · {data.diningRate} ₪ לסועד</>
+                : <>עדיין לא נספרו סועדים החודש — הסכום לפי התעריף של סוגי הימים</>}
+            </div>
+            {data.diningBudget != null ? (
+              <UtilBlock spent={data.dining} budget={data.diningBudget}
+                title="ניצול תקציב החד״א" />
+            ) : (
+              <div className="bg-fixed" style={{ marginTop: 8 }}>
+                תקציב חד״א חודשי טרם הוגדר — צרו בלוח ההגדרות שורה
+                בשם <b>תקציב חד״א חודשי</b>, או הריצו <b>npm run seed:dining</b>.
+              </div>
+            )}
+          </div>
+        )}
 
         {headEdit ? (
           <div className="card" style={{ marginBottom: 14 }}>

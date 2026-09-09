@@ -3244,6 +3244,18 @@ html,body{margin:0;padding:0;background:#012E58}
 .kx .ch-lead{display:inline-flex;align-items:center;gap:5px;background:#F3E8F5;
   color:#6B3D7A;font-size:11px;font-weight:800;white-space:nowrap}
 
+/* ---------- שורת בחירה: כמה תורנויות, ואיפה כבר משובץ ---------- */
+.st-sub{font-size:11.5px;font-weight:700;color:var(--faint);margin-top:2px}
+.bg-hada{margin-bottom:14px}
+.bg-hada-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+  font-size:13.5px;font-weight:900;color:var(--ink)}
+.bg-hada-s{font-size:11.5px;font-weight:700;color:var(--faint);margin-top:3px}
+
+.ch-pn{flex:0 0 auto;min-width:24px;height:24px;display:inline-flex;align-items:center;
+  justify-content:center;border-radius:999px;background:var(--soft);color:var(--muted);
+  font-size:12px;font-weight:900;font-variant-numeric:tabular-nums}
+.kx .st-row:disabled .st-n{color:var(--faint)}
+
 /* ---------- כרטיס גזרה ---------- */
 .ch-sec{margin-bottom:10px;padding:0;overflow:hidden}
 .kx .ch-sec-h{display:flex;align-items:center;gap:11px;width:100%;text-align:right;

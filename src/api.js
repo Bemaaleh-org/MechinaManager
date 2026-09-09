@@ -183,8 +183,11 @@ export const api = {
   getBudgetYear: () => get("/api/kitchen?action=budget&view=year"),
   /** כפיית סוג או מחיר ליום. הכול ריק = חזרה לגזירה מהלו״ז. */
   /** ⚠ type2 הוא סוג נוסף שמתחבר לראשון ("שגרה + אחר"), לא מחליף אותו. */
-  setBudgetDay: ({ date, type, type2, cost, flat, note }) =>
-    put("/api/kitchen?action=budget", { date, type, type2, cost, flat, note }),
+  /* ⚠ **המסלול הזה שולח את היום השלם ולא הפרש.** השרת בונה
+     מחדש את שורת החריגה מכל מה שהגיע, ושדה שלא נשלח נמחק —
+     ולכן `diningHeads` חייב להופיע כאן במפורש (4לג). */
+  setBudgetDay: ({ date, type, type2, cost, flat, note, diningHeads }) =>
+    put("/api/kitchen?action=budget", { date, type, type2, cost, flat, note, diningHeads }),
   /** מצבת סועדים. ⚠ mode:"forward" משנה קדימה בלבד; "retro" מתקן את כל השנה. */
   setHeadcount: ({ headcount, mode, from }) =>
     put("/api/kitchen?action=budget", { headcount, mode, from }),
@@ -578,6 +581,20 @@ export const api = {
   editDish: (b) => put("/api/kitchen?action=menu", b),
   deleteDish: (dishId) => del("/api/kitchen?action=menu", { dishId }),
   saveMenu: (b) => post("/api/kitchen?action=menu", { menu: true, ...b }),
+
+  /* ---------- התפריט השבועי ----------
+     ⚠ **לוח נפרד מ-`menus`, ובכוונה.** שם נשמרת ארוחה
+       **לתאריך** ("מה בישלנו ב-14.9"), וכאן התפריט שחוזר על
+       עצמו בכל שבוע. שתי שאלות, שני לוחות (shared/weekmenu.js).
+     ⚠ **פירוק מפורש** — שדה שלא נכתב כאן נשמט בשקט ונראה
+       עובד במסך בלי להגיע לשרת (4לג). */
+  getWeekMenu: (heads) =>
+    get("/api/kitchen?action=weekmenu" + (heads ? "&heads=" + encodeURIComponent(heads) : "")),
+  setWeekMenuCell: ({ day, meal, main, gf, side, protein, items, dishes, note }) =>
+    put("/api/kitchen?action=weekmenu",
+      { day, meal, main, gf, side, protein, items, dishes, note }),
+  clearWeekMenuCell: ({ day, meal }) =>
+    del("/api/kitchen?action=weekmenu", { day, meal }),
 
   loginStudent: (tz) => post("/api/students?action=login", { tz }),
 

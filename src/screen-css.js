@@ -25,5 +25,8 @@ import { ARCHIVE_CSS } from "./Archive.jsx";
 import { GROUP_CSS } from "./Group.jsx";
 import { RECRUIT_CSS } from "./Recruit.jsx";
 
+import { MENU_CSS } from "./Menu.jsx";
+import { DUTYTODAY_CSS } from "./DutyToday.jsx";
+
 export const ALL_CSS = CSS + LAUNDRY_CSS + QUOTES_CSS + MISHMAR_CSS + ARCHIVE_CSS
-  + GROUP_CSS + RECRUIT_CSS;
+  + GROUP_CSS + RECRUIT_CSS + MENU_CSS + DUTYTODAY_CSS;

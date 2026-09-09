@@ -4,6 +4,7 @@
      ?action=shop    POST/PUT/DELETE       רשימת הקניות
      ?action=budget  GET/PUT/POST/DELETE   תקציב המזון החודשי
      ?action=produce GET/POST/PUT/DELETE   טבלת ההמרה לק״ג
+     ?action=weekmenu GET/PUT/DELETE      התפריט השבועי
 
    שני תחומים באותו לוח: ציוד אוכל וציוד חד״פ. הסינון לפי
    תחום נעשה בשרת, לא בדפדפן.
@@ -24,5 +25,6 @@ import parImport from "./_kitchen-par.js";
 import budget from "./_kitchen-budget.js";
 import menu from "./_menu.js";
 import produce from "./_produce.js";
+import weekmenu from "./_weekmenu.js";
 
-export default router({ equip, shop, doctor, "par-import": parImport, budget, menu, produce });
+export default router({ equip, shop, doctor, "par-import": parImport, budget, menu, produce, weekmenu });

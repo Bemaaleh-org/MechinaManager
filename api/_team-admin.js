@@ -142,6 +142,26 @@ async function handler(req, res, session) {
         return res.status(400).json({ error: `"${name}" כבר קיים בלוח ההגדרות` });
       }
 
+      /* ============================================================
+         ⚠⚠ **`labels: true` כאן — החריג השלישי, ומדוע.**
+
+         "צוות מזדמן" נוספה לקוד ב-4ס, אבל **שני המחוללים של
+         לוח ההגדרות יצרו את עמודת הקטגוריה עם ארבע תוויות
+         בלבד** (ענף · סדרה · ועדה · קבוצה). התוצאה: כל ניסיון
+         להקים צוות מזדמן נפל ב-502 גנרי, כי
+         `create_labels_if_missing:false` דוחה תווית שאינה
+         בלוח — וזה נראה למשתמש כמו "המסך לא עובד".
+
+         זה בטוח כאן, ורק כאן, מאותו נימוק בדיוק של "סוג היום"
+         בתקציב: **הערך נבדק מול רשימה סגורה בקוד לפני
+         הכתיבה** (`CATEGORIES` / `PERIODS`, שתי הבדיקות שלוש
+         שורות מעל), ולכן היחיד שיכול להיווצר הוא אחד מחמשת
+         השמות שהמערכת כולה כבר מכירה. אין כאן טקסט חופשי של
+         משתמש ואין דרך לייצר תווית זבל.
+
+         ⚠ ואסור להעביר את הדגל למסלול שבו הקטגוריה מגיעה
+           מייבוא או מטופס חופשי — שם כישלון רועש הוא הנכון.
+         ============================================================ */
       const cols = {
         [D.category]: { label: category },
         [D.period]: { label: period },
@@ -156,7 +176,7 @@ async function handler(req, res, session) {
       }
 
       if (!id) {
-        const created = await createItem(PLACEMENT_BOARDS.definitions, name, cols);
+        const created = await createItem(PLACEMENT_BOARDS.definitions, name, cols, { labels: true });
         invalidatePlacements();
         return res.status(200).json({ ok: true, id: created, created: true });
       }
@@ -207,7 +227,7 @@ async function handler(req, res, session) {
 
       /* ⚠ שלושה ארגומנטים — ראו api/_team-task.js */
       await renameItem(PLACEMENT_BOARDS.definitions, id, name);
-      await setColumns(PLACEMENT_BOARDS.definitions, id, cols);
+      await setColumns(PLACEMENT_BOARDS.definitions, id, cols, { labels: true });
 
       /* ⚠ קטגוריה שיוצאת מ"ועדה/סדרה" מאבדת את היו״ר: אין יו״ר
          לענף ולקבוצה (ראו api/_placement-chair.js), ויו״ר-רפאים

@@ -96,9 +96,31 @@ function Tally({ rows, compact }) {
 /* ============================================================
    בורר חניכים לגזרה
    ============================================================ */
-function Picker({ students, leaders, picked, onToggle, cap, busy }) {
+/** כמה תורנויות יש לכל חניך בגזרה אחת — מתוך טבלת המעקב שכבר בתשובה. */
+const countsOf = (d, secId) => {
+  const t = (d.tally || []).find((x) => x.sector === secId);
+  return new Map((t ? t.per : []).map((x) => [String(x.id), x.count]));
+};
+
+/* ============================================================
+   ⚠ **הרשימה אומרת מה שאב הבית צריך לדעת כדי לבחור**
+   ------------------------------------------------------------
+   שני נתונים לכל שם, ושניהם היו חסרים:
+
+   * `taken` — הגזרה שהוא **כבר** משובץ אליה באותה תקופה. השרת
+     חוסם את זה (`_chores-write.js`), ולכן השורה **מושבתת
+     ומסומנת בשם הגזרה** ולא מקבלת 403 אחרי הלחיצה (4יד).
+   * `counts` — כמה תורנויות יש לו כבר בגזרה הזו. הטבלה יושבת
+     מעל, אבל מי שמסמן שמות אינו מגלגל אליה בכל שם.
+
+   ⚠ **המספר מוצג תמיד, גם כשהוא 0.** רק בשורות מסוימות פירושו
+     "לאלה חסר נתון", והעין קוראת את זה כרעש.
+   ============================================================ */
+function Picker({ students, leaders, picked, onToggle, cap, busy, taken, counts }) {
   const [q, setQ] = useState("");
   const lead = new Set((leaders || []).map(String));
+  const held = taken || new Map();
+  const num = counts || new Map();
   const list = students.filter((s) => !q.trim() || s.name.includes(q.trim()));
   const over = Number.isFinite(cap) && picked.length > cap;
 
@@ -114,14 +136,20 @@ function Picker({ students, leaders, picked, onToggle, cap, busy }) {
       <div className="rows ch-pick">
         {list.map((s) => {
           const isLead = lead.has(String(s.id));
+          const busyIn = held.get(String(s.id)) || null;
           const on = picked.includes(s.id);
+          const n = num.get(String(s.id));
           return (
-            <button className="st-row" key={s.id} disabled={busy || isLead}
+            <button className="st-row" key={s.id} disabled={busy || isLead || (!on && Boolean(busyIn))}
               onClick={() => onToggle(s.id)}>
               <div className={"tick" + (on ? " on" : "")}>
                 {on && <CI.check style={{ color: "#fff" }} />}
               </div>
-              <div className="st-main"><div className="st-n">{s.name}</div></div>
+              <div className="st-main">
+                <div className="st-n">{s.name}</div>
+                {busyIn && <div className="st-sub">כבר משובץ ב{busyIn}</div>}
+              </div>
+              {Number.isFinite(n) && <span className="ch-pn" title="תורנויות עד היום">{n}</span>}
               {/* ⚠ **מסומן ולא מוסתר.** חניך שלא יראה את עצמו
                   ברשימה יחשוב שנשכח, ולא שהוא פטור. */}
               {isLead && <span className="pill ch-lead"><CI.crown />מוביל השבוע</span>}
@@ -212,6 +240,17 @@ function Sectors({ d, say, reload, goWeek }) {
 
   const sugg = d.admin ? d.admin.suggest : {};
 
+  /* ⚠ מי כבר תפוס באיזו גזרה **באותה תקופה** — נבנה מהתשובה
+     ולא נשלף שוב, כי `p.sectors` כבר מחזיק בדיוק את זה. */
+  const takenBy = (exceptId) => {
+    const m = new Map();
+    for (const sec of p.sectors || []) {
+      if (sec.id === exceptId) continue;
+      for (const mem of sec.members || []) m.set(String(mem.id), sec.name);
+    }
+    return m;
+  };
+
   return (
     <>
       {/* ⚠ התקופה היא שבוע הובלה ולא שבוע קלנדרי — כשקדנציה
@@ -287,6 +326,7 @@ function Sectors({ d, say, reload, goWeek }) {
               <div className="ch-sec-b">
                 <Picker students={d.admin.students} leaders={p.leaders}
                   picked={picked} cap={s.cap} busy={busy}
+                  taken={takenBy(s.id)} counts={countsOf(d, s.id)}
                   onToggle={(id) => setPicked((v) =>
                     v.includes(id) ? v.filter((x) => x !== id) : [...v, id])} />
                 <button className="btn btn-primary" style={{ width: "100%", marginTop: 10 }}
@@ -444,6 +484,9 @@ function Daily({ d, say, reload, goWeek }) {
                   ...s,
                   name: s.name + (sectorOf.get(s.id) ? ` · ${sectorOf.get(s.id)}` : ""),
                 }))} leaders={p.leaders} picked={picked} cap={daily.cap} busy={busy}
+                  /* ⚠ המספר הוא כמה פעמים הוא כבר היה במטבח —
+                     ויום ג׳+ו׳ נספרים כתורנות אחת (shared/chores.js). */
+                  counts={countsOf(d, daily.id)}
                   onToggle={(id) => setPicked((v) =>
                     v.includes(id) ? v.filter((x) => x !== id) : [...v, id])} />
                 {/* ============================================================

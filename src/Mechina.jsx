@@ -22,7 +22,6 @@ import { MenuPage } from "./Menu.jsx";
 import { ROLE_INFO, LEADER_INFO } from "./roles-info.js";
 import { roleKey, LEADER_KEY } from "../shared/content.js";
 import { SafetyPage } from "./Safety.jsx";
-import { FaultsPage } from "./Faults.jsx";
 import { ContainerPage } from "./Container.jsx";
 import { FaultReportPage } from "./Faults.jsx";
 import { BudgetPage } from "./Budget.jsx";
@@ -38,6 +37,7 @@ import ProjectsPage from "./Projects.jsx";
 import LeadWeekPage from "./LeadWeek.jsx";
 import BoardPage from "./Board.jsx";
 import MyDataPage, { NewsStrip } from "./MyData.jsx";
+import { DutyTodayCard, NextChoreCard } from "./DutyToday.jsx";
 import OfflineBar from "./Offline.jsx";
 import SearchOverlay, { SearchButton } from "./Search.jsx";
 import TeamsPage from "./Teams.jsx";
@@ -3201,6 +3201,22 @@ function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey }) {
           במגירה — שתי לחיצות לפני הדבר שבשבילו נכנס. */}
       <DutyShortcuts onOpen={(k) => { setDutyKey(k); go("duty"); }} />
 
+      {/* ============================================================
+          ⚠⚠ **"היום אתם תורנים" — ראשון, ולפני הלו״ז.**
+            תורן המטבח מופרש מרוב הלו״ז, ולכן הלו״ז אינו הדבר
+            הראשון שהוא צריך; מה שהוא צריך הוא שהוא תורן, מה
+            מבשלים, ומה המטלות. הכרטיס מחזיר `null` לכל מי
+            שאינו תורן היום, ולכן הוא אינו עולה למסך של אף
+            אחד אחר.
+          ============================================================ */}
+      <DutyTodayCard say={say} onOpenChores={() => go("chores")}
+        onOpenMenu={() => go("menu")} />
+
+      {/* ⚠ ולמי שאינו תורן היום — **מתי כן**. שני הכרטיסים
+          זרים זה לזה במכוון: `NextChoreCard` מחזיר null כשיש
+          תורנות היום, ושתי אמירות על אותו דבר הן רעש. */}
+      <NextChoreCard onOpen={() => go("chores")} />
+
       <TodayAgenda onOpen={() => go("agenda")} onSettled={bump} />
 
       {/* ============================================================
@@ -3742,9 +3758,10 @@ export function MechinaApp({ auth, onSignedOut }) {
             זה בדיוק 4יט: מסך של בעל תפקיד זהה למסך של המנהל,
             ולא גרסה מקוצצת. שני מסכים לאותו אדם הם הבאג.
             ============================================================ */}
-        {tab === "report" && (auth.isHouse
-          ? <FaultsPage say={say} />
-          : <FaultReportPage say={say} />)}
+        {/* ⚠ `FaultReportPage` בוחר בעצמו את מסך הצוות לפי מה
+            שהשרת החזיר (`mine === false`), ולכן אין כאן עוד
+            תנאי שאפשר לשכוח בנתיב הבא. ראו ההערה שם. */}
+        {tab === "report" && <FaultReportPage say={say} />}
 
         {/* ⚠ מסך אחד ולא שניים. היו כאן שתי לשוניות בשם
             "הפרופיל שלי" — אחת לזהות ואחת לצבא ולמיונים —
@@ -3811,7 +3828,7 @@ export function MechinaApp({ auth, onSignedOut }) {
         {tab === "loans" && auth.isContainer && <LoansPage say={say} />}
         {tab === "safety" && auth.isSafety && <SafetyPage say={say} />}
         {tab === "hosting" && auth.isSafety && <HostingPage say={say} />}
-        {tab === "faults" && auth.isHouse && <FaultsPage say={say} />}
+        {tab === "faults" && <FaultReportPage say={say} />}
 
         {/* ⚠ **גם מוביל שבוע מדפדף.** קודם הבורר היה של המנהל
             בלבד, ומוביל שבוע יכול היה לסמן את היום הנוכחי בלבד —
