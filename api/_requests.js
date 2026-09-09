@@ -35,11 +35,11 @@ import { cached, invalidate } from "./_cache.js";
 import { setColumns, renameItem, deleteItem } from "./_items.js";
 import { nudge } from "./_push-now.js";
 import {
-  loadCalendar, loadAbsences, loadMarked, summarize, vacationRule,
+  loadCalendar, loadAbsences, loadMarked, summarize, vacationRule, israelToday,
 } from "./_attendance-data.js";
 import {
   MECHINA_BOARDS, MECHINA_COLS, ABSENCE, REQ_STATUS, REQ_STAGE, requestStage,
-  vacationCost,
+  vacationCost, appealReady,
 } from "../shared/mechina-boards.js";
 import { guideMap, isGuideOf } from "./_guides.js";
 
@@ -92,6 +92,9 @@ export async function loadRequests({ force = false } = {}) {
         guideDecision: val(i, R.guide) || null,
         guideBy: val(i, R.guideBy) || null,
         guideAt: val(i, R.guideAt) || null,
+        /* ⚠ ריק עד שהעמודות יוקמו, והכול עובד בלעדיהן. */
+        appeal: R.appeal ? (val(i, R.appeal) || null) : null,
+        appealAt: R.appealAt ? (val(i, R.appealAt) || null) : null,
       }))
       .filter((r) => r.studentId && r.date && r.type)
       .sort((a, b) => b.date.localeCompare(a.date));
@@ -153,6 +156,23 @@ async function list(req, res, session) {
               ? vacationCost(r.date, r.outAt, r.endDate, r.backAt) : null,
             /* ⚠ נגזר בשרת כדי שהכפתור יידע מראש (4יד). */
             canEdit: r.status === REQ_STATUS.pending,
+            /* ============================================================
+               ⚠⚠ **ערר — רק על בקשה שהוכרעה, ורק פעם אחת.**
+
+               בקשה שנדחתה הייתה סוף הדרך במערכת, והשיחה עברה
+               לוואטסאפ. הערר מחזיר אותה, ואינו משנה את
+               ההחלטה: "נדחה" עם ערר פתוח הוא עדיין "נדחה",
+               והחניך אינו יוצא.
+
+               ⚠ **ואי אפשר לערור פעמיים על אותה החלטה.** ערר
+                 שני על אותה שורה דורס את הראשון, וראש המכינה
+                 מקבל טקסט אחר ממה שקרא אתמול. הכפתור נסגר עד
+                 שתתקבל הכרעה חדשה, שמנקה את הערר.
+               ============================================================ */
+            appeal: r.appeal,
+            appealAt: r.appealAt,
+            canAppeal: appealReady()
+              && r.status !== REQ_STATUS.pending && !r.appeal,
           };
         }
 
@@ -192,6 +212,12 @@ async function list(req, res, session) {
           /* ⚠ באיזה כובע המשתמש הזה מחליט כאן. ראש מכינה מכריע
              תמיד, גם בשלב המדריך — ולכן אצלו הכפתור אומר
              "אישור" ולא "ממליץ לאשר". */
+          /* ⚠ הערר מוצג לצוות במלואו — הוא נכתב אליהם. */
+          appeal: r.appeal,
+          appealAt: r.appealAt,
+          /* ⚠ **הכרעה מחדש היא של ראש המכינה בלבד.** המדריך
+             ממליץ; הוא אינו הופך החלטה שכבר ניתנה (4א). */
+          canRedecide: Boolean(session.isHead) && stage === REQ_STAGE.done,
           decideAs: session.isHead ? "head"
             : (stage === REQ_STAGE.guide && isGuideOf(session, guide)) ? "guide" : null,
           student: byId.get(r.studentId)
@@ -439,6 +465,53 @@ async function ownPending(body, session, res) {
   return r;
 }
 
+/* ============================================================
+   ערר על בקשה שהוכרעה
+   ------------------------------------------------------------
+   ⚠ **החניך שהגיש בלבד**, ו-404 ולא 403 על בקשה של אחר.
+   ⚠ **רק על בקשה שהוכרעה** — על בקשה ממתינה אין על מה לערור,
+     והיא ניתנת לעריכה ממילא.
+   ⚠ **ופעם אחת להכרעה.** ערר שני דורס את הראשון, וראש המכינה
+     מקבל טקסט אחר ממה שקרא אתמול. הכרעה חדשה מנקה את הערר,
+     ואז אפשר שוב.
+   ============================================================ */
+async function appeal(body, session, res) {
+  if (!appealReady()) {
+    return res.status(503).json({
+      error: "עמודות הערר טרם הוקמו. הריצו: npm run seed:appeal",
+      setupRequired: true,
+    });
+  }
+  const id = String(body?.id || "").trim();
+  if (!id) return res.status(400).json({ error: "לא צוינה בקשה" });
+
+  const all = await loadRequests({ force: true });
+  const r = all.find((x) => x.id === id);
+  if (!r || r.studentId !== String(session.itemId)) {
+    return res.status(404).json({ error: "הבקשה אינה נמצאת" });
+  }
+  if (r.status === REQ_STATUS.pending) {
+    return res.status(409).json({
+      error: "הבקשה עדיין ממתינה — אפשר לערוך אותה במקום לערור",
+    });
+  }
+  if (r.appeal) {
+    return res.status(409).json({
+      error: "כבר הוגש ערר על הבקשה הזו, והוא ממתין להכרעה",
+    });
+  }
+  const text = String(body.appeal || "").trim().slice(0, 2000);
+  if (!text) return res.status(400).json({ error: "ערר בלי נימוק אינו ערר" });
+
+  await setColumns(MECHINA_BOARDS.requests, id, {
+    [R.appeal]: text,
+    [R.appealAt]: { date: israelToday() },
+  });
+  invalidateRequests();
+
+  return res.status(200).json({ ok: true, id, appeal: text });
+}
+
 /* ---------- עריכה ---------- */
 async function edit(req, res, session) {
   try {
@@ -446,6 +519,21 @@ async function edit(req, res, session) {
       return res.status(403).json({ error: "בקשת יציאה נערכת על ידי החניך שהגיש אותה" });
     }
     const body = req.body ?? (await readJson(req));
+
+    /* ============================================================
+       ⚠⚠ **ערר — מסלול נפרד, לפני `ownPending`.**
+
+       `ownPending` דוחה בכוונה כל בקשה שהוכרעה — לשינוי מגישים
+       בקשה חדשה. הערר הוא בדיוק ההפך: הוא קיים **רק** על בקשה
+       שהוכרעה, ולכן הוא אינו יכול לעבור דרך אותו שער.
+
+       ⚠ **והוא אינו נוגע בסטטוס ואינו נוגע בהיעדרויות.**
+         "נדחה" עם ערר פתוח הוא עדיין "נדחה", והחניך אינו יוצא.
+         מה שהוא עושה הוא להחזיר את הבקשה לתשומת הלב של ראש
+         המכינה, שרשאי להכריע מחדש — או לא.
+       ============================================================ */
+    if (body?.appeal !== undefined) return appeal(body, session, res);
+
     const r = await ownPending(body, session, res);
     if (!r) return;
 

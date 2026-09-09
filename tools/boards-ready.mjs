@@ -34,6 +34,8 @@ export const STEPS = [
     ids: "shared/weekmenu-ids.js", ready: "weekMenuReady" },
   { script: "tools/seed-bugs.mjs", title: "לוח הבאגים וההערות",
     ids: "shared/bugs-ids.js", ready: "bugsReady" },
+  { script: "tools/seed-appeal.mjs", title: "עמודות הערר בבקשות היציאה",
+    ids: "shared/mechina-boards.js", ready: "appealReady" },
 ];
 
 /** מחזיר את השלבים שאינם מוכנים. ייבוא טרי בכל קריאה. */

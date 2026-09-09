@@ -3246,6 +3246,17 @@ html,body{margin:0;padding:0;background:#012E58}
 
 /* ---------- שורת בחירה: כמה תורנויות, ואיפה כבר משובץ ---------- */
 .st-sub{font-size:11.5px;font-weight:700;color:var(--faint);margin-top:2px}
+/* ---------- ערר ושינוי החלטה ---------- */
+.rq-appeal{margin-top:10px;background:var(--t6-s);color:var(--t6);
+  border-radius:var(--r-sm);padding:9px 11px;font-size:12.5px;font-weight:700;
+  line-height:1.55;white-space:pre-wrap}
+.rq-appeal-h{font-size:10.5px;font-weight:900;opacity:.85;margin-bottom:3px}
+.rq-appeal-n{font-size:11.5px;font-weight:700;color:var(--faint);line-height:1.5;
+  margin-bottom:7px}
+.rq-appeal-box,.rq-redo{margin-top:10px;background:var(--soft);
+  border-radius:var(--r-sm);padding:10px 11px}
+.rq-appeal-box textarea{width:100%}
+
 .bg-hada{margin-bottom:14px}
 .bg-hada-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
   font-size:13.5px;font-weight:900;color:var(--ink)}

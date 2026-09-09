@@ -36,6 +36,7 @@ import { withAuth, actorName } from "./_session.js";
 import { nudge } from "./_push-now.js";
 import { studentRows } from "./_student-rows.js";
 import { gql } from "./_monday.js";
+import { deleteItem } from "./_items.js";
 import {
   loadCalendar, loadAbsences, loadMarked, summarize, israelToday,
   vacationRule, createAbsence, invalidateAttendance,
@@ -73,12 +74,30 @@ async function handler(req, res, session) {
     const request = requests.find((r) => r.id === requestId);
     if (!request) return res.status(404).json({ error: "הבקשה אינה נמצאת" });
 
-    /* ⚠ בקשה שכבר הוכרעה לא משנה כיוון. מנהל שני שפותח את המסך
-       הישן ולוחץ לא הופך החלטה של הראשון בלי שאיש יידע. */
-    if (request.status !== REQ_STATUS.pending) {
+    /* ============================================================
+       ⚠⚠ **הכרעה מחדש — אפשרית, אבל רק במפורש**
+       ------------------------------------------------------------
+       הכלל המקורי נשאר בתוקף במלואו: מנהל שני שפותח מסך ישן
+       ולוחץ **אינו** הופך החלטה של הראשון בלי שאיש יידע. מה
+       שנפתח הוא מסלול אחר לגמרי — `redo: true`, שנשלח מכפתור
+       שכתוב עליו "שינוי ההחלטה" ורק אחרי אישור.
+
+       ⚠ **ראש המכינה בלבד.** המדריך ממליץ, והוא אינו הופך
+         הכרעה שכבר ניתנה (4א).
+
+       ⚠ **וההיעדרויות מתהפכות איתה.** אישור שהופך לדחייה מוחק
+         את שורות ההיעדרות שנוצרו ממנו — אחרת החניך נשאר נעדר
+         ביום שהבקשה שלו נדחתה, והמכסה שלו נשארת מחויבת.
+       ============================================================ */
+    const redo = Boolean(body?.redo);
+    const wasDecided = request.status !== REQ_STATUS.pending;
+    if (wasDecided && !redo) {
       return res.status(409).json({
         error: `הבקשה כבר ${request.status}` + (request.decidedBy ? ` על ידי ${request.decidedBy}` : ""),
       });
+    }
+    if (wasDecided && !session.isHead) {
+      return res.status(403).json({ error: "שינוי החלטה שכבר ניתנה נעשה על ידי ראש המכינה" });
     }
 
     const student = rows.find((r) => r.id === request.studentId);
@@ -94,7 +113,7 @@ async function handler(req, res, session) {
        הראשון הוא סדר עבודה ולא שער: ההחלטה שלו בסופו של דבר,
        והוא לא אמור להמתין להמלצה כשהוא כבר יודע את התשובה.
        ההמלצה שדולגה נשארת ריקה — ולא מומצאת בדיעבד. */
-    if (stage === REQ_STAGE.guide && !session.isHead) {
+    if (!wasDecided && stage === REQ_STAGE.guide && !session.isHead) {
       if (!isGuideOf(session, guide)) {
         return res.status(403).json({
           error: `הבקשה ממתינה להמלצת ${guide.name}`,
@@ -116,6 +135,37 @@ async function handler(req, res, session) {
     let created = 0, skipped = 0;
     /* ימי החופש שנגבו בפועל. רלוונטי לחופש בלבד. */
     let charge = null;
+
+    /* ============================================================
+       ⚠ **קודם מוחקים את מה שההחלטה הקודמת יצרה, ואז מחליטים.**
+
+       שורות ההיעדרות מזוהות לפי חניך, טווח התאריכים של הבקשה,
+       ו-`source === request` — כלומר שורות שנוצרו מבקשה ולא
+       שורות שמישהו סימן ביד בסימון היומי. שורה ידנית היא עובדה
+       על היום ולא תוצאה של הבקשה, ומחיקתה הייתה מוחקת סימון
+       שמוביל השבוע עשה.
+
+       ⚠ **מוחק גם כשההחלטה החדשה היא "אשר".** הזרימה למטה
+         יוצרת מחדש, ובלי המחיקה `already` היה מדלג על כל יום
+         ומספר הימים היה שקרי.
+     ============================================================ */
+    let removed = 0;
+    if (wasDecided && request.status === REQ_STATUS.approved) {
+      for (const a of absences) {
+        if (a.studentId !== request.studentId) continue;
+        if (a.date < request.date || a.date > endDate) continue;
+        if (a.source !== ABSENCE_SOURCE.request) continue;
+        await deleteItem(a.id);
+        removed++;
+      }
+    }
+    /* ⚠ הרשימה שבזיכרון כבר אינה נכונה אחרי המחיקה, והזרימה
+       למטה בודקת מולה `already`. */
+    const live = removed
+      ? absences.filter((a) => !(a.studentId === request.studentId
+        && a.date >= request.date && a.date <= endDate
+        && a.source === ABSENCE_SOURCE.request))
+      : absences;
 
     if (decision === "approve") {
       if (!span.length) return res.status(400).json({ error: "הטווח אינו בלוח השנה של המכינה" });
@@ -181,7 +231,7 @@ async function handler(req, res, session) {
          ============================================================ */
       let left = charge;
       for (const d of span) {
-        const already = absences.find(
+        const already = live.find(
           (a) => a.studentId === request.studentId && a.date === d.date);
         if (already) { skipped++; continue; }
         const isVac = request.type === ABSENCE.vacation;
@@ -209,6 +259,11 @@ async function handler(req, res, session) {
           [R.status]: { label: status },
           [R.by]: actorName(session).slice(0, 120),
           [R.decided]: { date: israelToday() },
+          /* ⚠ **הכרעה חדשה מנקה את הערר.** ערר שנשאר על שורה
+             שכבר הוכרעה שוב נראה כמו ערר שממתין, וזו התראה על
+             משהו שכבר טופל (4כו). */
+          ...(R.appeal ? { [R.appeal]: "" } : {}),
+          ...(R.appealAt ? { [R.appealAt]: {} } : {}),
         }),
       }
     );
@@ -226,6 +281,10 @@ async function handler(req, res, session) {
       ok: true, id: requestId, status, stage: REQ_STAGE.done,
       absenceCreated: created > 0,
       daysCreated: created,
+      /* ⚠ כמה שורות היעדרות בוטלו — המסך אומר זאת במילים.
+         "ההחלטה שונתה" בלי המספר משאיר את המכריע לנחש. */
+      daysRemoved: removed,
+      redecided: wasDecided,
       /* ⚠ כמה ימי חופש נגבו בפועל — המסך אומר את זה במילים.
          "אושר" בלי המספר משאיר את החניך לגלות אותו במכסה. */
       charged: charge,

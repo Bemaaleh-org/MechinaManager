@@ -741,7 +741,83 @@ function RequestTrack({ r }) {
 /* ⚠ `onEdit` ו-`onWithdraw` מוצגים רק כשהשרת אמר `canEdit` —
    בקשה ממתינה של מי שמסתכל. כפתור שמופיע ומקבל 409 אחרי
    הלחיצה הוא בדיוק מה ש-4יד אוסר. */
-function RequestCard({ r, onDecide, busyId, onEdit, onWithdraw }) {
+/* ============================================================
+   תיבת הערר — נפתחת בלחיצה ואינה יושבת פתוחה
+   ------------------------------------------------------------
+   ⚠ שדה טקסט פתוח מתחת לכל בקשה שנדחתה מזמין לערור על כל
+     דבר, ואז הערר מפסיק לומר משהו. הכפתור הוא החיכוך.
+   ============================================================ */
+function AppealBox({ r, onAppeal, busy }) {
+  const [open, setOpen] = useState(false);
+  const [txt, setTxt] = useState("");
+  if (!open) {
+    return (
+      <div className="rq-act rq-own">
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(true)}>
+          הגשת ערר
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="rq-appeal-box">
+      <div className="rq-appeal-h">ערר על ההחלטה</div>
+      {/* ⚠ נאמר במפורש: הערר אינו משנה את ההחלטה. בלי זה
+          מישהו ייסע הביתה על סמך ערר שהוגש. */}
+      <div className="rq-appeal-n">
+        הערר אינו משנה את ההחלטה — הבקשה נשארת {r.status}. הוא מחזיר אותה
+        לתשומת הלב של ראש המכינה.
+      </div>
+      <textarea rows={3} value={txt} disabled={busy}
+        onChange={(e) => setTxt(e.target.value)}
+        placeholder="למה לדעתכם כדאי לשקול מחדש" />
+      <div className="rq-act rq-own">
+        <button type="button" className="btn btn-primary btn-sm"
+          disabled={busy || !txt.trim()}
+          onClick={() => onAppeal(r, txt.trim())}>שליחת הערר</button>
+        <button type="button" className="btn btn-ghost btn-sm"
+          disabled={busy} onClick={() => setOpen(false)}>ביטול</button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- שינוי החלטה שכבר ניתנה ---------- */
+function Redecide({ r, onDecide, busy }) {
+  const [open, setOpen] = useState(false);
+  const flip = r.status === "מאושר" ? "reject" : "approve";
+  const word = flip === "reject" ? "לדחייה" : "לאישור";
+
+  if (!open) {
+    return (
+      <div className="rq-act rq-own">
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(true)}>
+          שינוי ההחלטה
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="rq-redo">
+      <div className="rq-appeal-h">לשנות את ההחלטה {word}?</div>
+      <div className="rq-appeal-n">
+        {flip === "reject"
+          ? "שורות ההיעדרות שנוצרו מהבקשה יימחקו, והימים יחזרו למכסה."
+          : "ייווצרו שורות היעדרות לכל יום לימודים בטווח, והימים ירדו מהמכסה."}
+      </div>
+      <div className="rq-act">
+        <button className={flip === "reject" ? "no" : "ok"} disabled={busy}
+          onClick={() => { setOpen(false); onDecide(r.id, flip, undefined, true); }}>
+          {busy ? "…" : flip === "reject" ? "לדחות" : "לאשר"}
+        </button>
+        <button className="no" disabled={busy} onClick={() => setOpen(false)}
+          style={{ background: "transparent", color: "var(--muted)" }}>ביטול</button>
+      </div>
+    </div>
+  );
+}
+
+function RequestCard({ r, onDecide, busyId, onEdit, onWithdraw, onAppeal }) {
   const busy = busyId === r.id;
   const [confirm, setConfirm] = useState(false);
   /* ⚠ ברירת המחדל היא החישוב עצמו — המכריע משנה רק כשהוא
@@ -809,6 +885,24 @@ function RequestCard({ r, onDecide, busyId, onEdit, onWithdraw }) {
           ))}
         </div>
       )}
+      {/* ============================================================
+          ⚠⚠ **ערר — למי שהגיש, על בקשה שהוכרעה**
+
+          בקשה שנדחתה הייתה סוף הדרך במערכת, והשיחה עברה
+          לוואטסאפ. ⚠ והערר **אינו משנה את הסטטוס**: "נדחה"
+          עם ערר פתוח הוא עדיין "נדחה", והחניך אינו יוצא —
+          זה נאמר במסך במפורש, כי בלי זה מישהו ייסע הביתה.
+          ============================================================ */}
+      {r.appeal && (
+        <div className="rq-appeal">
+          <div className="rq-appeal-h">ערר{r.appealAt ? ` · ${dm(r.appealAt)}` : ""}</div>
+          {r.appeal}
+        </div>
+      )}
+      {r.canAppeal && onAppeal && (
+        <AppealBox r={r} onAppeal={onAppeal} busy={busy} />
+      )}
+
       {r.stage && <RequestTrack r={r} />}
       {onDecide && r.canDecide && skipping && (
         <div className="rq-skip">
@@ -858,6 +952,20 @@ function RequestCard({ r, onDecide, busyId, onEdit, onWithdraw }) {
           </button>
         </div>
       )}
+
+      {/* ============================================================
+          ⚠⚠ **שינוי החלטה שכבר ניתנה — ראש המכינה, ובאישור**
+
+          הכלל שמנהל שני לא יהפוך החלטה בלי שאיש יידע נשאר
+          בתוקף: השרת מחזיר 409 על הכרעה חוזרת אלא אם נשלח
+          `redo` במפורש, וזה הכפתור היחיד ששולח אותו.
+
+          ⚠ **וההיעדרויות מתהפכות איתה** — אישור שהופך לדחייה
+            מוחק את שורות ההיעדרות שנוצרו ממנו. האישור אומר
+            את זה במספרים, כי "בטוח?" על פעולה שמשנה נוכחות
+            ומכסה אינה שאלה שאפשר לענות עליה (5כה).
+          ============================================================ */}
+      {onDecide && r.canRedecide && <Redecide r={r} onDecide={onDecide} busy={busy} />}
     </div>
   );
 }
@@ -1634,9 +1742,9 @@ function ManagerRequests({ say }) {
   const { data, err, busy, reload } = useLoad(() => api.getRequests(), []);
   const [busyId, setBusyId] = useState(null);
 
-  const decide = (requestId, decision, days) => {
+  const decide = (requestId, decision, days, redo) => {
     setBusyId(requestId);
-    api.decideRequest({ requestId, decision, days })
+    api.decideRequest({ requestId, decision, days, redo })
       .then((r) => {
         /* ⚠ המלצת מדריך אינה הכרעה. השרת מחזיר stage, והטקסט
            נגזר ממנו — אחרת המדריך היה מקבל "אושר" ומניח שסיים. */
@@ -1648,9 +1756,15 @@ function ManagerRequests({ say }) {
           const paid = r.charged == null ? ""
             : r.charged === 0 ? " · בלי גבייה ממכסת החופש"
               : ` · נגבו ${r.charged === 1 ? "יום חופש אחד" : r.charged + " ימי חופש"}`;
+          /* ⚠ **הכרעה מחדש אומרת מה השתנה בפועל.** "נדחה" לבדו
+             אינו אומר אם שורות ההיעדרות ירדו, וזה בדיוק מה
+             שהמכריע צריך לדעת (5כה). */
+          const undo = r.daysRemoved
+            ? ` · בוטלו ${r.daysRemoved === 1 ? "יום היעדרות" : r.daysRemoved + " ימי היעדרות"}`
+            : "";
           say(r.status === "מאושר"
-            ? (r.alreadyAbsent ? "אושר. כבר הייתה היעדרות ליום הזה" : "אושר ונרשמה היעדרות") + paid
-            : "הבקשה נדחתה");
+            ? (r.alreadyAbsent ? "אושר. כבר הייתה היעדרות ליום הזה" : "אושר ונרשמה היעדרות") + paid + undo
+            : "הבקשה נדחתה" + undo);
         }
         reload();
       })
@@ -1712,8 +1826,12 @@ function ManagerRequests({ say }) {
           <div className="e2">{EMPTY[tab][1]}</div>
         </div>
       ) : (
+        /* ⚠ **גם לשונית "הוכרעו" מקבלת `onDecide`.** כפתורי
+           האישור והדחייה ממילא תלויים ב-`canDecide`, שהוא
+           false שם; מה שכן נפתח הוא "שינוי ההחלטה", שתלוי
+           ב-`canRedecide` — וזו הלשונית היחידה שבה הוא רלוונטי. */
         list.map((r) => <RequestCard key={r.id} r={r}
-          onDecide={tab === "decided" ? null : decide} busyId={busyId} />)
+          onDecide={decide} busyId={busyId} />)
       )}
     </>
   );
@@ -3427,6 +3545,14 @@ export function MechinaApp({ auth, onSignedOut }) {
       .catch((e) => say(e.message));
   };
 
+  /* ⚠ הערר אינו משנה סטטוס, ולכן `year` אינו נטען מחדש —
+     המכסה לא זזה. רק רשימת הבקשות. */
+  const appealReq = (r, text) => {
+    api.appealRequest({ id: r.id, appeal: text })
+      .then(() => { say("הערר נשלח לראש המכינה"); reqs.reload(); })
+      .catch((e) => say(e.message));
+  };
+
   const signOut = () => {
     api.logout().catch(() => {}).finally(onSignedOut);
   };
@@ -3742,7 +3868,8 @@ export function MechinaApp({ auth, onSignedOut }) {
                 <div className="e2">בקשה שתגיש תופיע כאן עם הסטטוס שלה.</div>
               </div>
             ) : reqs.data.requests.map((r) => (
-              <RequestCard key={r.id} r={r} onEdit={setEditReq} onWithdraw={withdraw} />
+              <RequestCard key={r.id} r={r} onEdit={setEditReq} onWithdraw={withdraw}
+                onAppeal={appealReq} />
             )))}
 
             <div className="sticky">

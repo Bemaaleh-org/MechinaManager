@@ -426,6 +426,26 @@ async function lessonNotes(today) {
 async function requestNotes(session, today) {
   const [reqs, guides] = await Promise.all([loadRequests(), guideMap()]);
   const out = [];
+
+  /* ============================================================
+     ⚠ **ערר פתוח — לראש המכינה, ובעדיפות גבוהה**
+     ------------------------------------------------------------
+     הערר אינו משנה את הסטטוס ולכן הבקשה **אינה** חוזרת
+     ל"ממתינות": מבחינת הלוח היא נדחתה וזהו. בלי השורה הזו
+     הוא היה יושב על השורה ואיש לא היה יודע שהוא שם.
+
+     ⚠ **נגזר מהמצב ואינו תור** — הכרעה מחדש מנקה את עמודת
+       הערר, וההתראה נעלמת מעצמה (4כו).
+     ============================================================ */
+  const appeals = reqs.filter((r) => r.appeal && r.status !== REQ_STATUS.pending);
+  if (session.isHead && appeals.length) {
+    out.push(note({
+      id: `requests:appeal:${appeals.length}`, kind: "בקשות", level: "גבוה",
+      title: appeals.length === 1 ? "ערר על בקשת יציאה" : `${appeals.length} עררים על בקשות יציאה`,
+      tab: "requests",
+    }));
+  }
+
   const pending = reqs.filter((r) => r.status === REQ_STATUS.pending);
   if (!pending.length) return out;
 

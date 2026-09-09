@@ -653,9 +653,19 @@ export const api = {
   /* ⚠ **`days` מפורק במפורש ואינו פריסה.** שדה שלא נכתב כאן
      נשמט בשקט — זו הדרך שבה שדה חדש נראה עובד במסך ואינו
      מגיע לשרת (4לג). */
-  decideRequest: ({ requestId, decision, days }) =>
-    post("/api/attendance?action=decide",
-      days === undefined ? { requestId, decision } : { requestId, decision, days }),
+  /* ⚠ `redo` הוא מסלול מפורש ולא ברירת מחדל: בלעדיו בקשה
+     שכבר הוכרעה מוחזרת ב-409, כדי שמנהל שני שפותח מסך ישן
+     לא יהפוך החלטה בלי שאיש יידע. ראש המכינה בלבד. */
+  decideRequest: ({ requestId, decision, days, redo }) =>
+    post("/api/attendance?action=decide", {
+      requestId, decision,
+      ...(days === undefined ? {} : { days }),
+      ...(redo ? { redo: true } : {}),
+    }),
+
+  /** ⚠ ערר — על בקשה שהוכרעה, ואינו משנה את הסטטוס. */
+  appealRequest: ({ id, appeal }) =>
+    put("/api/attendance?action=requests", { id, appeal }),
 
   /** נוכחות פרטנית באימון — שלוש רשימות, מצב מלא */
   markTraining: ({ meetingId, present, absent, kitchen }, today) =>
