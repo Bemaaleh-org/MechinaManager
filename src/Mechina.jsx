@@ -38,6 +38,8 @@ import LeadWeekPage from "./LeadWeek.jsx";
 import BoardPage from "./Board.jsx";
 import MyDataPage, { NewsStrip } from "./MyData.jsx";
 import { DutyTodayCard, NextChoreCard } from "./DutyToday.jsx";
+import { AbsentTodayCard } from "./AbsentToday.jsx";
+import { BugsPage } from "./Bugs.jsx";
 import OfflineBar from "./Offline.jsx";
 import SearchOverlay, { SearchButton } from "./Search.jsx";
 import TeamsPage from "./Teams.jsx";
@@ -3241,6 +3243,13 @@ function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey }) {
           ו-`isLeader` הוא "מוביל היום" (5ב). */}
       {auth.leadsAnyWeek && <WeekExitsCard onOpen={() => go("lead-week")} />}
 
+      {/* ⚠ **למוביל שבוע: מי לא כאן היום.** בלי סוג ובלי
+          פירוט — מוביל שבוע הוא חניך, וההבחנה בין "חופש"
+          ל"מחלה" היא נתון רפואי על חבר שלו (4א, 5כד).
+          ⚠ `leadsAnyWeek` ולא `isLeader`, כמו בכל השער הזה:
+          `?action=day` פתוח ל-marker, שהוא בדיוק אותו קהל. */}
+      {auth.leadsAnyWeek && <AbsentTodayCard onOpen={() => go("mark")} />}
+
       <RateLessons say={say} onAll={() => go("archive")} />
 
       <DailyQuote say={say} onOpen={() => go("quotes")} />
@@ -3602,6 +3611,12 @@ export function MechinaApp({ auth, onSignedOut }) {
               active: tab === "rules", onClick: () => setTab("rules") },
             { key: "report", label: "דיווח תקלה", icon: <MI.tool />,
               active: tab === "report", onClick: () => setTab("report") },
+            /* ⚠ **תקלה במכינה ובאג במערכת הם שני דברים.** מזגן
+               שבור הולך לאב הבית; כפתור שאינו מגיב הולך למי
+               שמתחזק את הקוד. לוח אחד לשניהם היה מערבב שתי
+               רשימות מטלות של שני אנשים שונים. */
+            { key: "bugs", label: "באגים והערות", icon: <MI.tool />,
+              active: tab === "bugs", onClick: () => setTab("bugs") },
           ] },
 
           /* ============================================================
@@ -3762,6 +3777,8 @@ export function MechinaApp({ auth, onSignedOut }) {
             שהשרת החזיר (`mine === false`), ולכן אין כאן עוד
             תנאי שאפשר לשכוח בנתיב הבא. ראו ההערה שם. */}
         {tab === "report" && <FaultReportPage say={say} />}
+
+        {tab === "bugs" && <BugsPage say={say} />}
 
         {/* ⚠ מסך אחד ולא שניים. היו כאן שתי לשוניות בשם
             "הפרופיל שלי" — אחת לזהות ואחת לצבא ולמיונים —

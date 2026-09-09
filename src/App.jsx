@@ -27,6 +27,8 @@ import { ContainerPage } from "./Container.jsx";
 import { BudgetPage } from "./Budget.jsx";
 import { GanttPage } from "./Gantt.jsx";
 import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
+import { AbsentTodayCard } from "./AbsentToday.jsx";
+import { BugsPage } from "./Bugs.jsx";
 import { PlacementsPage } from "./Placements.jsx";
 import RecruitPage from "./Recruit.jsx";
 import TeamsPage from "./Teams.jsx";
@@ -485,6 +487,11 @@ function Staff({ auth, onSignedOut }) {
                 active: section === "hosting", onClick: () => setSection("hosting") },
               { key: "faults", label: "תקלות ובעיות", icon: <I.gear />, active: section === "faults",
                 onClick: () => setSection("faults") },
+              /* ⚠ **באג במערכת אינו תקלה במכינה.** מזגן שבור
+                 הולך לאב הבית; כפתור שאינו מגיב הולך למי
+                 שמתחזק את הקוד. שני לוחות, שתי רשימות. */
+              { key: "bugs", label: "באגים והערות", icon: <I.gear />, active: section === "bugs",
+                onClick: () => setSection("bugs") },
               /* ⚠ ציוד הניקיון עבר לכאן מקבוצת המכולה. הוא
                  באחריות אב הבית, בדיוק כמו התקלות — ולא של
                  אחראי המכולה. */
@@ -619,6 +626,7 @@ function Staff({ auth, onSignedOut }) {
           {section === "teams" && isMgr && <TeamsPage say={say} go={() => setSection("roles")} />}
           {section === "safety" && isMgr && <SafetyPage say={say} />}
           {section === "faults" && isMgr && <FaultsPage say={say} />}
+          {section === "bugs" && <BugsPage say={say} />}
           {section === "agenda" && <AgendaPage />}
 
           {section === "gantt" && <GanttPage say={say} />}
@@ -806,6 +814,11 @@ function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goCont
       <NewsStrip isStudent={false} onOpen={goNews} />
 
       <TodayAgenda onOpen={goAgenda} />
+
+      {/* ⚠ **מי לא כאן היום** — השאלה שנשאלת בבוקר, שעד היום
+          דרשה לפתוח את מסך הסימון ולקרוא 33 שורות. `staff`
+          פותח את הסוג; אצל מוביל שבוע הוא סגור (4א, 5כד). */}
+      <AbsentTodayCard staff onOpen={() => goStaff("mark")} />
 
       {failed && (
         <div className="alert a-clay" style={{ marginBottom: 14 }}>

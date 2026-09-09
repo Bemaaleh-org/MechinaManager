@@ -28,6 +28,12 @@ export const STEPS = [
     ids: "shared/mechina-boards.js", ready: "vacationCostReady" },
   { script: "tools/seed-recruit.mjs", title: "לוח פניות הגיוס",
     ids: "shared/recruit-ids.js", ready: "recruitReady" },
+  { script: "tools/seed-dining.mjs", title: "ספירת הסועדים בחד״א",
+    ids: "shared/budget-boards.js", ready: "diningHeadsReady" },
+  { script: "tools/seed-weekmenu.mjs", title: "לוח התפריט השבועי",
+    ids: "shared/weekmenu-ids.js", ready: "weekMenuReady" },
+  { script: "tools/seed-bugs.mjs", title: "לוח הבאגים וההערות",
+    ids: "shared/bugs-ids.js", ready: "bugsReady" },
 ];
 
 /** מחזיר את השלבים שאינם מוכנים. ייבוא טרי בכל קריאה. */

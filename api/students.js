@@ -119,6 +119,7 @@ import team from "./_team.js";
 import teamTask from "./_team-task.js";
 import teamAdmin from "./_team-admin.js";
 import recruit from "./_recruit.js";
+import bugs from "./_bugs.js";
 
 export default router({ login, list, year, leader, weeks, role, profile, incident, placements, "placements-setup": placementsSetup, safety, "safety-setup": safetySetup, faults, "faults-setup": faultsSetup, alumni, hosting, cycles, import: importStep,
   duty, "duty-tasks": dutyTasks, "duty-notes": dutyNotes, chair,
@@ -129,4 +130,4 @@ export default router({ login, list, year, leader, weeks, role, profile, inciden
   "team-lecturer": teamLecturer,
   "lead-week": leadWeek, "lead-activity": leadActivity,
   notices, mpoll, mfeedback, search, mydata, trends, laundry, quotes, mishmar, group,
-  recruit });
+  recruit, bugs });

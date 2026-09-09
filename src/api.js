@@ -596,6 +596,15 @@ export const api = {
   clearWeekMenuCell: ({ day, meal }) =>
     del("/api/kitchen?action=weekmenu", { day, meal }),
 
+  /* ---------- באגים והערות לשיפור ----------
+     ⚠ פירוק מפורש — שדה שלא נכתב כאן נשמט בשקט (4לג). */
+  getBugs: () => get("/api/students?action=bugs"),
+  addBug: ({ title, kind, where, detail }) =>
+    post("/api/students?action=bugs", { title, kind, where, detail }),
+  editBug: ({ id, title, kind, where, detail, status, reply }) =>
+    put("/api/students?action=bugs", { id, title, kind, where, detail, status, reply }),
+  deleteBug: (id) => del("/api/students?action=bugs", { id }),
+
   loginStudent: (tz) => post("/api/students?action=login", { tz }),
 
   /** רשימת החניכים וסיכומיהם. מנהל בלבד — השרת אוכף. */
