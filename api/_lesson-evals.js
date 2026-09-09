@@ -53,6 +53,13 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
    ⚠ `viewOnly` גובר, ו-`mayEdit` כבר אוכף אותו; לוועדה הוא
      נבדק כאן במפורש, אחרת מנכ״ל שהוא גם חבר ועדה היה כותב.
+
+   ⚠⚠ **העברה בין מחזורים היא רמה שלישית — ראש המכינה בלבד.**
+     היא אינה "עוד שדה": חוות דעת שעוברת למחזור ב׳ **הופכת
+     ניתנת למחיקה** (ראו `remove` בתחתית הקובץ), כלומר מי
+     שמעביר פותח גם את הדלת הזו. 31 חוות הדעת של מחזור א׳
+     יובאו ממקור שאינו קיים עוד, והאדם היחיד שיודע אם שורה
+     היא ידע מיובא או תיוק שגוי של השנה הוא ראש המכינה.
    ============================================================ */
 async function gate(session) {
   const staff = Boolean(session.isManager) || Boolean(session.isScheduler);
@@ -61,6 +68,7 @@ async function gate(session) {
   return {
     read: staff || may.ok,
     write: mayEdit(session, "scheduler") || content,
+    moveCycle: Boolean(session.isHead) && !session.viewOnly,
     hint: contentHint(may),
   };
 }
@@ -75,7 +83,7 @@ async function handler(req, res, session) {
   }
   if (req.method === "GET") return list(req, res, g);
   if (req.method === "POST") return add(req, res, session);
-  if (req.method === "PUT") return edit(req, res, session);
+  if (req.method === "PUT") return edit(req, res, session, g);
   if (req.method === "DELETE") return remove(req, res, session);
   return res.status(405).json({ error: "רק GET, POST, PUT ו-DELETE נתמכים כאן" });
 }
@@ -116,6 +124,15 @@ async function list(req, res, g) {
          שהמשתמש כבר הקליד הוא בדיוק מה ש-4יד אוסר. */
       canEdit: g.write,
       editHint: g.write ? null : g.hint,
+      /* ⚠ מהשרת ולא נגזר במסך: בורר מחזורים שמופיע למי שאינו
+         ראש מכינה מקבל 403 אחרי שהוא כבר בחר (4יד). */
+      canMoveCycle: g.moveCycle,
+      /* התוויות מהקוד ולא מהנתונים — מחזור שאין בו עדיין אף
+         שורה חייב להופיע בבורר, אחרת אי אפשר להעביר אליו.
+         ⚠ ו-`currentCycle` נשלח כדי שהמסך לא ישווה למחרוזת
+           מוקלדת: "מחזור ב׳" הופיע כאן שלוש פעמים בקוד הלקוח. */
+      allCycles: Object.values(CYCLE),
+      currentCycle: CYCLE.second,
     });
   } catch (e) {
     console.error("[lesson-evals:list]", e);
@@ -215,7 +232,7 @@ async function add(req, res, session) {
      סומן "התקיים": השורה נוצרת עם הדירוגים, והמדריך מוסיף לה
      מילים אחר כך. גם שם המרצה ניתן לתיקון — שורה שנפתחה לפני
      שנרשם מי הגיע נושאת שם זמני. */
-async function edit(req, res, session) {
+async function edit(req, res, session, g) {
   try {
     const body = req.body ?? (await readJson(req));
     const evalId = String(body?.evalId || "").trim();
@@ -226,6 +243,41 @@ async function edit(req, res, session) {
     if (!row) return res.status(404).json({ error: "חוות הדעת אינה נמצאת" });
 
     const cols = {};
+    /* ⚠ התשובה אומרת מה השתנה **בפועל**: העברה למחזור שהשורה
+       כבר בו אינה שינוי, ו"הועבר" עליה הוא שקר קטן (4ש). */
+    let movedTo = null;
+
+    /* ============================================================
+       ⚠⚠ **העברה בין מחזורים — ראש המכינה בלבד**
+       ------------------------------------------------------------
+       שורה שמתויגת במחזור הלא-נכון היא שורה שאינה מופיעה
+       במסנן שבו מחפשים אותה, ועד היום התיקון היחיד היה לפתוח
+       את monday. זה עיקרון 1: מה שאפשר לתקן מהמסך — מהמסך.
+
+       ⚠ **וזו אינה עוד עמודה בטופס.** מחזור ב׳ הוא גם התנאי
+         למחיקה, ולכן העברה לשם פותחת דלת שנייה. לכן ראש
+         המכינה בלבד, ולכן המסך אומר את זה לפני הבחירה.
+
+       ⚠ **המחזור נבדק מול `CYCLE` ולא מתקבל כטקסט חופשי** —
+         `create_labels_if_missing` דלוק במוטציה הזו, ותווית
+         שהוקלדה בטעות הייתה נוצרת בלוח ואי אפשר למחוק אותה
+         דרך ה-API (4כא).
+       ============================================================ */
+    if (body.cycle !== undefined) {
+      if (!g || !g.moveCycle) {
+        return res.status(403).json({
+          error: "העברת חוות דעת בין מחזורים היא של ראש המכינה בלבד",
+        });
+      }
+      const want = String(body.cycle || "").trim();
+      if (!Object.values(CYCLE).includes(want)) {
+        return res.status(400).json({
+          error: `מחזור לא מוכר: ${want || "ריק"}. אפשריים: ${Object.values(CYCLE).join(" · ")}`,
+        });
+      }
+      if (want !== row.cycle) { cols[E.cycle] = { label: want }; movedTo = want; }
+    }
+
     if (body.opinion !== undefined) cols[E.opinion] = String(body.opinion).slice(0, 2000);
     if (body.topic !== undefined) cols[E.topic] = String(body.topic).slice(0, 200);
     if (body.phone !== undefined) cols[E.phone] = String(body.phone).slice(0, 40);
@@ -277,7 +329,7 @@ async function edit(req, res, session) {
     }
 
     invalidateEvals();
-    res.status(200).json({ ok: true, id: evalId });
+    res.status(200).json({ ok: true, id: evalId, movedTo });
   } catch (e) {
     console.error("[lesson-evals:edit]", e);
     res.status(502).json({ error: "עדכון חוות הדעת נכשל" });

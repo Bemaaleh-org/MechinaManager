@@ -2404,10 +2404,17 @@ function Incidents({ studentId, say }) {
    הדירוג 1–10, אישי, פעם אחת למפגש (דירוג חוזר מעדכן). הממוצע
    בין כל החניכים מוצג בחוות הדעת של מחזור ב׳.
    ============================================================ */
-function RateLessons({ say, onAll }) {
-  const { data, err, busy, reload } = useLoad(() => api.getRatable(), []);
+function RateLessons({ say, onAll, onSettled }) {
+  const { data, err, busy } = useLoad(() => api.getRatable(), []);
   const [patch, setPatch] = useState({});
   const [busyId, setBusyId] = useState(null);
+
+  /* ⚠ **משתתף בשער של מסך הבית** (useHomeGate), מאז שהוא יושב
+     בראשו: כרטיס שמופיע אחרי שהמסך כבר נראה דוחף את כל מה
+     שמתחתיו למטה, וזה נראה כמו קפיצה ולא כמו טעינה.
+     ⚠ ונקרא גם בכישלון — `busy` יורד בשני המקרים, ושער שממתין
+       לתשובה שלא תגיע נועל את המסך (עיקרון 6). */
+  React.useEffect(() => { if (!busy && onSettled) onSettled(); }, [busy]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (busy && !data) return null; // לא חוסמים את דף הבית
   if (err || !data || !data.meetings.length) return null;
@@ -3174,7 +3181,6 @@ const longDate = (d = new Date()) =>
 function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey }) {
   const [profile, setProfile] = useState(null);
   const [faults, setFaults] = useState(null);
-  const [ratable, setRatable] = useState(null);
   const [places, setPlaces] = useState(null);
   const [gantt, setGantt] = useState(null);
 
@@ -3198,10 +3204,9 @@ function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey }) {
       .then((r) => { if (live) setFaults((r.faults || []).filter((x) => x.status !== "טופלה").length); })
       .catch(() => {})
       .finally(bump);
-    api.getRatable()
-      .then((r) => { if (live) setRatable((r.meetings || []).filter((m) => !m.rated).length); })
-      .catch(() => {})
-      .finally(bump);
+    /* ⚠ `getRatable` נקרא ב-`RateLessons` עצמו, שיושב בראש
+       המסך ומדווח ל-`bump` — שתי קריאות לאותה נקודת קצה בטעינת
+       בית אחת הן בדיוק מה שהפעמון משלם עליו (4צ). */
     api.getGantt()
       .then((r) => { if (live) setGantt(r.events || []); })
       .catch(() => {})
@@ -3229,12 +3234,10 @@ function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey }) {
   const pending = reqs.data ? reqs.data.requests.filter((r) => r.status === "ממתין").length : null;
 
   /* ---------- דורש טיפול ---------- */
+  /* ⚠ **הדירוג ירד מכאן ולא נשכח.** הרשימה הזו יושבת בתחתית
+     המסך, וכרטיס הדירוג עלה לראשו — שתי אמירות על אותו דבר,
+     במרחק גלילה שלם זו מזו, הן רעש ולא הדגשה (4ג). */
   const attn = [];
-  if (ratable > 0) {
-    attn.push({ key: "rate", cls: "amber",
-      t: ratable === 1 ? "שיעור אחד ממתין לדירוג שלך" : `${ratable} שיעורים ממתינים לדירוג שלך`,
-      s: "הדירוג נכנס לחוות הדעת על המרצה", go: null });
-  }
   if (unseen > 0) {
     attn.push({ key: "dec", cls: "amber",
       t: unseen === 1 ? "בקשה שלך הוכרעה" : `${unseen} בקשות שלך הוכרעו`,
@@ -3328,6 +3331,28 @@ function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey }) {
       <DutyShortcuts onOpen={(k) => { setDutyKey(k); go("duty"); }} />
 
       {/* ============================================================
+          ⚠⚠ **דירוג שיעורים — בראש המסך, ולא בתחתיתו.**
+
+          הוא ישב שלוש פעמים במקום אחר, וכל פעם ירד: תחילה
+          מתחת לנוכחות והבקשות, ואז מתחת ללו״ז. שתי הפעמים
+          הנימוק היה "מה עכשיו קודם ל'מה היה'" — והתוצאה
+          בשטח הייתה שחוות דעת חדשה נכתבה, הדירוג נפתח, ואיש
+          לא ראה אותו.
+
+          ⚠ **הוא אינו דוחק את "היום אתם תורנים".** הרכיב מחזיר
+            `null` כשאין מה לדרג — וזה הרוב המוחלט של הימים —
+            ולכן במסך רגיל שום דבר לא זז. הוא עולה לראש **רק**
+            כשבאמת ממתין דירוג, וזה בדיוק הרגע שבשבילו הוא כאן.
+
+          ⚠ **ונשאר עד שדורגו**, לא עד שעובר תאריך: התיבה
+            "פתוח לדירוג" כבר אינה מוגבלת בחלון של שבועיים
+            (`lessonRatable` ב-shared). שורה שדורגה יורדת מיד.
+
+          (החלטת ראש המכינה, 9.9.2026.)
+          ============================================================ */}
+      <RateLessons say={say} onAll={() => go("archive")} onSettled={bump} />
+
+      {/* ============================================================
           ⚠⚠ **"היום אתם תורנים" — ראשון, ולפני הלו״ז.**
             תורן המטבח מופרש מרוב הלו״ז, ולכן הלו״ז אינו הדבר
             הראשון שהוא צריך; מה שהוא צריך הוא שהוא תורן, מה
@@ -3357,16 +3382,6 @@ function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey }) {
             בכישלון וכשהבנק ריק, ולכן אינו חוסם את המסך ואינו
             משאיר קופסה ריקה (עיקרון 6 בכיוון ההפוך).
           ============================================================ */}
-      {/* ============================================================
-          ⚠ **הדירוג גבוה, ומתחת ללו״ז בלבד.**
-
-          הוא ישב בתחתית מסך הבית, אחרי הנוכחות, הבקשות
-          והשיבוצים — כלומר מי שגלל עד אליו כבר סיים את מה
-          שבא לעשות. ולדירוג יש **חלון של שבועיים**: מטלה
-          שנסגרת מעצמה ואיש לא ראה אותה היא מטלה שלא קיימת.
-
-          ⚠ ומתחת ללו״ז ולא מעליו — "מה עכשיו" קודם ל"מה היה".
-          ============================================================ */}
       {/* ⚠ למוביל שבוע בלבד — `leadsAnyWeek` ולא `isLeader`:
           מי שמוביל את השבוע **הבא** הוא בדיוק מי שמתכנן עכשיו,
           ו-`isLeader` הוא "מוביל היום" (5ב). */}
@@ -3378,8 +3393,6 @@ function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey }) {
           ⚠ `leadsAnyWeek` ולא `isLeader`, כמו בכל השער הזה:
           `?action=day` פתוח ל-marker, שהוא בדיוק אותו קהל. */}
       {auth.leadsAnyWeek && <AbsentTodayCard onOpen={() => go("mark")} />}
-
-      <RateLessons say={say} onAll={() => go("archive")} />
 
       <DailyQuote say={say} onOpen={() => go("quotes")} />
 

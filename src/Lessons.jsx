@@ -732,10 +732,13 @@ function Evals({ say }) {
 
   return (
     <>
+      {/* ⚠ הרשימה מהשרת ולא שלוש מחרוזות מוקלדות — מחזור ג׳
+          שייפתח יופיע כאן מעצמו, בלי דיפלוי של המסך. */}
       <div className="seg">
         <button className={!cycle ? "on" : ""} onClick={() => setCycle(null)}>הכול</button>
-        <button className={cycle === "מחזור א׳" ? "on" : ""} onClick={() => setCycle("מחזור א׳")}>מחזור א׳</button>
-        <button className={cycle === "מחזור ב׳" ? "on" : ""} onClick={() => setCycle("מחזור ב׳")}>מחזור ב׳</button>
+        {(data.allCycles || []).map((c) => (
+          <button key={c} className={cycle === c ? "on" : ""} onClick={() => setCycle(c)}>{c}</button>
+        ))}
       </div>
 
       <input className="search" value={q} onChange={(e) => setQ(e.target.value)}
@@ -766,10 +769,12 @@ function Evals({ say }) {
       {list.length === 0 ? (
         <div className="empty">
           <div className="e1">אין חוות דעת</div>
-          <div className="e2">{cycle === "מחזור ב׳" ? "עדיין לא נכתבו חוות דעת השנה." : "נסו חלק מהשם."}</div>
+          <div className="e2">{cycle && cycle === data.currentCycle ? "עדיין לא נכתבו חוות דעת השנה." : "נסו חלק מהשם."}</div>
         </div>
       ) : list.map((e) => (
-        <EvalCard key={e.id} e={e} say={say} onSaved={reload} />
+        <EvalCard key={e.id} e={e} say={say} onSaved={reload}
+          cycles={data.allCycles || []} current={data.currentCycle || null}
+          canMoveCycle={data.canMoveCycle === true} />
       ))}
 
       <div className="sticky">
@@ -814,12 +819,13 @@ function Score({ e }) {
   );
 }
 
-function EvalCard({ e, say, onSaved }) {
+function EvalCard({ e, say, onSaved, cycles = [], current = null, canMoveCycle = false }) {
   const [edit, setEdit] = useState(false);
   const [f, setF] = useState({
     name: e.name, opinion: e.opinion || "",
     manual: e.manual == null ? "" : String(e.manual),
     lessonDate: e.lessonDate || "",
+    cycle: e.cycle || "",
   });
   const [busy, setBusy] = useState(false);
   /* ⚠ אישור בתוך המסך ולא confirm() של הדפדפן — הוא נראה זר,
@@ -827,8 +833,10 @@ function EvalCard({ e, say, onSaved }) {
   const [asking, setAsking] = useState(false);
   const auto = Boolean(e.meetingId);
   /* ⚠ הכלל זהה למה שהשרת אוכף (`remove` ב-api/_lesson-evals.js).
-     כפתור שמופיע ומקבל 403 הוא בדיוק מה ש-4יד אוסר. */
-  const canDelete = e.cycle === "מחזור ב׳";
+     כפתור שמופיע ומקבל 403 הוא בדיוק מה ש-4יד אוסר.
+     ⚠ והמחזור הנוכחי מגיע מהשרת ואינו מוקלד — הוא היה כתוב
+       כאן כמחרוזת, ומחזור ג׳ היה נועל את המחיקה בשקט. */
+  const canDelete = Boolean(current) && e.cycle === current;
   /* הצבעות חניכים גוברות. הציון הידני עדיין ניתן לעריכה, אבל
      המסך אומר במפורש שהוא אינו מה שמוצג. */
   const byStudents = e.source === "students";
@@ -846,8 +854,11 @@ function EvalCard({ e, say, onSaved }) {
       /* ⚠ נשלח רק כשאין מפגש מאחורי השורה. כשיש — התאריך נגזר
          מהמפגש, והשדה נעול. */
       ...(auto ? {} : { lessonDate: f.lessonDate }),
+      /* ⚠ נשלח רק למי שרשאי ורק כשבאמת השתנה — שדה שנשלח על
+         ידי מי שאינו רשאי מקבל 403 ומפיל את כל השמירה (5יט). */
+      ...(canMoveCycle && f.cycle && f.cycle !== e.cycle ? { cycle: f.cycle } : {}),
     })
-      .then(() => { say("נשמר"); setEdit(false); onSaved(); })
+      .then((r) => { say(r && r.movedTo ? `נשמר · הועבר ל${r.movedTo}` : "נשמר"); setEdit(false); onSaved(); })
       .catch((err) => say(err.message))
       .finally(() => setBusy(false));
   };
@@ -896,6 +907,35 @@ function EvalCard({ e, say, onSaved }) {
                 onChange={(ev) => setF({ ...f, lessonDate: ev.target.value })} />
             )}
           </div>
+          {/* ============================================================
+              ⚠⚠ **העברה בין מחזורים — ראש המכינה בלבד, ואומרת מה
+                היא עושה.**
+
+              שורה שתויגה במחזור הלא-נכון אינה מופיעה במסנן שבו
+              מחפשים אותה, ועד היום התיקון היחיד היה לפתוח את
+              monday. ⚠ אבל מחזור ב׳ הוא גם התנאי למחיקה — ולכן
+              ההערה נאמרת **לפני** הבחירה ולא אחריה.
+
+              ⚠ `canMoveCycle` מגיע מהשרת ואינו נגזר כאן (4יד).
+              ============================================================ */}
+          {canMoveCycle && cycles.length > 1 && (
+            <div className="fld">
+              <label>מחזור</label>
+              <div className="seg">
+                {cycles.map((c) => (
+                  <button key={c} type="button" disabled={busy}
+                    className={f.cycle === c ? "on" : ""}
+                    onClick={() => setF({ ...f, cycle: c })}>{c}</button>
+                ))}
+              </div>
+              {f.cycle !== e.cycle && (
+                <div className="ev-note">
+                  יעבור מ{e.cycle || "בלי מחזור"} ל{f.cycle}.
+                  {f.cycle === current && " חוות דעת במחזור הנוכחי ניתנת גם למחיקה."}
+                </div>
+              )}
+            </div>
+          )}
           {byStudents && (
             <div className="ev-note">
               למרצה הזה יש {e.votes} דירוגי חניכים ({e.score}) — הם מה שמוצג.
@@ -914,8 +954,12 @@ function EvalCard({ e, say, onSaved }) {
             </button>
             <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} disabled={busy}
               onClick={() => {
+                /* ⚠ כל השדות, ולא שלושה מתוך חמישה: שדה שנשמט
+                   כאן הופך ל-undefined והקלט הופך ל-uncontrolled
+                   באמצע העריכה. */
                 setF({ name: e.name, opinion: e.opinion || "",
-                       manual: e.manual == null ? "" : String(e.manual) });
+                       manual: e.manual == null ? "" : String(e.manual),
+                       lessonDate: e.lessonDate || "", cycle: e.cycle || "" });
                 setEdit(false);
               }}>
               ביטול

@@ -970,9 +970,13 @@ export const api = {
 
   /** עריכת חוות דעת — בעיקר ההערה על שורה שנפתחה אוטומטית */
   /** ⚠ manualScore: מספר 1–10, או null לניקוי. השמטה = בלי שינוי. */
-  editLessonEval: ({ evalId, name, topic, field, phone, opinion, manualScore, lessonDate }) =>
+  /* ⚠⚠ `cycle` — העברה בין מחזורים, **ראש המכינה בלבד**. השרת
+     מחזיר 403 לכל אחד אחר, ו-`canMoveCycle` בתשובת ה-GET הוא
+     מה שהמסך אמור לבדוק לפני שהוא מציג בורר (4יד).
+     ⚠ ופירוק מפורש: שדה שלא נכתב כאן נשמט בשקט (4לג). */
+  editLessonEval: ({ evalId, name, topic, field, phone, opinion, manualScore, lessonDate, cycle }) =>
     put("/api/lessons?action=evals",
-      { evalId, name, topic, field, phone, opinion, manualScore, lessonDate }),
+      { evalId, name, topic, field, phone, opinion, manualScore, lessonDate, cycle }),
 
   /** ⚠ מחזור ב׳ בלבד. השרת דוחה מחיקה של מחזור א׳ ב-403 ואומר למה. */
   deleteLessonEval: (evalId) =>
