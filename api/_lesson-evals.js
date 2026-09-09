@@ -147,16 +147,35 @@ async function add(req, res, session) {
     const opinion = String(body?.opinion || "").trim();
 
     if (!name) return res.status(400).json({ error: "לא הוזן שם המרצה" });
-    if (!opinion) return res.status(400).json({ error: "לא הוזנה חוות דעת" });
 
+    /* ============================================================
+       ⚠⚠ **הערה אינה חובה, והשם כן.**
+       ------------------------------------------------------------
+       זו הייתה סתירה בין שני המסלולים לאותו לוח:
+       `ensureEvalForMeeting` פותח שורה **בלי טקסט** בכל פעם
+       שמסמנים "התקיים" — וזו בדיוק השורה שמופיעה במסך עם
+       "דירוג החניכים בלבד — טרם נכתבה הערה" — בזמן שהמסלול
+       הידני דרש טקסט ודחה ב-400.
+
+       התוצאה: אי אפשר היה לפתוח שורה למרצה כדי שדירוגי החניכים
+       ייכנסו אליה, אלא אם כותבים עליו חוות דעת באותו רגע. מי
+       שרוצה לפתוח את השורה עכשיו ולכתוב אחרי שהחניכים דירגו —
+       ולזה בדיוק נועד כפתור "הוספת הערה" שכבר קיים על הכרטיס —
+       נחסם.
+
+       ⚠ **השם הוא מה שחייב**: שורה בלי שם אינה ניתנת לזיהוי
+         בשום מסך, ואינה נמחקת בקלות.
+       ============================================================ */
     const cols = {
-      [E.opinion]: opinion.slice(0, 2000),
       [E.cycle]: { label: String(body?.cycle || CYCLE.second) },
       [E.by]: actorName(session).slice(0, 120),
       [E.at]: { date: new Intl.DateTimeFormat("en-CA", {
         timeZone: "Asia/Jerusalem", year: "numeric", month: "2-digit", day: "2-digit",
       }).format(new Date()) },
     };
+    /* ⚠ נכתב רק כשיש — כתיבת מחרוזת ריקה לעמודת טקסט ארוך
+       מייצרת שורה שנראית כאילו מישהו כתב ומחק. */
+    if (opinion) cols[E.opinion] = opinion.slice(0, 2000);
     if (body?.topic) cols[E.topic] = String(body.topic).slice(0, 200);
     if (body?.phone) cols[E.phone] = String(body.phone).slice(0, 40);
     /* ⚠ תחום חדש מותר להיווצר כאן: המכינה מוסיפה תחומים לאורך

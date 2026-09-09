@@ -182,6 +182,31 @@ ok("ומחזור ב׳ נמחק", r.status === 200, `${r.status} ${r.b.error || "
 ok("והשורה אינה בלוח",
   !(await allItems(LB.evals)).some((x) => String(x.id) === String(id)));
 
+/* ============================================================
+   ⚠⚠ שורה **בלי הערה** — המסלול הידני והאוטומטי חייבים להסכים
+   ------------------------------------------------------------
+   `ensureEvalForMeeting` פותח שורה בלי טקסט בכל סימון "התקיים",
+   והמסלול הידני דחה אותה ב-400. כלומר אי אפשר היה לפתוח שורה
+   למרצה כדי שדירוגי החניכים ייכנסו אליה ולכתוב עליו אחר כך.
+
+   ⚠ ושתי הטענות ביחד: **שם ריק עדיין נדחה.** בלי השנייה,
+     הבדיקה הייתה נשארת ירוקה גם אילו נפתחה הדלת לשורות בלי
+     שום דבר שמזהה אותן.
+   ============================================================ */
+const BARE = "בדיקה — מרצה בלי הערה";
+r = await call(M, "POST", "/api/lessons?action=evals", { name: BARE, cycle: "מחזור ב׳" });
+ok("שורה בלי הערה נוצרת", r.status === 200, JSON.stringify(r.b));
+const bareId = r.b && r.b.id;
+if (bareId) {
+  const row = (await list()).find((x) => x.id === bareId);
+  ok("והיא מופיעה ברשימה עם השם", Boolean(row) && row.name === BARE);
+  ok("ובלי טקסט חוות דעת", Boolean(row) && !String(row.opinion || "").trim());
+  await gql(`mutation($i:ID!){ delete_item(item_id:$i){ id } }`, { i: bareId });
+}
+
+r = await call(M, "POST", "/api/lessons?action=evals", { name: "  ", opinion: "יש טקסט" });
+ok("אבל שם ריק עדיין נדחה", r.status === 400, `סטטוס ${r.status}`);
+
 console.log("\n=== ניקוי ===");
 await cleanup();
 const left = (await allItems(LB.evals)).some((x) => String(x.id) === String(id));

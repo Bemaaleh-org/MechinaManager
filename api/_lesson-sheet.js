@@ -32,13 +32,17 @@ async function read(req, res, session) {
     const sheet = sheets.find((s) => s.id === id);
     if (!sheet) return res.status(404).json({ error: "הגיליון אינו נמצא" });
 
-    /* ⚠ בשיעורי מרצה אורח כל מפגש נושא את הדירוג שהחניכים נתנו
-       ואת חוות הדעת שנפתחה לו. הממוצע מחושב חי מלוח הדירוגים,
-       כדי שחניך שדירג אחרי הסימון ייספר גם הוא. */
-    let evals = [], ratings = [];
-    if (sheet.guestLecturer) {
-      [evals, ratings] = await Promise.all([loadEvals(), loadRatings()]);
-    }
+    /* ⚠ כל מפגש נושא את הדירוג שהחניכים נתנו ואת חוות הדעת
+       שנפתחה לו. הממוצע מחושב חי מלוח הדירוגים, כדי שחניך
+       שדירג אחרי הסימון ייספר גם הוא.
+
+       ⚠⚠ **ולא רק בגיליון "מרצה מתחלף".** התנאי הזה היה כאן
+         כחיסכון, ומרגע שאפשר לכתוב חוות דעת גם על מפגש בגיליון
+         רגיל הוא הופך לבאג: בלי `evalId` המסך אינו יודע ששורה
+         כבר נפתחה, מציג שוב "הוספת חוות דעת", **ולחיצה שנייה
+         פותחת שורה שנייה לאותו מפגש**. ואין כאן חיסכון של ממש —
+         שתי הטעינות ממוטמעות ומשותפות לכל הבקשה. */
+    const [evals, ratings] = await Promise.all([loadEvals(), loadRatings()]);
 
     res.status(200).json({
       sheet,
@@ -46,7 +50,6 @@ async function read(req, res, session) {
       meetings: meetings
         .filter((m) => m.sheetId === id)
         .map(({ sheetId, ...rest }) => {
-          if (!sheet.guestLecturer) return rest;
           const ev = evalForMeeting(rest.id, evals);
           const r = ratingFor(rest.id, ratings);
           return {

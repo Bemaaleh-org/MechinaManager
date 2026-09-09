@@ -326,12 +326,17 @@ function SheetDetail({ sheet, onBack, say }) {
   }
 
   /* חוות דעת נכתבת ישירות ללוח של מחזור ב׳, עם שם המרצה ותחום
-     השיעור ממולאים מראש. */
+     השיעור ממולאים מראש.
+
+     ⚠ **השם נופל לגיליון.** בגיליון "מרצה מתחלף" הוא יושב על
+       המפגש; בגיליון רגיל — סדנה, שיעור קבוע — הוא יושב על
+       הגיליון, ובלי הנפילה הזו הטופס נפתח ריק דווקא במקרה שבו
+       התשובה כתובה שורה מעליו. */
   if (evalFor) {
     return (
       <NewEval fields={[data.sheet.subject]} say={say}
-        preset={{ name: fieldOf(evalFor, "lecturer"), field: data.sheet.subject,
-                  meetingId: evalFor.id }}
+        preset={{ name: fieldOf(evalFor, "lecturer") || data.sheet.lecturer || "",
+                  field: data.sheet.subject, meetingId: evalFor.id }}
         onCancel={() => setEvalFor(null)}
         onDone={() => { setEvalFor(null); say("חוות הדעת נוספה למחזור ב׳"); }} />
     );
@@ -466,22 +471,43 @@ function SheetDetail({ sheet, onBack, say }) {
                   </div>
                 )}
 
-                {/* ⚠ מרצה אורח — נקבע בעמודה בלוח ולא לפי שם השיעור.
-                    מוצג גם למפגש שטרם דווח, כדי שאפשר יהיה לרשום
-                    מי אמור להגיע. */}
-                {!cancelled && canEdit && guest && (
+                {/* ============================================================
+                    ⚠⚠ **חוות דעת אינה שמורה למרצה מתחלף בלבד.**
+
+                    כל הבלוק הזה היה מותנה ב-`guest`, ולכן גיליון
+                    רגיל — סדנה, שיעור אורח בתוך גיליון קבוע — לא
+                    יכול היה לקבל חוות דעת **בכלל**: לא אוטומטית
+                    (`ensureEvalForMeeting` בודקת `guestLecturer`)
+                    ולא ביד. זה בדיוק מה ש-5כ הכריז עליו כמסלול
+                    קיים, ובפועל רק **הדירוג** נפתח שם והכתיבה
+                    נשארה מאחור.
+
+                    ⚠ **ולמפגש בגיליון רגיל — רק אחרי "התקיים".**
+                      כפתור על כל אחד מ-86 מפגשי האימונים הוא רעש
+                      שמפסיקים לראות; הרגע שבו יש על מה לכתוב הוא
+                      הרגע שבו דווח שהשיעור היה. בגיליון "מרצה
+                      מתחלף" הוא נשאר מוצג גם לפני, כדי שאפשר יהיה
+                      לרשום מראש מי אמור להגיע.
+                    ============================================================ */}
+                {!cancelled && canEdit && (guest || s === "כן" || m.evalId) && (
                   <div className="abs-note" style={{ padding: "0 0 4px" }}>
+                    {/* ⚠ שם המרצה על **המפגש** קיים רק בגיליון מרצה
+                        מתחלף. בגיליון רגיל המרצה יושב על הגיליון,
+                        ושדה כאן היה מזמין להקליד שם שני. */}
+                    {guest && (
                     <input value={fieldOf(m, "lecturer")} placeholder="שם המרצה שהגיע"
                       onChange={(e) => setField(m, "lecturer", e.target.value)}
                       onBlur={() => saveField(m, "lecturer")} />
+                    )}
 
                     {/* ⚠ חוות הדעת אינה נשמרת על המפגש אלא בלוח חוות
                         הדעת של מחזור ב׳, כדי שכל חוות הדעת יישבו
                         במקום אחד וניתן יהיה לחפש בהן לאורך השנים.
 
-                        משסומן "התקיים" היא נפתחת מעצמה, ומכאן מוסיפים
-                        לה הערה. כפתור "הוספת חוות דעת" נשאר למפגש
-                        שטרם סומן. */}
+                        בגיליון "מרצה מתחלף" היא נפתחת מעצמה בסימון
+                        "התקיים", ומכאן מוסיפים לה הערה. בגיליון רגיל
+                        אין פתיחה אוטומטית, והכפתור הזה הוא הדרך
+                        היחידה — ולכן הוא מוצג שם. */}
                     {m.evalId ? (
                       <EvalNote meeting={m} say={say} onSaved={() => setSeq((n) => n + 1)} />
                     ) : (
@@ -491,7 +517,7 @@ function SheetDetail({ sheet, onBack, say }) {
                         <LI.star />הוספת חוות דעת
                       </button>
                     )}
-                    {busyId === m.id && (
+                    {guest && busyId === m.id && (
                       <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 700, marginTop: 4 }}>
                         שומר…
                       </div>
@@ -1174,7 +1200,7 @@ function NewEval({ fields, onDone, onCancel, say, preset }) {
 
   const submit = (e) => {
     e.preventDefault();
-    if (busy || !f.name.trim() || !f.opinion.trim()) return;
+    if (busy || !f.name.trim()) return;
     setBusy(true); setErr(null);
     api.addLessonEval({
       ...f, cycle: "מחזור ב׳",
@@ -1236,10 +1262,26 @@ function NewEval({ fields, onDone, onCancel, say, preset }) {
           <label htmlFor="ev-phone">טלפון (לא חובה)</label>
           <input id="ev-phone" value={f.phone} disabled={busy} onChange={set("phone")} inputMode="tel" />
         </div>
+        {/* ============================================================
+            ⚠⚠ **ההערה אינה חובה — השם כן.**
+
+            השורות שנפתחות מסימון "התקיים" נוצרות **בלי טקסט**,
+            ובמסך הן נראות "דירוג החניכים בלבד — טרם נכתבה הערה".
+            המסלול הידני דרש טקסט ודחה ב-400, ולכן אי אפשר היה
+            לפתוח שורה למרצה כדי שהדירוגים ייכנסו אליה ולכתוב
+            עליו אחרי שהחניכים דירגו — וזה בדיוק מה שכפתור
+            "הוספת הערה" שעל הכרטיס נועד לו.
+            ============================================================ */}
         <div className="fld">
-          <label htmlFor="ev-op">חוות דעת</label>
+          <label htmlFor="ev-op">חוות דעת (לא חובה)</label>
           <input id="ev-op" value={f.opinion} disabled={busy} onChange={set("opinion")}
             placeholder="מה היה טוב, למי להמליץ, דירוג" />
+          {!f.opinion.trim() && (
+            <div className="ev-note" style={{ marginTop: 6 }}>
+              השורה תיפתח בלי הערה — הדירוגים של החניכים ייכנסו אליה,
+              וההערה נכתבת אחר כך מכפתור "הוספת הערה".
+            </div>
+          )}
         </div>
 
         {/* ============================================================
@@ -1256,7 +1298,7 @@ function NewEval({ fields, onDone, onCancel, say, preset }) {
           </label>
         )}
         <button className="btn btn-primary" type="submit"
-          disabled={busy || !f.name.trim() || !f.opinion.trim()}>
+          disabled={busy || !f.name.trim()}>
           {busy ? "שומר…" : "שמירה"}
         </button>
       </form>
