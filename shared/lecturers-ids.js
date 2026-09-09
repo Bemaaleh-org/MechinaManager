@@ -19,23 +19,20 @@
    ============================================================ */
 
 export const LECT_BOARDS = {
-  board: "",
+  "board": "5103855535"
 };
 
 export const LECT_COLS = {
-  topic: "",
-  about: "",
-  phone: "",
-  email: "",
-  link: "",
-  status: "",
-  /* ⚠ מי הציע — **שם ומזהה**. שם כאן אינו מעקב אלא "את מי
-     לשאול על ההצעה הזו", ובלעדיו ההצעה תלויה באוויר. אותו
-     נימוק כמו "מי לקח" בפניות הגיוס (5כו). */
-  byId: "",
-  byName: "",
-  notes: "",
-  date: "",
+  "topic": "text_mm71m37x",
+  "about": "long_text_mm71kdgn",
+  "phone": "text_mm71scar",
+  "email": "text_mm71fze0",
+  "link": "text_mm716829",
+  "status": "color_mm717pbq",
+  "byId": "text_mm71w1de",
+  "byName": "text_mm7127zm",
+  "notes": "long_text_mm712k77",
+  "date": "date_mm718gq3"
 };
 
 /** ⚠ בלי הלוח המסך אומר מה להריץ (עיקרון 6). */

@@ -19,54 +19,60 @@
    ⚠ **המחיר מוצהר במסך**: אי אפשר למחוק "את מה שאני כתבתי",
      ואי אפשר למנוע כפילות. שניהם עדיפים על אנונימיות
      למראית עין.
+
+   ⚠⚠ **שלושה שדות טקסט על המליאה, ולא אחד:**
+       `agenda`   — מה שתכננו **לפני**
+       `protocol` — מה שנאמר **בזמן**: מי אמר מה ומה הוחלט
+       `summary`  — מה שמספרים **אחרי**, והיחיד שנפתח למכינה
+     עמודה אחת לשלושתם הייתה מכריחה לבחור בין לאבד את
+     הפרוטוקול לבין לפרסם אותו כמות שהוא.
+
+   ⚠ **`protocol` נוצר על ידי הרצה חוזרת של `npm run
+     seed:plenary`.** עד אז `protocolReady()` מחזירה false,
+     הלשונית אינה מוצגת והכתיבה נדחית ב-503 מפורש — ולא
+     נשלחת ל-monday עם מזהה עמודה `undefined` (עיקרון 6).
+
+   ⚠ **ואין להוסיף שדה ביד לתוך הבלוק המחולל.** הוא נכתב
+     מחדש בכל seed דרך JSON.stringify, וכל הערה או שדה
+     שנוספו בתוכו נמחקים בלי אזהרה.
    ============================================================ */
 
 export const PLENARY_BOARDS = {
-  events: "",
-  notes: "",
+  "events": "5103855466",
+  "notes": "5103855491"
 };
 
 export const PLENARY_COLS = {
-  events: {
-    date: "",
-    status: "",
-    /* מי מארגן — עד שלושה, מזהים ושמות. ⚠ שם כאן אינו מעקב
-       אלא "מי מוביל את המליאה הזו", בדיוק כמו מי סימן בצ׳ק
-       ליסט ההובלה (5יא) ו"מי לקח" בפניות הגיוס (5כו). */
-    owners: "",
-    ownerNames: "",
-    /* ⚠ תיבת הפתקים פתוחה או סגורה. סגורה = החניכים כבר
-       אינם מוסיפים, והוועדה בונה סדר יום. */
-    open: "",
-    agenda: "",
-    summary: "",
-    /* ⚠⚠ **פרוטוקול נפרד מסדר יום ומסיכום — שלושה דברים.**
-       `agenda` הוא מה שמתכננים **לפני**; `protocol` הוא מה
-       שנאמר **בזמן** — מי אמר מה והחלטות; `summary` הוא מה
-       שמספרים **אחרי**, והוא זה שנפתח לכל המכינה.
-       עמודה אחת לשלושתם הייתה מכריחה לבחור בין לאבד את
-       הפרוטוקול לבין לפרסם אותו כמות שהוא. */
-    protocol: "",
-    summaryBy: "",
-    file: "",
-    note: "",
+  "events": {
+    "date": "date_mm71gx52",
+    "status": "color_mm71e80g",
+    "owners": "text_mm71gfhw",
+    "ownerNames": "text_mm71arsj",
+    "open": "boolean_mm71v5fx",
+    "agenda": "long_text_mm71f8wg",
+    "summary": "long_text_mm714g76",
+    "summaryBy": "text_mm717975",
+    "file": "file_mm712nsz",
+    "note": "text_mm714k6d"
   },
-  notes: {
-    plenary: "",
-    text: "",
-    anon: "",
-    /* ⚠ ריקים לחלוטין בפתק אנונימי. ראו ההערה בראש. */
-    authorId: "",
-    authorName: "",
-    order: "",
-    inAgenda: "",
-    date: "",
-  },
+  "notes": {
+    "plenary": "text_mm71jwd3",
+    "text": "long_text_mm71e5xv",
+    "anon": "boolean_mm71xfrw",
+    "authorId": "text_mm714gmx",
+    "authorName": "text_mm71ttza",
+    "order": "numeric_mm71b4rk",
+    "inAgenda": "boolean_mm71z06g",
+    "date": "date_mm71s0dv"
+  }
 };
 
 /** ⚠ בלי הלוחות המסך אומר מה להריץ ואינו מציג רשימה ריקה (עיקרון 6). */
 export const plenaryReady = () =>
   Boolean(PLENARY_BOARDS.events && PLENARY_BOARDS.notes && PLENARY_COLS.events.status);
+
+/** ⚠ עמודה שנוספה אחרי ההקמה הראשונה — ראו ההערה בראש הקובץ. */
+export const protocolReady = () => Boolean(PLENARY_COLS.events.protocol);
 
 /* ⚠ **התוויות זהות בתו לתוויות שבלוח.** */
 export const PLENARY_STATUS = {

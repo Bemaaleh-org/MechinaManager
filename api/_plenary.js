@@ -34,7 +34,7 @@ import { israelToday } from "./_attendance-data.js";
 import { activeStudents } from "./_student-rows.js";
 import { mayContent, contentHint } from "./_content-team.js";
 import {
-  PLENARY_BOARDS as B, PLENARY_COLS as C,
+  PLENARY_BOARDS as B, PLENARY_COLS as C, protocolReady,
   plenaryReady, PLENARY_STATUS, PLENARY_STATUSES,
 } from "../shared/plenary-ids.js";
 
@@ -145,6 +145,10 @@ async function handler(req, res, session) {
           /* ⚠⚠ בנק הפתקים לוועדה בלבד. ראו ההערה בראש. */
           ...(may.ok ? { notes: mine.map(toTeamNote), owners: e.owners, protocol: e.protocol } : {}),
           canEdit: may.ok,
+          /* ⚠ **גם כאן ולא רק ברשימה.** המסך של המליאה הבודדת
+             הוא זה שמצייר את הלשונית, ודגל שיושב רק בתשובה
+             השנייה פירושו לשונית שלעולם לא תופיע. */
+          protocolReady: protocolReady(),
           statuses: PLENARY_STATUSES,
         });
       }
@@ -163,6 +167,10 @@ async function handler(req, res, session) {
         statuses: PLENARY_STATUSES,
         canEdit: may.ok,
         editHint: may.ok ? null : contentHint(may),
+        /* ⚠ **נשלח מהשרת ואינו נגזר במסך** (4יד): לשונית שתופיע
+           ותקבל 503 אחרי שהמשתמש הקליד פרוטוקול שלם היא בדיוק
+           מה שהכלל נועד למנוע. */
+        protocolReady: protocolReady(),
         /* ⚠ רשימת החניכים נחוצה רק לבחירת אחראים, ולכן לוועדה
            בלבד — מיפוי מפורש של שם ומזהה. */
         ...(may.ok ? {
@@ -314,7 +322,19 @@ async function handler(req, res, session) {
     /* ⚠ **נכתב על ידי מי שרשאי לערוך את המליאה** — הוועדה
        ואחראי המליאה. אותו שער בדיוק של סדר היום; פרוטוקול
        שרק היו״ר יכול לכתוב נשאר ריק ברוב המליאות. */
-    if (body.protocol !== undefined) cols[E.protocol] = clip(body.protocol, MAX.summary);
+    if (body.protocol !== undefined) {
+      /* ⚠⚠ **העמודה נוספה אחרי ההקמה הראשונה.** בלי השער הזה
+         `cols[undefined]` נשלח ל-monday ונופל ב-502 גנרי —
+         כלומר "השמירה נכשלה" בלי לומר שחסרה הרצה. עיקרון 6:
+         כשל הקמה נראה אחרת מכישלון. */
+      if (!protocolReady()) {
+        return res.status(503).json({
+          error: "עמודת הפרוטוקול טרם הוקמה. הריצו: npm run setup:boards  (או רק: npm run seed:plenary)",
+          setupRequired: true,
+        });
+      }
+      cols[E.protocol] = clip(body.protocol, MAX.summary);
+    }
     if (body.note !== undefined) cols[E.note] = clip(body.note, MAX.note);
     if (body.summary !== undefined) {
       cols[E.summary] = clip(body.summary, MAX.summary);

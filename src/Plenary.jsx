@@ -340,7 +340,7 @@ function PlenaryView({ id, canEdit, roster, statuses, say, onBack }) {
         {/* ⚠ **הפרוטוקול מוצג רק למי שרשאי לערוך.** הוא אינו
             בגוף התשובה של חניך כלל (השרת אינו שולח אותו), ולכן
             לשונית ריקה כאן הייתה נראית כמו תקלה. */}
-        {canEdit && (
+        {canEdit && d.protocolReady && (
           <button className={tab === "prot" ? "on" : ""} onClick={() => setTab("prot")}>פרוטוקול</button>
         )}
         <button className={tab === "sum" ? "on" : ""} onClick={() => setTab("sum")}>סיכום</button>
@@ -461,7 +461,7 @@ function PlenaryView({ id, canEdit, roster, statuses, say, onBack }) {
           ⚠ **ולמי שאינו רשאי הלשונית כלל אינה קיימת** — לא
             ריקה ולא נעולה. השרת אינו שולח את השדה (4מא).
           ============================================================ */}
-      {tab === "prot" && canEdit && (
+      {tab === "prot" && canEdit && d.protocolReady && (
         <>
           <div className="tm-sub lct-note">
             רישום פנימי של המליאה — מי אמר מה ומה הוחלט. אינו מוצג לחניכים;

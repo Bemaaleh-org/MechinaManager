@@ -13,20 +13,18 @@
    ============================================================ */
 
 export const STU_BOARDS = {
-  board: "",
+  "board": "5103855441"
 };
 
 export const STU_COLS = {
-  student: "",
-  studentName: "",
-  kind: "",
-  date: "",
-  topic: "",
-  /* ⚠ **שלושה מצבים ולא שניים**: התקיים · לא התקיים · טרם.
-     תיבת סימון הייתה אומרת "לא התקיים" על כל שיעור עתידי. */
-  happened: "",
-  note: "",
-  by: "",
+  "student": "text_mm717w60",
+  "studentName": "text_mm71w14d",
+  "kind": "color_mm715xgy",
+  "date": "date_mm71vvnd",
+  "topic": "text_mm71904t",
+  "happened": "color_mm71xd07",
+  "note": "long_text_mm71s51j",
+  "by": "text_mm71khmp"
 };
 
 /** ⚠ בלי הלוח המסך אומר מה להריץ ואינו מציג טבלה ריקה (עיקרון 6). */
