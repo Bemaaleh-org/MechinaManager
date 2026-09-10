@@ -629,9 +629,11 @@ export const api = {
   getLecturers: () => get("/api/students?action=lecturers"),
   addLecturer: ({ name, topic, about, phone, email, link }) =>
     post("/api/students?action=lecturers", { name, topic, about, phone, email, link }),
-  editLecturer: ({ id, name, topic, about, phone, email, link, status, notes }) =>
+  /* ⚠ פירוק מפורש — שדה שלא נכתב כאן נשמט בשקט, ואז הוא נראה
+     עובד במסך ואינו מגיע לשרת (4לג). */
+  editLecturer: ({ id, name, topic, about, phone, email, link, status, notes, category }) =>
     put("/api/students?action=lecturers",
-      { id, name, topic, about, phone, email, link, status, notes }),
+      { id, name, topic, about, phone, email, link, status, notes, category }),
   deleteLecturer: (id) => del("/api/students?action=lecturers", { id }),
 
   /* ---------- באגים והערות לשיפור ----------

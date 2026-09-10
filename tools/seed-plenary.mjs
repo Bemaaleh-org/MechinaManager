@@ -25,7 +25,7 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { gql } from "../api/_monday.js";
 import { PLENARY_STATUSES } from "../shared/plenary-ids.js";
-import { LECT_STATUSES } from "../shared/lecturers-ids.js";
+import { LECT_STATUSES, LECT_CATEGORIES } from "../shared/lecturers-ids.js";
 
 /* ⚠ 0,1,2,3,4,6,7… — מפתח 5 מדולג. */
 const LABEL_KEYS = (() => {
@@ -102,6 +102,12 @@ const lectC = {
   email: await make(lectB, "אימייל", "text"),
   link: await make(lectB, "קישור", "text"),
   status: await make(lectB, "סטטוס", "status", labels(LECT_STATUSES)),
+  /* ⚠⚠ **גם כאן וגם ב-tools/seed-lecturers.mjs, ובכוונה.**
+     שני מחוללים כותבים את LECT_COLS ב-JSON.stringify, ולכן
+     עמודה שקיימת רק באחד מהם **נמחקת מהמזהים** בהרצה של
+     השני — בדיוק המוקש של 4מו. לוח חדש מקבל את הקטגוריה
+     כאן; לוח שכבר עומד מקבל אותה שם. */
+  category: await make(lectB, "קטגוריה", "status", labels(LECT_CATEGORIES)),
   byId: await make(lectB, "מזהה מציע", "text"),
   byName: await make(lectB, "הציע", "text"),
   notes: await make(lectB, "הערות הוועדה", "long_text"),

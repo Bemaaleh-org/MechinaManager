@@ -16,6 +16,25 @@
      המזהים נכתבים ונטענים, ושהרצה חוזרת אינה יוצרת כפילות.
    ============================================================ */
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
+/* ⚠⚠ **הנתיב יחסי למקום שבו הקובץ הזה **רץ**, לא למקום שבו
+   הוא יושב.** seed-dry מעתיק אותו אל `api/_monday.js` שבעותק
+   הזמני, ולכן `../tools/…` ולא `../…`. נתיב שנראה נכון בעץ
+   המקור הפיל כאן את **כל** חמישה־עשר הסקריפטים בבת אחת. */
+import COLOR_MAP from "../tools/monday-colors.json" with { type: "json" };
+
+/* ⚠ **enum → var_name, ההפך של הטבלה.** monday מחזירה ב-
+   `settings_str` את השם הישן ("green-shadow") ומקבלת ב-API את
+   שם ה-enum ("done_green"), ואין ביניהם כלל המרה (4כד). סקריפט
+   שכותב רשימת תוויות **קורא** את הצבעים הקיימים כדי להחזיר
+   אותם כמות שהם — ולכן מוק שאינו מחזיר `labels_colors` מפיל
+   אותו בהרצה השנייה על "אין מיפוי לצבע", שהיא תקלה של המוק
+   ולא של הסקריפט. */
+const VAR_OF = Object.fromEntries(Object.entries(COLOR_MAP).map(([v, e]) => [e, v]));
+const VAR_POOL = Object.keys(COLOR_MAP);
+const colorEntry = (enumName, i) => {
+  const varName = VAR_OF[enumName] || VAR_POOL[i % VAR_POOL.length];
+  return { color: "#000000", border: "#000000", var_name: varName };
+};
 
 /* ⚠ **לא זורקים בטעינת המודול.** הנתבים מייבאים את הקובץ הזה
    רק כדי לוודא שהשרשרת נטענת, ובלי לקרוא לו. זריקה בטעינה
@@ -37,6 +56,16 @@ function board(s, id, name) {
   const k = String(id);
   if (!s.boards[k]) s.boards[k] = { id: k, name: name || "לוח קיים " + k, columns: [], items: [] };
   return s.boards[k];
+}
+
+/** מוסיף `labels_colors` ל-defaults של עמודת סטטוס, כמו monday. */
+function withColors(defaults) {
+  let d;
+  try { d = JSON.parse(defaults); } catch { return defaults; }
+  if (!d || !d.labels) return defaults;
+  const colors = {};
+  Object.keys(d.labels).forEach((k, i) => { colors[k] = colorEntry(null, i); });
+  return JSON.stringify({ ...d, labels_colors: colors, deactivated_labels: [] });
 }
 
 const asItem = (it) => ({
@@ -71,7 +100,8 @@ export async function gql(query, vars = {}) {
       const type = vars.c || (lit && lit[1] !== "$c" ? lit[1] : "text");
       const dup = b.columns.find((c) => c.title === title);
       if (dup) return { create_column: { id: dup.id } };
-      const col = { id: type + "_mk" + next(s), title, type, settings_str: String(vars.s || "{}") };
+      const col = { id: type + "_mk" + next(s), title, type,
+        settings_str: withColors(String(vars.s || "{}")), revision: "1" };
       b.columns.push(col);
       return { create_column: { id: col.id } };
     }
@@ -95,7 +125,36 @@ export async function gql(query, vars = {}) {
       return { delete_item: { id: String(vars.i) } };
     }
 
-    if (has("update_status_column")) return { update_status_column: { id: String(vars.c || "") } };
+    /* ⚠ **מיושם ולא מחזיר "בסדר" בלבד.** `update_status_column`
+       דורס את כל הרשימה, וזו בדיוק הפעולה שאסור לה למחוק
+       תווית בשימוש (5ו). מוק שרק מאשר אותה אינו יכול לבדוק
+       שהרצה חוזרת אינה מכפילה תווית ואינה מאבדת אחת.
+       ⚠ הקצאת המפתחות כאן אינה זו של monday (שנותנת תמיד את
+         הפנוי הנמוך ביותר) — רק מדלגת על 5, כמו שהמאגר דורש. */
+    if (has("update_status_column")) {
+      const b = board(s, vars.b);
+      const col = b.columns.find((c) => String(c.id) === String(vars.c));
+      if (col) {
+        const list = (vars.s && vars.s.labels) || [];
+        const used = new Set(list.filter((l) => l.id != null).map((l) => String(l.id)));
+        let n = 0;
+        const alloc = () => {
+          do { n++; } while (n === 5 || used.has(String(n)));
+          used.add(String(n));
+          return String(n);
+        };
+        const lbl = {}, colors = {}, off = [];
+        list.forEach((l, i) => {
+          const k = l.id != null ? String(l.id) : alloc();
+          lbl[k] = String(l.label);
+          colors[k] = colorEntry(l.color, i);
+          if (l.is_deactivated) off.push(Number(k));
+        });
+        col.settings_str = JSON.stringify({ labels: lbl, labels_colors: colors, deactivated_labels: off });
+        col.revision = String(Number(col.revision || 1) + 1);
+      }
+      return { update_status_column: { id: String(vars.c || "") } };
+    }
 
     if (has("boards\\(limit")) {
       return { boards: Object.values(s.boards).map((b) => ({ id: b.id, name: b.name })) };
@@ -110,6 +169,9 @@ export async function gql(query, vars = {}) {
           if (has("columns")) {
             out.columns = b.columns.map((c) => ({
               id: c.id, title: c.title, type: c.type, settings_str: c.settings_str,
+              /* ⚠ `revision` הוא נעילת גרסה ואינו יושב ב-settings_str
+                 (4כד) — מי שכותב רשימת תוויות חייב לשאול אותו. */
+              revision: c.revision || "1",
             }));
           }
           if (has("items_page")) out.items_page = { cursor: null, items: b.items.map(asItem) };

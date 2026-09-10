@@ -48,6 +48,11 @@ export const STEPS = [
     ids: "shared/plenary-ids.js", ready: "plenaryReady" },
   { script: "tools/seed-plenary.mjs", title: "מאגר המרצים",
     ids: "shared/lecturers-ids.js", ready: "lecturersReady" },
+  /* ⚠ שלב שני על shared/lecturers-ids.js, והוא חייב לרוץ
+     **אחרי** seed-plenary — הוא נוגע בלוח שאותו סקריפט מקים.
+     הזיהוי הוא הצמד ids+ready ולא הקובץ (5לב). */
+  { script: "tools/seed-lecturers.mjs", title: "קטגוריה וסטטוסים במאגר המרצים",
+    ids: "shared/lecturers-ids.js", ready: "lectCategoryReady" },
 ];
 
 /**

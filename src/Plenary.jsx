@@ -16,6 +16,7 @@
 
 import React, { useState, useEffect } from "react";
 import { api } from "./api.js";
+import ScrollTabs from "./Tabs.jsx";
 import {
   LECT_STATUS, LECT_STATUSES, isOpenLect,
 } from "../shared/lecturers-ids.js";
@@ -598,12 +599,16 @@ export const LECT_TITLE = "מרצה שכדאי להביא";
    ⚠ **הכותרת אינה "מאגר מרצים" לחניך.** מסך ששמו "מאגר" ומציג
      שתי שורות נראה כמו מאגר שבור. השם אומר מה עושים כאן.
    ⚠ **ו-`canBrowse` מגיע מהשרת** ואינו נגזר מאורך הרשימה (4יד). */
+/* ⚠ ערך הבורר של "טרם סווג" — לא מחרוזת ריקה, שהיא "הכול". */
+const NO_CAT = " none";
+
 export function LecturersPage({ say }) {
   const [d, setD] = useState(null);
   const [err, setErr] = useState(null);
   const [n, setN] = useState(0);
   const [form, setForm] = useState(null);
   const [filter, setFilter] = useState("open");
+  const [cat, setCat] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -635,10 +640,17 @@ export function LecturersPage({ say }) {
   );
 
   const browse = d.canBrowse !== false;
-  const list = browse
+  /* ⚠ **הבורר מגיע מהשרת ואינו מוקלד כאן.** רשימה ריקה פירושה
+     שהעמודה טרם הוקמה, ואז אין סינון ואין בורר — בורר שאינו
+     כותב לשום מקום גרוע מהיעדרו (עיקרון 6). */
+  const cats = d.categories || [];
+  const list = (browse
     ? d.lecturers.filter((x) =>
       filter === "mine" ? x.mine : filter === "all" ? true : isOpenLect(x.status))
-    : d.lecturers;
+    : d.lecturers)
+    /* ⚠ "טרם סווג" הוא מצב שלישי ואפשר לסנן לפיו — זו בדיוק
+       הרשימה שהוועדה צריכה כדי לסווג. */
+    .filter((x) => (!cat ? true : cat === NO_CAT ? !x.category : x.category === cat));
 
   return (
     <>
@@ -673,6 +685,16 @@ export function LecturersPage({ say }) {
         </div>
       )}
 
+      {browse && cats.length > 0 && (
+        <ScrollTabs className="seg lct-cats">
+          <button className={cat === "" ? "on" : ""} onClick={() => setCat("")}>כל המקצועות</button>
+          {cats.map((c) => (
+            <button key={c} className={cat === c ? "on" : ""} onClick={() => setCat(c)}>{c}</button>
+          ))}
+          <button className={cat === NO_CAT ? "on" : ""} onClick={() => setCat(NO_CAT)}>טרם סווג</button>
+        </ScrollTabs>
+      )}
+
       {list.length === 0 ? (
         <div className="empty tone-3">
           <div className="e-ico"><PI.note /></div>
@@ -682,7 +704,8 @@ export function LecturersPage({ say }) {
       ) : (
         <div className="rows">
           {list.map((x) => (
-            <LectCard key={x.id} x={x} statuses={d.statuses} canManage={d.canManage}
+            <LectCard key={x.id} x={x} statuses={d.statuses} categories={cats}
+              canManage={d.canManage}
               say={say} onEdit={() => setForm(x)} onSaved={reload} />
           ))}
         </div>
@@ -698,7 +721,7 @@ export function LecturersPage({ say }) {
   );
 }
 
-function LectCard({ x, statuses, canManage, say, onEdit, onSaved }) {
+function LectCard({ x, statuses, categories = [], canManage, say, onEdit, onSaved }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notes, setNotes] = useState(x.notes || "");
@@ -719,6 +742,13 @@ function LectCard({ x, statuses, canManage, say, onEdit, onSaved }) {
           <div className="st-n">{x.name}</div>
           <div className="st-m">
             <span>{x.status}</span>
+            {/* ⚠ הקטגוריה מוצגת לוועדה בלבד — היא אינה בגוף
+                התשובה של חניך כלל. */}
+            {canManage && categories.length > 0 && (
+              <span className={x.category ? "lct-cat" : "lct-cat lct-cat-no"}>
+                · {x.category || "טרם סווג"}
+              </span>
+            )}
             {x.topic && <span>· {x.topic}</span>}
             {x.by && <span>· הציע {x.by}</span>}
           </div>
@@ -758,6 +788,20 @@ function LectCard({ x, statuses, canManage, say, onEdit, onSaved }) {
                   ))}
                 </div>
               </div>
+              {categories.length > 0 && (
+                <div className="fld">
+                  <label>קטגוריה</label>
+                  <div className="pick pick-wrap">
+                    {categories.map((c) => (
+                      <button type="button" key={c} className={x.category === c ? "on" : ""}
+                        disabled={busy}
+                        /* ⚠ לחיצה על הקטגוריה הנוכחית מנקה אותה —
+                           מחרוזת ריקה, והשרת כותב null (5ז). */
+                        onClick={() => patch({ category: x.category === c ? "" : c })}>{c}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="fld">
                 <label>הערות הוועדה</label>
                 <textarea rows={2} value={notes} disabled={busy}
@@ -837,6 +881,13 @@ export const PLENARY_CSS = `
    ⚠⚠ ואין בקטיקים בהערה הזו: הבלוק כולו הוא מחרוזת תבנית,
    ובקטיק בתוכו סוגר אותה. קרה כאן, וזו הפעם הרביעית במאגר. */
 .lct-note{color:var(--clay);margin-top:-4px}
+/* ⚠ רצועת המקצועות בתוך ScrollTabs — לשונית שנבלעת אינה
+   קיימת בעיני מי שאינו יודע שאפשר להחליק (5ר). */
+.lct-cats{margin-top:-4px;margin-bottom:12px}
+.lct-cat{font-weight:800;color:var(--t3)}
+/* ⚠ "טרם סווג" מעומעם ואינו נעלם: חוסר הוא מידע, וזו בדיוק
+   הרשימה שהוועדה צריכה כדי לסווג (עיקרון 6). */
+.lct-cat-no{color:var(--faint);font-weight:700}
 .pl-note{padding:11px 13px;margin-bottom:7px}
 .pl-note.in{border-color:var(--t1)}
 .pl-nt{font-size:13px;font-weight:700;color:var(--ink);line-height:1.55;white-space:pre-wrap}

@@ -29,10 +29,23 @@ import { israelToday } from "./_attendance-data.js";
 import { mayContent, contentHint } from "./_content-team.js";
 import {
   LECT_BOARDS as B, LECT_COLS as C,
-  lecturersReady, LECT_STATUS, LECT_STATUSES, isOpenLect,
+  lecturersReady, lectCategoryReady, LECT_STATUS, LECT_STATUSES, isOpenLect,
+  LECT_CATEGORIES,
 } from "../shared/lecturers-ids.js";
 
 const val = (i, c) => (c && (i.column_values.find((x) => x.id === c) || {}).text) || "";
+
+/* ⚠⚠ **קריאת עמודת סטטוס — `value === null` הוא המבחן לריק.**
+   תא בלי בחירה מחזיר `value: null`, אבל `text` מחזיר את שם
+   התווית שיושבת על **מפתח 5**, המשבצת הריקה של monday. קריאה
+   מ-`text` בלבד הייתה מסווגת כל הצעה שאיש לא נגע בה לקטגוריה
+   שלא נבחרה מעולם — טענה שגויה, ובשקט (5ז). */
+const statusVal = (i, c) => {
+  if (!c) return "";
+  const cell = i.column_values.find((x) => x.id === c) || {};
+  const empty = cell.value === null || cell.value === undefined || cell.value === "null";
+  return empty ? "" : String(cell.text || "");
+};
 const clip = (v, n) => String(v ?? "").trim().slice(0, n);
 const MAX = { name: 150, topic: 150, about: 4000, contact: 120, notes: 2000 };
 
@@ -50,7 +63,10 @@ async function loadLect({ force = false } = {}) {
         link: val(i, C.link),
         /* ⚠ ריק = "הצעה". הצעה חדשה אינה נושאת סטטוס, והיא
            בדיוק זו שממתינה (5כו). */
-        status: val(i, C.status) || LECT_STATUS.idea,
+        status: statusVal(i, C.status) || LECT_STATUS.idea,
+        /* ⚠ **ריק אינו "אחר".** הצעה שטרם סווגה היא מצב שלישי
+           ולא טענה על המרצה — ולכן `null` ולא ברירת מחדל. */
+        category: statusVal(i, C.category) || null,
         byId: val(i, C.byId),
         byName: val(i, C.byName),
         notes: val(i, C.notes),
@@ -112,14 +128,20 @@ async function handler(req, res, session) {
           ...(canBrowse || (r.byId && r.byId === me)
             ? { phone: r.phone, email: r.email, link: r.link } : {}),
           status: r.status, by: r.byName || null, date: r.date,
-          /* ⚠ ההערות הפנימיות של הוועדה — לוועדה בלבד. */
-          ...(may.ok ? { notes: r.notes } : {}),
+          /* ⚠ הקטגוריה היא סיווג של הוועדה, כמו הסטטוס וההערות
+             — היא אומרת לאיזה מקצוע הן מייעדות אותו, ולא מה
+             החניך הציע. */
+          ...(may.ok ? { notes: r.notes, category: r.category } : {}),
           /* ⚠ נגזר בשרת (4יד). */
           mine: Boolean(r.byId && r.byId === me),
           canEdit: may.ok || (r.byId === me && isOpenLect(r.status)),
           canDelete: r.byId === me && r.status === LECT_STATUS.idea,
         })),
         statuses: LECT_STATUSES,
+        /* ⚠ **רשימה ריקה כשהעמודה טרם הוקמה**, ולא רשימה
+           שהמסך יציג ושהכתיבה שלה תיפול ב-503. בורר שאינו
+           כותב לשום מקום גרוע מהיעדרו (עיקרון 6, 4יד). */
+        categories: lectCategoryReady() ? LECT_CATEGORIES : [],
         /* ⚠ **הספירה היא של מה שגלוי ולא של הלוח.** מספר כולל
            שנשלח לחניך מספר לו כמה הצעות יש במאגר שהוא אינו
            רואה — דליפה קטנה ומיותרת של אותו נתון בדיוק. */
@@ -178,8 +200,26 @@ async function handler(req, res, session) {
     const cols = {};
 
     /* ---------- הוועדה ---------- */
-    if (body.status !== undefined || body.notes !== undefined) {
+    if (body.status !== undefined || body.notes !== undefined || body.category !== undefined) {
       if (!may.ok) return res.status(403).json({ error: contentHint(may) });
+      if (body.category !== undefined) {
+        if (!lectCategoryReady()) {
+          return res.status(503).json({
+            error: "עמודת הקטגוריה טרם הוקמה. הריצו: npm run seed:lecturers",
+            setupRequired: true,
+          });
+        }
+        const cat = clip(body.category, 40);
+        /* ⚠⚠ **ניקוי ב-`null` ולא ב-`{label:""}`.** מחרוזת ריקה
+           כותבת `index:5` במפורש — כלומר "למחוק את הסיווג"
+           היה **קובע** את התווית שיושבת במשבצת הריקה (5ז). */
+        if (!cat) cols[C.category] = null;
+        else if (!LECT_CATEGORIES.includes(cat)) {
+          return res.status(400).json({
+            error: `קטגוריה לא מוכרת. האפשרויות: ${LECT_CATEGORIES.join(" · ")}`,
+          });
+        } else cols[C.category] = { label: cat };
+      }
       if (body.status !== undefined) {
         const st = clip(body.status, 40);
         if (!LECT_STATUSES.includes(st)) {
