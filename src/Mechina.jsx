@@ -39,6 +39,7 @@ import BoardPage from "./Board.jsx";
 import MyDataPage, { NewsStrip } from "./MyData.jsx";
 import { DutyTodayCard, NextChoreCard } from "./DutyToday.jsx";
 import { AbsentTodayCard } from "./AbsentToday.jsx";
+import { LessonChangesCard } from "./LessonChanges.jsx";
 import { BugsPage } from "./Bugs.jsx";
 import { StuLessonsPage, MyStuLessonCard } from "./StuLessons.jsx";
 import { PlenaryPage, LecturersPage, LECT_TITLE } from "./Plenary.jsx";
@@ -3312,9 +3313,10 @@ function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey }) {
   const [places, setPlaces] = useState(null);
   const [gantt, setGantt] = useState(null);
 
-  /* ⚠ שישה מקורות: חמישה כאן + כרטיס הלו״ז שמדווח בעצמו.
+  /* ⚠ שבעה מקורות: חמישה כאן + כרטיס הלו״ז + כרטיס השינויים
+     בלו״ז, ששניהם מדווחים בעצמם.
      `year` ו-`reqs` מגיעים מהמעטפת ונבדקים בנפרד למטה. */
-  const gate = useHomeGate(6);
+  const gate = useHomeGate(7);
   const bump = gate.bump;
 
   useEffect(() => {
@@ -3457,6 +3459,21 @@ function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey }) {
           לעשות את מה שהתפקיד דורש, ומרכז התפקיד היה קבור
           במגירה — שתי לחיצות לפני הדבר שבשבילו נכנס. */}
       <DutyShortcuts onOpen={(k) => { setDutyKey(k); go("duty"); }} />
+
+      {/* ============================================================
+          ⚠⚠ **מה זז בלו״ז — ראשון, ולאחראי הלו״ז בלבד.**
+
+          הוא מתחזק את הלו״ז גם ביומן חיצוני, והמערכת אינה
+          כותבת אליו. כרטיס שיושב מתחת ללו״ז או מתחת לדירוג
+          הוא כרטיס שנקרא אחרי שכבר יצאו מהמסך — וההזזה
+          שלשמה הוא קיים כבר קרתה.
+
+          ⚠ מחזיר `null` ברוב הימים, ולכן אינו דוחק דבר.
+          ⚠ ומדווח `onSettled` גם כשאינו מוצג — שער מסך הבית
+            סופר מקורות (useHomeGate).
+          ============================================================ */}
+      <LessonChangesCard enabled={Boolean(auth.isScheduler)}
+        onOpen={() => go("l-board")} onSettled={bump} />
 
       {/* ============================================================
           ⚠⚠ **דירוג שיעורים — בראש המסך, ולא בתחתיתו.**

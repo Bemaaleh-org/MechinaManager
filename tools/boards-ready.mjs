@@ -53,6 +53,10 @@ export const STEPS = [
      הזיהוי הוא הצמד ids+ready ולא הקובץ (5לב). */
   { script: "tools/seed-lecturers.mjs", title: "קטגוריה וסטטוסים במאגר המרצים",
     ids: "shared/lecturers-ids.js", ready: "lectCategoryReady" },
+  /* ⚠ שלב שני על shared/lessons-boards.js (הראשון הוא עמודות
+     התוכן במפגשים) — הזיהוי הוא הצמד ids+ready (5לב). */
+  { script: "tools/seed-lesson-changes.mjs", title: "יומן השינויים בגיליונות",
+    ids: "shared/lessons-boards.js", ready: "changeLogReady" },
 ];
 
 /**

@@ -47,6 +47,7 @@ import { loadHosting } from "./_hosting.js";
 import { loadRequests } from "./_requests.js";
 import { loadSheets, loadMeetings, loadEvals } from "./_lessons-data.js";
 import { loadGantt } from "./_lessons-gantt.js";
+import { changesSince } from "./_lesson-changes.js";
 import { loadEquipment } from "./_container-data.js";
 import { loadKitchenEquipment } from "./_kitchen-data.js";
 
@@ -319,7 +320,7 @@ async function leaderMarkNotes(session, today) {
   return out;
 }
 
-async function lessonNotes(today) {
+async function lessonNotes(today, session) {
   const [sheets, meetings, evals, gantt] = await Promise.all([
     loadSheets(), loadMeetings(), loadEvals(), loadGantt()]);
   const byId = new Map(sheets.map((s) => [s.id, s]));
@@ -402,6 +403,41 @@ async function lessonNotes(today) {
       body: [...new Set(guestDone.map((m) => (byId.get(m.sheetId) || {}).subject))]
         .slice(0, 3).join(" · "),
       tab: "evals",
+    }));
+  }
+
+  /* ============================================================
+     ⚠⚠ **מה זז בלו״ז — כדי לעדכן את היומן החיצוני.**
+     ------------------------------------------------------------
+     המכינה מנהלת את הלו״ז גם ביומן חיצוני, והמערכת אינה
+     כותבת אליו. ההתראה הזו היא הגשר: היא אומרת מה השתנה כאן,
+     ומי שמתחזק את היומן יודע מה לפתוח.
+
+     ⚠ **ולא למי ששינה בעצמו.** התראה על פעולה שהרגע עשית היא
+       רעש, וזה בדיוק מה שגורם לסגור את הפעמון (5כה).
+
+     ⚠ **שינוי אחד — שורה בשמו; יותר — מספר.** שלושה שיעורים
+       שזזו הם שלוש פעולות שונות ביומן, ורשימה שאומרת רק
+       "3 שינויים" מחזירה למערכת כדי לגלות אילו. חמישה ומעלה
+       כבר סתם ארוכים, ואז הכותרת מונה והגוף מדגים (4כו).
+     ============================================================ */
+  const moved = changesSince(sheets, { exclude: session && session.itemId });
+  if (moved.length) {
+    const names = moved.map((s) => `${s.subject} — ${s.changeNote}`);
+    out.push(note({
+      /* ⚠ המזהה נגזר מהתוכן ולא מספר רץ, אחרת "נקרא" היה
+         מתאפס בכל רענון (4כו). */
+      id: `lessons:changed:${moved.map((s) => s.id + ":" + s.changedAt).join(",")}`,
+      kind: "שיעורים", level: "רגיל",
+      title: moved.length === 1 ? names[0] : `${moved.length} שינויים בלו״ז`,
+      body: moved.length === 1
+        ? "לעדכן ביומן"
+        : names.slice(0, 4).join(" · ") + (names.length > 4 ? ` ועוד ${names.length - 4}` : ""),
+      tab: "lessons",
+      /* ⚠ חותמת מלאה ולא תאריך: שיעור שזז בצהריים אצל מי
+         שפתח את הפעמון בבוקר חייב להיספר כחדש. */
+      at: moved[0].changedAt,
+      when: String(moved[0].changedAt).slice(0, 10),
     }));
   }
 
@@ -1085,7 +1121,7 @@ export async function buildNotes(session, today = israelToday()) {
       jobs.push(safetyNotes(today));
       jobs.push(hostingNotes(today));
     }
-    if (mgr || session.isScheduler) jobs.push(lessonNotes(today));
+    if (mgr || session.isScheduler) jobs.push(lessonNotes(today, session));
 
     const [lists] = await Promise.all([
       Promise.all(jobs.map((p) => p.catch((e) => {

@@ -11,6 +11,7 @@ import {
   loadEvals, loadRatings, evalForMeeting, ratingFor,
 } from "./_lessons-data.js";
 import { lessonRights } from "./_lesson-rights.js";
+import { stampChange } from "./_lesson-changes.js";
 import { gql } from "./_monday.js";
 import { LESSON_BOARDS, LESSON_COLS } from "../shared/lessons-boards.js";
 
@@ -78,7 +79,7 @@ async function read(req, res, session, rights) {
   }
 }
 
-async function create(req, res) {
+async function create(req, res, session) {
   try {
     const body = req.body ?? (await readJson(req));
     const subject = String(body?.subject || "").trim();
@@ -94,6 +95,11 @@ async function create(req, res) {
 
     const id = await createSheet({ subject, lecturer, dayTime });
     invalidateLessons();
+    /* ⚠ **גם יצירה היא שינוי ביומן החיצוני** — היא מוסיפה לו
+       אירוע. הבקשה אמרה "הוזז, שונה או נמחק", והשלישייה הזו
+       מתארת את מה שקורה לגיליון קיים; גיליון חדש דורש בדיוק
+       את אותה פעולה, ולהשמיט אותו היה משאיר את היומן חסר. */
+    await stampChange(id, "נוצר גיליון חדש" + (dayTime ? " — " + dayTime : ""), session);
 
     /* ⚠ הגיליון נוצר ריק. המפגשים נוספים אחד אחד או מיובאים —
        יצירה אוטומטית של תאריכים הייתה מנחשת את הלו״ז במקום
@@ -127,7 +133,7 @@ const FIELDS = {
   dayTime: { col: S.dayTime, max: 120, label: "יום ושעה" },
 };
 
-async function edit(req, res) {
+async function edit(req, res, session) {
   try {
     const body = req.body ?? (await readJson(req));
     const id = String(body?.id || "").trim();
@@ -156,6 +162,15 @@ async function edit(req, res) {
                                        create_labels_if_missing:false){ id } }`,
       { b: LESSON_BOARDS.sheets, i: id, v: JSON.stringify(cols) });
     invalidateLessons();
+
+    /* ⚠ **רק שינוי שנוגע ליומן.** טלפון ואימייל של המרצה אינם
+       משנים דבר במה שרשום ביומן החיצוני, והתראה עליהם הייתה
+       מאמנת להתעלם מכל השאר (5כה). יום ושעה כן, ושם המרצה כן
+       — הוא מה שכתוב בכותרת האירוע. */
+    const inCal = changed.filter((x) => x === FIELDS.dayTime.label || x === FIELDS.lecturer.label);
+    if (inCal.length) {
+      await stampChange(id, "שונה בגיליון: " + inCal.join(" · "), session);
+    }
 
     res.status(200).json({ ok: true, id, changed });
   } catch (e) {

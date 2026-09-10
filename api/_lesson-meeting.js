@@ -13,6 +13,7 @@
 
 import { withAuth } from "./_session.js";
 import { lessonRights } from "./_lesson-rights.js";
+import { stampChange, dm } from "./_lesson-changes.js";
 import { PLANNED } from "../shared/lessons-boards.js";
 import {
   loadSheets, loadMeetings, addMeeting, updateMeeting, removeMeeting,
@@ -24,13 +25,13 @@ async function handler(req, res, session) {
   const rights = await lessonRights(session);
   if (!rights.write) return res.status(403).json({ error: rights.hint });
 
-  if (req.method === "POST") return create(req, res);
-  if (req.method === "PUT") return edit(req, res);
-  if (req.method === "DELETE") return remove(req, res);
+  if (req.method === "POST") return create(req, res, session);
+  if (req.method === "PUT") return edit(req, res, session);
+  if (req.method === "DELETE") return remove(req, res, session);
   return res.status(405).json({ error: "רק POST, PUT ו-DELETE נתמכים כאן" });
 }
 
-async function create(req, res) {
+async function create(req, res, session) {
   try {
     const body = req.body ?? (await readJson(req));
     const sheetId = String(body?.sheetId || "").trim();
@@ -63,6 +64,8 @@ async function create(req, res) {
       sheetId, sheetName: sheet.subject, date, planned, reason, note,
     });
 
+    await stampChange(sheetId, `נוסף מפגש ב-${dm(date)}`, session);
+
     res.status(200).json({ ok: true, id, date, planned });
   } catch (e) {
     console.error("[lesson-meeting:create]", e);
@@ -71,7 +74,7 @@ async function create(req, res) {
 }
 
 /* ---------- עריכה ---------- */
-async function edit(req, res) {
+async function edit(req, res, session) {
   try {
     const body = req.body ?? (await readJson(req));
     const meetingId = String(body?.meetingId || "").trim();
@@ -110,6 +113,24 @@ async function edit(req, res) {
     if (body?.note !== undefined) fields.note = String(body.note).trim();
 
     const after = await updateMeeting(meetingId, sheet.subject, fields);
+
+    /* ⚠ **"הוזז" ו"שונה" הם שני דברים ביומן החיצוני.**
+       הזזה דורשת לגרור את האירוע ליום אחר; ביטול דורש למחוק
+       אותו. הודעה אחת לשניהם הייתה מחזירה את אחראי הלו״ז
+       לפתוח את המערכת כדי לדעת מה לעשות — וזה בדיוק מה
+       שההתראה נועדה לחסוך. */
+    const moved = fields.date && fields.date !== meeting.date;
+    const off = planned === PLANNED.no && meeting.planned !== PLANNED.no;
+    const back = planned !== PLANNED.no && meeting.planned === PLANNED.no;
+    const what = moved
+      ? `המפגש ב-${dm(meeting.date)} הוזז ל-${dm(fields.date)}`
+      : off ? `המפגש ב-${dm(meeting.date)} לא יתקיים${reason ? " — " + reason : ""}`
+      : back ? `המפגש ב-${dm(meeting.date)} חזר ללו״ז`
+      : null;
+    /* ⚠ שינוי שאינו נוגע ביומן (הערה תפעולית) — אין עליו
+       מה להתריע. התראה על כל שמירה מאמנת להתעלם (5כה). */
+    if (what) await stampChange(sheet.id, what, session);
+
     res.status(200).json({ ok: true, id: meetingId, meeting: after });
   } catch (e) {
     console.error("[lesson-meeting:edit]", e);
@@ -118,7 +139,7 @@ async function edit(req, res) {
 }
 
 /* ---------- מחיקה ---------- */
-async function remove(req, res) {
+async function remove(req, res, session) {
   try {
     const body = req.body ?? (await readJson(req));
     const meetingId = String(body?.meetingId || req.query?.id || "").trim();
@@ -129,6 +150,7 @@ async function remove(req, res) {
     if (!meeting) return res.status(404).json({ error: "המפגש אינו נמצא" });
 
     await removeMeeting(meetingId);
+    await stampChange(meeting.sheetId, `המפגש ב-${dm(meeting.date)} נמחק`, session);
     res.status(200).json({ ok: true, id: meetingId, date: meeting.date });
   } catch (e) {
     console.error("[lesson-meeting:delete]", e);

@@ -926,6 +926,11 @@ export const api = {
   /** הלו״ז מיומן Google — היום ושבועיים קדימה. ⚠ צפייה בלבד. */
   getAgenda: () => get("/api/lessons?action=agenda"),
 
+  /** מה זז בלו״ז לאחרונה — כדי לעדכן את היומן החיצוני.
+   *  ⚠ `ready:false` פירושו שהעמודות טרם הוקמו, וזה **אינו**
+   *    "אין שינויים" — המסך אומר מה להריץ (עיקרון 6). */
+  getLessonChanges: () => get("/api/lessons?action=changes"),
+
   /** לוח השיעורים של אחראי הלו״ז — הכול נשלף מהגיליונות. */
   getLessonsBoard: (today) =>
     get("/api/lessons?action=board" + (today ? "&today=" + encodeURIComponent(today) : "")),

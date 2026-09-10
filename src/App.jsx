@@ -28,6 +28,7 @@ import { BudgetPage } from "./Budget.jsx";
 import { GanttPage } from "./Gantt.jsx";
 import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { AbsentTodayCard } from "./AbsentToday.jsx";
+import { LessonChangesCard } from "./LessonChanges.jsx";
 import { BugsPage } from "./Bugs.jsx";
 import { StuLessonsPage } from "./StuLessons.jsx";
 import { PlenaryPage, LecturersPage } from "./Plenary.jsx";
@@ -718,8 +719,9 @@ function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goCont
   const [kitchen, setKitchen] = useState(null); // {missing, openShopping}
   const [budget, setBudget] = useState(null);   // {month, total, head}
   const [failed, setFailed] = useState(false);
-  /* ⚠ חמישה מקורות — ראו useHomeGate ב-Agenda.jsx. */
-  const gate = useHomeGate(5);
+  /* ⚠ שישה מקורות — חמישה כאן וכרטיס השינויים בלו״ז, שמדווח
+     בעצמו. ראו useHomeGate ב-Agenda.jsx. */
+  const gate = useHomeGate(6);
   const bump = gate.bump;
 
   useEffect(() => {
@@ -870,6 +872,12 @@ function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goCont
       <NewsStrip isStudent={false} onOpen={goNews} />
 
       <TodayAgenda onOpen={goAgenda} />
+
+      {/* ⚠ **מה זז בלו״ז** — אותו כרטיס בדיוק של מסך הבית של
+          אחראי הלו״ז (4יט). אצלו הוא ראשון, כי ההזזה היא מה
+          שהוא בא לטפל בו; כאן הוא אחרי הלו״ז, כי איש הצוות
+          בא לראות מה קורה היום. */}
+      <LessonChangesCard enabled onOpen={() => goStaff("lessons")} onSettled={bump} />
 
       {/* ⚠ **מי לא כאן היום** — השאלה שנשאלת בבוקר, שעד היום
           דרשה לפתוח את מסך הסימון ולקרוא 33 שורות. `staff`

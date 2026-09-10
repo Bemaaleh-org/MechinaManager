@@ -53,6 +53,15 @@ export async function loadSheets({ force = false } = {}) {
         phone: val(i, S.phone) || null,
         mail: val(i, S.mail) || null,
         contact: val(i, S.contact) || null,
+        /* ⚠ יומן השינוי האחרון — ראו shared/lessons-boards.js.
+           ⚠⚠ **וגם אלה אינם יוצאים לחניך**: `changeBy` הוא שם
+             של איש צוות, ו-`toStudentSheet` הוא מיפוי מפורש
+             שאינו כולל אותו. מי שיוסיף `...sheet` במסלול של
+             חניך ידליף כאן, בדיוק כמו בטלפון של המרצה. */
+        changedAt: val(i, S.changedAt) || null,
+        changeNote: val(i, S.changeNote) || null,
+        changeBy: val(i, S.changeBy) || null,
+        changeById: val(i, S.changeById) || null,
       }))
       .sort((a, b) => a.subject.localeCompare(b.subject, "he"));
   }, { force, ttl: 5 * 60_000 });
