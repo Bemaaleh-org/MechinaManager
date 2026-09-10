@@ -2995,6 +2995,15 @@ html,body{margin:0;padding:0;background:#012E58}
 .tm-own::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--accent)}
 .tm-own.none{opacity:.6}
 .tm-own.none::before{background:var(--line2)}
+/* בורר האחראים — תיבות ולא select multiple. הרשימה גוללת דרך
+   .scroll-y הקיימת; כלל max-height חדש בתוך .rows היה נבלע. */
+.kx .tm-own-pick{max-height:190px;margin-top:2px}
+.kx .tm-own-row{display:flex;align-items:center;gap:9px;padding:8px 11px;
+  border-bottom:1px solid var(--line);font-size:14px;font-weight:700;cursor:pointer}
+.kx .tm-own-row:last-child{border-bottom:none}
+.kx .tm-own-row.on{background:var(--t5-s)}
+.kx .tm-own-row input{width:17px;height:17px;accent-color:var(--accent);flex:none}
+.kx .tm-own-row input:disabled + span{opacity:.55}
 .tm-due{display:flex;align-items:center;gap:4px}
 .tm-due.late{color:var(--clay);font-weight:800}
 .tm-has{display:flex;opacity:.5}

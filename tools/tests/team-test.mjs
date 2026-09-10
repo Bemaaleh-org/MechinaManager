@@ -223,6 +223,30 @@ try {
     r.s === 400 && /משובץ לצוות/.test(r.b.error || ""), r.s + " " + (r.b.error || ""));
   if (r.s === 200) made.tasks.push(r.b.id);
 
+  /* ============================================================
+     ⚠⚠ **כמה אחראים למשימה** (10.9.2026), ושלוש טענות ולא אחת:
+     המערך מתקבל, הכפילות מוסרת, ו**מזהה פסול ברשימה פוסל את
+     כולה ואינו מושמט בשקט** — שיוך שנעלם נראה כמו שיוך שנשמר
+     (4ט). בלי הטענה השלישית הבדיקה הייתה ירוקה גם אילו הרשימה
+     סוננה חרש.
+     ⚠ ולצוות הבדיקה יש חבר אחד, ולכן הכפילות היא מה שמוכיח
+       שהמסלול הוא רשימה ולא מחרוזת. */
+  r = await call(MGR, "PUT", "/api/students?action=team-task", {
+    id: TASK, owner: [demo.id, demo.id],
+  });
+  ok("שיוך במערך מתקבל", r.s === 200, r.s + " " + (r.b.error || ""));
+
+  r = await call(MGR, "GET", "/api/students?action=team&id=" + TEAM);
+  const mine2 = r.s === 200 && (r.b.tasks || []).find((t) => t.id === TASK);
+  ok("והכפילות הוסרה — אחראי אחד", Boolean(mine2) && (mine2.owners || []).length === 1,
+    mine2 ? JSON.stringify(mine2.owners) : "אין משימה");
+
+  r = await call(MGR, "PUT", "/api/students?action=team-task", {
+    id: TASK, owner: [demo.id, other.id],
+  });
+  ok("ומזהה פסול ברשימה פוסל את כולה ואינו מושמט",
+    r.s === 400 && /משובץ לצוות/.test(r.b.error || ""), r.s + " " + (r.b.error || ""));
+
   /* ============ 6 · מי שאינו בצוות ============ */
   console.log("\n6 · מי שאינו בצוות");
   r = await call(MGR, "POST", "/api/students?action=placements", {

@@ -24,7 +24,7 @@ import {
 } from "./_team-data.js";
 import { loadDefinitions } from "./_placements.js";
 import { loadEvals } from "./_lessons-data.js";
-import { mayTeam, mayEditTask, progressOf, isLate, isTeamCategory } from "../shared/team.js";
+import { mayTeam, mayEditTask, progressOf, isLate, isTeamCategory, ownerIds } from "../shared/team.js";
 import {
   loadTeamEntries, loadTeamFeedback, loadTeamPolls,
 } from "./_team-extras.js";
@@ -34,6 +34,13 @@ import { teamExtrasReady } from "../shared/team-ids.js";
 const toTask = (t, closing, today) => ({
   id: t.id, title: t.title,
   owner: t.owner, ownerName: t.ownerName,
+  /* ⚠ **הרשימה המפורשת, לצד המחרוזת.** `owner` נשאר כפי שהוא
+     ללקוח ישן; `owners` הוא מה שהמסך החדש מצייר, ופרשנות אחת
+     בלבד לעמודה — `ownerIds` ב-shared/team.js. */
+  owners: ownerIds(t).map((id, i) => ({
+    id,
+    name: String(t.ownerName || "").split(",").map((x) => x.trim())[i] || null,
+  })),
   status: t.status, statusName: t.statusName,
   stage: t.stage, stageName: t.stageName,
   due: t.due, note: t.note, link: t.link,

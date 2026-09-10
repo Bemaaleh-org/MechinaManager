@@ -26,7 +26,7 @@ import Escalate from "./Escalate.jsx";
 import ScrollTabs from "./Tabs.jsx";
 import { CATEGORY, PERIOD, PERIODS, plural, byCategory } from "../shared/placements.js";
 import { dutyKey, DUTY_CHAIR } from "../shared/duties.js";
-import { TEAM_CATEGORIES } from "../shared/team.js";
+import { TEAM_CATEGORIES, ownerIds } from "../shared/team.js";
 import ScreenNote from "./ScreenNote.jsx";
 
 const TI = {
@@ -128,6 +128,15 @@ function TeamList({ data, onPick }) {
      משלהם. העתקת המפה הבוליאנית משם הייתה שוברת את הסטטוס
      הרב-ערכי **בשקט** — הוא היה חוזר ל"מסומן/לא מסומן".
    ============================================================ */
+/* ⚠⚠ **פרשנות אחת ל"מי אחראי", והיא ב-shared.** `ownerIds`
+   מקבלת את שורת המשימה; כאן השדה הוא מחרוזת בטופס, ולכן
+   העטיפה — ולא פיצול שני שכותבים ביד (4מד). */
+const ownersOf = (v) => ownerIds({ owner: v });
+const toggleOwner = (v, id) => {
+  const cur = ownersOf(v);
+  return (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]).join(",");
+};
+
 function TaskEditor({ team, vocab, members, task, perm, me, onSave, onCancel, onDelete, say }) {
   const [f, setF] = useState(() => ({
     title: task?.title || "",
@@ -165,17 +174,38 @@ function TaskEditor({ team, vocab, members, task, perm, me, onSave, onCancel, on
       <div className="tm-row2">
         <div className="fld">
           <label>באחריות</label>
-          <select value={f.owner} onChange={(e) => set("owner", e.target.value)}
-            disabled={!perm.manage}>
-            {/* ⚠ ריק הוא "טרם שויכה" ולא שגיאה — יו״ר פותח
-                רשימה ואז מחלק, וזה הסדר הטבעי. */}
-            <option value="">— טרם שויכה —</option>
-            {members.map((m) => (
-              <option key={m.id} value={m.id} disabled={!m.active}>
-                {m.name}{m.active ? "" : " (אינו פעיל)"}
-              </option>
-            ))}
-          </select>
+          {/* ============================================================
+              ⚠⚠ **כמה אחראים ולא אחד** (10.9.2026). `<select multiple>`
+                נדחה: במגע הוא דורש לחיצה ארוכה או Ctrl, ובחירה שנייה
+                **מבטלת את הראשונה** אצל מי שאינו יודע את זה — כלומר
+                המסך נראה כאילו הוא לא זוכר מה סימנת.
+
+              ⚠ **תיבות סימון, ורשימה גוללת ב-`.scroll-y` הקיימת** —
+                כלל `max-height` חדש בתוך `.rows` נבלע על ידי
+                `.kx .rows{overflow:hidden}` (4ק).
+
+              ⚠ **וחניך שאינו פעיל נשאר מסומן אם הוא כבר משויך**,
+                אחרת שמירה של משימה ישנה הייתה מורידה אותו בשקט —
+                אותו באג של עורך השיבוצים (4נ).
+              ============================================================ */}
+          <div className="rows scroll-y tm-own-pick">
+            {members.map((m) => {
+              const on = ownersOf(f.owner).includes(m.id);
+              return (
+                <label key={m.id} className={"tm-own-row" + (on ? " on" : "")}>
+                  <input type="checkbox" checked={on}
+                    disabled={!perm.manage || (!m.active && !on)}
+                    onChange={() => set("owner", toggleOwner(f.owner, m.id))} />
+                  <span>{m.name}{m.active ? "" : " (אינו פעיל)"}</span>
+                </label>
+              );
+            })}
+          </div>
+          {/* ⚠ ריק הוא "טרם שויכה" ולא שגיאה — יו״ר פותח רשימה
+              ואז מחלק, וזה הסדר הטבעי. */}
+          {!ownersOf(f.owner).length && (
+            <div className="fld-hint">טרם שויכה</div>
+          )}
           {!perm.manage && (
             <div className="fld-hint">שיוך לחניך אחר נעשה על ידי היו״ר או המדריך המלווה</div>
           )}
@@ -578,7 +608,7 @@ function TeamHub({ id, say, onBack, go }) {
   const shown = useMemo(() => {
     if (!d) return [];
     const me = d.me.id;
-    if (filter === "mine") return d.tasks.filter((t) => t.owner === me);
+    if (filter === "mine") return d.tasks.filter((t) => ownersOf(t.owner).includes(me));
     if (filter === "open") return d.tasks.filter((t) => !t.done);
     if (filter === "none") return d.tasks.filter((t) => !t.owner);
     if (filter === "late") return d.tasks.filter((t) => t.late);
@@ -625,7 +655,7 @@ function TeamHub({ id, say, onBack, go }) {
   const FILTERS = [
     ["all", "הכול", d.tasks.length],
     ["open", "פתוחות", d.counts.open],
-    ["mine", "שלי", d.tasks.filter((x) => x.owner === d.me.id).length],
+    ["mine", "שלי", d.tasks.filter((x) => ownersOf(x.owner).includes(d.me.id)).length],
     ["none", "טרם שויכו", d.counts.unassigned],
     ["late", "באיחור", d.counts.late],
   ];

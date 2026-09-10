@@ -156,31 +156,58 @@ async function build(body, ctx, perm, meId, res, existing = null) {
   const vocab = await loadVocab();
   const out = {};
 
+  /* ============================================================
+     ⚠⚠ **כמה אחראים למשימה, ולא אחד** (10.9.2026).
+
+     `owner` מתקבל כמחרוזת (מזהה יחיד, או כמה מופרדים בפסיק)
+     **או** כמערך — לקוח ישן ששולח מחרוזת ממשיך לעבוד בלי
+     שינוי, וזה כל מה שהתאימות הזו קיימת בשבילה.
+
+     ⚠ **כל מזהה מאומת בנפרד** מול חברי הצוות ומול "פעיל"
+       (4נ: אימות כפול). מזהה אחד פסול פוסל את כל הבקשה ואינו
+       מושמט בשקט — שיוך שנעלם נראה כמו שיוך שנשמר (4ט).
+
+     ⚠ **כפילויות מוסרות והסדר נשמר** — `Set` על המערך המקורי,
+       כמו ב-`owners` של המליאות.
+     ============================================================ */
   if (body?.owner !== undefined) {
-    const owner = String(body.owner ?? "").trim();
-    if (owner === "") {
+    const raw = Array.isArray(body.owner)
+      ? body.owner
+      : String(body.owner ?? "").split(",");
+    const want = [...new Set(raw.map((x) => String(x ?? "").trim()).filter(Boolean))];
+
+    if (!want.length) {
       /* ⚠ ריק הוא "טרם שויכה" ולא שגיאה — יו״ר פותח רשימה
          ואז מחלק, וזה הסדר הטבעי. */
       out[T.owner] = ""; out[T.ownerName] = "";
     } else {
       /* ⚠ חבר צוות אינו משייך לאחרים. אחרת "המשימות שלי"
-         הופכות לכלי להטלת מטלות בין חניכים. */
-      if (!perm.manage && owner !== meId) {
+         הופכות לכלי להטלת מטלות בין חניכים.
+         ⚠ ועם כמה אחראים הכלל מחמיר במפורש: חבר צוות יכול
+           לשייך **לעצמו בלבד**, כלומר רשימה שכולה הוא. */
+      if (!perm.manage && !(want.length === 1 && want[0] === meId)) {
         res.status(403).json({
           error: "שיוך משימה לחניך אחר נעשה על ידי היו״ר או המדריך המלווה",
         });
         return null;
       }
-      const m = ctx.members.find((x) => x.id === owner);
-      if (!m) {
-        res.status(400).json({ error: "אפשר לשייך משימה רק למי שמשובץ לצוות הזה" });
-        return null;
+      const picked = [];
+      for (const id of want) {
+        const m = ctx.members.find((x) => x.id === id);
+        if (!m) {
+          res.status(400).json({ error: "אפשר לשייך משימה רק למי שמשובץ לצוות הזה" });
+          return null;
+        }
+        if (!m.active) {
+          res.status(400).json({ error: m.name + " אינו פעיל במכינה" });
+          return null;
+        }
+        picked.push(m);
       }
-      if (!m.active) {
-        res.status(400).json({ error: m.name + " אינו פעיל במכינה" });
-        return null;
-      }
-      out[T.owner] = m.id; out[T.ownerName] = m.name;
+      out[T.owner] = picked.map((m) => m.id).join(",");
+      /* ⚠ רווח אחרי הפסיק בשמות ולא במזהים: הלוח ב-monday נקרא
+         על ידי אדם (4יז), והמזהים נקראים על ידי `ownerIds`. */
+      out[T.ownerName] = picked.map((m) => m.name).join(", ").slice(0, 400);
     }
   }
 

@@ -823,7 +823,77 @@ function Redecide({ r, onDecide, busy }) {
   );
 }
 
-function RequestCard({ r, onDecide, busyId, onEdit, onWithdraw, onAppeal }) {
+/* ============================================================
+   תיקון ימי החופש שנגבו — בדיעבד
+   ------------------------------------------------------------
+   ⚠⚠ **וזה אינו "שינוי ההחלטה".** שם ההחלטה מתהפכת ושורות
+     ההיעדרות נמחקות; כאן החניך היה בחופש, השורות נשארות,
+     ומשתנה **המחיר במכסה בלבד**. שני כפתורים ולא אחד — שתי
+     כוונות שונות, ומי שיראה אותן כאותו כפתור יעשה את השנייה
+     כשהתכוון לראשונה.
+
+   ⚠ **התקרה היא החישוב** (`r.cost`), כמו בהכרעה: גבייה מעבר
+     למה שהיציאה לקחה היא כמעט תמיד טעות הקלדה שיורדת ממכסה
+     שאי אפשר להשיב. אפס מותר.
+
+   ⚠ **ואותם כפתורי מספר של ההכרעה** (`.rqd-btns`) ולא שדה
+     טקסט: מי שמכריע ומי שמתקן עושים את אותה בחירה, ושני
+     ממשקים לאותה שאלה הם בדיוק מה ש-4יט אוסר.
+   ============================================================ */
+function Recost({ r, onRecost, busy }) {
+  const [open, setOpen] = useState(false);
+  const max = Number.isFinite(Number(r.cost)) ? Number(r.cost) : null;
+  const [n, setN] = useState(null);
+
+  if (!open) {
+    return (
+      <div className="rq-act rq-own">
+        <button type="button" className="btn btn-ghost btn-sm"
+          onClick={() => { setN(null); setOpen(true); }}>
+          תיקון ימי החופש
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="rq-redo">
+      <div className="rq-appeal-h">כמה ימי חופש לגבות על הבקשה הזו?</div>
+      <div className="rq-appeal-n">
+        ההחלטה לא משתנה ושורות ההיעדרות נשארות — מה שמשתנה הוא
+        המספר שיורד מהמכסה.
+      </div>
+      {/* ⚠ בלי `cost` (בקשה ישנה בלי שעות) אין תקרה לחשב, והשרת
+          נופל למספר השורות. הכפתורים לא יידעו לצייר טווח, ולכן
+          המסך אומר זאת במקום להציג בורר שקרי (עיקרון 6). */}
+      {max == null ? (
+        <div className="rq-appeal-n">
+          לבקשה הזו אין שעות יציאה וחזרה, ולכן אי אפשר לחשב תקרה כאן.
+        </div>
+      ) : (
+        <div className="rq-days" style={{ borderTop: "none", paddingTop: 0 }}>
+          <span className="rqd-l">ימי חופש</span>
+          <div className="rqd-btns">
+            {Array.from({ length: max + 1 }, (_, i) => i).map((v) => (
+              <button key={v} type="button" disabled={busy}
+                className={n === v ? "on" : ""}
+                onClick={() => setN(v)}>{v}</button>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="rq-act">
+        <button className="ok" disabled={busy || n === null}
+          onClick={() => { setOpen(false); onRecost(r, n); }}>
+          {busy ? "…" : "לתקן"}
+        </button>
+        <button className="no" disabled={busy} onClick={() => setOpen(false)}
+          style={{ background: "transparent", color: "var(--muted)" }}>ביטול</button>
+      </div>
+    </div>
+  );
+}
+
+function RequestCard({ r, onDecide, busyId, onEdit, onWithdraw, onAppeal, onRecost }) {
   const busy = busyId === r.id;
   const [confirm, setConfirm] = useState(false);
   /* ⚠ ברירת המחדל היא החישוב עצמו — המכריע משנה רק כשהוא
@@ -972,6 +1042,7 @@ function RequestCard({ r, onDecide, busyId, onEdit, onWithdraw, onAppeal }) {
             ומכסה אינה שאלה שאפשר לענות עליה (5כה).
           ============================================================ */}
       {onDecide && r.canRedecide && <Redecide r={r} onDecide={onDecide} busy={busy} />}
+      {onRecost && r.canRecost && <Recost r={r} onRecost={onRecost} busy={busy} />}
     </div>
   );
 }
@@ -1778,6 +1849,22 @@ function ManagerRequests({ say }) {
       .finally(() => setBusyId(null));
   };
 
+  /* ⚠ **תיקון ואינו הכרעה** — ראו Recost ו-api/_request-recost.js.
+     ⚠ וההודעה אומרת **ממה למה**, לא "נשמר": מי שתיקן מספר
+       שיורד ממכסה צריך לראות את שני הצדדים (4ש). */
+  const recost = (r, days) => {
+    setBusyId(r.id);
+    api.recostRequest({ requestId: r.id, days })
+      .then((x) => {
+        say(x.changed === false
+          ? `כבר נגבו ${x.before} — לא השתנה דבר`
+          : `תוקן: ${x.before} → ${x.after} ימי חופש`);
+        reload();
+      })
+      .catch((e) => say(e.message))
+      .finally(() => setBusyId(null));
+  };
+
   if (busy && !data) return <Loading what="טוען בקשות" />;
   if (err) return <LoadFail msg={err} onRetry={reload} />;
   if (!data) return null;
@@ -1837,7 +1924,7 @@ function ManagerRequests({ say }) {
            false שם; מה שכן נפתח הוא "שינוי ההחלטה", שתלוי
            ב-`canRedecide` — וזו הלשונית היחידה שבה הוא רלוונטי. */
         list.map((r) => <RequestCard key={r.id} r={r}
-          onDecide={decide} busyId={busyId} />)
+          onDecide={decide} onRecost={recost} busyId={busyId} />)
       )}
     </>
   );

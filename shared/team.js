@@ -83,12 +83,31 @@ export function mayTeam(session, ctx) {
   return { read: false, write: false, manage: false, role: null };
 }
 
+/* ============================================================
+   ⚠⚠ **למשימה יכולים להיות כמה אחראים** (החלטת ראש המכינה,
+   10.9.2026): *"היו״ר יוכל לשייך את המשימות לכמה אנשים ולא רק
+   לאחד."*
+
+   העמודה נשארה `text` ומחזיקה מזהים מופרדים בפסיק — בדיוק
+   הדפוס של `owners`/`ownerNames` במליאות (5כח). עמודת `people`
+   של monday הייתה דורשת חשבונות monday לחניכים, ואין להם.
+
+   ⚠ **`ownerIds` היא המקום היחיד שמפרש את העמודה.** שתי
+     פרשנויות מקבילות ל"מי אחראי" מתפצלות בתיקון הראשון (4מד),
+     וכאן זה גם שער הרשאה — כלומר ההפרש שווה גישה.
+
+   ⚠ **ושורה ישנה עם מזהה יחיד עוברת מעצמה**: פיצול על פסיק
+     על מחרוזת בלי פסיק מחזיר אותה עצמה. אין מיגרציה.
+   ============================================================ */
+export const ownerIds = (task) =>
+  String((task && task.owner) || "").split(",").map((x) => x.trim()).filter(Boolean);
+
 /** האם מותר לי לגעת דווקא במשימה הזו */
 export function mayEditTask(perm, task, me) {
   if (!perm || !perm.write) return false;
   if (perm.manage) return true;
   const id = String(me || "");
-  return String(task.owner || "") === id || String(task.byId || "") === id;
+  return ownerIds(task).includes(id) || String(task.byId || "") === id;
 }
 
 /* ============================================================

@@ -701,6 +701,17 @@ export const api = {
       ...(redo ? { redo: true } : {}),
     }),
 
+  /* ============================================================
+     ⚠⚠ **תיקון ימי החופש שנגבו — ואינו הכרעה מחדש.**
+     `decideRequest({redo:true})` הופך אישור לדחייה ומוחק שורות
+     היעדרות. כאן ההחלטה עומדת בעינה, שורות ההיעדרות נשארות,
+     ומה שמשתנה הוא המחיר במכסה בלבד. שתי מתודות ולא דגל —
+     שתי כוונות שונות (ראו api/_request-recost.js).
+     ⚠ `canRecost` בתשובת ה-GET הוא מה שהמסך בודק לפני שהוא
+       מציע את זה (4יד). */
+  recostRequest: ({ requestId, days }) =>
+    post("/api/attendance?action=recost", { requestId, days }),
+
   /** ⚠ ערר — על בקשה שהוכרעה, ואינו משנה את הסטטוס. */
   appealRequest: ({ id, appeal }) =>
     put("/api/attendance?action=requests", { id, appeal }),

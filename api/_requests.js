@@ -218,6 +218,17 @@ async function list(req, res, session) {
           /* ⚠ **הכרעה מחדש היא של ראש המכינה בלבד.** המדריך
              ממליץ; הוא אינו הופך החלטה שכבר ניתנה (4א). */
           canRedecide: Boolean(session.isHead) && stage === REQ_STAGE.done,
+          /* ============================================================
+             ⚠⚠ **תיקון ימי החופש — לצוות, ורחב מ-`canRedecide`.**
+             `redo` הופך החלטה ולכן הוא ראש המכינה בלבד (5ל).
+             תיקון ספירה הוא טעות תפעולית שמי שראה אותה מתקן,
+             ולכן `!isStudent` — ראו api/_request-recost.js.
+
+             ⚠ **ורק לחופש שאושר.** למחלה אין מחיר במכסה, ולבקשה
+               שנדחתה אין מה לתקן — כפתור שם היה מקבל 409 אחרי
+               הלחיצה (4יד). */
+          canRecost: !session.isStudent && !session.viewOnly
+            && r.status === REQ_STATUS.approved && r.type === ABSENCE.vacation,
           decideAs: session.isHead ? "head"
             : (stage === REQ_STAGE.guide && isGuideOf(session, guide)) ? "guide" : null,
           student: byId.get(r.studentId)
