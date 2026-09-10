@@ -506,6 +506,11 @@ html,body{margin:0;padding:0;background:#012E58}
   font-weight:800;font-size:13.5px;cursor:pointer;transition:all .12s var(--ease)}
 .kx .rqd-btns button.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .rqd-n{font-size:11.5px;color:var(--muted);font-weight:700;margin-inline-start:auto}
+/* "הגיע באמצע היום" — תוספת על היעדרות ולא מצב רביעי */
+.kx .abs-half{display:flex;align-items:center;gap:8px;margin-top:8px;
+  padding:8px 11px;border-radius:var(--r-sm);background:var(--t3-s);
+  font-size:13px;font-weight:700;color:var(--ink);cursor:pointer}
+.kx .abs-half input{width:16px;height:16px;accent-color:var(--accent);flex:none}
 /* ---------- שמירת היו״ר ----------
    ⚠ הכפתור אומר מה יישמר ולא "שמירה" סתם — מי שבחר בטעות
      רואה את השם לפני שהוא לוחץ. */

@@ -112,6 +112,11 @@ async function handler(req, res, session) {
           absent: Boolean(hit),
           /* ⚠ נוכח רק אם סומן במפורש. לא נוכח ולא נעדר = לא סומן. */
           present: Boolean(stamp && stamp.present && stamp.present.has(s.id)),
+          /* ⚠ **חצי יום — מצב רביעי**, ולא "נוכח" ולא "נעדר":
+             חניך שיצא לחופש וחזר באמצע היום. הוא נושא גם
+             היעדרות וגם את הסימון הזה, ו-`summarize` סופרת
+             0.5 לכל צד. */
+          half: Boolean(stamp && stamp.half && stamp.half.has(s.id)),
           type: hit ? hit.type : null,
           detail: hit ? hit.detail || null : null,
           source: hit ? hit.source : null,
@@ -121,6 +126,7 @@ async function handler(req, res, session) {
         total: students.length,
         absent: onDate.size,
         present: stamp && stamp.present ? stamp.present.size : null,
+        half: stamp && stamp.half ? stamp.half.size : null,
         unmarked: stamp && stamp.present
           ? Math.max(0, students.length - stamp.present.size - onDate.size) : null,
       },

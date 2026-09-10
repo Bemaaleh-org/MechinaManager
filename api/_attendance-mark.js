@@ -50,7 +50,7 @@ import {
 } from "./_attendance-data.js";
 import { leadsOn, weeksOfStudent } from "./_leader-weeks.js";
 import {
-  ABSENCE, ABSENCE_SOURCE, HALF, VACATION_PER_HALF,
+  ABSENCE, ABSENCE_SOURCE, HALF, VACATION_PER_HALF, halfDayReady,
 } from "../shared/mechina-boards.js";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -66,6 +66,19 @@ async function handler(req, res, session) {
     const date = String(body?.date || "").trim();
     const wanted = Array.isArray(body?.absences) ? body.absences : null;
     const presentIds = Array.isArray(body?.present) ? body.present.map(String) : [];
+    /* ============================================================
+       ⚠⚠ **חצי יום — מצב רביעי** (בקשת ראש המכינה, 10.9.2026):
+       *"אם מישהו הגיע באמצע היום לאחר חופש — לסמן נוכחות בחצי
+       השני של היום."*
+
+       חניך כזה נושא **גם** שורת היעדרות (הוא באמת לא היה חצי
+       יום) **וגם** את הסימון הזה, ו-`summarize` סופרת 0.5 לכל
+       צד. בלי זה היו רק שתי אפשרויות, ושתיהן שקריות עליו.
+
+       ⚠ **ואינו נוגע במכסת החופש.** כמה נגבה נקבע בהכרעה
+         ומתוקן ב-`?action=recost` — שתי שאלות (5כד).
+       ============================================================ */
+    const halfIds = Array.isArray(body?.half) ? body.half.map(String) : [];
 
     if (!DATE_RE.test(date)) {
       return res.status(400).json({ error: "תאריך לא תקין. הפורמט: YYYY-MM-DD" });
@@ -232,14 +245,39 @@ async function handler(req, res, session) {
        וכך כשל באמצע לא מציג יום חלקי כיום מלא. */
     /* חניך לא יכול להיות גם נוכח וגם נעדר */
     const presentClean = presentIds.filter((id) => known.has(id) && !seen.has(id));
-    await stampMarked(date, actorName(session), presentClean);
+    /* ⚠ **"נוכח" ו"חצי יום" נדחים ברעש כשהם על אותו חניך.**
+       שתי טענות סותרות על אותו יום אינן מצב שמכריעים בו בשקט
+       (4ט), ושתיקה כאן הייתה משאירה את המסמן בטוח שנשמר מה
+       שהוא בחר. */
+    /* ⚠ **מול `presentIds` הגולמי ולא מול `presentClean`.**
+       `presentClean` כבר מסנן את מי שיש לו היעדרות — וחניך
+       בחצי יום **כן** נושא היעדרות. השוואה מולו הייתה בולעת
+       בדיוק את ההתנגשות שמעניינת. */
+    const clash = halfIds.filter((id) => presentIds.includes(id));
+    if (clash.length) {
+      const names = clash.map((id) => (known.get(id) || {}).name || id).join(", ");
+      return res.status(400).json({
+        error: `${names} — אי אפשר לסמן גם "נוכח" וגם "חצי יום" באותו יום`,
+      });
+    }
+    /* ⚠ בלי העמודה הסימון היה נבלע — נכשלים ברעש ואומרים מה
+       להריץ, ולא מחזירים "נשמר" על משהו שאבד (עיקרון 6). */
+    if (halfIds.length && !halfDayReady()) {
+      return res.status(503).json({
+        error: "עמודת \"חצי יום\" טרם הוקמה. הריצו: npm run setup:boards",
+        setupRequired: true,
+      });
+    }
+    const halfClean = halfIds.filter((id) => known.has(id));
+    await stampMarked(date, actorName(session), presentClean, halfClean);
     invalidateAttendance();
 
     res.status(200).json({
       ok: true, date,
       absent: clean.length,
       present: presentClean.length,
-      unmarked: students.length - clean.length - presentClean.length,
+      half: halfClean.length,
+      unmarked: Math.max(0, students.length - clean.length - presentClean.length - halfClean.length),
       created: created.length,
       removed: removed.length,
       changed: changed.length,

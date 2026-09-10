@@ -115,7 +115,11 @@ export async function loadMarked({ force = false } = {}) {
       if (!date) continue;
       /* רשימת הנוכחים המפורשים — ראו shared/mechina-boards.js */
       const present = new Set(val(i, MRK.present).split(",").map((x) => x.trim()).filter(Boolean));
-      map.set(date, { id: String(i.id), by: val(i, MRK.by), at: val(i, MRK.at), present });
+      /* ⚠ **חצי יום — מצב רביעי.** ריק כשהעמודה טרם הוקמה,
+         ואז המערכת מתנהגת בדיוק כמו קודם (עיקרון 6). */
+      const half = new Set(
+        (MRK.halfDay ? val(i, MRK.halfDay) : "").split(",").map((x) => x.trim()).filter(Boolean));
+      map.set(date, { id: String(i.id), by: val(i, MRK.by), at: val(i, MRK.at), present, half });
     }
     return map;
   }, { force });
@@ -216,21 +220,46 @@ export function summarize(studentId, { absences, marked, byDate }, today = israe
     return null;
   };
 
+  /* ============================================================
+     ⚠⚠ **חצי יום נספר כחצי בשני הצדדים.**
+
+     חניך שיצא לחופש וחזר באמצע היום נושא **גם** שורת היעדרות
+     **וגם** סימון "חצי יום". בלי החלוקה הזו הוא היה נספר יום
+     נעדר מלא (והחצי שהוא כן היה נמחק) או יום נוכח מלא (ויום
+     החופש נעלם מהנוכחות) — שתי טענות שגויות עליו.
+
+     ⚠ **`present` ו-`absent` הם מספרים שבריים מרגע זה.**
+       0.5 מוצג כ-0.5 ונקרא נכון, והאחוזים ממשיכים לעבוד בלי
+       שינוי — זו הסיבה שהחצי נכנס לתוך אותם שדות ולא לשדה
+       שלישי שכל מסך היה צריך לזכור לחבר.
+
+     ⚠ **וגם `halfDays` מוחזר**, כדי שמסך יוכל לומר "כולל שני
+       חצאי יום" — מספר שברי בלי הסבר נראה כמו תקלה.
+     ============================================================ */
+  const halfOn = (date) => {
+    const stamp = marked.get(date);
+    return Boolean(stamp && stamp.half && stamp.half.has(studentId));
+  };
+
   /* ⚠ גם ההיעדרות נספרת רק בימים שנספרים. אחרת חניך היה
      צובר היעדרויות ביום שאינו במכנה — ואז absent > schoolDays. */
-  const absent = mine.filter((a) => countedSet.has(a.date)).length;
+  const absentDays = mine.filter((a) => countedSet.has(a.date));
+  const absent = absentDays.reduce((n, a) => n + (halfOn(a.date) ? 0.5 : 1), 0);
 
   /* ⚠ נוכחות נספרת רק כשסומנה במפורש. יום שסומן אבל החניך לא
      סומן בו — לא נוכח ולא נעדר — נספר "לא סומן". */
   let present = 0;
+  let halfDays = 0;
   for (const [date, stamp] of marked.entries()) {
     if (!countedSet.has(date)) continue;
     if (stamp.present && stamp.present.has(studentId)) present++;
+    else if (stamp.half && stamp.half.has(studentId)) { present += 0.5; halfDays++; }
   }
 
   return {
     schoolDays,
     present,
+    halfDays,
     unmarked: Math.max(0, schoolDays - present - absent),
     absent,
     sick: count(ABSENCE.sick),
@@ -247,7 +276,10 @@ export function summarize(studentId, { absences, marked, byDate }, today = israe
 /* ---------- כתיבה ---------- */
 
 /** רושם שהיום סומן, או מעדכן מי סימן אותו לאחרונה */
-export async function stampMarked(date, by, presentIds = null, at = new Date()) {
+/* ⚠ `halfIds` הוא ארגומנט רביעי ולא חלק מ-`presentIds`: "נוכח"
+   ו"חצי יום" הם שני מצבים, ואיחוד שלהם היה מוחק את ההבחנה
+   שבגללה העמודה קיימת. `null` = אל תיגע (כמו `presentIds`). */
+export async function stampMarked(date, by, presentIds = null, halfIds = null, at = new Date()) {
   const marked = await loadMarked();
   const hit = marked.get(date);
   const cols = {
@@ -259,6 +291,11 @@ export async function stampMarked(date, by, presentIds = null, at = new Date()) 
     const ids = [...new Set(presentIds.map(String))];
     cols[MRK.present] = ids.join(",");
     cols[MRK.presentCount] = String(ids.length);
+  }
+  /* ⚠ נכתב רק כשהעמודה קיימת — שליחת מזהה עמודה ריק ל-monday
+     מפילה את כל הקריאה ולא רק את השדה הזה. */
+  if (halfIds && MRK.halfDay) {
+    cols[MRK.halfDay] = [...new Set(halfIds.map(String))].join(",");
   }
 
   if (hit) {

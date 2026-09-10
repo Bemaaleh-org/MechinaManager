@@ -1071,6 +1071,12 @@ function MarkDay({ say, allowPick = false }) {
 
   const [draft, setDraft] = useState(null); // studentId → {type, detail}
   const [present, setPresent] = useState(new Set()); // ⚠ נוכחות מפורשת
+  /* ⚠⚠ **חצי יום אינו מצב רביעי ברשימת הכפתורים — הוא תוספת
+     על היעדרות.** חניך שיצא לחופש וחזר באמצע היום הוא **גם**
+     נעדר **וגם** נוכח, ולכן `Set` נפרד ולא ערך ב-`stateOf`:
+     ערך רביעי שם היה מבטל את סוג ההיעדרות, וזו בדיוק
+     ההבחנה שבגללה המצב קיים. */
+  const [half, setHalf] = useState(new Set());
   const [open, setOpen] = useState(null);
   const [saving, setSaving] = useState(false);
   const [trainPatch, setTrainPatch] = useState({});
@@ -1085,6 +1091,7 @@ function MarkDay({ say, allowPick = false }) {
     for (const s of data.students) if (s.absent) d[s.id] = { type: s.type, detail: s.detail || "" };
     setDraft(d);
     setPresent(new Set(data.students.filter((s) => s.present).map((s) => s.id)));
+    setHalf(new Set(data.students.filter((s) => s.half).map((s) => s.id)));
     setTrainPatch({});
     setOpen(null);
   }, [data]);
@@ -1194,6 +1201,24 @@ function MarkDay({ say, allowPick = false }) {
       else delete d[id];
       return d;
     });
+    /* ⚠ **מי שאינו נעדר אינו "חצי יום".** בלי הניקוי הזה שינוי
+       ל"נוכח" היה משאיר סימון חצי יום תלוי באוויר, והשרת היה
+       דוחה את כל השמירה ב-400 על התנגשות. */
+    if (next !== null && next !== "present") return;
+    setHalf((prev) => {
+      if (!prev.has(id)) return prev;
+      const h = new Set(prev); h.delete(id); return h;
+    });
+  };
+
+  /* ⚠ נפרד מ-`setState` בכוונה — הוא מתחלף, וזה מצטבר. */
+  const toggleHalf = (id) => {
+    if (locked.has(id)) return;
+    setHalf((prev) => {
+      const h = new Set(prev);
+      if (h.has(id)) h.delete(id); else h.add(id);
+      return h;
+    });
   };
   const setDetail = (id, v) =>
     setDraft((prev) => ({ ...prev, [id]: { ...(prev[id] || { type: "מוצדקת" }), detail: v } }));
@@ -1224,11 +1249,13 @@ function MarkDay({ say, allowPick = false }) {
     const absences = Object.entries(draft).map(([studentId, v]) => ({
       studentId, type: v.type, detail: v.detail,
     }));
-    api.markAttendance({ date: day.date, absences, present: [...present] }, td)
+    api.markAttendance({ date: day.date, absences, present: [...present], half: [...half] }, td)
       .then((r) => {
         say(r.locked.length
           ? `נשמר. ${r.locked.length} מבקשה מאושרת לא שונו`
-          : `נשמר · ${r.present} נוכחים, ${r.absent} חסרים, ${r.unmarked} לא סומנו`);
+          : `נשמר · ${r.present} נוכחים, ${r.absent} חסרים`
+            + (r.half ? `, ${r.half} חצי יום` : "")
+            + `, ${r.unmarked} לא סומנו`);
         reload();
       })
       .catch((e) => say(e.message))
@@ -1382,6 +1409,20 @@ function MarkDay({ say, allowPick = false }) {
                         onClick={() => setState(s.id, t)}>{t}</button>
                     ))}
                   </div>
+                  {/* ============================================================
+                      ⚠⚠ **"הגיע באמצע היום" — רק על חניך שנעדר.**
+                      זו בדיוק הבקשה: מי שיצא לחופש וחזר באמצע היום.
+                      הוא נשאר נעדר (זו האמת על חצי היום הראשון)
+                      ומקבל חצי יום נוכחות. הסימון אינו נוגע במכסת
+                      החופש — כמה נגבה מתוקן ב"תיקון ימי החופש" (5כד).
+                      ============================================================ */}
+                  {cur && !isLocked && (
+                    <label className="abs-half">
+                      <input type="checkbox" checked={half.has(s.id)}
+                        onChange={() => toggleHalf(s.id)} />
+                      <span>הגיע באמצע היום — חצי יום נוכחות</span>
+                    </label>
+                  )}
                   {cur && cur.type === "מוצדקת" && !isLocked && (
                     <div className="abs-note">
                       <input value={cur.detail} placeholder="פירוט (חובה)"
@@ -3556,7 +3597,14 @@ function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey }) {
                   ? Math.round((sum.present / sum.schoolDays) * 100) + "%"
                   : `${sum.present}/${sum.schoolDays}`}
               </div>
-              <div className="band-l">נוכחות</div>
+              {/* ⚠ **מספר שברי בלי הסבר נראה כמו תקלה.** חצי יום
+                  נספר 0.5 בנוכחות ו-0.5 בהיעדרות, וזו הסיבה
+                  שהמונה יכול להיות 12.5 — נאמר, ולא מעוגל. */}
+              <div className="band-l">
+                נוכחות{sum.halfDays
+                  ? ` · ${sum.halfDays === 1 ? "חצי יום אחד" : sum.halfDays + " חצאי יום"}`
+                  : ""}
+              </div>
             </div>
             <div className="band-c">
               <div className={"band-n" + (quotaLeft === 0 ? " warn" : quotaLeft > 0 ? " ok" : "")}>

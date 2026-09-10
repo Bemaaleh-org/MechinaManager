@@ -666,9 +666,12 @@ export const api = {
 
   /** שומר את סימון היום. נושא את המצב המלא הרצוי — נוכחים
    *  והיעדרויות — לא פעולות. מי שלא באף רשימה נשאר "לא סומן". */
-  markAttendance: ({ date, absences, present }, today) =>
+  /* ⚠ `half` — מזהי מי שהגיע באמצע היום. **פירוק מפורש**: שדה
+     שלא נכתב כאן נשמט בשקט, וזו הדרך שבה שדה חדש נראה עובד
+     במסך ואינו מגיע לשרת (4לג). */
+  markAttendance: ({ date, absences, present, half }, today) =>
     post("/api/attendance?action=mark" + (today ? `&today=${encodeURIComponent(today)}` : ""),
-      { date, absences, present }),
+      { date, absences, present, half }),
 
   /** בקשות יציאה. חניך מקבל את שלו בלבד — הסינון בשרת. */
   getRequests: (status) =>
