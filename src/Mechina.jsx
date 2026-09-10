@@ -3852,6 +3852,12 @@ export function MechinaApp({ auth, onSignedOut }) {
             ...(auth.isContentTeam ? [{
               key: "l-evals", label: "חוות דעת על מרצים", icon: <MI.check />,
               active: tab === "l-evals", onClick: () => setTab("l-evals"),
+            }, {
+              /* ⚠ **גיליונות המרצים — לוועדה בלבד, ומאותה סיבה.**
+                 הגיליון נושא טלפון, אימייל ומחיר למפגש, וזו בדיוק
+                 הסיבה שהוא אינו פתוח לכל חניך (`lessonRights`). */
+              key: "l-sheets", label: "גיליונות המרצים", icon: <MI.book />,
+              active: tab === "l-sheets", onClick: () => setTab("l-sheets"),
             }] : []),
           ] },
 
@@ -4088,9 +4094,15 @@ export function MechinaApp({ auth, onSignedOut }) {
               הבית או התראה שנשמרה מפנים לשם, ומסך שלא יעשה
               כלום נראה כמו תקלה.
             ============================================================ */}
-        {(tab === "l-board" || tab === "lessons") && (auth.isScheduler || auth.isLeader)
+        {(tab === "l-board" || tab === "lessons") && (auth.isScheduler || auth.isLeader || auth.isContentTeam)
           && <LessonsPage say={say} solo sub0="board" />}
-        {tab === "l-sheets" && auth.isScheduler && <LessonsPage say={say} solo sub0="sheets" />}
+        {/* ⚠ **גיליונות המרצים גם לוועדת קבוצה ותוכן** (החלטת ראש
+            המכינה, 10.9.2026): "מדעי המדינה, כישורי חיים ושיעור
+            ניר עוז — גלויים וניתנים לעריכה לכל מי שבוועדה, כמו
+            לאחראי הלו״ז". ההרשאה עצמה נאכפת ב-`lessonRights`
+            שבשרת; כאן זו תצוגה בלבד. */}
+        {tab === "l-sheets" && (auth.isScheduler || auth.isContentTeam)
+          && <LessonsPage say={say} solo sub0="sheets" />}
         {/* ⚠ **גם לוועדת קבוצה ותוכן.** הסמכות שנמסרה לה היא
             לכתוב את חוות הדעת על המרצים המתחלפים, והשרת פותח
             לה בדיוק את זה (`gate` ב-_lesson-evals.js). התנאי

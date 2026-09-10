@@ -12,6 +12,7 @@
    ============================================================ */
 
 import { withAuth } from "./_session.js";
+import { lessonRights } from "./_lesson-rights.js";
 import { PLANNED } from "../shared/lessons-boards.js";
 import {
   loadSheets, loadMeetings, addMeeting, updateMeeting, removeMeeting,
@@ -19,7 +20,10 @@ import {
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-async function handler(req, res) {
+async function handler(req, res, session) {
+  const rights = await lessonRights(session);
+  if (!rights.write) return res.status(403).json({ error: rights.hint });
+
   if (req.method === "POST") return create(req, res);
   if (req.method === "PUT") return edit(req, res);
   if (req.method === "DELETE") return remove(req, res);
@@ -139,4 +143,6 @@ async function readJson(req) {
   return raw ? JSON.parse(raw) : {};
 }
 
-export default withAuth(handler, { scheduler: true, edit: "scheduler" });
+/* ⚠ שער אחד ללו״ז — ראו api/_lesson-rights.js. `{student:true}`
+   כי חבר ועדת קבוצה ותוכן הוא חניך (4כב). */
+export default withAuth(handler, { student: true });

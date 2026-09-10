@@ -3,18 +3,23 @@
 
    כל גיליונות השיעור עם הספירה של כל אחד.
 
-   ⚠ צוות או אחראי לו״ז. חניך רגיל אינו רואה את המסך הזה —
-     ההרשאה נאכפת ב-withAuth ולא בתצוגה.
+   ⚠ צוות · אחראי הלו״ז · **ועדת קבוצה ותוכן**. חניך רגיל אינו
+     רואה את המסך הזה. ⚠ והשער עבר מ-`withAuth` ל-`lessonRights`
+     כי השאלה היא איחוד ודגלי `withAuth` הם AND — ראו
+     `api/_lesson-rights.js`.
    ============================================================ */
 
 import { withAuth } from "./_session.js";
 import { loadSheets, loadMeetings, countFor } from "./_lessons-data.js";
-import { mayEdit } from "../shared/edit-rights.js";
+import { lessonRights } from "./_lesson-rights.js";
 
 async function handler(req, res, session) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "רק GET נתמך כאן" });
   }
+
+  const rights = await lessonRights(session);
+  if (!rights.read) return res.status(403).json({ error: rights.readHint });
 
   try {
     const [sheets, meetings] = await Promise.all([loadSheets(), loadMeetings()]);
@@ -34,7 +39,8 @@ async function handler(req, res, session) {
       sheets: list,
       count: list.length,
       totals,
-      canEdit: mayEdit(session, "scheduler"),
+      canEdit: rights.write,
+      editHint: rights.write ? null : rights.hint,
     });
   } catch (e) {
     console.error("[lessons-list]", e);
@@ -42,4 +48,7 @@ async function handler(req, res, session) {
   }
 }
 
-export default withAuth(handler, { scheduler: true, edit: "scheduler" });
+/* ⚠ `{student:true}` הוא השער, וההכרעה ב-`lessonRights` — חבר
+   ועדת קבוצה ותוכן הוא חניך, ו-`{scheduler:true}` היה חוסם אותו
+   לפני שהמודול נשאל בכלל (4כב). */
+export default withAuth(handler, { student: true });

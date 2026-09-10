@@ -40,7 +40,7 @@
    ============================================================ */
 
 import { withAuth } from "./_session.js";
-import { weeksOfStudent } from "./_leader-weeks.js";
+import { lessonRights } from "./_lesson-rights.js";
 import { loadSheets, loadMeetings } from "./_lessons-data.js";
 import {
   timeOf, dayOf, minutesOf, hebDayOf, PLANNED,
@@ -67,22 +67,27 @@ const shift = (iso, n) => {
    ⚠ **ולמה לא `{scheduler:true}`:** הדגל הזה בודק
    `session.isLeader`, שפירושו **מוביל היום**. מוביל של השבוע
    הבא קיבל 403 על לוח השיעורים — בדיוק הבאג שתועד ב-5ב לגבי
-   סימון הנוכחות, שחוזר כאן. השאלה הנכונה היא `leadsAnyWeek`,
-   ו**איזה תאריך** מותר נבדק בתוך נקודת הקצה.
+   סימון הנוכחות, שחוזר כאן. השאלה הנכונה היא `leadsAnyWeek`.
+
+   ⚠⚠ **וזו קריאה בלבד.** מוביל שבוע כבר אינו מסמן "התקיים"
+   (החלטת ראש המכינה, 10.9.2026) — הכתיבה נגזרת מ-`lessonRights`
+   ונשלחת כ-`markAll`. הוא רואה את הלו״ז ואינו מדווח עליו.
 
    ⚠⚠ **ובמכוון לא הרחבנו את `{scheduler:true}` עצמו.** הוא
    שומר גם על `?action=pay` — דוח התשלום למרצים — ומוביל שבוע
    אינו אמור לראות כמה משלמים למרצה. שער אחד רחב לשתי שאלות
    שונות הוא בדיוק איך נפתחת גישה שאיש לא התכוון אליה.
    ============================================================ */
-const mayBoard = (session) =>
+const mayBoard = (session, rights) =>
   Boolean(session.isManager || session.isScheduler
-    || session.isLeader || session.leadsAnyWeek);
+    || session.isLeader || session.leadsAnyWeek || (rights && rights.read));
 
-const BLOCKED = "לוח השיעורים פתוח לצוות, לאחראי הלו״ז ולמובילי השבוע.";
+const BLOCKED = "לוח השיעורים פתוח לצוות, לאחראי הלו״ז, לוועדת קבוצה ותוכן ולמובילי השבוע.";
 
 async function handler(req, res, session) {
-  if (!mayBoard(session)) return res.status(403).json({ error: BLOCKED });
+  /* ⚠ הקריאה פתוחה גם למוביל שבוע; הכתיבה נגזרת מ-lessonRights. */
+  const rights = await lessonRights(session);
+  if (!mayBoard(session, rights)) return res.status(403).json({ error: BLOCKED });
 
   try {
     const test = parseTestDate(req?.query?.today);
@@ -183,18 +188,25 @@ async function handler(req, res, session) {
          נשארת אצל אחראי הלו״ז. */
 
     /* ============================================================
-       ⚠ **מה שמותר לי נקבע בשרת ונשלח, ולא נגזר במסך.**
-         מוביל שבוע מדווח על מפגשים **בשבוע שלו בלבד** (ראו
-         _lesson-mark.js), וכפתור שיציע לו לסמן יום של מישהו
-         אחר יקבל 403 אחרי הלחיצה — בדיוק מה שאין לעשות (4יד).
+       ⚠ **מה שמותר לי נקבע בשרת ונשלח, ולא נגזר במסך** (4יד).
 
-       ⚠ צוות ואחראי לו״ז אינם מוגבלים, ולכן `markWeeks` ריק
-         אצלם ו-`markAll` דולק. שני שדות ולא אחד: "מותר לי הכול"
-         ו"מותר לי בטווחים האלה" הן שתי תשובות שונות. */
-    const markAll = !session.isStudent || Boolean(session.isScheduler);
-    const markWeeks = markAll ? [] : await weeksOfStudent(session.itemId);
-    /* ⚠ הסימון הידני בלוח החניכים — "היום בלבד", כמו בנוכחות. */
-    const markToday = !markAll && Boolean(session.isLeader);
+       ⚠⚠⚠ **ומובילי שבוע ירדו מהסימון לגמרי** (החלטת ראש
+         המכינה, 10.9.2026). קודם היו כאן **שלושה** שדות —
+         `markAll`, `markWeeks` ו-`markToday` — כי מוביל שבוע
+         דיווח על השבוע שלו בלבד. עכשיו הדיווח הוא של אחראי
+         הלו״ז, ראש המכינה וועדת קבוצה ותוכן, וזו שאלה בינארית.
+
+         `markWeeks` ו-`markToday` **נשארים בתשובה כרשימה ריקה
+         וכ-false** ולא נמחקו: לקוח שלא רוענן עדיין קורא אותם,
+         ושדה שנעלם מתפרש שם כ-`undefined` ולא כ"אסור". הם
+         יורדו כשהגרסה הזו תהיה בכל מכשיר.
+
+       ⚠ **הם עדיין רואים את הלוח** — `mayBoard` לא השתנה. מה
+         שנסגר הוא הכתיבה.
+       ============================================================ */
+    const markAll = rights.write;
+    const markWeeks = [];
+    const markToday = false;
 
     res.status(200).json({
       today, from, to, days: DAYS,

@@ -10,20 +10,29 @@ import {
   loadSheets, loadMeetings, countFor, createSheet, invalidateLessons,
   loadEvals, loadRatings, evalForMeeting, ratingFor,
 } from "./_lessons-data.js";
-import { mayEdit } from "../shared/edit-rights.js";
+import { lessonRights } from "./_lesson-rights.js";
 import { gql } from "./_monday.js";
 import { LESSON_BOARDS, LESSON_COLS } from "../shared/lessons-boards.js";
 
 const S = LESSON_COLS.sheets;
 
 async function handler(req, res, session) {
-  if (req.method === "GET") return read(req, res, session);
+  /* ⚠ שער אחד לארבע נקודות הקצה של הלו״ז — ראו
+     `api/_lesson-rights.js`. קריאה: צוות · אחראי הלו״ז · ועדת
+     קבוצה ותוכן. כתיבה: ראש המכינה · אחראי הלו״ז · הוועדה. */
+  const rights = await lessonRights(session);
+  if (!rights.read) return res.status(403).json({ error: rights.readHint });
+  if (req.method !== "GET" && !rights.write) {
+    return res.status(403).json({ error: rights.hint });
+  }
+
+  if (req.method === "GET") return read(req, res, session, rights);
   if (req.method === "POST") return create(req, res, session);
   if (req.method === "PUT") return edit(req, res, session);
   return res.status(405).json({ error: "רק GET, POST ו-PUT נתמכים כאן" });
 }
 
-async function read(req, res, session) {
+async function read(req, res, session, rights) {
   try {
     const id = String(req.query?.id || "");
     if (!id) return res.status(400).json({ error: "לא צוין גיליון" });
@@ -60,7 +69,8 @@ async function read(req, res, session) {
             votes: r ? r.votes : 0,
           };
         }),
-      canEdit: mayEdit(session, "scheduler"),
+      canEdit: rights.write,
+      editHint: rights.write ? null : rights.hint,
     });
   } catch (e) {
     console.error("[lesson-sheet:read]", e);
@@ -161,4 +171,4 @@ async function readJson(req) {
   return raw ? JSON.parse(raw) : {};
 }
 
-export default withAuth(handler, { scheduler: true, edit: "scheduler" });
+export default withAuth(handler, { student: true });

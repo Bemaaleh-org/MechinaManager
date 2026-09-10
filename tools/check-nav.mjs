@@ -43,8 +43,8 @@ import { readFileSync } from "node:fs";
 const CONTRACT = [
   {
     group: "קבוצה ותוכן",
-    keys: ["plenary", "stu-lessons", "lecturers", "l-evals"],
-    why: "ארבעת המסכים של ועדת קבוצה ותוכן (5לא)",
+    keys: ["plenary", "stu-lessons", "lecturers", "l-evals", "l-sheets"],
+    why: "מסכי ועדת קבוצה ותוכן (5לא), וגיליונות המרצים שנפתחו לה",
   },
 ];
 

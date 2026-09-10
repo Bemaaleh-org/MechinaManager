@@ -540,6 +540,12 @@ function Staff({ auth, onSignedOut }) {
               { key: "l-evals", label: "חוות דעת על מרצים", icon: <I.check />,
                 active: section === "lessons" && lessonsSub === "evals",
                 onClick: () => goLessons("evals") },
+              /* ⚠ **גיליונות המרצים נפתחו לוועדה** (10.9.2026), ולכן
+                 הם בקבוצה הזו גם כאן. אותה לשונית של "שיעורים
+                 במכינה" ולא עותק שני (4יט). */
+              { key: "l-sheets", label: "גיליונות המרצים", icon: <I.book />,
+                active: section === "lessons" && lessonsSub === "sheets",
+                onClick: () => goLessons("sheets") },
             ] },
             /* ⚠ ההשאלות יושבות עם המכולה: הציוד שיוצא ונכנס
                הוא אותו ציוד שבמכולה, ואותו אדם אחראי עליו. */

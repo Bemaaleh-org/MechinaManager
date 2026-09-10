@@ -102,6 +102,39 @@ async function handler(req, res, session) {
       const byDate = new Map();
       for (const r of rows) if (!byDate.has(r.date)) byDate.set(r.date, r);
 
+      /* ============================================================
+         ⚠⚠⚠ **שיבוץ שיושב מחוץ לימי המערכת מוצג ומסומן.**
+
+         `STU_DOWS` השתנה (10.9.2026) משני·רביעי·שבת לראשון·שני·
+         שבת. `stuSlots` בונה מועדים **מהימים הנוכחיים בלבד**,
+         ולכן כל שיבוץ שנקבע ליום רביעי היה **נעלם מהמסך בשקט** —
+         השורה בלוח, החניך חושב שהוא משובץ, והוועדה אינה רואה
+         אותו כדי להזיז אותו.
+
+         זה בדיוק עיקרון 6 ו-4כ: מוצג ולא נמחק. המועד נוסף
+         לרשימה עם `outside: true`, והמסך אומר שהוא מחוץ לימים
+         הנוכחיים — ההכרעה אם להזיז נשארת אצל הוועדה.
+
+         ⚠ **ואינו נספר ב-`openSlots`** — הוא תפוס ממילא.
+         ============================================================ */
+      const known = new Set(slots.map((s) => s.date));
+      for (const r of rows) {
+        if (!r.date || known.has(r.date)) continue;
+        known.add(r.date);
+        const w = dowOf(r.date);
+        slots.push({
+          date: r.date,
+          dow: w,
+          dowName: w == null ? "" : DOW_HE[w],
+          kinds: STU_KINDS,
+          blocked: false,
+          reason: null,
+          events: [],
+          outside: true,
+        });
+      }
+      slots.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
       const done = doneMap(rows);
       const mine = String(session.itemId || "");
 

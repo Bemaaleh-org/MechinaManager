@@ -13,12 +13,11 @@
    ============================================================ */
 
 import { withAuth, actorName } from "./_session.js";
+import { lessonRights } from "./_lesson-rights.js";
 import { HAPPENED } from "../shared/lessons-boards.js";
 import {
   loadMeetings, loadSheets, setMeeting, ensureEvalForMeeting,
 } from "./_lessons-data.js";
-import { weeksOfStudent } from "./_leader-weeks.js";
-import { israelToday } from "./_attendance-data.js";
 
 const VALUES = [HAPPENED.yes, HAPPENED.no];
 
@@ -63,42 +62,28 @@ async function handler(req, res, session) {
     if (!meeting) return res.status(404).json({ error: "המפגש אינו נמצא" });
 
     /* ============================================================
-       ⚠⚠ **מוביל שבוע מדווח על השבוע שלו, ולא על השנה כולה.**
+       ⚠⚠⚠ **מובילי שבוע ירדו מכאן לגמרי** (החלטת ראש המכינה,
+       10.9.2026): *"תוריד באופן מוחלט את ההרשאות של מובילי שבוע
+       לגבי סימון שיעורים האם התקיים או לא התקיים, זה מעכשיו
+       יתבצע אך ורק על ידי אחראי לו״ז בלבד."*
 
-       `{scheduler:true}` פותח את נקודת הקצה לשלושה: צוות, אחראי
-       לו״ז, ומוביל שבוע. לשניים הראשונים זה נכון — הלו״ז הוא
-       התפקיד שלהם. למוביל שבוע זה היה נותן לסמן כל מפגש בשנה,
-       כולל בשבועות של אחרים ובחודשים שלא היה בהם.
+       מה שהיה כאן: `{scheduler:true}` פתח את נקודת הקצה גם
+       למוביל שבוע, ובדיקת טווח הגבילה אותו למפגשים של השבועות
+       שהוא מוביל — הכלל של 4ע ו-5ב. **זה בוטל.** הבדיקה כולה
+       ירדה, ואיתה הייבוא של `weeksOfStudent`.
 
-       הכלל זהה לזה של סימון הנוכחות (5ב): **התאריך מול הטווח**,
-       ולכן ההרשאה עוברת מעצמה כשהשבוע נגמר — בלי שאיש יעשה דבר.
+       ⚠ **הם עדיין רואים את לוח השיעורים** (`mayBoard` ב-
+         `_lessons-board.js` לא השתנה) — מוביל שבוע צריך לדעת
+         מה הלו״ז. מה שנסגר הוא הדיווח.
 
-       ⚠ **מי שהוא גם אחראי לו״ז אינו מוגבל.** התפקיד הזה הוא
-         על כל הלו״ז, וההגבלה כאן היא על מי שכל סמכותו נובעת
-         מהשיבוץ לשבוע.
+       ⚠ **ו-`canMark` מוחזר ללוח** כדי שהכפתור לא יופיע ויקבל
+         403 אחרי הלחיצה (4יד).
 
-       ⚠ **וההודעה מונה את השבועות שלו**, ולא אומרת "אין הרשאה":
-         מי שנחסם צריך לדעת על מה כן מותר לו (4ע).
+       ⚠ **והוועדה כן נכנסה** — היא זו שמסמנת "התקיים" לפני
+         שהיא כותבת חוות דעת (5כח). שער אחד: `lessonRights`.
        ============================================================ */
-    if (session.isStudent && !session.isScheduler) {
-      const weeks = await weeksOfStudent(session.itemId);
-      /* ⚠ **הסימון הידני בלוח החניכים נותן "היום בלבד".**
-         הוא עוקף חירום בלי טווח, ולכן אינו נכנס ל-weeksOfStudent
-         (5ב) — אבל הוא כן צריך לאפשר לדווח על היום עצמו, בדיוק
-         כמו בסימון הנוכחות (`api/_attendance-day.js`). בלי
-         השורה הזו חניך שסומן ידנית קיבל הרשאת מוביל שאינה
-         פותחת לו כלום. */
-      const inRange = weeks.some((w) => w.start <= meeting.date && meeting.date <= w.end)
-        || (session.isLeader && meeting.date === israelToday());
-      if (!inRange) {
-        const list = weeks.map((w) => `${w.start}–${w.end}`).join(", ");
-        return res.status(403).json({
-          error: weeks.length
-            ? `${meeting.date} אינו באחד השבועות שאתם מובילים (${list})`
-            : "דיווח על מפגשים פתוח למי שמוביל שבוע, בימים שבשבוע שלו",
-        });
-      }
-    }
+    const rights = await lessonRights(session);
+    if (!rights.write) return res.status(403).json({ error: rights.hint });
 
     const fields = { happened };
     if (body?.note !== undefined) fields.note = body.note;
