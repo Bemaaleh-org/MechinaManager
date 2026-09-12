@@ -234,7 +234,7 @@ export const MECHINA_COLS = {
          שם בקובץ אחד הם בדיוק מה שמבלבל את ההחלפה הכירורגית
          של סקריפט ההקמה (5לב).
        ============================================================ */
-    halfDay: "",
+    halfDay: "long_text_mm746nbp",
   },
   requests: {
     student: "board_relation_mm6czcwn",

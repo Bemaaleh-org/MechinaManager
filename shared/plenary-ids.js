@@ -50,6 +50,7 @@ export const PLENARY_COLS = {
     "ownerNames": "text_mm71arsj",
     "open": "boolean_mm71v5fx",
     "agenda": "long_text_mm71f8wg",
+    "protocol": "long_text_mm74dny3",
     "summary": "long_text_mm714g76",
     "summaryBy": "text_mm717975",
     "file": "file_mm712nsz",

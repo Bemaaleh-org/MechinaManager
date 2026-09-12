@@ -29,6 +29,7 @@ export const LECT_COLS = {
   "email": "text_mm71fze0",
   "link": "text_mm716829",
   "status": "color_mm717pbq",
+  "category": "color_mm74xgwf",
   "byId": "text_mm71w1de",
   "byName": "text_mm7127zm",
   "notes": "long_text_mm712k77",

@@ -139,10 +139,10 @@ export const LESSON_COLS = {
          `changeLogReady()`. **וכישלון רישום לעולם אינו מפיל
          את העריכה עצמה** — ראו api/_lesson-changes.js.
        ============================================================ */
-    changedAt: "",
-    changeNote: "",
-    changeBy: "",
-    changeById: "",
+    changedAt: "text_mm74cy3n",
+    changeNote: "text_mm74tfdw",
+    changeBy: "text_mm74m7g8",
+    changeById: "text_mm74beb3",
   },
   meetings: {
     sheet: "board_relation_mm6c8413",
