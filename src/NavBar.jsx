@@ -132,8 +132,12 @@ export const NAVBAR_CSS = `
    האוטומטיים מבטלים את ה-stretch והפריט מקבל את רוחב התוכן
    שלו — 598px בטלפון של 375. נתפס במדידת scrollWidth. */
 .kx.has-nv main{flex:1 0 auto;width:100%;min-width:0;padding-bottom:14px}
+/* ⚠ **במסך רחב הכפתורים ברוחב עמודת התוכן (640) ולא ברוחב החלון.**
+   בלי זה חמישה כפתורים התפזרו על 1,480 פיקסלים, רחוקים זה מזה
+   ומהדף שמעליהם, ו"עוד" ישב בקצה השמאלי של החלון. הרקע נשאר ברוחב
+   מלא; רק הריפוד הצדדי גדל. */
 .nv{position:sticky;bottom:0;z-index:25;display:flex;align-items:stretch;
-  gap:2px;padding:6px 6px calc(6px + env(safe-area-inset-bottom));
+  gap:2px;padding:6px max(6px, calc((100% - 640px) / 2)) calc(6px + env(safe-area-inset-bottom));
   background:var(--surface);border-top:1px solid var(--line);
   box-shadow:0 -8px 24px -18px rgba(47,38,22,.35)}
 .kx .nv-i{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;
