@@ -23,7 +23,7 @@ import { cached } from "./_cache.js";
 import { studentRows } from "./_student-rows.js";
 import { ensureCycle } from "./_cycle.js";
 import { ROLE_CONTAINER, ROLE_KITCHEN, ROLE_SAFETY, ROLE_HOUSE } from "../shared/lessons-boards.js";
-import { leadersForDate, weeksOfStudent } from "./_leader-weeks.js";
+import { inMarkWindow, leadersForDate, weeksOfStudent } from "./_leader-weeks.js";
 import { parseTestDate } from "./_test-date.js";
 import { mayEdit, editHint, EDIT_AREA } from "../shared/edit-rights.js";
 
@@ -181,9 +181,15 @@ export async function requireAuth(req, res) {
          פעם אחת ל-5 דקות, ולכן זו אינה קריאה נוספת ללוח.
        ============================================================ */
     let leadsAnyWeek = false;
+    /* ⚠ **השבוע שלו רץ, או נגמר לפני חמישה ימים לכל היותר.** זה
+       מה שמשאיר את מסך הסימון במגירה אחרי מוצאי השבוע — `isLeader`
+       ("מוביל היום") סוגר אותו בדיוק כשהסימון בדיעבד מתחיל. */
+    let markWindow = false;
     try {
       scheduled = (await leadersForDate(todayIso)).includes(row.id);
-      leadsAnyWeek = (await weeksOfStudent(row.id)).length > 0;
+      const mine = await weeksOfStudent(row.id);
+      leadsAnyWeek = mine.length > 0;
+      markWindow = inMarkWindow(mine, todayIso);
     }
     catch { /* כשל בשליפת השיבוץ לא מפיל את הכניסה — נשאר העוקף הידני */ }
 
@@ -204,6 +210,7 @@ export async function requireAuth(req, res) {
       /* ⚠ **רחב מ-isLeader, ובכוונה.** הוא פותח את השער, והתאריך
          המדויק נבדק בתוך נקודת הקצה. ראו ההערה למעלה. */
       leadsAnyWeek,
+      markWindow,
       roles: row.roles || [],
       /* ⚠ אחראי לו״ז — התפקיד היחיד שפותח מסך. נקרא טרי מהלוח
          בכל בקשה, ולכן הסרת התפקיד סוגרת את הגישה מיד. */
@@ -239,6 +246,7 @@ export async function requireAuth(req, res) {
     isStudent: false,
     isLeader: false,
     leadsAnyWeek: false,
+    markWindow: false,
     /* ⚠ נקרא טרי מהלוח בכל בקשה, כמו "אחראי לו״ז" — הסרת התפקיד
        סוגרת את ההכרעה מיד ולא בכניסה הבאה. */
     isHead: row.role === STAFF_ROLE.head,

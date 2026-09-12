@@ -62,7 +62,7 @@ import {
   loadCalendar, loadAbsences, todayFor, isSchoolDay, vacationRule,
   createAbsence, deleteAbsence, stampMarked, invalidateAttendance,
 } from "./_attendance-data.js";
-import { leadsOn, weeksOfStudent } from "./_leader-weeks.js";
+import { leadsOn, weeksOfStudent, canMarkDate, markUntil } from "./_leader-weeks.js";
 import {
   /* ⚠ HALF ו-VACATION_PER_HALF הוסרו עם חסימת המכסה
      (12.9.2026) — ראו ההערה בראש הקובץ. */
@@ -108,7 +108,8 @@ async function handler(req, res, session) {
        אתמול חייב לעבור דרך המנהל. הטווח נגזר מהשבוע שבלוח
        מובילי השבוע, ולכן הוא **מתחלף מעצמו**: כשהשבוע נגמר,
        החניך מפסיק לסמן ימים חדשים בלי שאיש יעשה דבר, וממשיך
-       לתקן את הימים שכן היו באחריותו.
+       לתקן את הימים שלו **עוד חמישה ימים** אחרי שהשבוע נגמר —
+       ולא יותר (12.9.2026, ראו `canMarkDate` ב-_leader-weeks.js).
 
        ⚠⚠ **הסימון הידני בלוח החניכים נשאר "היום בלבד".** הוא
          עוקף חירום ואין לו טווח, ולכן חניך שסומן פעם אחת היה
@@ -120,10 +121,20 @@ async function handler(req, res, session) {
        ============================================================ */
     const today = todayFor(req);
     if (!session.isManager) {
-      const inMyWeek = await leadsOn(session.itemId, date);
+      const mine = await weeksOfStudent(session.itemId);
+      const allowed = canMarkDate(mine, date, today);
       const emergencyToday = date === today && session.isLeader;
-      if (!inMyWeek && !emergencyToday) {
-        const mine = await weeksOfStudent(session.itemId);
+      /* ⚠ שבוע שלו שהחלון שלו נסגר — ההודעה אומרת **מתי נסגר ולמי
+         לפנות**, ולא "אינו בשבועות שלכם", שהיא פשוט לא נכונה. */
+      const closed = !allowed && mine.find((w) => w.start <= date && date <= w.end);
+      if (closed && !emergencyToday) {
+        const until = markUntil(closed);
+        return res.status(403).json({
+          error: `הסימון של שבוע ${closed.num || ""} נסגר ב-${until.slice(8)}.${until.slice(5, 7)}`
+            + " — חמישה ימים אחרי סוף השבוע. תיקון נעשה דרך הצוות",
+        });
+      }
+      if (!allowed && !emergencyToday) {
         return res.status(403).json({
           error: mine.length
             ? `${date} אינו באחד השבועות שאתם מובילים `

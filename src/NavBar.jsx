@@ -132,7 +132,7 @@ export const NAVBAR_CSS = `
    האוטומטיים מבטלים את ה-stretch והפריט מקבל את רוחב התוכן
    שלו — 598px בטלפון של 375. נתפס במדידת scrollWidth. */
 .kx.has-nv main{flex:1 0 auto;width:100%;min-width:0;padding-bottom:14px}
-.nv{position:sticky;bottom:0;z-index:40;display:flex;align-items:stretch;
+.nv{position:sticky;bottom:0;z-index:25;display:flex;align-items:stretch;
   gap:2px;padding:6px 6px calc(6px + env(safe-area-inset-bottom));
   background:var(--surface);border-top:1px solid var(--line);
   box-shadow:0 -8px 24px -18px rgba(47,38,22,.35)}
@@ -151,6 +151,16 @@ export const NAVBAR_CSS = `
   display:flex;align-items:center;justify-content:center;border-radius:999px;
   background:var(--clay);color:#fff;font-size:10px;font-weight:900;font-style:normal;
   line-height:1}
+/* ⚠⚠ **הסרגל דרס את כפתורי השמירה.** פס הפעולה .sticky
+   (שמירת הסימון, שמירת ספירה ועוד 16 מסכים) הוא position:fixed
+   במרחק 10px מתחתית החלון — בדיוק איפה שהסרגל יושב, ומתחתיו
+   בסדר השכבות. עכשיו הוא עולה מעל הסרגל בגובהו המלא: 6+52+6
+   של הכפתורים, קו עליון, ופס הבית של אייפון.
+   ⚠ והסרגל ירד ל-z-index:25 — מתחת לרשימות נפתחות (30),
+     לפאנל ההתראות (39) ולכותרת (40). הוא צריך לעמוד מעל תוכן
+     רגיל, ולא מעל שום דבר שנפתח מעליו. */
+.kx.has-nv .sticky{bottom:calc(75px + env(safe-area-inset-bottom))}
+.kx.has-nv .toast{bottom:calc(84px + env(safe-area-inset-bottom))}
 @media (prefers-reduced-motion: reduce){
   .kx .nv-i:active,.kx .nv-back:active{transform:none}
 }

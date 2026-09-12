@@ -34,7 +34,8 @@ import { PLENARY_CSS } from "./Plenary.jsx";
 import { LESSONCHANGES_CSS } from "./LessonChanges.jsx";
 import { BUY_CSS } from "./Buy.jsx";
 import { NAVBAR_CSS } from "./NavBar.jsx";
+import { SHORTCUTS_CSS } from "./Shortcuts.jsx";
 
 export const ALL_CSS = CSS + LAUNDRY_CSS + QUOTES_CSS + MISHMAR_CSS + ARCHIVE_CSS
   + GROUP_CSS + RECRUIT_CSS + MENU_CSS + DUTYTODAY_CSS + ABSENT_CSS + BUGS_CSS + STULESSON_CSS + PLENARY_CSS
-  + LESSONCHANGES_CSS + BUY_CSS + NAVBAR_CSS;
+  + LESSONCHANGES_CSS + BUY_CSS + NAVBAR_CSS + SHORTCUTS_CSS;

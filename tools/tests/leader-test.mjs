@@ -54,6 +54,18 @@ const week = weeks.find((w) => cv(w, W.start) && cv(w, W.end) && schoolIn(w).len
 if (!week) { console.log("אין שבוע עם שני ימי לימוד"); process.exit(1); }
 
 const inside = schoolIn(week).map((d) => d.date);
+
+/* ⚠⚠ **"היום" של השרת מוצמד לתחילת השבוע הנבדק** (?today=, פיתוח
+   בלבד). מאז 12.9.2026 מוביל מסמן את השבוע שלו רק עד חמישה ימים
+   אחרי סופו, והשבוע שהבדיקה בוחרת הוא הראשון בלוח — כלומר בעוד
+   שבוע כל טענה "רשאי לסמן" כאן הייתה נכשלת על התנהגות **נכונה**.
+   הטענות על החלון עצמו, בסוף, מזיזות את "היום" במפורש. */
+const T = "&today=" + cv(week, W.start);
+const addD = (iso, n) => {
+  const d = new Date(String(iso) + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
 /* יום לימוד שאינו בשבוע הזה */
 const outsideDay = cal.days.find((d) => isSchoolDay(d)
   && (d.date < cv(week, W.start) || d.date > cv(week, W.end)));
@@ -125,7 +137,7 @@ try {
      באותו מופע, אבל בייצור יש כמה מופעים. */
   let day = null;
   for (let i = 0; i < 45; i++) {
-    day = await call(S, "GET", "/api/attendance?action=day&date=" + inside[0]);
+    day = await call(S, "GET", "/api/attendance?action=day" + T + "&date=" + inside[0]);
     if (day.s === 200) break;
     await new Promise((z) => setTimeout(z, 1000));
   }
@@ -138,14 +150,14 @@ try {
   /* ⚠⚠ הטענה המרכזית: **מסמן, ולא רק צופה** — גם ביום שאינו היום. */
   ok("ורשאי לסמן בו", day.b.canMark === true, String(day.b.canMark));
 
-  const second = await call(S, "GET", "/api/attendance?action=day&date=" + inside[1]);
+  const second = await call(S, "GET", "/api/attendance?action=day" + T + "&date=" + inside[1]);
   ok("וגם ביום שני בשבוע שלו", second.s === 200 && second.b.canMark === true,
     `${second.s} ${second.b.canMark}`);
 
   console.log("\n=== מה שמחוץ לטווח ===");
   if (!outsideDay) { console.log("  (אין יום לימוד מחוץ לשבוע — מדולג)"); }
   else {
-    const out = await call(S, "GET", "/api/attendance?action=day&date=" + outsideDay.date);
+    const out = await call(S, "GET", "/api/attendance?action=day" + T + "&date=" + outsideDay.date);
     /* ⚠ **403 על הקריאה, ולא מסך ריק.** ההודעה אומרת מה מותר. */
     ok("יום מחוץ לשבוע שלו נחסם", out.s === 403, `${out.s} ${out.b.error || ""}`);
     ok("וההודעה אומרת מה כן אפשר",
@@ -153,7 +165,7 @@ try {
 
     /* ⚠⚠ **וגם הכתיבה נחסמת — זה השער האמיתי.** מסך שחוסם הוא
        הצעה; שרת שחוסם הוא הבטחה (עיקרון 3). */
-    const w = await call(S, "POST", "/api/attendance?action=mark",
+    const w = await call(S, "POST", "/api/attendance?action=mark" + T,
       { date: outsideDay.date, absences: [] });
     ok("וסימון שלו נחסם בשרת", w.s === 403, `${w.s} ${w.b.error || ""}`);
     ok("וההודעה מונה את השבועות שלו",
@@ -176,7 +188,7 @@ try {
        התנהגות נכונה. אותה מלכודת שמתועדת ב-CLAUDE.md.
      ============================================================ */
   const lastDay = inside[inside.length - 1];
-  const lastIn = await call(S, "GET", "/api/attendance?action=day&date=" + lastDay);
+  const lastIn = await call(S, "GET", "/api/attendance?action=day" + T + "&date=" + lastDay);
   ok("היום האחרון בשבוע — מסמן", lastIn.s === 200 && lastIn.b.canMark === true,
     lastDay + ": " + lastIn.s + " " + lastIn.b.canMark);
 
@@ -185,13 +197,49 @@ try {
   if (!nextDay) {
     console.log("  (אין יום לימוד אחרי השבוע — מדולג)");
   } else {
-    const after = await call(S, "GET", "/api/attendance?action=day&date=" + nextDay.date);
+    const after = await call(S, "GET", "/api/attendance?action=day" + T + "&date=" + nextDay.date);
     ok("והיום שאחרי סוף השבוע — כבר לא",
       after.s === 403 || after.b.canMark === false,
       nextDay.date + ": " + after.s + " " + (after.b && after.b.canMark));
-    const wr = await call(S, "POST", "/api/attendance?action=mark",
+    const wr = await call(S, "POST", "/api/attendance?action=mark" + T,
       { date: nextDay.date, absences: [] });
     ok("וגם הכתיבה שם נחסמת", wr.s === 403, wr.s + " " + (wr.b.error || ""));
+  }
+
+  /* ============================================================
+     חמישה ימים אחרי סוף השבוע — ולא יותר (12.9.2026)
+     ------------------------------------------------------------
+     ⚠⚠ **שני הכיוונים על הגבול עצמו.** "היום החמישי מסמן" לבדו
+       היה נשאר ירוק גם אילו החלון לא נסגר לעולם — וזה בדיוק
+       המצב שהיה לפני ההחלטה. ו"השישי נחסם" לבדו היה ירוק גם
+       אילו הסימון בדיעבד לא עבד בכלל.
+     ⚠ **ובלי כתיבה:** הקריאה מחזירה canMark, והכתיבה נבדקת רק
+       בכיוון החסום — 403 אינו נוגע בלוח.
+     ============================================================ */
+  {
+    const wEnd2 = cv(week, W.end);
+    const on5 = addD(wEnd2, 5), on6 = addD(wEnd2, 6);
+    const at5 = await call(S, "GET", "/api/attendance?action=day&today=" + on5 + "&date=" + lastDay);
+    ok("חמישה ימים אחרי סוף השבוע — עוד מסמן את ימי השבוע",
+      at5.s === 200 && at5.b.canMark === true, `${on5}: ${at5.s} ${at5.b.canMark}`);
+    ok("והמסך מקבל את מה שעוד לא סומן, עם תאריך הסגירה",
+      Array.isArray(at5.b.retro) && at5.b.retro.every((d) => d.until === on5),
+      JSON.stringify((at5.b.retro || []).slice(0, 3)));
+    const unmarked = !(await loadMarked({ force: true })).has(lastDay);
+    if (unmarked) {
+      ok("ויום שטרם סומן מופיע ברשימה", (at5.b.retro || []).some((d) => d.date === lastDay),
+        lastDay);
+    }
+
+    const at6 = await call(S, "GET", "/api/attendance?action=day&today=" + on6 + "&date=" + lastDay);
+    ok("והיום השישי — כבר לא", at6.s === 200 && at6.b.canMark === false,
+      `${on6}: ${at6.s} ${at6.b.canMark}`);
+    ok("והרשימה ריקה כשהחלון נסגר", (at6.b.retro || []).length === 0,
+      JSON.stringify(at6.b.retro));
+    const w6 = await call(S, "POST", "/api/attendance?action=mark&today=" + on6,
+      { date: lastDay, absences: [] });
+    ok("והכתיבה נחסמת, וההודעה אומרת מתי נסגר",
+      w6.s === 403 && /נסגר/.test(w6.b.error || ""), `${w6.s} ${w6.b.error || ""}`);
   }
 
   /* ============================================================
@@ -211,8 +259,17 @@ try {
     ok("והשרת אומר על אילו טווחים מותר",
       board.b.markAll === false && Array.isArray(board.b.markWeeks),
       JSON.stringify({ all: board.b.markAll, weeks: board.b.markWeeks }));
-    ok("והטווח הוא השבוע שהוא מוביל",
-      (board.b.markWeeks || []).some((w) => w.start === cv(week, W.start)),
+    /* ============================================================
+       ⚠⚠⚠ **הטענות כאן התהפכו במכוון (10.9.2026, 5לד).**
+       מובילי שבוע ירדו מסימון השיעורים — גם בשבוע שלהם. שתי
+       הטענות הישנות ("והטווח הוא השבוע שהוא מוביל", "וההודעה
+       מונה את השבועות שלו") נעלו את הכלל הקודם ונכשלו על
+       התנהגות **נכונה** מאז; עכשיו הן נועלות את הנוכחי.
+       ⚠ `markWeeks: []` נשאר בתשובה בכוונה — לקוח שלא רוענן
+         קורא undefined כ"מותר" (5לד).
+       ============================================================ */
+    ok("והטווח ריק — מובילי שבוע אינם מסמנים מפגשים (5לד)",
+      (board.b.markWeeks || []).length === 0,
       JSON.stringify(board.b.markWeeks));
 
     const all = [...(board.b.upcoming || []), ...(board.b.unreported || [])];
@@ -224,18 +281,23 @@ try {
       const was = inside2.happened ?? null;
       const r2 = await call(S, "POST", "/api/lessons?action=mark",
         { meetingId: inside2.id, happened: "כן" });
-      ok("מסמן מפגש בשבוע שלו", r2.s === 200, `${r2.s} ${r2.b.error || ""}`);
-      /* ⚠ מחזירים למה שהיה — הבדיקה כותבת על שורה אמיתית (5א). */
-      await call(S, "POST", "/api/lessons?action=mark",
-        { meetingId: inside2.id, happened: was });
+      ok("ואינו מסמן מפגש גם בשבוע שלו (5לד)", r2.s === 403,
+        `${r2.s} ${r2.b.error || ""}`);
+      /* ⚠ ואם בכל זאת נכתב — מחזירים למה שהיה, הבדיקה כותבת על
+         שורה אמיתית (5א). */
+      if (r2.s === 200) {
+        await call(S, "POST", "/api/lessons?action=mark",
+          { meetingId: inside2.id, happened: was });
+      }
     } else console.log("  (אין מפגש בשבוע הזה — הטענה דולגה)");
 
     if (outside2) {
       const r3 = await call(S, "POST", "/api/lessons?action=mark",
         { meetingId: outside2.id, happened: "כן" });
       ok("ואינו מסמן מפגש מחוץ לשבוע שלו", r3.s === 403, `${r3.s} ${r3.b.error || ""}`);
-      ok("וההודעה מונה את השבועות שלו",
-        /אינו באחד השבועות/.test(r3.b.error || ""), r3.b.error);
+      /* ⚠ ההודעה אומרת **מי כן רשאי**, ולא "אין הרשאה" (4כב). */
+      ok("וההודעה אומרת מי כן מסמן",
+        /אחראי הלו״ז/.test(r3.b.error || ""), r3.b.error);
     } else console.log("  (אין מפגש מחוץ לשבוע — הטענה דולגה)");
 
     /* ============================================================
@@ -268,7 +330,7 @@ try {
   }
 
   console.log("\n=== המנהל אינו מוגבל ===");
-  const mg = await call(M, "GET", "/api/attendance?action=day&date=" + inside[0]);
+  const mg = await call(M, "GET", "/api/attendance?action=day" + T + "&date=" + inside[0]);
   ok("מנהל פותח כל יום", mg.s === 200 && mg.b.canMark === true,
     `${mg.s} ${mg.b.canMark}`);
   ok("ו-myWeeks ריק לאיש צוות", (mg.b.myWeeks || []).length === 0,

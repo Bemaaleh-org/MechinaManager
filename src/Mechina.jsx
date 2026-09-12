@@ -63,6 +63,7 @@ import { AgendaPage, TodayAgenda, useHomeGate } from "./Agenda.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
 import { useNavStack, activeLabel } from "./nav-stack.js";
 import { NavBar, BackButton, NAV_ICON } from "./NavBar.jsx";
+import Shortcuts from "./Shortcuts.jsx";
 import { useExcel, downloadTable } from "./excel.js";
 /* ⚠ המסך היחיד שמייבא קטגוריות מ-shared. סדר התצוגה חייב
    לבוא ממקום אחד — ראו ההערה ב-shared/placements.js. */
@@ -1157,6 +1158,8 @@ function MarkDay({ say, allowPick = false }) {
      מהמצב הזה, ולכן הוא חייב לשרוד אותו. */
   /* השבועות שהמשתמש מוביל. ריק לאיש צוות — הרשאתו רחבה ממילא. */
   const mine = (data && data.myWeeks) || [];
+  /* ימי השבוע שעוד לא סומנו, כל עוד החלון פתוח — מהשרת */
+  const retro = (data && data.retro) || [];
   const bounded = mine.length > 0 && data && data.canOverride === false;
   const lo = mine.length ? mine.map((w) => w.start).sort()[0] : null;
   const hi = mine.length ? mine.map((w) => w.end).sort().slice(-1)[0] : null;
@@ -1182,6 +1185,31 @@ function MarkDay({ say, allowPick = false }) {
               שבוע {w.num}<i>{w.start.slice(8)}.{w.start.slice(5, 7)}–{w.end.slice(8)}.{w.end.slice(5, 7)}</i>
             </button>
           ))}
+        </div>
+      )}
+
+      {/* ⚠⚠ **סימון בדיעבד — עד חמישה ימים אחרי סוף השבוע**
+          (12.9.2026). השרת מחזיר את ימי השבוע שעוד לא סומנו כל
+          עוד החלון פתוח, והמסך מציג אותם כאן במקום שהמוביל ינחש
+          לאיזה תאריך לדפדף. אחרי חמישה ימים הרשימה ריקה והשרת
+          חוסם (ראו canMarkDate ב-api/_leader-weeks.js). */}
+      {retro.length > 0 && (
+        <div className="alert a-amber">
+          <MI.warn />
+          <div style={{ flex: 1 }}>
+            <div className="ttl">ימים מהשבוע שלכם שעוד לא סומנו</div>
+            <div className="bd">
+              אפשר לסמן אותם עד {dmy(retro[0].until)} — חמישה ימים אחרי סוף השבוע.
+            </div>
+            <div className="lw-chips" style={{ marginTop: 8 }}>
+              {retro.map((d) => (
+                <button key={d.date} className={"lw-chip" + (shown === d.date ? " on" : "")}
+                  onClick={() => { setDate(d.date); setOpen(null); }}>
+                  {dmy(d.date)}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
@@ -1368,7 +1396,7 @@ function MarkDay({ say, allowPick = false }) {
           <MI.lock />
           <div style={{ flex: 1 }}>
             <div className="ttl">אין הרשאת סימון ליום הזה</div>
-            <div className="bd">מוביל שבוע מסמן את היום הנוכחי בלבד.</div>
+            <div className="bd">מוביל שבוע מסמן את ימי השבוע שלו, ועד חמישה ימים אחרי שהשבוע נגמר.</div>
           </div>
         </div>
       )}
@@ -3368,7 +3396,7 @@ const MONTHS_HE = ["ינואר","פברואר","מרץ","אפריל","מאי","�
 const longDate = (d = new Date()) =>
   DAYS_HE[d.getDay()] + ", " + d.getDate() + " ב" + MONTHS_HE[d.getMonth()];
 
-function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey }) {
+function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey, navGroups }) {
   const [profile, setProfile] = useState(null);
   const [faults, setFaults] = useState(null);
   const [places, setPlaces] = useState(null);
@@ -3482,19 +3510,6 @@ function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey }) {
       s: sum ? `מתוך ${sum.schoolDays} שסומנו` : "טוען" },
   ];
 
-  const nav = [
-    { key: "n-year", tone: "tone-1", l: "הנוכחות שלי", icon: <MI.cal />, go: () => go("year") },
-    { key: "n-req", tone: "tone-2", l: "בקשות יציאה", icon: <MI.note />, go: () => go("requests"), badge: unseen },
-    { key: "n-prof", tone: "tone-5", l: "הפרופיל שלי", icon: <MI.users />, go: () => go("profile") },
-    { key: "n-place", tone: "tone-4", l: "השיבוצים שלי", icon: <MI.users />, go: () => go("placements") },
-    { key: "n-agenda", tone: "tone-6", l: "הלו״ז שלי", icon: <MI.cal />, go: () => go("agenda") },
-    { key: "n-gantt", tone: "tone-7", l: "גאנט שנתי", icon: <MI.cal />, go: () => go("gantt") },
-    /* ⚠ התפריט פתוח לכולם — מה אוכלים היום ומה יש במנה זה
-       מידע שכל המכינה רוצה, ובמיוחד מי שיש לו אלרגיה. */
-    { key: "n-menu", tone: "tone-3", l: "תפריט ארוחות", icon: <MI.book />, go: () => go("menu") },
-    { key: "n-report", tone: "tone-8", l: "דיווח תקלה", icon: <MI.tool />, go: () => go("report") },
-    { key: "n-new", tone: "tone-3", l: "בקשת יציאה חדשה", icon: <MI.plus />, go: () => go("new") },
-  ];
 
   return (
     <>
@@ -3741,16 +3756,11 @@ function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey }) {
         </>
       )}
 
-      <div className="sec-label">הכול</div>
-      <div className="navgrid">
-        {nav.map((t) => (
-          <button key={t.key} className={"nav-tile " + (t.tone || "")} onClick={t.go}>
-            <span className="nav-ico">{t.icon}</span>
-            <b>{t.l}</b>
-            {t.badge > 0 && <span className="nav-badge num">{t.badge}</span>}
-          </button>
-        ))}
-      </div>
+      {/* ⚠⚠ **נגזר מהמגירה** — ראו src/Shortcuts.jsx. "בקשת יציאה
+          חדשה" היא פעולה ולא דף, ולכן אינה במגירה ונשארת כאן. */}
+      <Shortcuts groups={navGroups} skip={["home"]} scope="student"
+        extra={[{ key: "n-new", label: "בקשת יציאה חדשה", icon: <MI.plus />,
+          onClick: () => go("new") }]} />
       <div style={{ height: 30 }} />
       </div>
     </>
@@ -3839,9 +3849,11 @@ export function MechinaApp({ auth, onSignedOut }) {
        בשתי קבוצות נראות כמו תקלה.
      ============================================================ */
   const leaderTabs = useMemo(() => {
-    if (!auth.isLeader) return [];
+    /* ⚠ **גם בחמשת הימים שאחרי השבוע** (`markWindow`) — בלי זה
+       מסך הסימון נעלם בדיוק כשהסימון בדיעבד מתחיל. */
+    if (!auth.isLeader && !auth.markWindow) return [];
     return (DUTIES[DUTY_LEADER].tabs || []).filter((t) => !PERSONAL_TABS.has(t.tab));
-  }, [auth.isLeader]);
+  }, [auth.isLeader, auth.markWindow]);
 
   const [notifOpen, setNotifOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -4148,7 +4160,7 @@ export function MechinaApp({ auth, onSignedOut }) {
 
         {tab === "home" && (
           <StudentDash auth={auth} year={year} reqs={reqs} unseen={unseen}
-            go={setTab} say={say} setDutyKey={setDutyKey} />
+            go={setTab} say={say} setDutyKey={setDutyKey} navGroups={navGroups} />
         )}
 
         {tab === "year" && (
@@ -4306,7 +4318,7 @@ export function MechinaApp({ auth, onSignedOut }) {
             כלומר לזכור לסמן בכל ערב, ולעבור דרך המנהל כדי לתקן
             את אתמול. הטווח שלו הוא **השבועות שהוא מוביל**, והשרת
             אוכף בדיוק את זה. */}
-        {tab === "mark" && auth.isLeader && <MarkDay say={say} allowPick />}
+        {tab === "mark" && (auth.isLeader || auth.markWindow) && <MarkDay say={say} allowPick />}
 
         {/* ============================================================
             ארבעת מסכי השיעורים — כל אחד דף בפני עצמו

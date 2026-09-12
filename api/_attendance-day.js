@@ -18,7 +18,7 @@ import {
 } from "./_attendance-data.js";
 import { loadSheets, loadMeetings } from "./_lessons-data.js";
 import { kitchenDutyOn } from "./_chores-data.js";
-import { weeksOfStudent, leadersForDate } from "./_leader-weeks.js";
+import { weeksOfStudent, leadersForDate, canMarkDate, retroDays } from "./_leader-weeks.js";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -139,13 +139,21 @@ async function handler(req, res, session) {
            עוקף חירום בלי טווח.
          ============================================================ */
       canMark: session.isManager
-        || myWeeks.some((w) => w.start <= asked && asked <= w.end)
+        /* ⚠ אותו כלל של הכתיבה: בשבוע שלו, ועד חמישה ימים אחרי. */
+        || canMarkDate(myWeeks, asked, today)
         || (session.isLeader && asked === today),
 
       /* ⚠ הטווחים נשלחים למסך כדי שידע **לאילו ימים** לתת
          לדפדף, ויסמן את מה שמחוץ להם ולא יסתיר אותו: חניך
          שלא יראה את היום שלו יחשוב שנשכח (4צ). */
       myWeeks,
+
+      /* ⚠⚠ **"וזה יופיע בסימון היומי"** — ימי השבוע שעוד לא סומנו,
+         כל עוד החלון פתוח. בלי הרשימה המוביל היה צריך לנחש לאיזה
+         תאריך לדפדף, וזה בדיוק סוג הדבר שנשכח. ריק לצוות. */
+      retro: session.isStudent
+        ? retroDays(myWeeks, cal.days, (d) => marked.has(d), isSchoolDay, today)
+        : [],
 
       /* ⚠ תיקון שורה שמקורה בבקשה מאושרת — מנהל בלבד.
          מוביל שבוע רואה אותה נעולה. ראו api/_attendance-mark.js. */

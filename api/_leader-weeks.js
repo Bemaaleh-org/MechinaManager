@@ -117,7 +117,72 @@ export async function weeksOfStudent(studentId) {
   const id = String(studentId);
   return (await loadLeaderWeeks())
     .filter((w) => (w.leaderIds || []).map(String).includes(id))
-    .map((w) => ({ id: w.id, num: w.num, start: w.start, end: w.end, name: w.name }));
+    .map((w) => ({ id: w.id, num: w.num, start: w.start, end: w.end, name: w.name,
+      /* ⚠ עד מתי אפשר לסמן את השבוע — נשלח למסך כדי שיאמר זאת. */
+      markUntil: markUntil(w) }));
+}
+
+/* ============================================================
+   ⚠⚠ סימון בדיעבד — חמישה ימים אחרי סוף השבוע, ולא יותר
+   ------------------------------------------------------------
+   החלטת אחים (12.9.2026): *"שלמובילי שבוע תהיה אפשרות לסמן
+   באופן רטרואקטיבי דברים שקשורים לשבוע שהם היו, רק עד חמישה
+   ימים ממועד המובילשיות שלהם, וזה יופיע בסימון היומי."*
+
+   עד היום לא היה גבול בכלל: `leadsOn` שאל רק אם התאריך בשבוע,
+   ומוביל יכול היה לתקן את השבוע שלו גם בעוד חצי שנה. בפועל הוא
+   לא הגיע לזה — מסך הסימון נפתח לפי `isLeader`, "מוביל **היום**",
+   ונעלם במוצאי השבוע. הכלל בשרת היה רחב מדי, המסך צר מדי,
+   ושניהם לא אמרו מה הכלל.
+
+   ⚠ **הכלל כאן ובמקום אחד** — הכתיבה (_attendance-mark), הקריאה
+     (_attendance-day), הסשן (`markWindow`) והפעמון שואלים את
+     `canMarkDate` / `markUntil`. ארבעה מימושים היו מתפצלים
+     בתיקון הראשון (5לא, 5לד).
+   ⚠ **החלון נמדד מסוף השבוע ולא מהיום שמסמנים**, כך שכל ימי
+     השבוע נסגרים יחד — "עד יום X" אחד שאפשר לומר במילים.
+   ⚠ **ימים עתידיים בשבוע שלו נשארים כפי שהיו** — הגבול הוא על
+     העבר בלבד, כמו שהתבקש.
+   ⚠ **הסימון הידני בלוח החניכים נשאר "היום בלבד"** — הוא עוקף
+     חירום בלי טווח, ואינו נכנס לכאן.
+   ============================================================ */
+export const LEADER_GRACE_DAYS = 5;
+
+const addDaysIso = (iso, n) => {
+  const d = new Date(String(iso) + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
+/** היום האחרון (כולל) שבו אפשר עוד לסמן את השבוע */
+export const markUntil = (w) => (w && w.end ? addDaysIso(w.end, LEADER_GRACE_DAYS) : "");
+
+/** האם המוביל רשאי לסמן את `date` כש"היום" הוא `today` */
+export function canMarkDate(weeks, date, today) {
+  return (weeks || []).some((w) =>
+    w.start <= date && date <= w.end && today <= markUntil(w));
+}
+
+/** האם היום נופל בשבוע שלו או בחמשת הימים שאחריו — פותח את המסך */
+export function inMarkWindow(weeks, today) {
+  return (weeks || []).some((w) => w.start <= today && today <= markUntil(w));
+}
+
+/**
+ * ימי לימוד בשבועות שכבר נגמרו, שהחלון שלהם עוד פתוח ושטרם סומנו.
+ * ⚠ `isSchool` ו-`isMarked` מועברים ולא מיובאים — אחרת המודול
+ *   הזה היה מייבא את _attendance-data, שכבר מייבא אותו.
+ */
+export function retroDays(weeks, days, isMarked, isSchool, today) {
+  const out = [];
+  for (const w of weeks || []) {
+    if (!(w.end < today && today <= markUntil(w))) continue;
+    for (const d of days || []) {
+      if (d.date < w.start || d.date > w.end || !isSchool(d) || isMarked(d.date)) continue;
+      out.push({ date: d.date, until: markUntil(w), num: w.num });
+    }
+  }
+  return out.sort((a, b) => a.until.localeCompare(b.until) || a.date.localeCompare(b.date));
 }
 
 /** האם התאריך נופל באחד השבועות שהחניך מוביל */

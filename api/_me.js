@@ -58,6 +58,8 @@ export default async function handler(req, res) {
              ההובלה נסגר בפני מוביל השבוע הבא — כלומר בפני האדם
              היחיד שצריך אותו לפני שהשבוע מתחיל. */
           leadsAnyWeek: Boolean(session.leadsAnyWeek),
+          /* ⚠ פותח את "סימון נוכחות" גם בחמשת הימים שאחרי השבוע. */
+          markWindow: Boolean(session.markWindow),
           /* התפקידים קובעים אילו מסכים מוצגים לו. נקראים טרי
              מהלוח בכל בקשה, ולכן הסרת תפקיד סוגרת מיד. */
           roles: session.roles || [],

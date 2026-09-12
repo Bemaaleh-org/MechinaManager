@@ -35,7 +35,7 @@ import {
 } from "./_duty-data.js";
 import { dutyKey } from "../shared/duties.js";
 import { israelToday, loadMarked, loadCalendar, isSchoolDay, loadAbsences } from "./_attendance-data.js";
-import { weeksOfStudent } from "./_leader-weeks.js";
+import { weeksOfStudent, markUntil } from "./_leader-weeks.js";
 import { AUTH_BOARD, AUTH_COLS } from "../shared/auth-board.js";
 import { MECHINA_BOARDS, MECHINA_COLS } from "../shared/mechina-boards.js";
 import { invalidate } from "./_cache.js";
@@ -279,7 +279,9 @@ async function leaderMarkNotes(session, today) {
   /* ⚠ שער זול ראשון: רוב החניכים אינם מובילים, ובלעדיו כל
      אחד מהם היה שולף שלושה לוחות כל שלוש דקות. */
   if (!session.isStudent) return [];
-  const weeks = await weeksOfStudent(session.itemId);
+  /* ⚠ **שבוע שהחלון שלו נסגר אינו מזכיר.** תזכורת על יום שכבר
+     אי אפשר לסמן היא רעש שמלמד לסגור את הפעמון (4כו). */
+  const weeks = (await weeksOfStudent(session.itemId)).filter((w) => today <= markUntil(w));
   if (!weeks.length) return [];
 
   const cal = await loadCalendar();
@@ -304,6 +306,9 @@ async function leaderMarkNotes(session, today) {
 
   missed.sort();
   const isToday = missed.includes(today);
+  /* ⚠ שבוע שכבר נגמר — אומרים עד מתי, כי אחרי חמישה ימים זה נסגר. */
+  const ends = weeks.filter((w) => w.end < today).map(markUntil).sort();
+  const closing = ends.length ? ` · אפשר לסמן עד ${ends[0].slice(8)}.${ends[0].slice(5, 7)}` : "";
   out.push(note({
     /* ⚠ מזהה נגזר מהתוכן ולא מספר רץ — אחרת "נקרא" מתאפס
        בכל רענון (4כו). */
@@ -312,8 +317,8 @@ async function leaderMarkNotes(session, today) {
     title: isToday && missed.length === 1
       ? "טרם סומנה נוכחות היום"
       : `${missed.length} ימים בשבוע שלכם טרם סומנו`,
-    body: missed.length === 1 ? missed[0] : missed.slice(0, 4).join(" · ")
-      + (missed.length > 4 ? ` ועוד ${missed.length - 4}` : ""),
+    body: (missed.length === 1 ? missed[0] : missed.slice(0, 4).join(" · ")
+      + (missed.length > 4 ? ` ועוד ${missed.length - 4}` : "")) + closing,
     tab: "mark",
     when: missed[missed.length - 1],
   }));

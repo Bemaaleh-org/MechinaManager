@@ -24,6 +24,7 @@
    ============================================================ */
 import { execSync } from "node:child_process";
 import { WHATS_NEW } from "../shared/whats-new.js";
+import { readdirSync, readFileSync } from "node:fs";
 
 /* ⚠ רק מה שמשנה את מה שהמשתמש רואה או יכול לעשות. שינוי
    בכלי, בבדיקה או בתיעוד אינו "חדש באפליקציה". */
@@ -69,8 +70,43 @@ const files = base
 const touched = [...new Set(files.split("\n").map((f) => f.trim()).filter(Boolean))]
   .filter((f) => WATCHED.test(f) && !IGNORE.test(f));
 
+/* ============================================================
+   ⚠⚠ **`screens` — שם שאינו במגירה אינו מסמן כלום, בשקט.**
+     האריח במסך הבית מקבל "עודכן" לפי התאמה מדויקת לשם שבמגירה
+     (src/Shortcuts.jsx). שגיאת כתיב — "קניות מכינה" במקום
+     "קניות המכינה" — פשוט לא תסמן, ואיש לא יידע למה. לכן כל
+     שם נבדק מול כל ה-label שכתובים בקוד המסכים וב-DUTIES.
+   ============================================================ */
+const known = new Set();
+const sources = readdirSync("src").filter((f) => f.endsWith(".jsx"))
+  .map((f) => "src/" + f).concat(["shared/duties.js"]);
+for (const f of sources) {
+  for (const m of readFileSync(f, "utf8").matchAll(/label: "([^"]+)"/g)) known.add(m[1]);
+}
+const unknown = [];
+for (const n of WHATS_NEW) {
+  for (const sc of n.screens || []) if (!known.has(sc)) unknown.push(`${n.date} · ${n.title} → "${sc}"`);
+}
+if (unknown.length) {
+  console.log("");
+  console.log("⚠ שמות ב-screens שאינם שם של מסך במגירה — לא יסמנו אף אריח:");
+  for (const u of unknown) console.log("  " + u);
+  console.log("");
+  process.exit(1);
+}
+
 if (process.argv.includes("--list")) {
   for (const c of commits) console.log("  " + c);
+  process.exit(0);
+}
+
+/* ⚠ **רשומה שנכתבת עכשיו, באותו שינוי — עוברת.** בלי זה הכלי
+   נכשל תמיד **לפני** הקומיט (הבסיס הוא הקומיט הקודם שנגע בקובץ),
+   כלומר אי אפשר היה להריץ אותו כשער לפני קומיט — רק אחריו, כשכבר
+   מאוחר. שינוי לא-מקומט ב-whats-new.js הוא בדיוק "באותו קומיט". */
+const pending = git(`git diff --name-only HEAD -- shared/whats-new.js`);
+if (pending) {
+  console.log(`✓ רשומה ב-WHATS_NEW נכתבת יחד עם השינוי (${touched.length} קבצים).`);
   process.exit(0);
 }
 
@@ -94,6 +130,7 @@ console.log(`    date: "${new Date().toISOString().slice(0, 10)}",`);
 console.log('    title: "כותרת קצרה",');
 console.log('    for: "all",              // all · student · staff');
 console.log('    tags: ["שם המסך"],       // הצ׳יפים במסך הבית');
+console.log('    screens: ["שם במגירה"],  // האריחים שיסומנו "עודכן"');
 console.log('    items: ["מה אפשר לעשות היום ולא היה אפשר אתמול"],');
 console.log("  },\n");
 /* ⚠ יוצא 1 כדי שמי שמריץ אותו בשרשרת ייעצר. הדחיפה עצמה

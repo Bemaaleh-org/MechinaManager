@@ -54,6 +54,7 @@ import { useNotify, NotifyBell, NotifyPanel } from "./Notify.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
 import { useNavStack, activeLabel } from "./nav-stack.js";
 import { NavBar, BackButton, NAV_ICON } from "./NavBar.jsx";
+import Shortcuts from "./Shortcuts.jsx";
 import { testDate } from "./testDate.js";
 
 /* ============================================================
@@ -657,7 +658,8 @@ function Staff({ auth, onSignedOut }) {
               goGantt={() => setSection("gantt")}
               goNews={() => setSection("news")}
               goBudget={() => setSection("budget")}
-              goAgenda={() => setSection("agenda")} />
+              goAgenda={() => setSection("agenda")}
+              navGroups={navGroups} />
           )}
 
           {section === "kitchen" && <KitchenPage say={say} area={kArea} />}
@@ -789,7 +791,7 @@ function Staff({ auth, onSignedOut }) {
    ⚠ כל שליפה נכשלת בשקט ומורידה את הרכיב שלה בלבד — מסך
      הבית לעולם לא נופל בגלל תחום אחד (או תחום שטרם הוקם). */
 function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goContainer,
-  goPlacements, goSafety, goFaults, goGantt, goBudget, goAgenda, goNews }) {
+  goPlacements, goSafety, goFaults, goGantt, goBudget, goAgenda, goNews, navGroups }) {
   /* ⚠ מה שממתין *לי*, מתוך כל מה שממתין. ראו ההערה למעלה. */
   const mineList = pendingList.filter((r) => r.canDecide);
   const [today, setToday] = useState(null);
@@ -918,17 +920,6 @@ function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goCont
     },
   ];
 
-  const navTiles = [
-    { key: "n-food", tone: "tone-3", l: "אוכל וחד״פ", icon: <I.cart />, go: () => goKitchen(null) },
-    { key: "n-place", tone: "tone-5", l: "שיבוצי חניכים", icon: <I.users />, go: goPlacements },
-    { key: "n-students", tone: "tone-2", l: "חניכים", icon: <I.note />, go: () => goStaff("students") },
-    { key: "n-lessons", tone: "tone-1", l: "גיליונות מרצים", icon: <I.book />, go: () => goLessons("sheets") },
-    { key: "n-gantt", tone: "tone-7", l: "גאנט שנתי", icon: <I.cal />, go: goGantt },
-    { key: "n-budget", tone: "tone-6", l: "תקציב המטבח", icon: <I.count />, go: goBudget },
-    { key: "n-faults", tone: "tone-8", l: "תקלות ובעיות", icon: <I.gear />, go: goFaults },
-    { key: "n-safety", tone: "tone-4", l: "אירועי בטיחות", icon: <I.warn />, go: goSafety },
-    { key: "n-container", tone: "tone-7", l: "ציוד מכולה", icon: <I.box />, go: () => goContainer("מכולה") },
-  ];
 
   return (
     <>
@@ -1033,19 +1024,10 @@ function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goCont
         </>
       )}
 
-      {/* ---------- ניווט מהיר ---------- */}
-      <div className="sec-label">כל המערכת</div>
-      <div className="navgrid">
-        {navTiles.map((t) => (
-          <button key={t.key} className={"nav-tile " + (t.tone || "")} onClick={t.go}>
-            <span className="nav-ico">{t.icon}</span>
-            <b>{t.l}</b>
-            {t.key === "n-students" && pendingList.length > 0 && (
-              <span className="nav-badge num">{pendingList.length}</span>
-            )}
-          </button>
-        ))}
-      </div>
+      {/* ---------- כל המערכת ----------
+          ⚠⚠ **נגזר מהמגירה, ולא רשימה שלישית ביד.** ראו
+            src/Shortcuts.jsx: דף שנוסף למגירה מופיע כאן מעצמו. */}
+      <Shortcuts groups={navGroups} skip={["dash"]} scope="staff" />
       </div>
     </>
   );
