@@ -37,13 +37,8 @@
    ============================================================ */
 
 import { withAuth } from "./_session.js";
-import { mayEdit } from "../shared/edit-rights.js";
-import {
-  KITCHEN_SHOP_STATUS, boardsReady as kitchenReady,
-} from "../shared/kitchen-boards.js";
 import { SHOP_STATUS, AREA, mayArea } from "../shared/container-boards.js";
 import { BUY_STATUS, buyReady } from "../shared/buy-ids.js";
-import { loadKitchenShopping } from "./_kitchen-data.js";
 import { loadShopping } from "./_container-data.js";
 import { loadBuy, maySeeBuy, mayMarkBuy } from "./_buy.js";
 
@@ -59,22 +54,10 @@ import { loadBuy, maySeeBuy, mayMarkBuy } from "./_buy.js";
      הוא תלוי בתחום של השורה.
    ============================================================ */
 const SOURCES = [
-  {
-    key: "kitchen",
-    title: "מטבח",
-    ready: () => kitchenReady(),
-    setup: "node --env-file=.env tools/seed-kitchen.mjs",
-    /* ⚠ אותו קהל של `{kitchen:true}` — צוות או אחראי המטבח. */
-    mayRead: (s) => Boolean(!s.isStudent || s.isKitchen),
-    /* ⚠ והכתיבה `mayEdit(…,"kitchen")` — ראש המכינה ואחראי
-       המטבח, ולא כל כניסת צוות (5יז). */
-    mayMark: (s) => mayEdit(s, "kitchen"),
-    /* ⚠ **מי שאינו רשאי צריך לדעת למי לפנות** ולא "אין
-       הרשאה" — אותו כלל של editHint ושל mayArea (4כב, 5יז). */
-    markHint: () => "ראש המכינה או אחראי המטבח",
-    load: async () => (await loadKitchenShopping())
-      .filter((r) => r.status === KITCHEN_SHOP_STATUS.open),
-  },
+  /* ⚠⚠ **המטבח יצא מהמסך (12.9.2026, בקשת אחים):** "אך ורק
+     קניות מכולה וקניות כלליות שהצוות מוסיף". לקניות המטבח יש
+     אחראי, מסך ותקציב משלהם, ושורות מזון בין כיסאות וצבע היו
+     רעש במסך שנועד לנסיעה אחרת. מקור שיחזור — שורה כאן. */
   {
     key: "container",
     title: "ציוד המכינה",
@@ -82,7 +65,8 @@ const SOURCES = [
     setup: null,
     /* ⚠ מי שרשאי לקרוא **תחום אחד** רשאי לקרוא את הרשימה,
        והשורות מסוננות לפי התחום שלהן בהמשך. */
-    mayRead: (s) => Boolean(!s.isStudent || s.isContainer || s.isHouse),
+    /* ⚠ `isManager` ולא `!isStudent` — כניסת התורנים אינה צוות. */
+    mayRead: (s) => Boolean(s.isManager || s.isContainer || s.isHouse),
     mayMark: (s, row) => mayArea(s, row.area),
     markHint: (row) => (row.area === AREA.cleaning ? "אב הבית" : "אחראי המכולה"),
     rowRead: (s, row) => mayArea(s, row.area),

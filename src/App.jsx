@@ -419,9 +419,9 @@ function Staff({ auth, onSignedOut }) {
                  מי בצוותים, מי רשאי למה, ומה כתוב במסכים.
                ============================================================ */
             { label: "ניהול", items: [
-              /* ⚠ **כאן ולא תחת "מטבח וחד״א".** המסך מאחד את
-                 שלוש רשימות הקניות — מטבח, ציוד מכינה, והרשימה
-                 הכללית של ראש המכינה — ואינו שייך לאף אחת מהן. */
+              /* ⚠ **כאן ולא תחת "מטבח וחד״א".** רשימה אחת בשני
+                 חלקים — כללי שהצוות מנהל, ורשימת המכולה — ואין בה
+                 קניות מטבח (12.9.2026). */
               { key: "buy", label: "קניות המכינה", icon: <I.cart />,
                 active: section === "buy", onClick: () => setSection("buy") },
               { key: "a-teams", label: "ניהול צוותים", icon: <I.users />, active: section === "teams",
@@ -544,12 +544,7 @@ function Staff({ auth, onSignedOut }) {
                 active: section === "loans", onClick: () => setSection("loans") },
             ] },
           ] : [
-            /* ⚠ גם לתורן: רשימת הקניות של המטבח היא שלו, והמסך
-               המאוחד הוא הדרך לראות אותה לצד מה שנקנה ממילא
-               באותה נסיעה. */
-            { label: "המטבח", items: [...kitchenItems,
-              { key: "buy", label: "קניות המכינה", icon: <I.cart />,
-                active: section === "buy", onClick: () => setSection("buy") }] },
+            { label: "המטבח", items: kitchenItems },
   ];
 
   /* ⚠ נחתם בכל רינדור — ראו src/nav-stack.js. */
@@ -774,8 +769,6 @@ function Staff({ auth, onSignedOut }) {
         ] : [
           { key: "nv-kit", label: "ציוד", icon: <NAV_ICON.cart />,
             active: section === "kitchen", onClick: () => goKitchen(null) },
-          { key: "nv-buy", label: "קניות", icon: <NAV_ICON.cart />,
-            active: section === "buy", onClick: () => setSection("buy") },
           { key: "nv-menu", label: "תפריט", icon: <NAV_ICON.book />,
             active: section === "menu", onClick: () => setSection("menu") },
         ]} />

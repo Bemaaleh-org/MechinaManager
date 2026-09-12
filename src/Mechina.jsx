@@ -20,6 +20,7 @@ import { testDate } from "./testDate.js";
 import { LessonsPage, LessonsBoard } from "./Lessons.jsx";
 import { MenuPage } from "./Menu.jsx";
 import { BuyPage } from "./Buy.jsx";
+import { ABSENCE } from "../shared/mechina-boards.js";
 import { ROLE_INFO, LEADER_INFO } from "./roles-info.js";
 import { roleKey, LEADER_KEY } from "../shared/content.js";
 import { SafetyPage } from "./Safety.jsx";
@@ -880,17 +881,19 @@ function Recost({ r, onRecost, busy }) {
       <div className="rq-act rq-own">
         <button type="button" className="btn btn-ghost btn-sm"
           onClick={() => { setN(null); setOpen(true); }}>
-          תיקון ימי החופש
+          {r.type === ABSENCE.vacation ? "תיקון ימי החופש" : "תיקון מספר הימים"}
         </button>
       </div>
     );
   }
   return (
     <div className="rq-redo">
-      <div className="rq-appeal-h">כמה ימי חופש לגבות על הבקשה הזו?</div>
+      <div className="rq-appeal-h">
+        {r.type === ABSENCE.vacation ? "כמה ימי חופש לגבות על הבקשה הזו?" : "כמה ימים לספור על הבקשה הזו?"}
+      </div>
       <div className="rq-appeal-n">
         ההחלטה לא משתנה ושורות ההיעדרות נשארות — מה שמשתנה הוא
-        המספר שיורד מהמכסה.
+        {r.type === ABSENCE.vacation ? " המספר שיורד מהמכסה." : " המספר שנספר לחניך."}
       </div>
       {/* ⚠ בלי `cost` (בקשה ישנה בלי שעות) אין תקרה לחשב, והשרת
           נופל למספר השורות. הכפתורים לא יידעו לצייר טווח, ולכן
@@ -901,7 +904,7 @@ function Recost({ r, onRecost, busy }) {
         </div>
       ) : (
         <div className="rq-days" style={{ borderTop: "none", paddingTop: 0 }}>
-          <span className="rqd-l">ימי חופש</span>
+          <span className="rqd-l">{daysWord(r.type)}</span>
           <div className="rqd-btns">
             {Array.from({ length: max + 1 }, (_, i) => i).map((v) => (
               <button key={v} type="button" disabled={busy}
@@ -923,12 +926,38 @@ function Recost({ r, onRecost, busy }) {
   );
 }
 
+/* ============================================================
+   כמה ימים — מילים לכל סוג
+   ------------------------------------------------------------
+   ⚠⚠ **המשמעות שונה ונאמרת במילים** (12.9.2026): בחופש המספר
+     *יורד מהמכסה*; במחלה ובמוצדקת הוא *נספר במונה של החניך*.
+     "נגבו 1 ימי מחלה" היה משפט שקרי — אין מכסת מחלה.
+   ============================================================ */
+const daysWord = (type) =>
+  type === ABSENCE.vacation ? "ימי חופש לגבייה"
+    : type === ABSENCE.sick ? "ימי מחלה שנספרים"
+      : "ימים שנספרים כמוצדקת";
+
+/** מה נגבה / נספר, במילים. `short` — להודעה אחרי "אושר". */
+const chargedText = (r, short) => {
+  const vac = r.type === ABSENCE.vacation;
+  const n = r.charged;
+  if (n === 0) {
+    if (short) return vac ? "בלי גבייה ממכסת החופש" : "לא נספר אף יום";
+    return vac ? "אושר — ולא נגבו ימי חופש" : "אושר — ולא נספר אף יום";
+  }
+  if (vac) return `נגבו ${n === 1 ? "יום חופש אחד" : n + " ימי חופש"}`;
+  return `נספרו ${n === 1 ? "יום אחד" : n + " ימים"} כ${r.type}`;
+};
+
 function RequestCard({ r, onDecide, busyId, onEdit, onWithdraw, onAppeal, onRecost }) {
   const busy = busyId === r.id;
   const [confirm, setConfirm] = useState(false);
   /* ⚠ ברירת המחדל היא החישוב עצמו — המכריע משנה רק כשהוא
      מתכוון לשנות, ולחיצה על "אישור" בלי לגעת מתנהגת כמו קודם. */
-  const [days, setDays] = useState(r.cost ?? 1);
+  /* ⚠ ברירת המחדל: מה שהמדריך הציע, ואם לא הציע — התקרה.
+     ראש המכינה משנה רק כשהוא מתכוון לשנות (12.9.2026). */
+  const [days, setDays] = useState(r.guideDays ?? r.cost ?? 1);
   /* ⚠ המדריך ממליץ, ראש המכינה מכריע. אותם כפתורים, טקסט אחר —
      כדי שהמדריך לא יחשוב שסגר את הבקשה. */
   const isRec = r.decideAs === "guide";
@@ -1027,11 +1056,11 @@ function RequestCard({ r, onDecide, busyId, onEdit, onWithdraw, onAppeal, onReco
           ============================================================ */}
       {r.charged != null && (
         <div className="rq-charged">
-          {r.charged === 0
-            ? "אושר — ולא נגבו ימי חופש"
-            : `נגבו ${r.charged === 1 ? "יום חופש אחד" : r.charged + " ימי חופש"}`}
+          {chargedText(r)}
           {r.cost != null && r.cost !== r.charged && (
-            <span className="rq-charged-x">החישוב לפי השעות היה {r.cost}</span>
+            <span className="rq-charged-x">
+              {r.type === ABSENCE.vacation ? `החישוב לפי השעות היה ${r.cost}` : `בטווח ${r.cost} ימים`}
+            </span>
           )}
         </div>
       )}
@@ -1052,12 +1081,14 @@ function RequestCard({ r, onDecide, busyId, onEdit, onWithdraw, onAppeal, onReco
           ⚠ **ולא יותר מהחישוב**, שם השרת חוסם: גבייה מעבר למה
             שהיציאה לקחה היא כמעט תמיד טעות הקלדה, והיא יורדת
             ממכסה שהחניך אינו יכול להשיב.
-          ⚠ **מוצג רק לחופש ורק למי שמכריע** — למדריך שממליץ
-            אין מה לגבות, ולמחלה אין מחיר במכסה.
+          ⚠⚠ **מאז 12.9.2026: חופש, מחלה ומוצדקת, וגם המדריך.**
+            המדריך *מציע* מספר עם ההמלצה, וראש המכינה רואה אותו
+            כברירת המחדל ומכריע. במחלה ובמוצדקת המספר נספר במונה
+            של החניך ואינו יורד ממכסה — ולכן המילים שונות.
           ============================================================ */}
-      {onDecide && r.canDecide && !isRec && r.cost != null && (
+      {onDecide && r.canDecide && r.cost != null && (
         <div className="rq-days">
-          <span className="rqd-l">ימי חופש לגבייה</span>
+          <span className="rqd-l">{isRec ? "הצעה — " + daysWord(r.type) : daysWord(r.type)}</span>
           <div className="rqd-btns">
             {Array.from({ length: r.cost + 1 }, (_, i) => i).map((n) => (
               <button key={n} type="button" disabled={busy}
@@ -1066,16 +1097,20 @@ function RequestCard({ r, onDecide, busyId, onEdit, onWithdraw, onAppeal, onReco
             ))}
           </div>
           <span className="rqd-n">
-            {r.cost === days
-              ? `היציאה לקחה ${r.cost === 1 ? "יום" : r.cost + " ימים"}`
-              : `במקום ${r.cost}`}
+            {!isRec && r.guideDays != null
+              ? `המדריך הציע ${r.guideDays}`
+              : r.cost === days
+                ? (r.type === ABSENCE.vacation
+                  ? `היציאה לקחה ${r.cost === 1 ? "יום" : r.cost + " ימים"}`
+                  : `${r.cost === 1 ? "יום אחד" : r.cost + " ימים"} בטווח`)
+                : `מתוך ${r.cost}`}
           </span>
         </div>
       )}
       {onDecide && r.canDecide && (
         <div className="rq-act">
           <button className="ok" disabled={busy}
-            onClick={() => onDecide(r.id, "approve", r.cost != null && !isRec ? days : undefined)}>
+            onClick={() => onDecide(r.id, "approve", r.cost != null ? days : undefined)}>
             {busy ? "…" : isRec ? "ממליץ לאשר" : "אישור"}
           </button>
           <button className="no" disabled={busy} onClick={() => onDecide(r.id, "reject")}>
@@ -1961,9 +1996,7 @@ function ManagerRequests({ say }) {
         } else {
           /* ⚠ ההודעה אומרת **כמה נגבה**. "אושר" לבדו משאיר את
              החניך לגלות את המספר במכסה שלו בעוד שבוע. */
-          const paid = r.charged == null ? ""
-            : r.charged === 0 ? " · בלי גבייה ממכסת החופש"
-              : ` · נגבו ${r.charged === 1 ? "יום חופש אחד" : r.charged + " ימי חופש"}`;
+          const paid = r.charged == null ? "" : " · " + chargedText(r, true);
           /* ⚠ **הכרעה מחדש אומרת מה השתנה בפועל.** "נדחה" לבדו
              אינו אומר אם שורות ההיעדרות ירדו, וזה בדיוק מה
              שהמכריע צריך לדעת (5כה). */

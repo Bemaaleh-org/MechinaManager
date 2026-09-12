@@ -39,8 +39,9 @@ import {
 } from "./_attendance-data.js";
 import {
   MECHINA_BOARDS, MECHINA_COLS, ABSENCE, REQ_STATUS, REQ_STAGE, requestStage,
-  vacationCost, appealReady, ABSENCE_SOURCE,
+  vacationCost, appealReady, ABSENCE_SOURCE, isChargeable,
 } from "../shared/mechina-boards.js";
+import { chargeCeiling } from "./_request-charge.js";
 import { guideMap, isGuideOf } from "./_guides.js";
 
 const R = MECHINA_COLS.requests;
@@ -95,6 +96,12 @@ export async function loadRequests({ force = false } = {}) {
         /* ⚠ ריק עד שהעמודות יוקמו, והכול עובד בלעדיהן. */
         appeal: R.appeal ? (val(i, R.appeal) || null) : null,
         appealAt: R.appealAt ? (val(i, R.appealAt) || null) : null,
+        /* ⚠ כמה ימים המדריך הציע. ריק = לא הציע, ולא 0 (4ט). */
+        guideDays: (() => {
+          const v = R.guideDays ? val(i, R.guideDays) : "";
+          const n = Number(v);
+          return v !== "" && Number.isInteger(n) && n >= 0 ? n : null;
+        })(),
       }))
       .filter((r) => r.studentId && r.date && r.type)
       .sort((a, b) => b.date.localeCompare(a.date));
@@ -117,8 +124,10 @@ async function list(req, res, session) {
     /* ⚠ ההיעדרויות נטענות כדי לדעת **כמה נגבה בפועל** — ראו
        `chargedFor`. זו שליפה מטמונית ומשותפת לכל הבקשות
        בתשובה, ולא קריאה לכל שורה. */
-    const [all, rows, guides, absences] = await Promise.all([
-      loadRequests(), studentRows(), guideMap(), loadAbsences(),
+    /* ⚠ לוח השנה — לתקרת הימים של מחלה ומוצדקת, שהיא מספר
+       הימים בטווח (ראו api/_request-charge.js). מטמוני. */
+    const [all, rows, guides, absences, cal] = await Promise.all([
+      loadRequests(), studentRows(), guideMap(), loadAbsences(), loadCalendar(),
     ]);
     const byId = new Map(rows.map((r) => [r.id, r]));
 
@@ -140,12 +149,12 @@ async function list(req, res, session) {
          כ"אושר ולא נגבה" שהוא מצב אחר לגמרי (4ט).
        ============================================================ */
     const chargedFor = (r) => {
-      if (r.type !== ABSENCE.vacation || r.status !== REQ_STATUS.approved) return null;
+      if (!isChargeable(r.type) || r.status !== REQ_STATUS.approved) return null;
       const end = r.endDate || r.date;
       const hit = absences.filter((a) => a.studentId === r.studentId
         && a.date >= r.date && a.date <= end
         && a.source === ABSENCE_SOURCE.request
-        && a.type === ABSENCE.vacation);
+        && a.type === r.type);
       if (!hit.length) return null;
       return hit.reduce((n, a) => n + (a.cost == null ? 1 : a.cost), 0);
     };
@@ -222,11 +231,13 @@ async function list(req, res, session) {
           /* ⚠ **המחיר נגזר בשרת ונשלח.** הוא נבדק בשרת בכל
              מקרה, ומסך שיחשב אותו בעצמו הוא הגדרה שנייה שתתפצל
              מהראשונה בתיקון הבא — אותה מלכודת של canEdit (4יד).
-             null לכל מה שאינו חופש: למחלה אין מחיר במכסה. */
-          cost: r.type === ABSENCE.vacation
-            ? vacationCost(r.date, r.outAt, r.endDate, r.backAt) : null,
-          /* ⚠ מה שנגבה בפועל — ראו `chargedFor`. */
+             ⚠ מאז 12.9.2026 גם למחלה ולמוצדקת — התקרה היא מספר
+             הימים בטווח (api/_request-charge.js). */
+          cost: chargeCeiling(r, cal),
+          /* ⚠ מה שנגבה/נספר בפועל — ראו `chargedFor`. */
           charged: chargedFor(r),
+          /* ⚠ מה שהמדריך הציע — ברירת המחדל של ראש המכינה. */
+          guideDays: r.guideDays,
           status: r.status,
           decidedBy: r.decidedBy,
           decidedAt: r.decidedAt,
@@ -257,11 +268,11 @@ async function list(req, res, session) {
              תיקון ספירה הוא טעות תפעולית שמי שראה אותה מתקן,
              ולכן `!isStudent` — ראו api/_request-recost.js.
 
-             ⚠ **ורק לחופש שאושר.** למחלה אין מחיר במכסה, ולבקשה
+             ⚠ **ורק לבקשה שאושרה** — חופש, מחלה או מוצדקת (12.9.2026). ולבקשה
                שנדחתה אין מה לתקן — כפתור שם היה מקבל 409 אחרי
                הלחיצה (4יד). */
           canRecost: !session.isStudent && !session.viewOnly
-            && r.status === REQ_STATUS.approved && r.type === ABSENCE.vacation,
+            && r.status === REQ_STATUS.approved && isChargeable(r.type),
           decideAs: session.isHead ? "head"
             : (stage === REQ_STAGE.guide && isGuideOf(session, guide)) ? "guide" : null,
           student: byId.get(r.studentId)

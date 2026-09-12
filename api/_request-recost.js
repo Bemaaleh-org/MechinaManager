@@ -35,6 +35,8 @@
      סופרת — שני מספרים על אותה שאלה.
    ============================================================ */
 
+import { chargeCeiling, chargeNoun } from "./_request-charge.js";
+import { isChargeable } from "../shared/mechina-boards.js";
 import { withAuth, actorName } from "./_session.js";
 import { studentRows } from "./_student-rows.js";
 import { setColumns } from "./_items.js";
@@ -88,12 +90,14 @@ async function handler(req, res, session) {
        עליהן היה מספר שאינו קיים. */
     if (request.status !== REQ_STATUS.approved) {
       return res.status(409).json({
-        error: `תיקון ימי חופש אפשרי לבקשה שאושרה. הבקשה הזו ${request.status}`,
+        error: `תיקון מספר הימים אפשרי לבקשה שאושרה. הבקשה הזו ${request.status}`,
       });
     }
-    if (request.type !== ABSENCE.vacation) {
+    /* ⚠ מאז 12.9.2026 גם מחלה ומוצדקת — המכריע קובע כמה ימים
+       נספרים, ומי שראה טעות מתקן. */
+    if (!isChargeable(request.type)) {
       return res.status(400).json({
-        error: `${request.type} אינה נגבית ממכסת החופש, ואין בה ימים לתקן`,
+        error: `${request.type} — אין בה ימים לתקן`,
       });
     }
 
@@ -123,7 +127,7 @@ async function handler(req, res, session) {
     const priceOf = (a) => (Number.isFinite(Number(a.cost)) ? Number(a.cost) : 1);
     const before = mine.reduce((n, a) => n + priceOf(a), 0);
 
-    const auto = vacationCost(request.date, request.outAt, endDate, request.backAt);
+    const auto = chargeCeiling(request, cal);
     /* ⚠ בקשה ישנה בלי שעות אינה ניתנת לחישוב, והתקרה נופלת
        למספר השורות — שזה בדיוק מה שהעולם הישן גבה. */
     const max = auto == null ? mine.length : auto;
@@ -134,7 +138,7 @@ async function handler(req, res, session) {
     const days = Number(body.days);
     if (!Number.isInteger(days) || days < 0 || days > max) {
       return res.status(400).json({
-        error: `ימי החופש לגבייה — מספר שלם בין 0 ל-${max}`,
+        error: `${chargeNoun(request.type)} — מספר שלם בין 0 ל-${max}`,
         before, max,
       });
     }
@@ -147,7 +151,8 @@ async function handler(req, res, session) {
     /* ⚠ **בדיקת מכסה על ההפרש בלבד.** הימים שכבר נגבו מהבקשה
        הזו כלולים ב-`used`, ולכן השוואה של `days` המלא מול
        `left` הייתה חוסמת גם הקטנה של המספר. */
-    if (days > before) {
+    /* ⚠ מכסה — לחופש בלבד. */
+    if (days > before && request.type === ABSENCE.vacation) {
       const sum = summarize(request.studentId, { absences, marked, byDate: cal.byDate });
       const half = (cal.byDate.get(request.date) || {}).half;
       const q = half && sum.quota.find((x) => x.half === half);

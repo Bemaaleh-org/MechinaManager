@@ -37,6 +37,7 @@
     "seed:weekmenu": "node --env-file=.env tools/seed-weekmenu.mjs",
     "seed:bugs": "node --env-file=.env tools/seed-bugs.mjs",
     "seed:buy": "node --env-file=.env tools/seed-buy.mjs",
+    "seed:recdays": "node --env-file=.env tools/seed-recdays.mjs",
     "seed:appeal": "node --env-file=.env tools/seed-appeal.mjs",
     "seed:halfday": "node --env-file=.env tools/seed-halfday.mjs",
     "seed:stulesson": "node --env-file=.env tools/seed-stulesson.mjs",

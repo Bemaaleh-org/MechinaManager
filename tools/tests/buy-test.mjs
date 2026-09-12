@@ -128,9 +128,12 @@ try {
   ok("ונושאת את המקור שלה ואת ההרשאה לסמן",
     hit && hit.source === "buy" && hit.canMark === true,
     hit ? `${hit.source} canMark=${hit.canMark}` : "—");
-  ok("ושלוש הרשימות נקראות ולא אחת",
-    (r.b.groups || []).length + (r.b.missing || []).length + (r.b.failed || []).length >= 2,
-    `groups=${(r.b.groups || []).length} missing=${(r.b.missing || []).length} failed=${(r.b.failed || []).length}`);
+  /* ⚠ **המטבח יצא מהמסך (12.9.2026)** — הטענה נועלת את
+     ההיעדר, אחרת מקור שיחזור בטעות יעבור בשקט. */
+  ok("והמטבח אינו במסך — כללי ומכולה בלבד",
+    !(r.b.groups || []).some((g) => g.key === "kitchen")
+      && !(r.b.missing || []).some((g) => g.key === "kitchen"),
+    JSON.stringify((r.b.groups || []).map((g) => g.key)));
   ok("ולראש המכינה הלשונית הכללית פתוחה", r.b.canGeneral === true, String(r.b.canGeneral));
 
   /* ============ 3 · סימון "נקנה" מוריד מהמסך המאוחד ============ */
@@ -185,12 +188,14 @@ try {
 
     r = await call(P, "GET", "/api/container?action=buy");
     ok("איש צוות קורא את הרשימה", r.s === 200, `${r.s}`);
-    ok("ומקבל canManage=false מהשרת", r.b.canManage === false && r.b.canMark === true,
+    /* ⚠⚠ **התהפך במכוון (12.9.2026):** כל הצוות מנהל את הרשימה,
+       ולא רק ראש המכינה. הטענות נועלות את הכלל החדש. */
+    ok("ומקבל canManage=true מהשרת — כל הצוות מנהל", r.b.canManage === true && r.b.canMark === true,
       `canManage=${r.b.canManage} canMark=${r.b.canMark}`);
 
-    r = await call(P, "POST", "/api/container?action=buy", { items: [{ name: TAG + "לא אמור" }] });
-    ok("ואינו מוסיף פריט", r.s === 403, `${r.s} ${r.b.error || ""}`);
-    if (r.s === 200 && r.b.ids) made.push(...r.b.ids);
+    r = await call(P, "POST", "/api/container?action=buy", { items: [{ name: TAG + "מאיש צוות" }] });
+    ok("ומוסיף פריט", r.s === 200 && r.b.created === 1, `${r.s} ${r.b.error || ""}`);
+    if (r.b.ids) made.push(...r.b.ids);
 
     /* ⚠⚠ **הכיוון השני, ובאותה הרצה.** "אינו מוסיף" לבדו היה
        נשאר ירוק גם אילו הלוח היה נעול לחלוטין — ואז מי שיוצא
@@ -200,7 +205,8 @@ try {
     ok("אבל כן מסמן סטטוס", r.s === 200, `${r.s} ${r.b.error || ""}`);
 
     r = await call(P, "PUT", "/api/container?action=buy", { id, name: TAG + "שם אחר" });
-    ok("ואינו עורך את התוכן", r.s === 403, `${r.s} ${r.b.error || ""}`);
+    ok("וגם עורך את התוכן", r.s === 200 && (r.b.changed || []).includes("שם"),
+      `${r.s} ${r.b.error || ""}`);
   }
 
   /* ============ 6 · מזהה שאינו קיים ============ */

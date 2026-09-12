@@ -71,16 +71,9 @@ function AllShopping({ d, say }) {
   };
 
   const groups = (d.groups || []).filter((g) => g.rows.length);
-  const left = d.open - done.size;
 
   return (
     <>
-      <div className="band">
-        <div><b className="num">{Math.max(0, left)}</b><span>פתוח לקנייה</span></div>
-        <div><b className="num">{groups.length}</b><span>רשימות</span></div>
-        <div><b className="num">{d.markable}</b><span>אפשר לסמן</span></div>
-      </div>
-
       {/* ⚠ רשימה שנפלה או שטרם הוקמה **נאמרת**. מי שיוצא
           לקניות עם רשימה שחסר בה שליש בשקט הוא בדיוק מה
           שהמסך נועד למנוע (עיקרון 6). */}
@@ -106,8 +99,8 @@ function AllShopping({ d, say }) {
       {!groups.length ? (
         <div className="empty">
           <div className="e-ico"><YI.cart /></div>
-          <b>אין כרגע מה לקנות</b>
-          <span>בכל הרשימות שפתוחות לכם אין שורה אחת שממתינה.</span>
+          <b>אין כרגע מה לקנות מהמכולה</b>
+          <span>מה שנרשם ברשימת הקניות של המכולה יופיע כאן.</span>
         </div>
       ) : groups.map((g) => (
         <div className="card by-grp" key={g.key}>
@@ -148,8 +141,8 @@ function AllShopping({ d, say }) {
       ))}
 
       <div className="tm-sub by-note">
-        כל שורה נשארת ברשימה שלה — המסך הזה רק מאחד אותן לקריאה, וסימון כאן
-        נשמר בדיוק באותו מקום שבו הוא נשמר במסך המקורי.
+        החלק הזה נלקח מרשימת הקניות של המכולה — מוסיפים אליו ממסך
+        המכולה, וסימון כאן נשמר שם.
       </div>
     </>
   );
@@ -239,12 +232,7 @@ function GeneralList({ say }) {
 
   return (
     <>
-      <div className="tm-sub">
-        כל מה שצריך לקנות ואינו מלאי מטבח ואינו ציוד מכולה.
-        {d.canManage
-          ? " הרשימה מנוהלת על ידי ראש המכינה, וכל הצוות יכול לסמן מה שנקנה."
-          : " הרשימה מנוהלת על ידי ראש המכינה — אפשר לסמן כאן מה שנקנה."}
-      </div>
+      <div className="sec-label">כללי</div>
 
       {d.canManage && !adding && (
         <button className="btn btn-primary by-add" onClick={() => setAdding(true)}>
@@ -285,7 +273,7 @@ function GeneralList({ say }) {
       ) : (
         <div className="card by-grp">
           <div className="by-grp-h">
-            <span className="by-chip by-b">ממתין לקנייה</span>
+            <span className="by-chip by-b">כללי · ממתין לקנייה</span>
             <b>{open.length}</b>
           </div>
           {open.map((r) => (
@@ -374,8 +362,19 @@ function GeneralList({ say }) {
   );
 }
 
+/* ============================================================
+   רשימה אחת, בשני חלקים — בלי לשוניות
+   ------------------------------------------------------------
+   הבקשה (12.9.2026): *"רשימה אחת שמחולקת לשתיים — כללי שאפשר
+   ישירות להוסיף אליו, ורשימת מכולה שנלקחת מתוך המכולה."*
+
+   ⚠ **בלי לשוניות, ובכוונה.** לשונית שנייה היא בדיוק המקום שבו
+     מפספסים: מי שיוצא לקנות רואה את הראשונה ויוצא. שני חלקים
+     באותה גלילה הם רשימה אחת.
+   ⚠ **החלק הכללי מוצג לפי `canGeneral` מהשרת** — אחראי המכולה
+     ואב הבית רואים את חלק המכולה בלבד (4יד).
+   ============================================================ */
 export function BuyPage({ say }) {
-  const [tab, setTab] = useState("all");
   const [d, setD] = useState(null);
   const [err, setErr] = useState(null);
 
@@ -387,33 +386,38 @@ export function BuyPage({ say }) {
     return () => { alive = false; };
   }, []);
 
-  /* ⚠ הלשונית השנייה מוצגת לפי `canGeneral` שמגיע מהשרת, ולכן
-     היא אינה קיימת עד שהתשובה חזרה — ולא מופיעה ואז נעלמת. */
-  const showGen = Boolean(d && d.canGeneral);
-  const at = showGen ? tab : "all";
+  /* ⚠ החלק הכללי מגיע מ-GeneralList (עם ההיסטוריה והטופס), ולכן
+     מהתשובה המאוחדת נלקח חלק המכולה בלבד — אחרת שורה כללית
+     הייתה מוצגת פעמיים. */
+  const box = d ? {
+    ...d,
+    groups: (d.groups || []).filter((g) => g.key === "container"),
+    missing: (d.missing || []).filter((m) => m.key === "container"),
+    failed: (d.failed || []).filter((f) => f.key === "container"),
+  } : null;
 
   return (
     <>
       <div className="screen-title">קניות המכינה</div>
-      {showGen && (
-        <div className="seg">
-          <button className={at === "all" ? "on" : ""} onClick={() => setTab("all")}>כל הקניות</button>
-          <button className={at === "gen" ? "on" : ""} onClick={() => setTab("gen")}>רשימה כללית</button>
-        </div>
-      )}
-      {at === "gen" ? <GeneralList say={say} /> : (
-        err ? (
-          <div className="alert a-clay">
-            <YI.warn />
-            <div style={{ flex: 1 }}>
-              <div className="ttl">לא הצלחנו לטעון את הקניות</div>
-              <div className="bd">{err.message}</div>
-            </div>
+      <div className="tm-sub">
+        רשימה אחת בשני חלקים: <b>כללי</b> — מה שהצוות מוסיף ישירות, ו<b>מכולה</b> —
+        מה שנרשם ברשימת הקניות של המכולה.
+      </div>
+
+      {d && d.canGeneral && <GeneralList say={say} />}
+
+      <div className="sec-label">מכולה</div>
+      {err ? (
+        <div className="alert a-clay">
+          <YI.warn />
+          <div style={{ flex: 1 }}>
+            <div className="ttl">לא הצלחנו לטעון את רשימת המכולה</div>
+            <div className="bd">{err.message}</div>
           </div>
-        ) : !d ? (
-          <><div className="skel skel-card" /><div className="skel skel-card" /></>
-        ) : <AllShopping d={d} say={say} />
-      )}
+        </div>
+      ) : !box ? (
+        <><div className="skel skel-card" /><div className="skel skel-card" /></>
+      ) : <AllShopping d={box} say={say} />}
     </>
   );
 }

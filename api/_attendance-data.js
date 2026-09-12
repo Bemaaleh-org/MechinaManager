@@ -189,6 +189,15 @@ export function summarize(studentId, { absences, marked, byDate }, today = israe
      ============================================================ */
   const count = (type) =>
     mine.filter((a) => a.type === type && a.date <= today).length;
+  /* ⚠⚠ **מחלה ומוצדקת — סכום הימים שהמכריע קבע, ולא ספירת שורות**
+     (12.9.2026). שורה נוצרת לכל יום בטווח כי לנוכחות זה הנתון
+     הנכון, ו-`cost` אומר אם היום הזה נספר. ריק = 1: שורה ידנית
+     או שורה מלפני העמודה נכתבה בעולם שבו יום = יום (5כד).
+     ⚠ **חופש נשאר ספירת שורות** — "חופש N" הוא כמה ימים לא היה,
+       והמכסה (`quota`) היא כמה נגבו. שני מספרים, שתי שאלות. */
+  const countCost = (type) =>
+    mine.filter((a) => a.type === type && a.date <= today)
+      .reduce((n, a) => n + (a.cost == null ? 1 : a.cost), 0);
 
   /* מכסת חופש לפי מחצית. שבוע האמצע מאפס — ולכן שתי מכסות
      נפרדות ולא מספר אחד. */
@@ -311,8 +320,8 @@ export function summarize(studentId, { absences, marked, byDate }, today = israe
     halfDays,
     unmarked: Math.max(0, schoolDays - present - absent),
     absent,
-    sick: count(ABSENCE.sick),
-    justified: count(ABSENCE.justified),
+    sick: countCost(ABSENCE.sick),
+    justified: countCost(ABSENCE.justified),
     vacation: count(ABSENCE.vacation),
     quota: [quota(HALF.first), quota(HALF.second)],
     /* ⚠ שתי המכסות ממשיכות לצאת — מסך הנוכחות מציג את שתיהן,

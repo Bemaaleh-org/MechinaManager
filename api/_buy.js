@@ -10,21 +10,19 @@
    מה שצריך לקנות ואינו מלאי מטבח ואינו ציוד מכולה: כיסאות,
    צבע, ציוד לטקס, מתנה לצוות. ראש המכינה מנהל.
 
-   ⚠⚠ **שתי הרשאות ולא אחת, וזה מכוון:**
+   ⚠⚠ **כל הצוות מנהל — וזה עדכון מכוון של אותו יום.**
+     הגרסה הראשונה נתנה את הניהול לראש המכינה בלבד, והסימון
+     לכל הצוות. אחים ביקש (12.9.2026): *"הרשאות לכל מי שנחשב
+     צוות — ראש המכינה, סגנית, מדריכים, אחים, בוגרים."*
 
-     · **ניהול הרשימה — ראש המכינה** (`isHead`, כלומר גם
-       הסגנית — תווית בלוח ולא זהות בקוד, 4מ). הוספה, עריכה
-       ומחיקה. זו הבקשה: "הוא זה שמנהל את זה".
+     · **`isManager` ולא `!isStudent`.** כניסת התורנים המשותפת
+       אינה חניך ואינה צוות, ו-`!isStudent` היה פותח לה רשימה
+       שהיא לא אמורה לנהל.
+     · **וצפייה בלבד רואה ואינו כותב** — `withAuth` חוסם כל
+       כתיבה ממילא (4ע), ו-`canManage` אומר זאת מראש (4יד).
 
-     · **סימון "נקנה" — כל הצוות.** מי שיוצא לקניות אינו
-       בהכרח מי שכתב את הרשימה, ושרת שידרוש את ראש המכינה
-       דווקא ברגע הזה יגרום למי שעומד בקופה לא לסמן כלום —
-       ואז הרשימה מתיישנת וחוזרים לוואטסאפ. הסימון הפיך,
-       ונושא את שם מי שסימן.
-
-   ⚠ **קריאה: צוות.** לחניך אין כאן מסך — הרשימה הזו אינה
-     מטלה של אף בעל תפקיד, וכל מה שכן שלו יושב ברשימת המטבח
-     או המכולה.
+   ⚠ **לחניך אין כאן מסך** — גם לא לבעל תפקיד. אחראי המכולה
+     ואב הבית רואים במסך הזה את חלק המכולה בלבד.
 
    ⚠ **שורה שנקנתה נשארת** ואינה נמחקת — אותו כלל של שתי
      הרשימות האחרות. "מה קנינו בחודש שעבר" היא שאלה שנשאלת.
@@ -45,12 +43,12 @@ const val = (i, c) => (c && (i.column_values.find((x) => x.id === c) || {}).text
 const clip = (v, n) => String(v ?? "").trim().slice(0, n);
 const MAX = { name: 200, qty: 60, detail: 2000 };
 
-/** ⚠ מי מנהל את הרשימה — ראש המכינה בלבד. ראו ההערה בראש הקובץ. */
-export const mayManageBuy = (s) => Boolean(s && s.isHead);
+/** ⚠ מי מנהל את הרשימה — כל הצוות. ראו ההערה בראש הקובץ. */
+export const mayManageBuy = (s) => Boolean(s && s.isManager && !s.viewOnly);
 /** ⚠ מי מסמן "נקנה" — כל הצוות. */
-export const mayMarkBuy = (s) => Boolean(s && !s.isStudent);
+export const mayMarkBuy = (s) => Boolean(s && s.isManager && !s.viewOnly);
 /** ⚠ מי קורא את הרשימה. */
-export const maySeeBuy = (s) => Boolean(s && !s.isStudent);
+export const maySeeBuy = (s) => Boolean(s && s.isManager);
 
 export async function loadBuy({ force = false } = {}) {
   if (!buyReady()) return [];
@@ -115,7 +113,7 @@ async function handler(req, res, session) {
 
     if (req.method === "POST") {
       if (!mayManageBuy(session)) {
-        return res.status(403).json({ error: "הוספה לרשימה הכללית היא של ראש המכינה" });
+        return res.status(403).json({ error: "הוספה לרשימה הכללית היא של צוות המכינה" });
       }
       const items = Array.isArray(body?.items) ? body.items : null;
       if (!items || !items.length) return res.status(400).json({ error: "לא נשלחו פריטים" });
@@ -167,7 +165,7 @@ async function handler(req, res, session) {
            נראה בדיוק כאילו נשמר (5יט). */
       const wantsEdit = ["name", "qty", "detail"].some((k) => body?.[k] !== undefined);
       if (wantsEdit && !mayManageBuy(session)) {
-        return res.status(403).json({ error: "עריכת הרשימה הכללית היא של ראש המכינה" });
+        return res.status(403).json({ error: "עריכת הרשימה הכללית היא של צוות המכינה" });
       }
       if (body?.qty !== undefined) {
         const qty = clip(body.qty, MAX.qty);
@@ -195,7 +193,7 @@ async function handler(req, res, session) {
 
     if (req.method === "DELETE") {
       if (!mayManageBuy(session)) {
-        return res.status(403).json({ error: "מחיקה מהרשימה הכללית היא של ראש המכינה" });
+        return res.status(403).json({ error: "מחיקה מהרשימה הכללית היא של צוות המכינה" });
       }
       const id = String(body?.id || "").trim();
       if (!id) return res.status(400).json({ error: "לא צוינה שורה" });

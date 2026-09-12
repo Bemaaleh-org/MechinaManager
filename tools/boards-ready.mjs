@@ -59,6 +59,10 @@ export const STEPS = [
     ids: "shared/lessons-boards.js", ready: "changeLogReady" },
   { script: "tools/seed-buy.mjs", title: "רשימת הקניות הכללית",
     ids: "shared/buy-ids.js", ready: "buyReady" },
+  /* ⚠ שלב רביעי על shared/mechina-boards.js — הזיהוי הוא הצמד
+     ids+ready ולא הקובץ (5לב). */
+  { script: "tools/seed-recdays.mjs", title: "ימים לפי המדריך בבקשות היציאה",
+    ids: "shared/mechina-boards.js", ready: "guideDaysReady" },
 ];
 
 /**

@@ -32,6 +32,8 @@
      כפילות שקטה בלוח השנתי.
    ============================================================ */
 
+import { chargeCeiling, chargeNoun } from "./_request-charge.js";
+import { guideDaysReady, isChargeable } from "../shared/mechina-boards.js";
 import { withAuth, actorName } from "./_session.js";
 import { nudge } from "./_push-now.js";
 import { studentRows } from "./_student-rows.js";
@@ -119,7 +121,7 @@ async function handler(req, res, session) {
           error: `הבקשה ממתינה להמלצת ${guide.name}`,
         });
       }
-      return recommend({ res, session, request, decision, guide });
+      return recommend({ res, session, request, decision, guide, cal, body });
     }
 
     if (!session.isHead) {
@@ -133,7 +135,7 @@ async function handler(req, res, session) {
     const endDate = request.endDate || request.date;
     const span = cal.days.filter((d) => d.date >= request.date && d.date <= endDate);
     let created = 0, skipped = 0;
-    /* ימי החופש שנגבו בפועל. רלוונטי לחופש בלבד. */
+    /* כמה ימים נגבו/נספרו בפועל — חופש, מחלה ומוצדקת (12.9.2026). */
     let charge = null;
 
     /* ============================================================
@@ -170,12 +172,15 @@ async function handler(req, res, session) {
     if (decision === "approve") {
       if (!span.length) return res.status(400).json({ error: "הטווח אינו בלוח השנה של המכינה" });
 
-      if (request.type === ABSENCE.vacation) {
-        for (const d of span) {
-          const rule = vacationRule(d);
-          if (!rule.allowed) return res.status(400).json({ error: rule.reason });
+      if (isChargeable(request.type)) {
+        if (request.type === ABSENCE.vacation) {
+          for (const d of span) {
+            const rule = vacationRule(d);
+            if (!rule.allowed) return res.status(400).json({ error: rule.reason });
+          }
         }
-        const auto = vacationCost(request.date, request.outAt, endDate, request.backAt);
+        /* ⚠ התקרה — שעות לחופש, ימים בטווח למחלה ולמוצדקת. */
+        const auto = chargeCeiling(request, cal);
         if (auto == null) {
           return res.status(400).json({ error: "לא ניתן לחשב את משך היציאה — בדקו תאריכים ושעות" });
         }
@@ -196,18 +201,22 @@ async function handler(req, res, session) {
              באמת לקחה אינה החלטה שקולה אלא כמעט תמיד טעות
              הקלדה, והיא יורדת ממכסה שהחניך אינו יכול להשיב.
            ============================================================ */
-        charge = auto;
+        /* ⚠ ברירת המחדל: מה שהמדריך הציע, אם הציע ואם הוא בתוך
+           התקרה — אחרת החישוב. ראש המכינה משנה רק כשהוא מתכוון. */
+        charge = request.guideDays != null && request.guideDays <= auto ? request.guideDays : auto;
         if (body?.days !== undefined && String(body.days).trim() !== "") {
           const n = Number(body.days);
           if (!Number.isInteger(n) || n < 0 || n > auto) {
             return res.status(400).json({
-              error: `ימי החופש לגבייה — מספר שלם בין 0 ל-${auto}`,
+              error: `${chargeNoun(request.type)} — מספר שלם בין 0 ל-${auto}`,
               suggested: auto,
             });
           }
           charge = n;
         }
 
+        /* ⚠ מכסה — לחופש בלבד. למחלה ולמוצדקת אין מכסה. */
+        if (request.type === ABSENCE.vacation) {
         const sum = summarize(request.studentId, { absences, marked, byDate: cal.byDate });
         /* ⚠ החיוב נזקף למחצית של תאריך היציאה — כמו בהגשה. */
         const half = (cal.byDate.get(request.date) || {}).half;
@@ -215,6 +224,7 @@ async function handler(req, res, session) {
         if (!q) return res.status(400).json({ error: "התאריך אינו בתוך מחצית" });
         if (q.left < charge) {
           return res.status(400).json({ error: `הבקשה עולה ${charge} ימי חופש ב${half}, ונשארו ${q.left}` });
+        }
         }
       }
 
@@ -234,8 +244,9 @@ async function handler(req, res, session) {
         const already = live.find(
           (a) => a.studentId === request.studentId && a.date === d.date);
         if (already) { skipped++; continue; }
-        const isVac = request.type === ABSENCE.vacation;
-        const price = isVac ? Math.min(1, left) : 1;
+        /* ⚠ חופש, מחלה ומוצדקת — המחיר לפי הבחירה (12.9.2026). */
+        const priced = charge != null;
+        const price = priced ? Math.min(1, left) : 1;
         await createAbsence({
           studentId: request.studentId,
           studentName: student.name,
@@ -245,7 +256,7 @@ async function handler(req, res, session) {
           source: ABSENCE_SOURCE.request,
           cost: price,
         });
-        if (isVac) left -= price;
+        if (priced) left -= price;
         created++;
       }
     }
@@ -288,6 +299,8 @@ async function handler(req, res, session) {
       /* ⚠ כמה ימי חופש נגבו בפועל — המסך אומר את זה במילים.
          "אושר" בלי המספר משאיר את החניך לגלות אותו במכסה. */
       charged: charge,
+      /* ⚠ הסוג — כדי שההודעה תאמר "נגבו ימי חופש" או "נספרו". */
+      type: request.type,
       /* ימים שכבר הייתה בהם היעדרות — המסך מודיע ולא שותק */
       alreadyAbsent: decision === "approve" && skipped > 0,
     });
@@ -302,8 +315,33 @@ async function handler(req, res, session) {
    ⚠ אינה נוגעת בעמודת הסטטוס ואינה יוצרת היעדרות. היא רק
      מסמנת מה המדריך חושב, ומעבירה את הבקשה לראש המכינה.
    ------------------------------------------------------------ */
-async function recommend({ res, session, request, decision, guide }) {
+async function recommend({ res, session, request, decision, guide, cal, body }) {
   const label = decision === "approve" ? REQ_STATUS.approved : REQ_STATUS.rejected;
+
+  /* ============================================================
+     ⚠⚠ **המדריך מציע כמה ימים — יחד עם ההמלצה לאשר.**
+     "שהמדריך וראש המכינה יחליטו" (12.9.2026): המדריך מכיר את
+     החניך ויודע שהמחלה הייתה יום ולא שלושה. ההצעה נשמרת על
+     הבקשה ומוצגת לראש המכינה כברירת המחדל שלו — והוא מכריע.
+
+     ⚠ **אותה תקרה בדיוק של ההכרעה** (`chargeCeiling`). הצעה
+       שההכרעה הייתה דוחה היא הצעה שמלמדת להתעלם מההצעות.
+     ⚠ **המלצה לדחות מנקה את ההצעה** — מספר ימים על בקשה שהמדריך
+       ממליץ לדחות הוא סתירה בתוך אותה שורה.
+     ============================================================ */
+  let proposed = null;
+  if (decision === "approve" && isChargeable(request.type)
+      && body?.days !== undefined && String(body.days).trim() !== "") {
+    const max = chargeCeiling(request, cal);
+    const n = Number(body.days);
+    if (max == null || !Number.isInteger(n) || n < 0 || n > max) {
+      return res.status(400).json({
+        error: `${chargeNoun(request.type)} — מספר שלם בין 0 ל-${max ?? 0}`,
+        suggested: max,
+      });
+    }
+    proposed = n;
+  }
 
   await gql(
     `mutation($b:ID!,$i:ID!,$v:JSON!){ change_multiple_column_values(board_id:$b,item_id:$i,column_values:$v,create_labels_if_missing:false){ id } }`,
@@ -313,6 +351,9 @@ async function recommend({ res, session, request, decision, guide }) {
         [R.guide]: { label },
         [R.guideBy]: actorName(session).slice(0, 120),
         [R.guideAt]: { date: israelToday() },
+        /* ⚠ טקסט — "" מנקה (אין כאן מלכודת אינדקס 5, שהיא של
+           עמודות סטטוס בלבד, 5ז). */
+        ...(guideDaysReady() ? { [R.guideDays]: proposed == null ? "" : String(proposed) } : {}),
       }),
     }
   );
@@ -327,6 +368,7 @@ async function recommend({ res, session, request, decision, guide }) {
     status: REQ_STATUS.pending,
     guideDecision: label,
     guideName: guide.name,
+    guideDays: proposed,
     absenceCreated: false,
   });
 }
