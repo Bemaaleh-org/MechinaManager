@@ -30,7 +30,15 @@ import { WHATS_NEW } from "../shared/whats-new.js";
 const WATCHED = /^(src|api|shared)\//;
 const IGNORE = /^shared\/(whats-new|.*-ids)\.js$/;
 
-const git = (c) => { try { return execSync(c, { encoding: "utf8" }).trim(); } catch { return ""; } };
+/* ⚠ **stderr מושתק ב-stdio ולא ב-2>/dev/null.** execSync רץ דרך
+   cmd.exe בווינדוס, ושם /dev/null אינו קיים — הפקודה נכשלה בכל
+   הרצה ("The system cannot find the path specified"), והכלי נפל
+   לענף הגיבוי בשקט. ⚠ null ולא "" בכישלון: "אין תוצאה" ו"נכשל"
+   הן שתי תשובות. */
+const git = (c) => {
+  try { return execSync(c, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); }
+  catch { return null; }
+};
 
 const newest = WHATS_NEW.map((n) => n.date).filter(Boolean).sort().pop() || "";
 if (!newest) {
@@ -40,11 +48,24 @@ if (!newest) {
 
 /* ⚠ `--since` על תאריך הרשומה, ולא `HEAD~n`: מספר קומיטים
    אינו אומר דבר על כמה זמן עבר. */
-const log = git(`git log --since="${newest} 00:00" --pretty=format:%h%x09%s`);
+/* ⚠⚠ **הבסיס הוא הקומיט שכתב את הרשומה, לא התאריך שלה.** הכלל
+   ב-shared/whats-new.js: הרשומה נכתבת **באותו קומיט** של השינוי.
+   --since על התאריך כולל את הקומיט שכתב את הרשומה עצמה, ולכן
+   ביום שבו נכתבה רשומה הכלי **לא יכול היה לעבור** — נתפס כשארבע
+   רשומות מ-12.9 נכנסו לקומיט והוא עדיין דרש רשומה. */
+const base = git(`git log -1 --pretty=format:%H -- shared/whats-new.js`);
+const log = base
+  ? git(`git log ${base}..HEAD --pretty=format:%h%x09%s`)
+  : git(`git log --since="${newest} 00:00" --pretty=format:%h%x09%s`);
 const commits = log ? log.split("\n") : [];
 
-const files = git(`git diff --name-only --diff-filter=d "@{u}" HEAD 2>/dev/null`)
-  || git(`git log --since="${newest} 00:00" --name-only --pretty=format:`);
+/* ⚠ **`||` התייחס ל"אין מה לדחוף" ככישלון** — מחרוזת ריקה היא
+   falsy — ולכן אחרי כל דחיפה נבדק הגיבוי שתמיד נכשל. עכשיו:
+   מה שנגע אחרי קומיט הרשומה, ומה שטרם נכנס לקומיט. */
+const files = base
+  ? [git(`git diff --name-only --diff-filter=d ${base} HEAD`),
+     git(`git diff --name-only --diff-filter=d HEAD`)].filter(Boolean).join("\n")
+  : (git(`git log --since="${newest} 00:00" --name-only --pretty=format:`) || "");
 const touched = [...new Set(files.split("\n").map((f) => f.trim()).filter(Boolean))]
   .filter((f) => WATCHED.test(f) && !IGNORE.test(f));
 
