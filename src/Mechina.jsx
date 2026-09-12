@@ -61,6 +61,8 @@ import LessonPayPage from "./LessonPay.jsx";
 import { GanttPage } from "./Gantt.jsx";
 import { AgendaPage, TodayAgenda, useHomeGate } from "./Agenda.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
+import { useNavStack, activeLabel } from "./nav-stack.js";
+import { NavBar, BackButton, NAV_ICON } from "./NavBar.jsx";
 import { useExcel, downloadTable } from "./excel.js";
 /* ⚠ המסך היחיד שמייבא קטגוריות מ-shared. סדר התצוגה חייב
    לבוא ממקום אחד — ראו ההערה ב-shared/placements.js. */
@@ -3762,7 +3764,9 @@ function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey }) {
    ============================================================ */
 export function MechinaApp({ auth, onSignedOut }) {
   const td = testDate();
-  const [tab, setTab] = useState("home");
+  /* ⚠⚠ **ערימה ולא `useState` אחד** — `setTab` שומר על החתימה
+     של setter וכל הקריאות הקיימות עובדות. ראו src/nav-stack.js. */
+  const [tab, setTab, nav] = useNavStack("home");
   /* ⚠ איזו אחריות לפתוח במרכז התפקיד, כשמגיעים מקיצור הדרך
      שבמסך הבית. נצרך פעם אחת ב-DutyPage ואז נשכח. */
   const [dutyKey, setDutyKey] = useState(null);
@@ -3857,41 +3861,14 @@ export function MechinaApp({ auth, onSignedOut }) {
     return () => clearInterval(t);
   }, [reqs.reload]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return (
-    <div className="kx">
-      <header className="top">
-        <div className="top-row">
-          <Hamburger onClick={() => setDrawerOpen(true)} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h1>{(() => {
-              const h = new Date().getHours();
-              const g = h < 5 ? "לילה טוב" : h < 12 ? "בוקר טוב" : h < 17 ? "צהריים טובים" : h < 21 ? "ערב טוב" : "לילה טוב";
-              return g + ", " + String(auth.name || "").split(" ")[0];
-            })()}</h1>
-            <div className="sub">מכינת ניר עוז · מחזור ב׳</div>
-          </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {/* ⚠ **בסרגל ולא במסך** — ראו src/Search.jsx. */}
-            <SearchButton onClick={() => setSearchOpen(true)} />
-            <NotifyBell notify={notify} open={notifOpen}
-              onToggle={() => setNotifOpen((v) => !v)} />
-            <button className="who" onClick={signOut}>
-              <span className="dot" />יציאה
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* המגירה — כל הדפים של החניך, כולל מה שתפקידיו פותחים */}
-      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)}
-        logo={BRAND.mark} title="מכינת ניר עוז" subtitle="מחזור ב׳"
-        user={{
-          name: auth.name,
-          role: [auth.isLeader && "מוביל/ת שבוע", ...(auth.roles || [])]
-            .filter(Boolean).join(" · ") || "חניך/ה",
-        }}
-        onLogout={signOut}
-        groups={[
+  /* ============================================================
+     מפת הניווט — מקור אחד לשלושה משטחים
+     ------------------------------------------------------------
+     ⚠⚠ **הורמה מתוך ה-JSX של המגירה ולא הועתקה**, בדיוק כמו
+       במעטפת הצוות. ממנה נגזר שם המסך שהחץ מציג, ולכן אין
+       כאן רשימה שנייה של `מסך → שם` (4מד).
+     ============================================================ */
+  const navGroups = [
           /* ============================================================
              סדר המגירה — לפי מה שהחניך פותח, ולא לפי מה שנבנה מתי
              ------------------------------------------------------------
@@ -4090,7 +4067,48 @@ export function MechinaApp({ auth, onSignedOut }) {
               })),
             ],
           }] : []),
-        ]} />
+  ];
+
+  nav.stamp(activeLabel(navGroups));
+
+  return (
+    <div className="kx has-nv">
+      <header className="top">
+        <div className="top-row">
+          <BackButton nav={nav} />
+          <Hamburger onClick={() => setDrawerOpen(true)} />
+          {/* ⚠ כשיש לאן לחזור הברכה מפנה מקום לחץ — ראו אותה
+              הערה במעטפת הצוות. */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {!nav.canBack && <><h1>{(() => {
+              const h = new Date().getHours();
+              const g = h < 5 ? "לילה טוב" : h < 12 ? "בוקר טוב" : h < 17 ? "צהריים טובים" : h < 21 ? "ערב טוב" : "לילה טוב";
+              return g + ", " + String(auth.name || "").split(" ")[0];
+            })()}</h1>
+            <div className="sub">מכינת ניר עוז · מחזור ב׳</div></>}
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {/* ⚠ **בסרגל ולא במסך** — ראו src/Search.jsx. */}
+            <SearchButton onClick={() => setSearchOpen(true)} />
+            <NotifyBell notify={notify} open={notifOpen}
+              onToggle={() => setNotifOpen((v) => !v)} />
+            <button className="who" onClick={signOut}>
+              <span className="dot" />יציאה
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* המגירה — כל הדפים של החניך, כולל מה שתפקידיו פותחים */}
+      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)}
+        logo={BRAND.mark} title="מכינת ניר עוז" subtitle="מחזור ב׳"
+        user={{
+          name: auth.name,
+          role: [auth.isLeader && "מוביל/ת שבוע", ...(auth.roles || [])]
+            .filter(Boolean).join(" · ") || "חניך/ה",
+        }}
+        onLogout={signOut}
+        groups={navGroups} />
 
       {/* תצוגה מקדימה של ההתראות — הבקשות שהוכרעו */}
       {/* ⚠ שכבה מעל המסך ולא ניווט — ראו src/Search.jsx. */}
@@ -4339,7 +4357,31 @@ export function MechinaApp({ auth, onSignedOut }) {
         </ErrorBoundary>
       </main>
 
-      {/* הסרגל התחתון הוסר — הניווט במגירת שלושת הקווים */}
+      {/* ============================================================
+          הסרגל התחתון — ארבעת היעדים של החניך
+          ------------------------------------------------------------
+          ⚠⚠ **הוא היה כאן, הוסר, וחזר במכוון.** ההערה שהייתה
+            כאן אמרה "הניווט במגירת שלושת הקווים" — וזה עבד כל
+            עוד היו חמישה מסכים. עם ארבע קבוצות ועשרים ושבעה
+            דפים, כל פתיחת לו״ז הפכה לשתי נגיעות וחיפוש ברשימה.
+
+          ⚠ **והיעדים הם מה שחניך פותח כל יום**: מה עכשיו
+            (הלו״ז), מה ביקשתי (בקשות), מה עלי (תורנויות).
+            כל השאר במגירה, שהיא המפה המלאה.
+
+          ⚠ **המונה על הבקשות הוא `unseen`** — "הוכרעו וטרם
+            ראית", כלומר מה שבאמת חדש לחניך.
+          ============================================================ */}
+      <NavBar onMore={() => setDrawerOpen(true)} items={[
+        { key: "nv-home", label: "בית", icon: <NAV_ICON.home />,
+          active: tab === "home", onClick: () => setTab("home") },
+        { key: "nv-agenda", label: "הלו״ז", icon: <NAV_ICON.day />,
+          active: tab === "agenda", onClick: () => setTab("agenda") },
+        { key: "nv-req", label: "בקשות", icon: <NAV_ICON.out />,
+          active: tab === "requests", badge: unseen, onClick: () => setTab("requests") },
+        { key: "nv-chores", label: "תורנויות", icon: <NAV_ICON.tick />,
+          active: tab === "chores", onClick: () => setTab("chores") },
+      ]} />
 
       {toast && <div className="toast">{toast}</div>}
     </div>

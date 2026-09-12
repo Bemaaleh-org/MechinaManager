@@ -52,6 +52,8 @@ import { FaultsPage } from "./Faults.jsx";
 import { KitchenPage } from "./Kitchen.jsx";
 import { useNotify, NotifyBell, NotifyPanel } from "./Notify.jsx";
 import { Drawer, Hamburger } from "./Drawer.jsx";
+import { useNavStack, activeLabel } from "./nav-stack.js";
+import { NavBar, BackButton, NAV_ICON } from "./NavBar.jsx";
 import { testDate } from "./testDate.js";
 
 /* ============================================================
@@ -181,7 +183,11 @@ function Staff({ auth, onSignedOut }) {
   const isMgr = auth.isManager;
   /* מנהל נוחת בלוח הבית; תורן נוחת ישר בציוד האוכל, שהוא
      כמעט כל מה שהוא עושה כאן. */
-  const [section, setSection] = useState(isMgr ? "dash" : "kitchen");
+  /* ⚠⚠ **ערימה ולא `useState` אחד.** `setSection` שומר על
+     החתימה של setter, ולכן כל הקריאות הקיימות עובדות — ומה
+     שנוסף הוא `nav`: חץ חזרה שיודע לאן, וכפתור "חזור" של
+     המכשיר. ראו src/nav-stack.js. */
+  const [section, setSection, nav] = useNavStack(isMgr ? "dash" : "kitchen");
   /* התחום שמסך הציוד מציג — אוכל או חד״פ במטבח, מכולה או
      ניקיון בציוד המכינה. שני מצבים נפרדים, אחרת מעבר בין
      התחומים היה גורר את התחום של המסך השני. */
@@ -308,45 +314,16 @@ function Staff({ auth, onSignedOut }) {
       active: section === "budget", onClick: () => setSection("budget") }] : []),
   ];
 
-  return (
-    <>
-      <style>{CSS}</style>
-      <div className="kx">
-        {/* ⚠ רצועה קבועה ולא הודעה חד-פעמית: ההגבלה חלה בכל
-            מסך ובכל רגע, ומי שיגלול הלאה ישכח אותה. */}
-        {auth.viewOnly && (
-          <div className="ro-bar">
-            החשבון שלכם מוגדר <b>לצפייה בלבד</b> — כל המערכת פתוחה לקריאה,
-            ושמירה אינה אפשרית.
-          </div>
-        )}
-        <header className="top">
-          <div className="top-row">
-            <Hamburger onClick={() => setDrawerOpen(true)} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <h1>ניהול מכינת ניר עוז</h1>
-              <div className="sub">{hebDate(new Date())}</div>
-            </div>
-            {/* ⚠ **בסרגל ולא במסך.** חיפוש שדורשים לנווט אליו
-                הוא חיפוש שאיש לא ישתמש בו. */}
-            <SearchButton onClick={() => setSearchOpen(true)} />
-            <NotifyBell notify={notify} open={notifOpen}
-              onToggle={() => setNotifOpen((v) => !v)} />
-            <div className="brand-coin" aria-label="במעלה הדרך">
-              <img src={BRAND.mark} alt={"לוגו " + BRAND.motto} />
-            </div>
-            <button className="who" onClick={() => setUserOpen(true)}>
-              <span className="dot" />{user.name.split(" ")[0]}
-            </button>
-          </div>
-        </header>
-
-        <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)}
-          logo={BRAND.mark} title="ניהול מכינת ניר עוז"
-          subtitle={`מכינת ניר עוז${auth.cycle ? " · " + auth.cycle : ""}`}
-          user={user}
-          onLogout={() => api.logout().catch(() => {}).finally(onSignedOut)}
-          groups={isMgr ? [
+  /* ============================================================
+     מפת הניווט — מקור אחד לשלושה משטחים
+     ------------------------------------------------------------
+     ⚠⚠ **הורמה מתוך ה-JSX של המגירה, ולא הועתקה.** ממנה
+       נגזר גם שם המסך הנוכחי (`activeLabel`) שהחץ חותם על
+       הרשומה שנעזבת. רשימה שנייה של `מסך → שם` הייתה מתפצלת
+       בתוספת הראשונה (4מד), והיא גם הייתה מיותרת: `active`
+       הוא בדיוק התשובה ל"איפה אני".
+     ============================================================ */
+  const navGroups = isMgr ? [
             { items: [
               { key: "dash", label: "מסך הבית", icon: <I.home />, active: section === "dash",
                 onClick: () => setSection("dash") },
@@ -572,7 +549,62 @@ function Staff({ auth, onSignedOut }) {
             { label: "המטבח", items: [...kitchenItems,
               { key: "buy", label: "קניות המכינה", icon: <I.cart />,
                 active: section === "buy", onClick: () => setSection("buy") }] },
-          ]} />
+  ];
+
+  /* ⚠ נחתם בכל רינדור — ראו src/nav-stack.js. */
+  nav.stamp(activeLabel(navGroups));
+
+  return (
+    <>
+      <style>{CSS}</style>
+      <div className="kx has-nv">
+        {/* ⚠ רצועה קבועה ולא הודעה חד-פעמית: ההגבלה חלה בכל
+            מסך ובכל רגע, ומי שיגלול הלאה ישכח אותה. */}
+        {auth.viewOnly && (
+          <div className="ro-bar">
+            החשבון שלכם מוגדר <b>לצפייה בלבד</b> — כל המערכת פתוחה לקריאה,
+            ושמירה אינה אפשרית.
+          </div>
+        )}
+        <header className="top">
+          <div className="top-row">
+            {/* ⚠ **לפני ההמבורגר.** שניהם באותו גודל, ולכן
+                הופעתו אינה מזיזה את הכותרת (4פ). */}
+            <BackButton nav={nav} />
+            <Hamburger onClick={() => setDrawerOpen(true)} />
+            {/* ⚠⚠ **כשיש לאן לחזור — הכותרת מפנה מקום.** בטלפון
+                החץ, ההמבורגר, החיפוש, הפעמון והשם דחסו את "ניהול
+                מכינת ניר עוז" ל-"…נ" — אותה מריחה של הסרגל
+                שכבר תוקנה פעם. שם היעד שעל החץ ממילא אומר איפה
+                אני, ושם האפליקציה אינו מידע במסך פנימי. */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {!nav.canBack && (
+                <>
+                  <h1>ניהול מכינת ניר עוז</h1>
+                  <div className="sub">{hebDate(new Date())}</div>
+                </>
+              )}
+            </div>
+            {/* ⚠ **בסרגל ולא במסך.** חיפוש שדורשים לנווט אליו
+                הוא חיפוש שאיש לא ישתמש בו. */}
+            <SearchButton onClick={() => setSearchOpen(true)} />
+            <NotifyBell notify={notify} open={notifOpen}
+              onToggle={() => setNotifOpen((v) => !v)} />
+            <div className="brand-coin" aria-label="במעלה הדרך">
+              <img src={BRAND.mark} alt={"לוגו " + BRAND.motto} />
+            </div>
+            <button className="who" onClick={() => setUserOpen(true)}>
+              <span className="dot" />{user.name.split(" ")[0]}
+            </button>
+          </div>
+        </header>
+
+        <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)}
+          logo={BRAND.mark} title="ניהול מכינת ניר עוז"
+          subtitle={`מכינת ניר עוז${auth.cycle ? " · " + auth.cycle : ""}`}
+          user={user}
+          onLogout={() => api.logout().catch(() => {}).finally(onSignedOut)}
+          groups={navGroups} />
 
         {/* ⚠ פאנל אחד לכל התחומים, ולא רק לבקשות היציאה.
             ראו api/_notify.js: מה שדורש טיפול נגזר מהמצב. */}
@@ -710,6 +742,41 @@ function Staff({ auth, onSignedOut }) {
         {userOpen && (
           <UserModal auth={auth} say={say} onSignedOut={onSignedOut} close={() => setUserOpen(false)} />
         )}
+
+        {/* ============================================================
+            הסרגל התחתון — ארבעת היעדים של הצוות
+            ------------------------------------------------------------
+            ⚠ **מה שפותחים כל יום, ולא מה שנבנה אחרון.** בקשות
+              היציאה קודם, כי זה מה שממתין להכרעה; וחניכים,
+              שיעורים והקניות אחריהן.
+
+            ⚠ **המונה על הבקשות הוא `mineList` ולא `pendingList`** —
+              "ממתינה" אינה "ממתינה לי", ומספר על משהו שאי אפשר
+              לגעת בו הוא רעש (ראו ההערה על הפעמון למעלה).
+
+            ⚠ **ולתורן סרגל משלו** — הוא אינו מכריע בבקשות ואינו
+              רואה חניכים; מסך שאינו שלו בסרגל הקבוע מחזיר לו
+              403 בכל לחיצה.
+            ============================================================ */}
+        <NavBar onMore={() => setDrawerOpen(true)} items={isMgr ? [
+          { key: "nv-dash", label: "בית", icon: <NAV_ICON.home />,
+            active: section === "dash", onClick: () => setSection("dash") },
+          { key: "nv-req", label: "בקשות", icon: <NAV_ICON.out />,
+            active: section === "mechina" && staffSub === "requests",
+            badge: mineList.length, onClick: () => goStaff("requests") },
+          { key: "nv-stu", label: "חניכים", icon: <NAV_ICON.users />,
+            active: section === "mechina" && staffSub !== "requests",
+            onClick: () => goStaff("students") },
+          { key: "nv-les", label: "שיעורים", icon: <NAV_ICON.book />,
+            active: section === "lessons", onClick: () => goLessons("board") },
+        ] : [
+          { key: "nv-kit", label: "ציוד", icon: <NAV_ICON.cart />,
+            active: section === "kitchen", onClick: () => goKitchen(null) },
+          { key: "nv-buy", label: "קניות", icon: <NAV_ICON.cart />,
+            active: section === "buy", onClick: () => setSection("buy") },
+          { key: "nv-menu", label: "תפריט", icon: <NAV_ICON.book />,
+            active: section === "menu", onClick: () => setSection("menu") },
+        ]} />
       </div>
     </>
   );

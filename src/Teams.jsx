@@ -28,6 +28,7 @@ import { CATEGORY, PERIOD, PERIODS, plural, byCategory } from "../shared/placeme
 import { dutyKey, DUTY_CHAIR } from "../shared/duties.js";
 import { TEAM_CATEGORIES, ownerIds } from "../shared/team.js";
 import ScreenNote from "./ScreenNote.jsx";
+import { setNavDetail, arrivedBack } from "./nav-stack.js";
 
 const TI = {
   chev: (p) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
@@ -599,6 +600,15 @@ function TeamHub({ id, say, onBack, go }) {
   }, [id]);
   useEffect(() => { setD(null); load(); }, [load]);
 
+  /* ⚠ **החץ יאמר את שם הוועדה.** מי שנכנס מכאן למליאות צריך
+     לראות "‹ ועדת קבוצה ותוכן" ולא "‹ ניהול צוותים" — השני
+     נכון על המסך ושקרי על המקום. ראו src/nav-stack.js. */
+  const teamName = d && d.team ? d.team.name : "";
+  useEffect(() => {
+    setNavDetail(teamName);
+    return () => setNavDetail("");
+  }, [teamName]);
+
   const nameOf = useCallback((tid) => {
     if (!d || !tid) return "";
     const all = [...d.vocab.statuses, ...d.vocab.stages];
@@ -1072,10 +1082,19 @@ function TeamForm({ preset, team, say, onDone, onCancel, onDeleted }) {
 /* ============================================================
    השער
    ============================================================ */
+/* ⚠ ברמת המודול ולא state: המסך מתפרק כשעוברים למליאות, ו-state
+   מתפרק איתו. רק מעטפת אחת פעילה בכל רגע, ולכן אין כאן התנגשות. */
+let lastPick = null;
+
 export default function TeamsPage({ say, go }) {
   const [list, setList] = useState(null);
   const [err, setErr] = useState("");
-  const [pick, setPick] = useState(null);
+  /* ⚠⚠ **הוועדה הפתוחה שורדת את היציאה מהמסך — אבל נפתחת
+     מחדש רק בחזרה.** בלי זה, ועדה → מליאות → חזרה נחת על
+     רשימת הצוותים וזו בדיוק הדוגמה שבגללה החץ נבנה. ומי שנכנס
+     לצוותים מהמגירה מקבל את הרשימה, כמו תמיד. */
+  const [pick, setPickRaw] = useState(() => (arrivedBack() ? lastPick : null));
+  const setPick = (id) => { lastPick = id; setPickRaw(id); };
   /* ⚠ **הלשוניות כאן הן `.seg` ולא `.tm-tab`.** בתוך מסך הצוות
      כבר יש שורת לשוניות (משימות · לפי אדם · הצפות), ושתי שורות
      באותו מראה בשני מפלסים היו נקראות כמו אותה בחירה — המשתמש
