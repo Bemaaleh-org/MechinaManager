@@ -765,6 +765,35 @@ export const api = {
   setShoppingStatus: ({ itemId, status }) => put("/api/container?action=shop", { itemId, status }),
   deleteShopping: (itemId) => del("/api/container?action=shop", { itemId }),
 
+  /* ============================================================
+     קניות המכינה — הרשימה הכללית, והמסך שמאחד את שלושתן
+     ============================================================ */
+  /** הרשימה הכללית של ראש המכינה: פתוחות והיסטוריה */
+  getBuy: () => get("/api/container?action=buy"),
+  addBuy: (items) => post("/api/container?action=buy", { items }),
+  editBuy: ({ id, name, qty, detail, status }) =>
+    put("/api/container?action=buy", { id, name, qty, detail, status }),
+  deleteBuy: (id) => del("/api/container?action=buy", { id }),
+
+  /** כל מה שפתוח בשלוש הרשימות, מקובץ לפי מקור */
+  getAllShopping: () => get("/api/container?action=allshop"),
+
+  /* ============================================================
+     ⚠⚠ **סימון שורה מהמסך המאוחד — המקום היחיד שמכיר את
+       שלוש הכתובות.** השורה נושאת `source` בלבד (השרת אינו
+       מחזיר נתיבים), וכאן הוא מתורגם לנקודת הקצה שלו. זו
+       הדלת היחידה (עיקרון 7).
+
+     ⚠ **ומקור לא מוכר זורק ואינו נבלע** — שורה שסומנה ולא
+       נשמרה נראית בדיוק כמו שורה שנשמרה (4י).
+     ============================================================ */
+  markShopRow: ({ source, id, status }) => {
+    if (source === "kitchen") return api.setKitchenShoppingStatus({ itemId: id, status });
+    if (source === "container") return api.setShoppingStatus({ itemId: id, status });
+    if (source === "buy") return api.editBuy({ id, status });
+    return Promise.reject(new Error("מקור קנייה לא מוכר: " + source));
+  },
+
   /** שיבוץ מובילי השבוע — 43 השבועות והרשימה לשיבוץ. מנהל בלבד. */
   getLeaderWeeks: (today) =>
     get("/api/students?action=weeks" + (today ? "&today=" + encodeURIComponent(today) : "")),

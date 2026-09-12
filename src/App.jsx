@@ -23,6 +23,7 @@ import { MechinaApp, MechinaStaff, WeekLeadersPage, RoleHoldersPage, Loading } f
 import { LessonsPage, LessonsBoard, LESSON_TABS } from "./Lessons.jsx";
 import { AlumniPage, HostingPage, LoansPage } from "./Extras.jsx";
 import { MenuPage } from "./Menu.jsx";
+import { BuyPage } from "./Buy.jsx";
 import { ContainerPage } from "./Container.jsx";
 import { BudgetPage } from "./Budget.jsx";
 import { GanttPage } from "./Gantt.jsx";
@@ -268,7 +269,7 @@ function Staff({ auth, onSignedOut }) {
          מרונדרים במעטפת הזו — ומי שהגיע אליהם מהחיפוש או
          מכרטיס הוועדה נשאר במקומו בשקט, כי הם לא היו ברשימה.
          זו בדיוק "הנפילה השקטה" שההערה מעל מזהירה ממנה. */
-      "plenary", "stu-lessons", "lecturers", "recruit", "tryouts",
+      "plenary", "stu-lessons", "lecturers", "recruit", "tryouts", "buy",
     ]);
     if (direct.has(tab)) { setSection(tab); return; }
     if (tab === "home") { setSection("dash"); return; }
@@ -440,6 +441,11 @@ function Staff({ auth, onSignedOut }) {
                  מי בצוותים, מי רשאי למה, ומה כתוב במסכים.
                ============================================================ */
             { label: "ניהול", items: [
+              /* ⚠ **כאן ולא תחת "מטבח וחד״א".** המסך מאחד את
+                 שלוש רשימות הקניות — מטבח, ציוד מכינה, והרשימה
+                 הכללית של ראש המכינה — ואינו שייך לאף אחת מהן. */
+              { key: "buy", label: "קניות המכינה", icon: <I.cart />,
+                active: section === "buy", onClick: () => setSection("buy") },
               { key: "a-teams", label: "ניהול צוותים", icon: <I.users />, active: section === "teams",
                 onClick: () => setSection("teams") },
               /* ⚠ **צוות בלבד.** אין כאן סוד — כל שורה גלויה
@@ -560,7 +566,12 @@ function Staff({ auth, onSignedOut }) {
                 active: section === "loans", onClick: () => setSection("loans") },
             ] },
           ] : [
-            { label: "המטבח", items: kitchenItems },
+            /* ⚠ גם לתורן: רשימת הקניות של המטבח היא שלו, והמסך
+               המאוחד הוא הדרך לראות אותה לצד מה שנקנה ממילא
+               באותה נסיעה. */
+            { label: "המטבח", items: [...kitchenItems,
+              { key: "buy", label: "קניות המכינה", icon: <I.cart />,
+                active: section === "buy", onClick: () => setSection("buy") }] },
           ]} />
 
         {/* ⚠ פאנל אחד לכל התחומים, ולא רק לבקשות היציאה.
@@ -632,6 +643,7 @@ function Staff({ auth, onSignedOut }) {
           {section === "export" && <ExportPage say={say} />}
           {section === "hosting" && <HostingPage say={say} />}
           {section === "loans" && <LoansPage say={say} />}
+          {section === "buy" && <BuyPage say={say} />}
 
           {/* ⚠ ההרשאה נאכפת בשרת; הבדיקה כאן היא תצוגה בלבד. */}
           {section === "mechina" && isMgr && (

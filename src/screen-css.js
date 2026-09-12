@@ -32,7 +32,8 @@ import { BUGS_CSS } from "./Bugs.jsx";
 import { STULESSON_CSS } from "./StuLessons.jsx";
 import { PLENARY_CSS } from "./Plenary.jsx";
 import { LESSONCHANGES_CSS } from "./LessonChanges.jsx";
+import { BUY_CSS } from "./Buy.jsx";
 
 export const ALL_CSS = CSS + LAUNDRY_CSS + QUOTES_CSS + MISHMAR_CSS + ARCHIVE_CSS
   + GROUP_CSS + RECRUIT_CSS + MENU_CSS + DUTYTODAY_CSS + ABSENT_CSS + BUGS_CSS + STULESSON_CSS + PLENARY_CSS
-  + LESSONCHANGES_CSS;
+  + LESSONCHANGES_CSS + BUY_CSS;

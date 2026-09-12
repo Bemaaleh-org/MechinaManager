@@ -57,6 +57,8 @@ export const STEPS = [
      התוכן במפגשים) — הזיהוי הוא הצמד ids+ready (5לב). */
   { script: "tools/seed-lesson-changes.mjs", title: "יומן השינויים בגיליונות",
     ids: "shared/lessons-boards.js", ready: "changeLogReady" },
+  { script: "tools/seed-buy.mjs", title: "רשימת הקניות הכללית",
+    ids: "shared/buy-ids.js", ready: "buyReady" },
 ];
 
 /**

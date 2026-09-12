@@ -22,6 +22,7 @@ import { gql, allItems } from "../api/_monday.js";
 import { LEAD_BOARDS } from "../shared/lead-ids.js";
 import { BOARD_BOARDS } from "../shared/board-ids.js";
 import { TEAM_BOARDS } from "../shared/team-ids.js";
+import { BUY_BOARDS } from "../shared/buy-ids.js";
 
 const GO = process.argv.includes("--go");
 
@@ -45,6 +46,10 @@ const TARGETS = {
   "משוב לצוות": TEAM_BOARDS.feedback,
   "סקרי צוות": TEAM_BOARDS.polls,
   "הצבעות בסקר": TEAM_BOARDS.votes,
+  /* ⚠ לוח חדש = שורות דמה של monday, והן הופיעו כמודעה
+     אמיתית בשם "Task 1" (5יב). כאן הן היו נראות כמו פריט
+     שצריך לקנות. */
+  "קניות כלליות": BUY_BOARDS.board,
 };
 
 let found = 0, gone = 0;
