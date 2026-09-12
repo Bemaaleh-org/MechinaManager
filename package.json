@@ -42,6 +42,7 @@
     "seed:plenary": "node --env-file=.env tools/seed-plenary.mjs",
     "seed:lecturers": "node --env-file=.env tools/seed-lecturers.mjs",
     "seed:lesson-changes": "node --env-file=.env tools/seed-lesson-changes.mjs",
+    "flag:team": "node --env-file=.env tools/flag-team.mjs",
     "clean:defaults": "node --env-file=.env tools/clean-defaults.mjs",
     "setup:boards": "node --env-file=.env tools/setup-boards.mjs",
     "check:icons": "node tools/check-icons.mjs",
