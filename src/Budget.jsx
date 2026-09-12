@@ -747,6 +747,21 @@ export function BudgetPage({ say, isHead = false }) {
   const [head, setHead] = useState("");
   const [headMode, setHeadMode] = useState("forward");
   const [headFrom, setHeadFrom] = useState("");
+  /* ⚠ תקציב החד״א החודשי — עריכה בתוך הכרטיס, לראש המכינה. */
+  const [dbEdit, setDbEdit] = useState(false);
+  const [dbVal, setDbVal] = useState("");
+  const [dbBusy, setDbBusy] = useState(false);
+  const saveDining = () => {
+    setDbBusy(true);
+    api.setDiningBudget(dbVal.trim())
+      .then((r) => {
+        say(r.diningBudget == null ? "התקציב נוקה" : `תקציב החד״א נקבע: ${r.diningBudget.toLocaleString("he-IL")} ₪ לחודש`);
+        setDbEdit(false);
+        reload();
+      })
+      .catch((e) => say(e.message))
+      .finally(() => setDbBusy(false));
+  };
 
   if (busy && !data) return (
     <div className="empty" style={{ paddingTop: 60 }}><div className="e1">טוען תקציב…</div></div>
@@ -886,13 +901,49 @@ export function BudgetPage({ say, isHead = false }) {
                     · {data.diningRate} ₪ לסועד</>
                 : <>עדיין לא נספרו סועדים החודש — הסכום לפי התעריף של סוגי הימים</>}
             </div>
-            {data.diningBudget != null ? (
-              <UtilBlock spent={data.dining} budget={data.diningBudget}
-                title="ניצול תקציב החד״א" />
+            {/* ⚠⚠ **הזנה במסך ולא "צרו שורה בלוח".** השורה קיימת
+                וריקה בכוונה (אין מספר ממציאים); מה שחסר היה דרך
+                להזין אותו בלי monday ובלי סקריפט (עיקרון 1). */}
+            {dbEdit && isHead ? (
+              <div style={{ marginTop: 8 }}>
+                <div className="fld">
+                  <label htmlFor="db-in">תקציב חד״א חודשי (₪)</label>
+                  <input id="db-in" type="number" inputMode="decimal" min="0" dir="ltr"
+                    value={dbVal} autoFocus
+                    onChange={(e) => setDbVal(e.target.value)} />
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn btn-primary btn-sm" disabled={dbBusy} onClick={saveDining}>
+                    {dbBusy ? "…" : "שמירה"}
+                  </button>
+                  <button className="btn btn-ghost btn-sm" disabled={dbBusy}
+                    onClick={() => setDbEdit(false)}>ביטול</button>
+                </div>
+              </div>
+            ) : data.diningBudget != null ? (
+              <>
+                <UtilBlock spent={data.dining} budget={data.diningBudget}
+                  title="ניצול תקציב החד״א" />
+                {isHead && (
+                  <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}
+                    onClick={() => { setDbVal(String(data.diningBudget)); setDbEdit(true); }}>
+                    שינוי התקציב החודשי
+                  </button>
+                )}
+              </>
+            ) : isHead ? (
+              <div className="bg-fixed" style={{ marginTop: 8 }}>
+                תקציב חד״א חודשי טרם נקבע — בלעדיו אין "נשאר" לחודש.
+                <div style={{ marginTop: 8 }}>
+                  <button className="btn btn-primary btn-sm"
+                    onClick={() => { setDbVal(""); setDbEdit(true); }}>
+                    קביעת תקציב חודשי
+                  </button>
+                </div>
+              </div>
             ) : (
               <div className="bg-fixed" style={{ marginTop: 8 }}>
-                תקציב חד״א חודשי טרם הוגדר — צרו בלוח ההגדרות שורה
-                בשם <b>תקציב חד״א חודשי</b>, או הריצו <b>npm run seed:dining</b>.
+                תקציב חד״א חודשי טרם נקבע — ראש המכינה קובע אותו כאן, במסך הזה.
               </div>
             )}
           </div>

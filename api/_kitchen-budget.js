@@ -389,6 +389,41 @@ async function handler(req, res, session) {
     const body = req.body ?? (await readJson(req));
 
     if (req.method === "PUT") {
+      /* ============================================================
+         ⚠⚠ תקציב החד״א החודשי — נקבע מהמסך (12.9.2026)
+         ------------------------------------------------------------
+         השורה "תקציב חד״א חודשי" קיימת בלוח ההגדרות וריקה — בכוונה:
+         איש לא מסר מספר, ומספר מומצא היה נראה כמו נתון (5ל). מה
+         שחסר היה **דרך להזין אותו** בלי לפתוח את monday (עיקרון 1).
+
+         ⚠ **ראש המכינה בלבד** — זה סכום כסף שקובע את "הנשאר" של
+           החודש, כמו מחיר סוג יום (5כה).
+         ⚠ **ריק מנקה ואינו אפס** — 0 הוא "אין תקציב לחד״א", וריק
+           הוא "טרם נקבע". שלושה מצבים (4ט).
+         ⚠ **מעדכן את השורה הקיימת לפי השם** ויוצר אותה רק אם אינה —
+           שתי שורות באותו שם היו נותנות לקורא לבחור אחת בשקט.
+         ============================================================ */
+      if (body.diningBudget !== undefined) {
+        if (!session.isHead) {
+          return res.status(403).json({ error: "תקציב החד״א החודשי נקבע על ידי ראש המכינה" });
+        }
+        const raw = String(body.diningBudget ?? "").trim();
+        let n = null;
+        if (raw !== "") {
+          n = Number(raw);
+          if (!Number.isFinite(n) || n < 0 || n > 1000000) {
+            return res.status(400).json({ error: "סכום לא תקין — מספר בין 0 ל-1,000,000" });
+          }
+        }
+        const items = await allItems(B.settings);
+        const hit = items.find((i) => String(i.name || "").trim() === SETTING_DINING_BUDGET);
+        const cols = { [C.settings.value]: n == null ? "" : String(n) };
+        if (hit) await setCols(B.settings, hit.id, cols);
+        else if (n != null) await createItem(B.settings, SETTING_DINING_BUDGET, cols);
+        invalidateBudget();
+        return res.status(200).json({ ok: true, diningBudget: n });
+      }
+
       /* מחיר של סוג יום — ⚠ משנה את כל השנה, לא חודש אחד.
          שגרה שמתייקרת מ-40 ל-45 מזיזה כל יום שגרה בכל חודש,
          וזו הכוונה: זה מחיר ולא חריגה. חריגה ליום בודד נשמרת
