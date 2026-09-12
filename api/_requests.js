@@ -39,7 +39,7 @@ import {
 } from "./_attendance-data.js";
 import {
   MECHINA_BOARDS, MECHINA_COLS, ABSENCE, REQ_STATUS, REQ_STAGE, requestStage,
-  vacationCost, appealReady,
+  vacationCost, appealReady, ABSENCE_SOURCE,
 } from "../shared/mechina-boards.js";
 import { guideMap, isGuideOf } from "./_guides.js";
 
@@ -114,10 +114,41 @@ async function handler(req, res, session) {
 /* ---------- קריאה ---------- */
 async function list(req, res, session) {
   try {
-    const [all, rows, guides] = await Promise.all([
-      loadRequests(), studentRows(), guideMap(),
+    /* ⚠ ההיעדרויות נטענות כדי לדעת **כמה נגבה בפועל** — ראו
+       `chargedFor`. זו שליפה מטמונית ומשותפת לכל הבקשות
+       בתשובה, ולא קריאה לכל שורה. */
+    const [all, rows, guides, absences] = await Promise.all([
+      loadRequests(), studentRows(), guideMap(), loadAbsences(),
     ]);
     const byId = new Map(rows.map((r) => [r.id, r]));
+
+    /* ============================================================
+       ⚠⚠ **כמה ימי חופש נגבו בפועל — ולא כמה הבקשה "עולה".**
+
+       `cost` הוא החישוב מהשעות (24 שעות = יום), ו-`charged` הוא
+       מה שהמכריע בחר לגבות בפועל — והוא רשאי לגבות פחות, וגם
+       אפס (5כד, 5לה). שני מספרים שונים, ומסך שיציג רק את
+       הראשון משקר על היתרה.
+
+       ⚠ **אותה התאמה בדיוק של `_request-recost.js`**: חניך,
+         טווח, ו-`source === בקשה מאושרת`. שורה שמוביל השבוע
+         סימן ביד אינה תוצאה של הבקשה (5ל), ומאז 12.9 היא גם
+         אינה נגבית מהמכסה בכלל.
+
+       ⚠ **`null` ולא 0 כשאין שורות.** בקשה שנדחתה, בקשה
+         ממתינה ומחלה — לאף אחת מהן אין גבייה, ו-0 היה נקרא
+         כ"אושר ולא נגבה" שהוא מצב אחר לגמרי (4ט).
+       ============================================================ */
+    const chargedFor = (r) => {
+      if (r.type !== ABSENCE.vacation || r.status !== REQ_STATUS.approved) return null;
+      const end = r.endDate || r.date;
+      const hit = absences.filter((a) => a.studentId === r.studentId
+        && a.date >= r.date && a.date <= end
+        && a.source === ABSENCE_SOURCE.request
+        && a.type === ABSENCE.vacation);
+      if (!hit.length) return null;
+      return hit.reduce((n, a) => n + (a.cost == null ? 1 : a.cost), 0);
+    };
 
     // ⚠ הסינון כאן. חניך לעולם לא מקבל בקשות של אחרים.
     const mine = session.isManager ? all : all.filter((r) => r.studentId === session.itemId);
@@ -194,6 +225,8 @@ async function list(req, res, session) {
              null לכל מה שאינו חופש: למחלה אין מחיר במכסה. */
           cost: r.type === ABSENCE.vacation
             ? vacationCost(r.date, r.outAt, r.endDate, r.backAt) : null,
+          /* ⚠ מה שנגבה בפועל — ראו `chargedFor`. */
+          charged: chargedFor(r),
           status: r.status,
           decidedBy: r.decidedBy,
           decidedAt: r.decidedAt,

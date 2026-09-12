@@ -4114,4 +4114,19 @@ a.tm-entry-t.tm-link{color:var(--navy);text-decoration:underline;
   .top h1{font-size:15.5px}
 }
 
+
+/* ============================================================
+   גביית ימי חופש — מה שנגבה, ומה שלא
+   ------------------------------------------------------------
+   ⚠ שתי השורות האלה מסבירות את היתרה, ולכן הן שקטות
+     ולא אזהרה: אין כאן תקלה, יש כאן נתון (4ג).
+   ============================================================ */
+.rq-charged{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;
+  margin-top:10px;padding-top:10px;border-top:1px solid var(--line2);
+  font-size:13px;font-weight:800;color:var(--ink)}
+.rq-charged-x{font-size:12px;font-weight:600;color:var(--faint)}
+.quota-note{margin-top:9px;font-size:12.5px;font-weight:600;line-height:1.7;
+  color:var(--muted);background:var(--sand);border:1px solid var(--line2);
+  border-radius:var(--r-md);padding:11px 13px}
+
 `;

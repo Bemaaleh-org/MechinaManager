@@ -392,21 +392,43 @@ function YearBoard({ days, half }) {
    ⚠ שתי מחציות ולא מספר אחד: המכסה מתאפסת בשבוע האמצע, ומספר
      מאוחד היה מטעה את החניך בדיוק בתקופה שבה זה משנה.
    ============================================================ */
+/* ============================================================
+   מכסת ימי החופש
+   ------------------------------------------------------------
+   ⚠⚠ **היתרה נגזרת מבקשות מאושרות בלבד** (החלטת אחים,
+     12.9.2026) — ראו `summarize` ב-api/_attendance-data.js.
+
+   ⚠ **ומה שסומן ידנית ואינו נגבה — נאמר.** יום חופש שמוביל
+     שבוע סימן ביד אינו יורד מהמכסה, אבל הוא **קיים** בלוח
+     השנה של החניך. בלי השורה הזו הוא רואה יום חופש בלוח
+     ויתרה שלא זזה, ומסיק שהמערכת שבורה — מספר שנעלם בלי
+     מילה נראה כמו באג (4יח, 4ט).
+   ============================================================ */
 function Quota({ quota }) {
+  const manual = quota.reduce((n, q) => n + (q.manual || 0), 0);
   return (
-    <div className="quota">
-      {quota.map((q) => (
-        <div className="quota-h" key={q.half}>
-          <div className="qk">{q.half}</div>
-          <div className="qv"><b className="num">{q.left}</b><span>מתוך {q.total}</span></div>
-          <div className="quota-dots">
-            {Array.from({ length: q.total }, (_, i) => (
-              <i key={i} className={i < q.used ? "used" : ""} />
-            ))}
+    <>
+      <div className="quota">
+        {quota.map((q) => (
+          <div className="quota-h" key={q.half}>
+            <div className="qk">{q.half}</div>
+            <div className="qv"><b className="num">{q.left}</b><span>מתוך {q.total}</span></div>
+            <div className="quota-dots">
+              {Array.from({ length: q.total }, (_, i) => (
+                <i key={i} className={i < q.used ? "used" : ""} />
+              ))}
+            </div>
           </div>
+        ))}
+      </div>
+      {manual > 0 && (
+        <div className="quota-note">
+          ועוד {manual === 1 ? "יום חופש אחד" : manual + " ימי חופש"} שסומנו
+          בסימון היומי ולא דרך בקשה — הם מופיעים בלוח השנה ואינם יורדים
+          מהמכסה. המכסה נגזרת מבקשות שאושרו בלבד.
         </div>
-      ))}
-    </div>
+      )}
+    </>
   );
 }
 
@@ -981,6 +1003,31 @@ function RequestCard({ r, onDecide, busyId, onEdit, onWithdraw, onAppeal, onReco
       )}
 
       {r.stage && <RequestTrack r={r} />}
+      {/* ============================================================
+          ⚠⚠ **כמה נגבה בפועל — על בקשה שהוכרעה.**
+
+          `cost` הוא החישוב מהשעות ו-`charged` הוא מה שהמכריע
+          בחר לגבות, והוא רשאי לגבות פחות וגם אפס (5כד, 5לה).
+          עד היום המסך הציג את הראשון בלבד, כלומר **שיקר על
+          היתרה** בכל מקרה שבו המדריך בחר אחרת.
+
+          ⚠ **מוצג גם כשהוא שווה לחישוב.** "נגבו 2" הוא המספר
+            שמסביר את היתרה, ומסך שמציג אותו רק כשיש הפרש
+            מאלץ לזכור מתי אין (4יח).
+
+          ⚠ **ואפס נאמר במילים.** "נגבו 0 ימי חופש" נקרא כמו
+            תקלה; "אושר ולא נגבו ימי חופש" הוא מה שקרה.
+          ============================================================ */}
+      {r.charged != null && (
+        <div className="rq-charged">
+          {r.charged === 0
+            ? "אושר — ולא נגבו ימי חופש"
+            : `נגבו ${r.charged === 1 ? "יום חופש אחד" : r.charged + " ימי חופש"}`}
+          {r.cost != null && r.cost !== r.charged && (
+            <span className="rq-charged-x">החישוב לפי השעות היה {r.cost}</span>
+          )}
+        </div>
+      )}
       {onDecide && r.canDecide && skipping && (
         <div className="rq-skip">
           הבקשה עדיין אצל {r.guideName} — החלטה שלך תסגור אותה בלי להמתין להמלצה
@@ -1707,8 +1754,16 @@ function StudentsList({ onOpen, say }) {
                   _training-summary.js. מוצגת רק כשיש מה להציג. */}
               {s.training && s.training.marked > 0 && (
                 <div className="st-train">
+                  {/* ⚠⚠ **"1/1" נראה כאילו אימון נעלם.** תורן
+                      מטבח אינו נעדר ואינו במכנה (4ז) — וזו
+                      החלטה נכונה שנקראה כמו באג, כי המספר לא
+                      אמר לאן הלך האימון השני. עכשיו המכנה הוא
+                      **כמה אימונים סומנו בכלל**, והמטבח מוצג
+                      לצידו בשמו. */}
                   <span className={"pill " + (s.training.pct != null && s.training.pct < 70 ? "p-low" : "p-ok")}>
-                    אימונים {s.training.pct != null ? `${s.training.pct}%` : `${s.training.present}/${s.training.marked}`}
+                    אימונים {s.training.pct != null
+                      ? `${s.training.pct}%`
+                      : `${s.training.present}/${s.training.marked + s.training.kitchen}`}
                   </span>
                   {s.training.kitchen > 0 && <span className="st-train-k">{s.training.kitchen} מטבח</span>}
                 </div>

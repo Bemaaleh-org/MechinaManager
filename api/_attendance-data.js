@@ -16,6 +16,7 @@ import { parseTestDate } from "./_test-date.js";
 import {
   MECHINA_BOARDS, MECHINA_COLS, DAY_KIND, HALF,
   ABSENCE, VACATION_PER_HALF, VACATION_ALLOWED_ON, NON_SCHOOL_KINDS,
+  ABSENCE_SOURCE,
 } from "../shared/mechina-boards.js";
 
 const CAL = MECHINA_COLS.calendar;
@@ -174,7 +175,20 @@ export function summarize(studentId, { absences, marked, byDate }, today = israe
   const countedSet = new Set(counted);
   const schoolDays = counted.length;
 
-  const count = (type) => mine.filter((a) => a.type === type).length;
+  /* ============================================================
+     ⚠⚠ **המונים סופרים את העבר בלבד, ולא היעדרות עתידית.**
+
+     חניך עם בקשה מאושרת לינואר ראה **היום** "מוצדק 2", ארבעה
+     חודשים לפני שזה קרה. המונים האלה עונים על "מה היה איתי
+     עד כה" — הם יושבים ליד "ימים שסומנו" ו"נכחתי", ושניהם
+     עבר בהגדרה. מספר שמתאר עתיד באותה שורה עם מספרים שמתארים
+     עבר הוא שני דברים שנראים אחד (4מג).
+
+     ⚠ **וזה אינו חל על המכסה.** ראו ההערה על `usedIn`: מכסה
+       היא תקציב של התחייבויות, ויום שאושר לינואר כבר מוקצה.
+     ============================================================ */
+  const count = (type) =>
+    mine.filter((a) => a.type === type && a.date <= today).length;
 
   /* מכסת חופש לפי מחצית. שבוע האמצע מאפס — ולכן שתי מכסות
      נפרדות ולא מספר אחד. */
@@ -182,13 +196,48 @@ export function summarize(studentId, { absences, marked, byDate }, today = israe
      לכל יום לימודים בטווח כי לנוכחות זה הנתון הנכון, אבל
      המכסה נמדדת בשעות והמדריך רשאי לגבות פחות — ולכן יום
      שנספר בנוכחות יכול לעלות 0 במכסה. ראו MECHINA_COLS.absence.cost. */
-  const usedIn = (half) =>
-    mine.filter((a) => a.type === ABSENCE.vacation && (byDate.get(a.date) || {}).half === half)
-        .reduce((n, a) => n + (a.cost == null ? 1 : a.cost), 0);
+
+  /* ============================================================
+     ⚠⚠⚠ **המכסה נגזרת מבקשות מאושרות בלבד** (החלטת אחים,
+       12.9.2026).
+
+     שורת היעדרות נוצרת משני מקורות: הכרעה בבקשה (`בקשה
+     מאושרת`) וסימון ידני של מוביל שבוע או של הצוות (`סימון
+     ידני`). עד היום **שניהם** אכלו מהמכסה, ובלוח כבר יושבת
+     שורת חופש מ"סימון ידני" שגבתה יום שאיש לא אישר.
+
+     ההיגיון: המכסה היא החלטה, ולהחלטה יש מסלול אחד — המדריך
+     ממליץ, ראש המכינה מכריע, והמכריע בוחר במפורש כמה לגבות
+     (5כד, 5לה). סימון יומי הוא **תיאור של היום** שנעשה בערב
+     על 33 חניכים, ואי-דיוק בו הוא מצב רגיל — הוא נשאר נכון
+     לנוכחות ואינו קובע תקציב.
+
+     ⚠ **ומה שהוחרג אינו נעלם בשקט**: `manual` מוחזר לצד
+       המספרים, כדי שהמסך יוכל לומר "ועוד יום אחד שסומן ידנית
+       ואינו נגבה". מספר שנעלם בלי מילה נראה כמו באג (4יח, 4ט).
+
+     ⚠ **והמכסה כן כוללת עתיד, בשונה מהמונים.** בקשה שאושרה
+       לינואר היא יום שכבר הוקצה; אילו לא הייתה נספרת, אפשר
+       היה לאשר שלושה ימים נוספים בכל שבוע והמכסה לא הייתה
+       נגמרת לעולם. זו בדיוק הבדיקה ב-`?action=requests`
+       (`q.used + held + cost > q.total`), והיא מסתמכת על כך.
+     ============================================================ */
+  const vacationIn = (half, src) =>
+    mine.filter((a) => a.type === ABSENCE.vacation
+      && (byDate.get(a.date) || {}).half === half
+      && a.source === src);
+
+  const sumCost = (list) => list.reduce((n, a) => n + (a.cost == null ? 1 : a.cost), 0);
 
   const quota = (half) => {
-    const used = usedIn(half);
-    return { half, used, left: Math.max(0, VACATION_PER_HALF - used), total: VACATION_PER_HALF };
+    const used = sumCost(vacationIn(half, ABSENCE_SOURCE.request));
+    /* ⚠ מדווח ואינו נגבה — ראו ההערה למעלה. */
+    const manual = sumCost(vacationIn(half, ABSENCE_SOURCE.manual));
+    return {
+      half, used, manual,
+      left: Math.max(0, VACATION_PER_HALF - used),
+      total: VACATION_PER_HALF,
+    };
   };
 
   /* ============================================================
