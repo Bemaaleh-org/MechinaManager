@@ -228,6 +228,8 @@ export const api = {
     put("/api/students?action=team-entry",
       { id, kind, title, date, body, extra, qty, amount, done }),
   deleteTeamEntry: (id) => del("/api/students?action=team-entry", { id }),
+  /** תקציב הצוות — הצוות או היו״ר. "" מסיר. */
+  setTeamBudget: ({ team, budget }) => put("/api/students?action=team-entry", { team, budget }),
 
   /* ⚠ סקר אינו חשאי — ראו api/_team-extras.js. */
   addTeamPoll: ({ team, question, options, closes }) =>

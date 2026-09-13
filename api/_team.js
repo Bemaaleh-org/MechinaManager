@@ -24,7 +24,9 @@ import {
 } from "./_team-data.js";
 import { loadDefinitions } from "./_placements.js";
 import { loadEvals } from "./_lessons-data.js";
-import { mayTeam, mayEditTask, progressOf, isLate, isTeamCategory, ownerIds } from "../shared/team.js";
+import {
+  mayTeam, mayEditTask, progressOf, isLate, isTeamCategory, ownerIds, TEAM_BUDGET_KIND,
+} from "../shared/team.js";
 import {
   loadTeamEntries, loadTeamFeedback, loadTeamPolls,
 } from "./_team-extras.js";
@@ -279,6 +281,9 @@ function extrasFor(all, teamId, today) {
   const spent = of("הוצאה").reduce((a, x) => a + (Number(x.amount) || 0), 0);
   const income = of("הכנסה").reduce((a, x) => a + (Number(x.amount) || 0), 0);
   const noAmount = [...of("הוצאה"), ...of("הכנסה")].filter((x) => x.amount == null).length;
+  /* ⚠ תקציב הצוות (13.9.2026) — `null` כשלא נקבע, ולא 0 (4ט). */
+  const bRow = of(TEAM_BUDGET_KIND)[0] || null;
+  const budget = bRow && bRow.amount != null ? bRow.amount : null;
 
   return {
     minutes: of("פרוטוקול").sort((a, b) => (b.date || "").localeCompare(a.date || "")),
@@ -292,6 +297,9 @@ function extrasFor(all, teamId, today) {
       spent: Math.round(spent * 100) / 100,
       income: Math.round(income * 100) / 100,
       noAmount,
+      budget,
+      /* ⚠ נותר = תקציב + הכנסות − הוצאות, כמו בפרויקטים */
+      left: budget == null ? null : Math.round((budget + income - spent) * 100) / 100,
       /* ⚠ null ולא 0 כשאין אירוע קרוב — "בעוד 0 ימים" נקרא
          כ"היום", וזה שקר (4ג). */
       nextEvent: next ? { title: next.title, date: next.date, extra: next.extra } : null,

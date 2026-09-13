@@ -1543,9 +1543,77 @@ function TeamMoney({ d, say, reload }) {
   const [adding, setAdding] = useState(null);
   const { busy, del } = useEntryActions(say, reload);
   const s = d.extras.sum;
+  const [bEdit, setBEdit] = useState(false);
+  const [bVal, setBVal] = useState("");
+  const [bBusy, setBBusy] = useState(false);
+  /* ⚠ `manage` מהשרת — הצוות או היו״ר (4יד) */
+  const manage = Boolean(d.me && d.me.manage);
+  const budget = s.budget != null ? s.budget : null;
+  const net = s.spent - s.income;
+  const pct = budget ? (net / budget) * 100 : (net > 0 ? 101 : 0);
+  const saveBudget = (v) => {
+    setBBusy(true);
+    api.setTeamBudget({ team: d.team.id, budget: v })
+      .then(() => { say(v === "" ? "התקציב הוסר" : "התקציב נקבע"); setBEdit(false); reload(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBBusy(false));
+  };
 
   return (
     <>
+      {/* ⚠⚠ תקציב הצוות (13.9.2026) — כמו החד״א: נוצל מתוך תקציב, ונותר.
+          נוצל = הוצאות פחות הכנסות. */}
+      <div className="card" style={{ marginBottom: 12 }}>
+        {budget != null && !bEdit ? (
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+              <b style={{ fontSize: 14.5 }}>תקציב</b>
+              <b className="num" style={{ fontSize: 14.5 }}>{ils(Math.max(0, net))} ₪ מתוך {ils(budget)} ₪</b>
+            </div>
+            <div className={"mini-bar" + (pct > 100 ? " low" : pct > 85 ? " mid" : "")}
+              style={{ maxWidth: "none", height: 6 }}>
+              <div className="mini-fill" style={{ width: Math.min(100, Math.max(0, pct)) + "%" }} />
+            </div>
+            <div className="tm-note" style={{ marginTop: 6 }}>
+              {s.left < 0 ? "חריגה של " + ils(-s.left) + " ₪" : "נותרו " + ils(s.left) + " ₪"}
+              {s.income > 0 ? " · ההכנסות מתווספות לתקציב" : ""}
+            </div>
+            {manage && (
+              <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}
+                onClick={() => { setBVal(String(budget)); setBEdit(true); }}>שינוי התקציב</button>
+            )}
+          </>
+        ) : bEdit ? (
+          <>
+            <div className="fld">
+              <label htmlFor="tb-in">תקציב ל{d.team.name || "צוות"} (₪)</label>
+              <input id="tb-in" type="number" inputMode="decimal" min="0" dir="ltr" autoFocus
+                value={bVal} onChange={(e) => setBVal(e.target.value)} />
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button className="btn btn-primary btn-sm" disabled={bBusy}
+                onClick={() => saveBudget(bVal.trim())}>{bBusy ? "…" : "שמירה"}</button>
+              <button className="btn btn-ghost btn-sm" disabled={bBusy}
+                onClick={() => setBEdit(false)}>ביטול</button>
+              {budget != null && (
+                <button className="btn btn-ghost btn-sm" disabled={bBusy}
+                  onClick={() => saveBudget("")}>הסרת התקציב</button>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="tm-note">
+              טרם נקבע תקציב{manage ? "." : " — הצוות או היו״ר קובעים אותו."}
+            </div>
+            {manage && (
+              <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}
+                onClick={() => { setBVal(""); setBEdit(true); }}><TI.plus />קביעת תקציב</button>
+            )}
+          </>
+        )}
+      </div>
+
       <div className="band">
         <div className="band-grid">
           <div className="band-c">

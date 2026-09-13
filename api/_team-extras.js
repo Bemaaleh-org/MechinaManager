@@ -34,7 +34,7 @@ import { setColumns, renameItem, createItem, deleteItem } from "./_items.js";
 import {
   TEAM_BOARDS as B, TEAM_COLS as C, TEAM_ENTRY_KIND, teamExtrasReady,
 } from "../shared/team-ids.js";
-import { mayTeam } from "../shared/team.js";
+import { mayTeam, TEAM_BUDGET_KIND } from "../shared/team.js";
 import { teamContext } from "./_team-data.js";
 
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
@@ -168,6 +168,54 @@ async function entryHandler(req, res, session) {
   };
 
   try {
+    /* ============================================================
+       ⚠⚠ תקציב הצוות — `PUT { team, budget }` (13.9.2026)
+       ------------------------------------------------------------
+       · **הצוות או היו״ר** (`perm.manage`) — חבר צוות רושם הוצאות
+         ואינו קובע כמה מותר להוציא.
+       · שורה אחת לצוות: קיימת → מתעדכנת; ריק → נמחקת, והצוות חוזר
+         ל"טרם נקבע" (ולא 0 — ריק אינו אפס, 4ט).
+       · ⚠⚠ **`{ labels: true }` — החריג הרביעי המתועד.** התווית
+         "תקציב" נוצרת בעמודת הסוג בשימוש הראשון. הערך קבוע בקוד
+         ואינו טקסט מהמשתמש, ולכן אין דרך לייצר תווית זבל — אותו
+         נימוק של "צוות מזדמן" (4ס). ⚠ וקריאת הסוג כבר בודקת
+         `value === null` (5ז), כך שגם אם התווית תנחת על מפתח 5
+         שורה בלי סוג לא תיקרא "תקציב".
+       ============================================================ */
+    if (body?.budget !== undefined) {
+      if (req.method !== "PUT") return res.status(405).json({ error: "תקציב נקבע ב-PUT" });
+      const g = await gate(body?.team, session, true);
+      if (g.error) return res.status(g.code).json({ error: g.error });
+      if (!g.perm.manage) {
+        return res.status(403).json({ error: "תקציב הצוות נקבע על ידי הצוות או היו״ר" });
+      }
+      const raw = String(body.budget ?? "").trim();
+      let n = null;
+      if (raw !== "") {
+        n = Number(raw);
+        if (!Number.isFinite(n) || n < 0 || n > 10000000) {
+          return res.status(400).json({ error: "סכום לא תקין — מספר בין 0 ל-10,000,000" });
+        }
+        n = Math.round(n * 100) / 100;
+      }
+      const rows = (await loadTeamEntries({ force: true }))
+        .filter((e) => e.team === g.ctx.def.id && e.kind === TEAM_BUDGET_KIND);
+      if (n === null) {
+        for (const r of rows) await deleteItem(r.id);
+      } else if (rows.length) {
+        await setColumns(B.entries, rows[0].id, { [C.entries.amount]: String(n) });
+      } else {
+        await createItem(B.entries, TEAM_BUDGET_KIND, {
+          [C.entries.team]: g.ctx.def.id,
+          [C.entries.by]: String(session.name || "").slice(0, 120),
+          [C.entries.kind]: { label: TEAM_BUDGET_KIND },
+          [C.entries.amount]: String(n),
+        }, { labels: true });
+      }
+      bust();
+      return res.status(200).json({ ok: true, budget: n });
+    }
+
     if (req.method === "POST") {
       const g = await gate(body?.team, session, true);
       if (g.error) return res.status(g.code).json({ error: g.error });
@@ -194,6 +242,10 @@ async function entryHandler(req, res, session) {
     /* ⚠ 404 ולא 403 — מזהה של צוות אחר אינו מאשר שהשורה קיימת. */
     const g = await gate(row.team, session, true);
     if (g.error) return res.status(g.code === 403 ? 404 : g.code).json({ error: "הרשומה אינה נמצאת" });
+    /* ⚠ שורת התקציב — רק הצוות או היו״ר, גם במחיקה ובעריכה הכללית. */
+    if (row.kind === TEAM_BUDGET_KIND && !g.perm.manage) {
+      return res.status(403).json({ error: "תקציב הצוות נקבע על ידי הצוות או היו״ר" });
+    }
 
     if (req.method === "PUT") {
       const out = {};
