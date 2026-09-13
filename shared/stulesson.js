@@ -51,6 +51,29 @@ export const STU_KINDS = [STU_KIND.lesson, STU_KIND.world];
    ⚠ והם בקוד ולא בלוח **בכוונה**: זו קביעה של המכינה על
      המערכת השבועית, ולא נתון שמשתנה מדי חודש. */
 export const STU_DOWS = [0, 1, 6];
+
+/* ============================================================
+   ⚠ עונת שיעורי החניך — עד סוף יוני, בלי 13–14 בספטמבר
+   ------------------------------------------------------------
+   החלטת אחים (13.9.2026): *"כל מה שאחרי יוני לא רלוונטי —
+   תמחק ותייצר ספירה חדשה. גם 13 ו-14 בספטמבר לא רלוונטיים."*
+
+   · הגאנט נמשך אחרי יוני, ולכן הטווח נחתך ב-30 ביוני הראשון
+     שאחרי תחילת הגאנט — והמועדים שאחריו יוצאים **מהרשימה
+     ומהספירה** (`openSlots`) יחד, כי שניהם נגזרים מ-`stuSlots`.
+   · ⚠ **שיבוץ שכבר נקבע בתאריך כזה אינו נמחק ואינו נעלם** —
+     הוא מוצג כ"מחוץ לימים" (`outside`), כמו שיבוץ ביום רביעי.
+     הסרת מועד מהרשימה אינה מחיקת נתון.
+   ============================================================ */
+export const STU_SEASON_END = "06-30";
+export const STU_SKIP = ["2026-09-13", "2026-09-14"];
+
+/** סוף העונה — 30 ביוני הראשון שאינו לפני `from` */
+export function seasonEnd(from) {
+  const y = Number(String(from).slice(0, 4));
+  const end = `${y}-${STU_SEASON_END}`;
+  return String(from) <= end ? end : `${y + 1}-${STU_SEASON_END}`;
+}
 export const DOW_HE = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 
 /** יום בשבוע של תאריך ISO. ⚠ UTC — אין כאן שעה. */
@@ -101,13 +124,15 @@ export function slotBlock(events) {
 export function stuSlots(gantt, from, to) {
   const byDate = eventsByDate(gantt);
   const out = [];
-  const end = String(to);
+  /* ⚠ המוקדם מבין סוף הגאנט לסוף העונה */
+  const end = [String(to), seasonEnd(from)].sort()[0];
   for (let d = new Date(String(from) + "T12:00:00Z");
     d.toISOString().slice(0, 10) <= end;
     d.setUTCDate(d.getUTCDate() + 1)) {
     const iso = d.toISOString().slice(0, 10);
     const w = d.getUTCDay();
     if (!STU_DOWS.includes(w)) continue;
+    if (STU_SKIP.includes(iso)) continue;
     const events = byDate.get(iso) || [];
     const b = slotBlock(events);
     out.push({

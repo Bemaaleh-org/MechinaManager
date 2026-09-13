@@ -5061,6 +5061,16 @@ node --env-file=.env tools/add-eval.mjs "שחר סדנאות"
   פנויים בעמודה — אם היא תנחת על 5, `status()` ב-`_team-extras.js` כבר
   בודק `value === null` (5ז), כך ששורה בלי סוג לא תיקרא "תקציב".
 
+
+---
+
+## 5מח · שיעורי חניך — עונה עד סוף יוני (13.9.2026)
+
+`seasonEnd` ו-`STU_SKIP` ב-`shared/stulesson.js`: `stuSlots` נחתך ב-30
+ביוני הראשון שאחרי תחילת הגאנט ומדלג על 13–14.9.2026. הרשימה והספירה
+(`openSlots`) נגזרות שתיהן מ-`stuSlots` ולכן זזות יחד. ⚠ שיבוץ קיים
+בתאריך שהוסר אינו נמחק — הוא מוצג `outside`.
+
 ## מצב הפונקציות — 8 מתוך 12
 
 `kitchen · auth · students · attendance · lessons · container ·
