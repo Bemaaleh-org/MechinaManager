@@ -11,6 +11,7 @@
      העביר — וזה המספר שכל המסך קיים בשבילו.
    ============================================================ */
 
+import { LessonChangesPage } from "./LessonChanges.jsx";
 import React, { useState, useMemo } from "react";
 import LessonPay from "./LessonPay.jsx";
 import { api } from "./api.js";
@@ -1574,6 +1575,9 @@ export const LESSON_TABS = [
   { sub: "sheets", tab: "l-sheets", label: "גיליונות מרצים" },
   { sub: "evals", tab: "l-evals", label: "חוות דעת" },
   { sub: "pay", tab: "pay", label: "תשלום למרצים" },
+  /* ⚠ באחריות אחראי הלו״ז — הכרטיס "שינוי בלו״ז" במסך הבית
+     מוביל לכאן (13.9.2026). */
+  { sub: "changes", tab: "l-changes", label: "שינויים בלו״ז" },
 ];
 
 const TITLE = Object.fromEntries(LESSON_TABS.map((t) => [t.sub, t.label]));
@@ -1635,6 +1639,7 @@ export function LessonsPage({ say, sub0, onSub, solo = false }) {
 
       {sub === "evals" && <Evals say={say} />}
       {sub === "pay" && <LessonPay say={say} />}
+      {sub === "changes" && <LessonChangesPage />}
     </>
   );
 }

@@ -195,6 +195,10 @@ export const api = {
   setDayTypeBudget: (body) => put("/api/kitchen?action=budget", body),
   /** תקציב החד״א החודשי — ראש המכינה. "" מנקה. */
   setDiningBudget: (diningBudget) => put("/api/kitchen?action=budget", { diningBudget }),
+  /** מחיר חד״א לסועד — ראש המכינה */
+  setDiningRate: (diningRate) => put("/api/kitchen?action=budget", { diningRate }),
+  /** כמה אכלו בחד״א ביום אחד — השדה הזה בלבד. "" מנקה. */
+  setDiningHeads: ({ date, heads }) => put("/api/kitchen?action=budget", { diningDate: date, heads }),
   /* ⚠ סוגי יום — ראש המכינה בלבד, ונאכף בשרת. `dayType:true`
      הוא מה שמבדיל את המסלול הזה מיצירת הזמנה באותה מתודה. */
   addDayType: (body) => post("/api/kitchen?action=budget", { dayType: true, ...body }),
@@ -960,7 +964,7 @@ export const api = {
   /** מה זז בלו״ז לאחרונה — כדי לעדכן את היומן החיצוני.
    *  ⚠ `ready:false` פירושו שהעמודות טרם הוקמו, וזה **אינו**
    *    "אין שינויים" — המסך אומר מה להריץ (עיקרון 6). */
-  getLessonChanges: () => get("/api/lessons?action=changes"),
+  getLessonChanges: (days) => get("/api/lessons?action=changes" + (days ? "&days=" + days : "")),
 
   /** לוח השיעורים של אחראי הלו״ז — הכול נשלף מהגיליונות. */
   getLessonsBoard: (today) =>

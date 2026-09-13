@@ -43,8 +43,12 @@ async function handler(req, res, session) {
   try {
     const sheets = await loadSheets();
     const me = String(session.itemId || "");
-    const changes = changesSince(sheets).map((s) => toChange(s, me));
-    res.status(200).json({ ready: true, days: CHANGE_DAYS, changes });
+    /* ⚠ חלון רחב יותר לדף המלא — רשימה סגורה של ערכים ולא מספר
+       חופשי, כדי ששאילתה אחת לא תשלוף שנה שלמה. */
+    const want = Number(req.query?.days);
+    const days = [14, 30, 90].includes(want) ? want : CHANGE_DAYS;
+    const changes = changesSince(sheets, { days }).map((s) => toChange(s, me));
+    res.status(200).json({ ready: true, days, changes });
   } catch (e) {
     console.error("[lesson-changes-list]", e);
     res.status(502).json({ error: "טעינת השינויים נכשלה" });

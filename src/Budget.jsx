@@ -11,7 +11,8 @@
    ⚠ מנהל ואחראי מטבח. השרת אוכף; כאן זו תצוגה.
    ============================================================ */
 
-import React, { useState } from "react";
+import { israelDateStr } from "./testDate.js";
+import React, { useState, useEffect } from "react";
 import { api } from "./api.js";
 import { useExcel, downloadTable } from "./excel.js";
 import { monthLabel, ORDER_KIND, consecutiveMonths } from "../shared/budget-boards.js";
@@ -736,6 +737,164 @@ function YearView({ say, onMonth }) {
 }
 
 /* ---------- הדף ---------- */
+/* ============================================================
+   חד״א — דף משלו (13.9.2026)
+   ------------------------------------------------------------
+   הבקשה: *"לסמן כמה אנשים אכלו בחד״א — כל איש שווה 45 ₪ — ככה
+   נוכל לעקוב אחרי התקציב של החד״א, ושניהול התקציב של החד״א יהיה
+   בנפרד ולא במפתחות של התקציב."*
+
+   · **ספירה לכל יום בחודש**: מספר שנספר גובר על התעריף של סוג
+     היום; ריק = לא נספר, ואז היום לפי התעריף; 0 = אף אחד לא אכל
+     (4ט). ⚠ נשמר ב-`diningDate` — השדה הזה בלבד, ולא בעדכון
+     היום המלא שהיה מוחק את שאר מה שהוגדר ליום.
+   · **תקציב חודשי ומחיר לסועד** — ראש המכינה (`canSetDining`).
+   · ⚠ ההרשאות מהשרת (`canEditDining`, `canSetDining`) — כפתור
+     שמופיע ומקבל 403 הוא 4יד.
+   · ⚠ ימים עתידיים סגורים לספירה — "כמה אכלו" היא שאלה על מה
+     שכבר קרה.
+   ============================================================ */
+function DiningTab({ data, say, reload }) {
+  const today = israelDateStr();
+  const rate = data.diningRate || 45;
+  const canCount = data.canEditDining !== false;
+  const canSet = Boolean(data.canSetDining);
+  const [vals, setVals] = useState({});
+  const [busyDate, setBusyDate] = useState(null);
+  const [budget, setBudget] = useState("");
+  const [rateVal, setRateVal] = useState("");
+  const [sBusy, setSBusy] = useState(false);
+
+  useEffect(() => {
+    setVals({});
+    setBudget(data.diningBudget != null ? String(data.diningBudget) : "");
+    setRateVal(String(data.diningRate || 45));
+  }, [data.month, data.diningBudget, data.diningRate]);
+
+  if (!data.diningReady) {
+    return (
+      <div className="bg-fixed">
+        עמודת "אכלו בחד״א" טרם הוקמה. הריצו פעם אחת: <b>npm run seed:dining</b>
+      </div>
+    );
+  }
+
+  const valOf = (d) => (d.date in vals ? vals[d.date]
+    : (d.diningHeads != null ? String(d.diningHeads) : ""));
+
+  const saveDay = (d) => {
+    const v = valOf(d).trim();
+    const was = d.diningHeads != null ? String(d.diningHeads) : "";
+    if (v === was) return;
+    setBusyDate(d.date);
+    api.setDiningHeads({ date: d.date, heads: v })
+      .then(() => {
+        say(v === "" ? `${dm(d.date)} — הספירה נוקתה`
+          : `${dm(d.date)} — ${v} סועדים · ${shekel(Number(v) * rate)} ₪`);
+        reload();
+      })
+      .catch((e) => {
+        say(e.message);
+        setVals((x) => { const n = { ...x }; delete n[d.date]; return n; });
+      })
+      .finally(() => setBusyDate(null));
+  };
+
+  const saveSettings = async () => {
+    setSBusy(true);
+    try {
+      const was = data.diningBudget != null ? String(data.diningBudget) : "";
+      if (budget.trim() !== was) await api.setDiningBudget(budget.trim());
+      if (rateVal.trim() !== String(data.diningRate || 45)) await api.setDiningRate(rateVal.trim());
+      say("הגדרות החד״א נשמרו");
+      reload();
+    } catch (e) {
+      say(e.message);
+    } finally {
+      setSBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="card bg-hada">
+        <div className="bg-hada-h">
+          <span>חדר האוכל של הקיבוץ · {monthLabel(data.month)}</span>
+          <b className="num">{shekel(data.dining)} ₪</b>
+        </div>
+        <div className="bg-hada-s">
+          {data.diningDays > 0
+            ? <>{data.diningHeads} סועדים נספרו ב-{data.diningDays} ימים · {rate} ₪ לסועד</>
+            : <>עדיין לא נספרו סועדים החודש — עד שסופרים, כל יום מחושב לפי התעריף של סוג היום</>}
+        </div>
+        {data.diningBudget != null ? (
+          <UtilBlock spent={data.dining} budget={data.diningBudget} title="ניצול תקציב החד״א" />
+        ) : (
+          <div className="bg-fixed" style={{ marginTop: 8 }}>
+            תקציב חד״א חודשי טרם נקבע{canSet ? " — קובעים אותו כאן למטה." : " — ראש המכינה קובע אותו בדף הזה."}
+          </div>
+        )}
+      </div>
+
+      {canSet && (
+        <div className="card" style={{ marginBottom: 14 }}>
+          <div className="two">
+            <div className="fld">
+              <label htmlFor="dn-b">תקציב חד״א חודשי (₪)</label>
+              <input id="dn-b" type="number" inputMode="decimal" min="0" dir="ltr"
+                value={budget} placeholder="טרם נקבע" onChange={(e) => setBudget(e.target.value)} />
+            </div>
+            <div className="fld">
+              <label htmlFor="dn-r">מחיר לסועד (₪)</label>
+              <input id="dn-r" type="number" inputMode="decimal" min="1" dir="ltr"
+                value={rateVal} onChange={(e) => setRateVal(e.target.value)} />
+            </div>
+          </div>
+          <button className="btn btn-primary btn-sm" disabled={sBusy} onClick={saveSettings}>
+            {sBusy ? "…" : "שמירה"}
+          </button>
+        </div>
+      )}
+
+      <div className="sec-label">כמה אכלו בחד״א — {monthLabel(data.month)}</div>
+      <div className="tm-sub">
+        מספר שנספר מחליף את התעריף של סוג היום: סועדים × {rate} ₪. ריק = לא נספר ·
+        0 = אף אחד לא אכל.
+        {!canCount && " הספירה נעשית על ידי ראש המכינה ואחראי המטבח."}
+      </div>
+      <div className="ledger">
+        {data.days.map((d) => {
+          const future = d.date > today;
+          const v = valOf(d);
+          return (
+            <div className="led-item" key={d.date}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <b style={{ fontSize: 14 }}>{dm(d.date)} · {dowOf(d.date)}{d.date === today ? " · היום" : ""}</b>
+                <div style={{ fontSize: 12, color: "var(--faint)", fontWeight: 600 }}>
+                  {d.type || "—"}
+                  {d.diningHeads != null
+                    ? ` · ${shekel(d.dining)} ₪`
+                    : d.dining > 0 ? ` · לפי התעריף ${shekel(d.dining)} ₪` : ""}
+                </div>
+              </div>
+              <div className="fld" style={{ margin: 0, width: 92, flex: "0 0 auto" }}>
+                <input value={v} dir="ltr" inputMode="numeric"
+                  style={{ textAlign: "center" }}
+                  aria-label={"כמה אכלו ב-" + dm(d.date)}
+                  disabled={!canCount || future || busyDate === d.date}
+                  placeholder={future ? "—" : "לא נספר"}
+                  onChange={(e) => setVals((x) => ({ ...x, [d.date]: e.target.value }))}
+                  onBlur={() => saveDay(d)}
+                  onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 export function BudgetPage({ say, isHead = false }) {
   useExcel();
   const [view, setView] = useState("month");
@@ -747,21 +906,7 @@ export function BudgetPage({ say, isHead = false }) {
   const [head, setHead] = useState("");
   const [headMode, setHeadMode] = useState("forward");
   const [headFrom, setHeadFrom] = useState("");
-  /* ⚠ תקציב החד״א החודשי — עריכה בתוך הכרטיס, לראש המכינה. */
-  const [dbEdit, setDbEdit] = useState(false);
-  const [dbVal, setDbVal] = useState("");
-  const [dbBusy, setDbBusy] = useState(false);
-  const saveDining = () => {
-    setDbBusy(true);
-    api.setDiningBudget(dbVal.trim())
-      .then((r) => {
-        say(r.diningBudget == null ? "התקציב נוקה" : `תקציב החד״א נקבע: ${r.diningBudget.toLocaleString("he-IL")} ₪ לחודש`);
-        setDbEdit(false);
-        reload();
-      })
-      .catch((e) => say(e.message))
-      .finally(() => setDbBusy(false));
-  };
+
 
   if (busy && !data) return (
     <div className="empty" style={{ paddingTop: 60 }}><div className="e1">טוען תקציב…</div></div>
@@ -834,6 +979,22 @@ export function BudgetPage({ say, isHead = false }) {
   const go = (i) => { if (i >= 0 && i < data.months.length) setMonth(data.months[i]); };
   const monthOrders = data.orders.filter((o) => o.share > 0);
 
+  /* ⚠ אותו בורר חודש לשתי התצוגות — חודש וחד״א. */
+  const monthNav = (
+        <div className="bg-nav">
+            <button className="btn btn-ghost btn-sm" disabled={idx <= 0} onClick={() => go(idx - 1)}>
+              <BI.chev style={{ transform: "rotate(180deg)" }} />
+            </button>
+            <select value={data.month} onChange={(e) => setMonth(e.target.value)}>
+              {data.months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
+            </select>
+            <button className="btn btn-ghost btn-sm" disabled={idx >= data.months.length - 1}
+              onClick={() => go(idx + 1)}>
+              <BI.chev />
+            </button>
+          </div>
+  );
+
   return (
     <>
       <div className="screen-title">תקציב המטבח</div>
@@ -842,6 +1003,7 @@ export function BudgetPage({ say, isHead = false }) {
         <button className={view === "month" ? "on" : ""} onClick={() => setView("month")}>חודש</button>
         <button className={view === "year" ? "on" : ""} onClick={() => setView("year")}>כל השנה</button>
         <button className={view === "prices" ? "on" : ""} onClick={() => setView("prices")}>תקציב</button>
+        <button className={view === "dining" ? "on" : ""} onClick={() => setView("dining")}>חד״א</button>
       </div>
 
       {view === "prices" ? (
@@ -849,20 +1011,14 @@ export function BudgetPage({ say, isHead = false }) {
           onChanged={reload} isHead={isHead} />
       ) : view === "year" ? (
         <YearView say={say} onMonth={(m) => { setMonth(m); setView("month"); }} />
+      ) : view === "dining" ? (
+      <>
+        {monthNav}
+        <DiningTab data={data} say={say} reload={reload} />
+      </>
       ) : (
       <>
-        <div className="bg-nav">
-          <button className="btn btn-ghost btn-sm" disabled={idx <= 0} onClick={() => go(idx - 1)}>
-            <BI.chev style={{ transform: "rotate(180deg)" }} />
-          </button>
-          <select value={data.month} onChange={(e) => setMonth(e.target.value)}>
-            {data.months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
-          </select>
-          <button className="btn btn-ghost btn-sm" disabled={idx >= data.months.length - 1}
-            onClick={() => go(idx + 1)}>
-            <BI.chev />
-          </button>
-        </div>
+        {monthNav}
 
         <div className="bg-total">
           <div className="bg-total-k">סך התקציב לחודש</div>
@@ -901,51 +1057,17 @@ export function BudgetPage({ say, isHead = false }) {
                     · {data.diningRate} ₪ לסועד</>
                 : <>עדיין לא נספרו סועדים החודש — הסכום לפי התעריף של סוגי הימים</>}
             </div>
-            {/* ⚠⚠ **הזנה במסך ולא "צרו שורה בלוח".** השורה קיימת
-                וריקה בכוונה (אין מספר ממציאים); מה שחסר היה דרך
-                להזין אותו בלי monday ובלי סקריפט (עיקרון 1). */}
-            {dbEdit && isHead ? (
-              <div style={{ marginTop: 8 }}>
-                <div className="fld">
-                  <label htmlFor="db-in">תקציב חד״א חודשי (₪)</label>
-                  <input id="db-in" type="number" inputMode="decimal" min="0" dir="ltr"
-                    value={dbVal} autoFocus
-                    onChange={(e) => setDbVal(e.target.value)} />
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button className="btn btn-primary btn-sm" disabled={dbBusy} onClick={saveDining}>
-                    {dbBusy ? "…" : "שמירה"}
-                  </button>
-                  <button className="btn btn-ghost btn-sm" disabled={dbBusy}
-                    onClick={() => setDbEdit(false)}>ביטול</button>
-                </div>
-              </div>
-            ) : data.diningBudget != null ? (
-              <>
-                <UtilBlock spent={data.dining} budget={data.diningBudget}
-                  title="ניצול תקציב החד״א" />
-                {isHead && (
-                  <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}
-                    onClick={() => { setDbVal(String(data.diningBudget)); setDbEdit(true); }}>
-                    שינוי התקציב החודשי
-                  </button>
-                )}
-              </>
-            ) : isHead ? (
-              <div className="bg-fixed" style={{ marginTop: 8 }}>
-                תקציב חד״א חודשי טרם נקבע — בלעדיו אין "נשאר" לחודש.
-                <div style={{ marginTop: 8 }}>
-                  <button className="btn btn-primary btn-sm"
-                    onClick={() => { setDbVal(""); setDbEdit(true); }}>
-                    קביעת תקציב חודשי
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-fixed" style={{ marginTop: 8 }}>
-                תקציב חד״א חודשי טרם נקבע — ראש המכינה קובע אותו כאן, במסך הזה.
-              </div>
+            {data.diningBudget != null && (
+              <UtilBlock spent={data.dining} budget={data.diningBudget}
+                title="ניצול תקציב החד״א" />
             )}
+            {/* ⚠ **ניהול החד״א בדף משלו** (13.9.2026): ספירה, תקציב
+                ומחיר לסועד — ולא בתוך כרטיסי התקציב של החודש. כאן
+                נשאר הסיכום, וכפתור אחד לשם. */}
+            <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}
+              onClick={() => setView("dining")}>
+              {data.diningBudget == null ? "ספירת סועדים וקביעת תקציב" : "ניהול החד״א — ספירה ותקציב"}
+            </button>
           </div>
         )}
 

@@ -13,6 +13,7 @@
      ראו ההסבר ב-shared/budget-boards.js.
    ============================================================ */
 
+import { mayEdit } from "../shared/edit-rights.js";
 import { withAuth } from "./_session.js";
 import { gql, allItems } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
@@ -247,7 +248,10 @@ function buildMonth(month, { types, overrides, calendar, gantt, heads, diningRat
       dining: cost.dining,
       purchases: cost.purchases,
       total: cost.total,
-      overridden: Boolean(ov),
+      /* ⚠ שורה שכל מה שיש בה הוא ספירת חד״א אינה "יום שנכפה" —
+         הסוג שלו עדיין נגזר מהלו״ז (13.9.2026). */
+      overridden: Boolean(ov && (ov.type || ov.type2 || ov.cost != null
+        || ov.flat != null || ov.note)),
       note: ov ? ov.note : null,
       events: (evByDate.get(date) || []).map((e) => e.name),
     };
@@ -375,6 +379,10 @@ async function handler(req, res, session) {
         diningHeads: b.diningHeads,
         diningDays: b.diningDays,
         diningBudget,
+        /* ⚠ מה הקורא רשאי בדף החד״א — מהשרת ולא נגזר במסך (4יד):
+           ספירה — ראש המכינה ואחראי המטבח; תקציב ומחיר — ראש המכינה. */
+        canEditDining: mayEdit(session, "kitchen"),
+        canSetDining: Boolean(session.isHead),
         diningLeft: diningBudget == null ? null : diningBudget - b.dining,
         diningReady: diningHeadsReady(),
         purchases: b.purchases,
@@ -422,6 +430,78 @@ async function handler(req, res, session) {
         else if (n != null) await createItem(B.settings, SETTING_DINING_BUDGET, cols);
         invalidateBudget();
         return res.status(200).json({ ok: true, diningBudget: n });
+      }
+
+      /* ============================================================
+         מחיר חד״א לסועד — ראש המכינה (13.9.2026)
+         ------------------------------------------------------------
+         השורה "מחיר חד״א לסועד" (45) כבר בלוח ההגדרות; עכשיו היא
+         נקבעת מדף החד״א ולא מ-monday (עיקרון 1). ⚠ ראש המכינה
+         בלבד — היא מכפילה כל יום שנספר בחודש.
+         ============================================================ */
+      if (body.diningRate !== undefined) {
+        if (!session.isHead) {
+          return res.status(403).json({ error: "מחיר החד״א לסועד נקבע על ידי ראש המכינה" });
+        }
+        const n = Number(String(body.diningRate ?? "").trim());
+        if (!Number.isFinite(n) || n <= 0 || n > 1000) {
+          return res.status(400).json({ error: "מחיר לסועד — מספר בין 1 ל-1,000" });
+        }
+        const items = await allItems(B.settings);
+        const hit = items.find((i) => String(i.name || "").trim() === SETTING_DINING_RATE);
+        const cols = { [C.settings.value]: String(n) };
+        if (hit) await setCols(B.settings, hit.id, cols);
+        else await createItem(B.settings, SETTING_DINING_RATE, cols);
+        invalidateBudget();
+        return res.status(200).json({ ok: true, diningRate: n });
+      }
+
+      /* ============================================================
+         ⚠⚠ כמה אכלו בחד״א ביום אחד — **השדה הזה בלבד**
+         ------------------------------------------------------------
+         דף החד״א שומר ספירה ליום בלי לגעת בשום דבר אחר. עדכון
+         היום הרגיל (למטה) כותב את כל העמודות — כולל סוג נוסף,
+         מחיר, סכום והערה — ולכן שליחה של ספירה לבדה דרכו הייתה
+         **מוחקת** את מה שהוגדר ליום. מסלול נפרד, ולא דגל שם.
+
+         · אין שורה ליום → נוצרת שורה עם התאריך והספירה בלבד;
+           שורה בלי סוג נופלת לסוג שנגזר מהלו״ז, כמו תמיד.
+         · ריק מנקה את הספירה; ואם זה כל מה שהיה בשורה — השורה
+           נמחקת, כדי שהיום יחזור להיות "לא נכפה".
+         · ⚠ ההרשאה: `edit:"kitchen"` של הנתב — ראש המכינה ואחראי
+           המטבח — כמו עריכת יום.
+         ============================================================ */
+      if (body.diningDate !== undefined) {
+        const date = String(body.diningDate || "").trim();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: "תאריך לא תקין" });
+        if (!diningHeadsReady()) {
+          return res.status(503).json({
+            error: 'עמודת "אכלו בחד״א" טרם הוקמה. הריצו: npm run seed:dining',
+            setupRequired: true,
+          });
+        }
+        const raw = String(body.heads ?? "").trim();
+        let h = null;
+        if (raw !== "") {
+          h = Number(raw);
+          if (!Number.isInteger(h) || h < 0 || h > 2000) {
+            return res.status(400).json({ error: "מספר הסועדים בחד״א הוא מספר שלם, או ריק" });
+          }
+        }
+        const overrides = await loadOverrides({ force: true });
+        const hit = overrides.find((o) => o.date === date);
+        const onlyHeads = hit && !hit.type && !hit.type2 && hit.cost == null
+          && hit.flat == null && !hit.note;
+        if (h === null) {
+          if (hit && onlyHeads) await gql(`mutation{ delete_item(item_id:${Number(hit.id)}){ id } }`);
+          else if (hit) await setColsOpen(B.days, hit.id, { [C.days.diningHeads]: "" });
+        } else if (hit) {
+          await setColsOpen(B.days, hit.id, { [C.days.diningHeads]: String(h) });
+        } else {
+          await createItemOpen(B.days, date, { [C.days.date]: { date }, [C.days.diningHeads]: String(h) });
+        }
+        invalidateBudget();
+        return res.status(200).json({ ok: true, date, diningHeads: h });
       }
 
       /* מחיר של סוג יום — ⚠ משנה את כל השנה, לא חודש אחד.
@@ -599,8 +679,10 @@ async function handler(req, res, session) {
         && (body.type2 === null || body.type2 === undefined || body.type2 === "")
         && cost === null && flat === null && !String(body.note || "").trim()
         /* ⚠ יום שכל מה שיש בו הוא ספירת חד״א אינו "ריק" — מחיקת
-           השורה הייתה מוחקת את המספר שמישהו ספר. */
-        && dHeads === null;
+           השורה הייתה מוחקת את המספר שמישהו ספר. ⚠ וכשהספירה לא
+           נשלחה כלל, מה שקובע הוא מה שכבר בשורה — שמירה שאינה
+           נוגעת בחד״א לא תמחק ספירה קיימת (13.9.2026). */
+        && (dTouched ? dHeads === null : !(hit && Number.isFinite(hit.diningHeads)));
       if (empty) {
         if (hit) { await gql(`mutation{ delete_item(item_id:${Number(hit.id)}){ id } }`); }
         invalidateBudget();

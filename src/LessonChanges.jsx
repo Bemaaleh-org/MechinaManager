@@ -110,6 +110,126 @@ export function LessonChangesCard({ enabled = false, onOpen, onSettled }) {
   );
 }
 
+/* ============================================================
+   שינויים בלו״ז — הדף המלא (13.9.2026)
+   ------------------------------------------------------------
+   הבקשה: *"שכרטיס השינויים בלו״ז יהיה מקושר לדף חדש שמראה
+   בהרחבה את השינויים שהיו — וזה באחריות אחראי הלו״ז."*
+
+   ⚠ **השינוי האחרון בכל גיליון, ולא היסטוריה.** הרישום הוא שורה
+     אחת לגיליון שנדרסת (api/_lesson-changes.js) — ולכן הדף אומר
+     זאת במילים, כדי שאיש לא יחפש כאן שינוי קודם באותו גיליון.
+   ⚠ **חלון לבחירה** — שבועיים, חודש או שלושה חודשים — רשימה סגורה
+     שהשרת מכיר ולא מספר חופשי.
+   ⚠ **מי מלמד ומתי** — שם המרצה ויום ושעה בלבד; פרטי הקשר והמחיר
+     אינם יוצאים מהגיליון לכאן (עיקרון 4).
+   ============================================================ */
+const dayKey = (iso) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : d.toDateString();
+};
+const dayLabel = (iso) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return "היום";
+  if (d.toDateString() === new Date(now.getTime() - 86400_000).toDateString()) return "אתמול";
+  return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}`;
+};
+const hm = (iso) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? ""
+    : `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+};
+
+export function LessonChangesPage() {
+  const [days, setDays] = useState(14);
+  const [d, setD] = useState(null);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    setD(null);
+    api.getLessonChanges(days)
+      .then((r) => { if (alive) { setD(r); setErr(null); } })
+      .catch((e) => { if (alive) setErr(e); });
+    return () => { alive = false; };
+  }, [days]);
+
+  const list = (d && d.changes) || [];
+  const groups = [];
+  for (const c of list) {
+    const k = dayKey(c.at);
+    const g = groups.find((x) => x.k === k);
+    if (g) g.items.push(c); else groups.push({ k, label: dayLabel(c.at), items: [c] });
+  }
+
+  return (
+    <>
+      <div className="tm-sub">
+        כל גיליון שזז, בוטל, חזר ללו״ז, נוסף או נמחק — כדי לעדכן את היומן החיצוני.
+        <b> באחריות אחראי הלו״ז.</b> לכל גיליון מוצג השינוי האחרון שלו.
+      </div>
+      <div className="seg">
+        {[14, 30, 90].map((n) => (
+          <button key={n} className={days === n ? "on" : ""} onClick={() => setDays(n)}>
+            {n === 14 ? "שבועיים" : n === 30 ? "חודש" : "שלושה חודשים"}
+          </button>
+        ))}
+      </div>
+
+      {err ? (
+        <div className="alert a-clay">
+          <CI.warn />
+          <div style={{ flex: 1 }}>
+            <div className="ttl">לא הצלחנו לטעון את השינויים</div>
+            <div className="bd">{err.message}</div>
+          </div>
+        </div>
+      ) : !d ? (
+        <><div className="skel skel-card" /><div className="skel skel-card" /></>
+      ) : d.ready === false ? (
+        <div className="alert a-amber">
+          <CI.warn />
+          <div style={{ flex: 1 }}>
+            <div className="ttl">יומן השינויים טרם הוקם</div>
+            <div className="bd">{d.hint}</div>
+          </div>
+        </div>
+      ) : !list.length ? (
+        <div className="empty">
+          <div className="e-ico"><CI.cal /></div>
+          <b>אין שינויים בלו״ז</b>
+          <span>בתקופה שנבחרה אף גיליון לא זז, לא בוטל ולא נוסף.</span>
+        </div>
+      ) : groups.map((g) => (
+        <div className="lcp-g" key={g.k}>
+          <div className="lcp-h">{g.label}</div>
+          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+            {g.items.map((c) => (
+              <div className="lcp-r" key={c.id + c.at}>
+                <div className="lcp-t">
+                  <b>{c.subject}</b>
+                  <i>{hm(c.at)}</i>
+                </div>
+                <div className="lcp-n">{c.note}</div>
+                {(c.lecturer || c.dayTime) && (
+                  <div className="lcp-m">
+                    {[c.lecturer, c.dayTime].filter(Boolean).join(" · ")}
+                  </div>
+                )}
+                <div className={"lcp-m" + (c.mine ? " lcp-mine" : "")}>
+                  {c.mine ? "שינית בעצמך — עדכנת ביומן?" : c.by ? "שינה: " + c.by : ""}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 export const LESSONCHANGES_CSS = `
 .kx .lc-card{display:block;width:100%;text-align:right;margin-bottom:14px}
 .lc-setup{margin-bottom:14px}
@@ -126,4 +246,16 @@ export const LESSONCHANGES_CSS = `
 .lc-r i{display:block;font-style:normal;font-size:10.5px;font-weight:700;
   color:var(--faint);margin-top:2px}
 .lc-more{font-size:11.5px;font-weight:800;color:var(--faint);padding-inline-start:4px}
+
+/* ---------- הדף המלא ---------- */
+.lcp-g{margin-bottom:14px}
+.lcp-h{font-size:12px;font-weight:800;color:var(--faint);margin:0 2px 6px}
+.lcp-r{padding:12px 14px;border-bottom:1px solid var(--line)}
+.lcp-r:last-child{border-bottom:none}
+.lcp-t{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.lcp-t b{font-size:15px;font-weight:800;color:var(--ink)}
+.lcp-t i{font-style:normal;font-size:12px;font-weight:700;color:var(--faint);flex-shrink:0}
+.lcp-n{font-size:13.5px;font-weight:700;color:var(--ink);margin-top:3px}
+.lcp-m{font-size:12px;font-weight:600;color:var(--muted);margin-top:2px}
+.lcp-mine{color:var(--accent)}
 `;

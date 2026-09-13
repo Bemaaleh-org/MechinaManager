@@ -144,7 +144,7 @@ const TAB_ICON = {
   laundry: <MI.box />,
   mark: <MI.tick />, lessons: <MI.book />, gantt: <MI.cal />,
   /* ארבעת מסכי השיעורים — ראו LESSON_TABS ב-Lessons.jsx */
-  "l-board": <MI.cal />, "l-sheets": <MI.book />, "l-evals": <MI.check />,
+  "l-board": <MI.cal />, "l-sheets": <MI.book />, "l-evals": <MI.check />, "l-changes": <MI.cal />,
   leadership: <MI.flag />,
   /* ⚠ מסך בלי ערך במפה מקבל ברירת מחדל ואינו נעלם (4יא) —
      אבל שבוע ההובלה הוא לוח שנה, ואייקון של קופסה מטעה. */
@@ -3582,7 +3582,7 @@ function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey, navGroups 
             סופר מקורות (useHomeGate).
           ============================================================ */}
       <LessonChangesCard enabled={Boolean(auth.isScheduler)}
-        onOpen={() => go("l-board")} onSettled={bump} />
+        onOpen={() => go("l-changes")} onSettled={bump} />
 
       {/* ============================================================
           ⚠⚠ **דירוג שיעורים — בראש המסך, ולא בתחתיתו.**
@@ -4384,6 +4384,9 @@ export function MechinaApp({ auth, onSignedOut }) {
             כאן הוא תצוגה בלבד — ההרשאה נאכפת שם. */}
         {tab === "l-evals" && (auth.isScheduler || auth.isContentTeam)
           && <LessonsPage say={say} solo sub0="evals" />}
+        {/* ⚠ שינויים בלו״ז — באחריות אחראי הלו״ז (13.9.2026). */}
+        {tab === "l-changes" && (auth.isScheduler || auth.isContentTeam)
+          && <LessonsPage say={say} solo sub0="changes" />}
 
         {tab === "new" && (
           <>

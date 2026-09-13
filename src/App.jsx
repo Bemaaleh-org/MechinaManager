@@ -237,7 +237,7 @@ function Staff({ auth, onSignedOut }) {
   /* ⚠ אייקון לכל אחד מארבעת מסכי השיעורים. מסך בלי ערך במפה
      מקבל ברירת מחדל ואינו נעלם (4יא). */
   const LESSON_ICON = {
-    board: <I.day />, sheets: <I.book />, evals: <I.star />, pay: <I.note />,
+    board: <I.day />, sheets: <I.book />, evals: <I.star />, pay: <I.note />, changes: <I.cal />,
   };
 
   const say = useCallback((m) => { setToast(m); setTimeout(() => setToast(null), 2400); }, []);
@@ -287,6 +287,7 @@ function Staff({ auth, onSignedOut }) {
     if (tab === "l-board") { goLessons("board"); return; }
     if (tab === "l-sheets") { goLessons("sheets"); return; }
     if (tab === "l-evals") { goLessons("evals"); return; }
+    if (tab === "l-changes") { goLessons("changes"); return; }
     if (tab === "lead-week" || tab === "leadership") { goRoles("weeks"); return; }
     if (tab === "k-all") { goKitchen(null); return; }
     if (tab === "container") { goContainer("מכולה"); return; }
@@ -940,7 +941,7 @@ function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goCont
           אחראי הלו״ז (4יט). אצלו הוא ראשון, כי ההזזה היא מה
           שהוא בא לטפל בו; כאן הוא אחרי הלו״ז, כי איש הצוות
           בא לראות מה קורה היום. */}
-      <LessonChangesCard enabled onOpen={() => goStaff("lessons")} onSettled={bump} />
+      <LessonChangesCard enabled onOpen={() => goLessons("changes")} onSettled={bump} />
 
       {/* ⚠ **מי לא כאן היום** — השאלה שנשאלת בבוקר, שעד היום
           דרשה לפתוח את מסך הסימון ולקרוא 33 שורות. `staff`

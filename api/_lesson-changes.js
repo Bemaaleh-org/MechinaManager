@@ -92,6 +92,10 @@ export const toChange = (s, me) => ({
   note: s.changeNote,
   at: s.changedAt,
   by: s.changeBy || null,
+  /* ⚠ לדף המלא: מי מלמד ומתי — שם ומועד בלבד. לא טלפון, לא
+     אימייל ולא מחיר (עיקרון 4). */
+  lecturer: s.lecturer || null,
+  dayTime: s.dayTime || null,
   /* ⚠ נגזר בשרת ולא בהשוואת שמות בלקוח — שם משתנה ביום שאיש
      צוות מעדכן אותו, והשוואה כזו נשברת בשקט (4ס). */
   mine: Boolean(me && String(s.changeById || "") === String(me)),
