@@ -66,11 +66,15 @@ const NI = {
 export const NAV_ICON = NI;
 
 /**
- * items: [{ key, label, icon, active, badge?, onClick }]  עד ארבעה
+ * items: [{ key, label, icon, active, badge?, onClick }]  עד חמישה
  * onMore: פותח את המגירה
+ *
+ * ⚠ **חמישה ולא ארבעה** (13.9.2026): לבעלי תפקידים הסרגל נושא גם
+ *   את מסכי התפקיד — ראו `roleBar` ב-Mechina.jsx. שישה כפתורים
+ *   (עם "עוד") נכנסים ב-360px; מעבר לזה התוויות נחתכות.
  */
 export function NavBar({ items, onMore }) {
-  const four = (items || []).slice(0, 4);
+  const four = (items || []).slice(0, 5);
   return (
     <nav className="nv" aria-label="ניווט מהיר">
       {four.map((it) => (

@@ -1086,14 +1086,20 @@ function TeamForm({ preset, team, say, onDone, onCancel, onDeleted }) {
    מתפרק איתו. רק מעטפת אחת פעילה בכל רגע, ולכן אין כאן התנגשות. */
 let lastPick = null;
 
-export default function TeamsPage({ say, go }) {
+export default function TeamsPage({ say, go, pick0 = null }) {
   const [list, setList] = useState(null);
   const [err, setErr] = useState("");
   /* ⚠⚠ **הוועדה הפתוחה שורדת את היציאה מהמסך — אבל נפתחת
      מחדש רק בחזרה.** בלי זה, ועדה → מליאות → חזרה נחת על
      רשימת הצוותים וזו בדיוק הדוגמה שבגללה החץ נבנה. ומי שנכנס
      לצוותים מהמגירה מקבל את הרשימה, כמו תמיד. */
-  const [pick, setPickRaw] = useState(() => (arrivedBack() ? lastPick : null));
+  /* ⚠ `pick0` — כפתור "הוועדה" בסרגל של היו״ר פותח ישר את הוועדה
+     שלו (13.9.2026). חזרה עדיין גוברת. */
+  const [pick, setPickRaw] = useState(() => {
+    const p0 = arrivedBack() ? lastPick : pick0;
+    lastPick = p0;
+    return p0;
+  });
   const setPick = (id) => { lastPick = id; setPickRaw(id); };
   /* ⚠ **הלשוניות כאן הן `.seg` ולא `.tm-tab`.** בתוך מסך הצוות
      כבר יש שורת לשוניות (משימות · לפי אדם · הצפות), ושתי שורות

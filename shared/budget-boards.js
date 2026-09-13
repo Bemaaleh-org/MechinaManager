@@ -82,6 +82,9 @@ export const SETTING_HEADCOUNT = "מספר סועדים";
    ============================================================ */
 export const SETTING_DINING_RATE = "מחיר חד״א לסועד";
 export const SETTING_DINING_BUDGET = "תקציב חד״א חודשי";
+/** ⚠ יום העשייה הקהילתית — היחיד שבו סופרים סועדים בחד״א
+    (13.9.2026). אותה מחרוזת של סוג היום בלוח, תו בתו. */
+export const DAY_COMMUNITY = "עשייה קהילתית";
 export const DEFAULT_DINING_RATE = 45;
 
 /** האם עמודת "אכלו בחד״א" כבר הוקמה. ⚠ בלעדיה הכול עובד כמקודם. */

@@ -43,6 +43,13 @@ export const DUTIES = {
   [ROLE_KITCHEN]: {
     key: "kitchen", tone: 3, icon: "cart",
     short: "מטבח",
+    /* ⚠ **`bar` — מה האחריות שמה בסרגל התחתון של החניך** (13.9.2026).
+       תת-קבוצה של `tabs` בשמות קצרים, לפי סדר חשיבות. הסרגל לוקח
+       אחד או שניים מכל אחריות — ראו `roleBar` ב-Mechina.jsx. */
+    bar: [
+      { tab: "k-all", label: "מטבח" }, { tab: "menu", label: "תפריט" },
+      { tab: "budget", label: "תקציב" },
+    ],
     tabs: [
       { tab: "k-all", label: "אוכל וחד״פ" },
       { tab: "budget", label: "תקציב המטבח" },
@@ -55,6 +62,10 @@ export const DUTIES = {
   [ROLE_CONTAINER]: {
     key: "container", tone: 5, icon: "box",
     short: "מכולה",
+    bar: [
+      { tab: "container", label: "מכולה" }, { tab: "buy", label: "קניות" },
+      { tab: "loans", label: "השאלות" },
+    ],
     tabs: [
       { tab: "container", label: "ציוד מכולה" },
       { tab: "loans", label: "השאלת ציוד" },
@@ -68,6 +79,10 @@ export const DUTIES = {
   [ROLE_HOUSE]: {
     key: "house", tone: 7, icon: "tool",
     short: "אב בית",
+    bar: [
+      { tab: "faults", label: "תקלות" }, { tab: "chores", label: "תורנויות" },
+      { tab: "cleaning", label: "ניקיון" },
+    ],
     tabs: [
       { tab: "faults", label: "תקלות ובעיות" },
       { tab: "cleaning", label: "ציוד ניקיון" },
@@ -83,6 +98,7 @@ export const DUTIES = {
   [ROLE_SAFETY]: {
     key: "safety", tone: 2, icon: "warn",
     short: "בטיחות",
+    bar: [{ tab: "safety", label: "בטיחות" }, { tab: "hosting", label: "אירוח" }],
     tabs: [
       { tab: "safety", label: "אירועי בטיחות" },
       { tab: "hosting", label: "אירוח קבוצות" },
@@ -91,6 +107,10 @@ export const DUTIES = {
   [ROLE_SCHEDULE]: {
     key: "schedule", tone: 1, icon: "cal",
     short: "לו״ז",
+    bar: [
+      { tab: "l-board", label: "שיעורים" }, { tab: "l-changes", label: "שינויים" },
+      { tab: "l-sheets", label: "גיליונות" },
+    ],
     /* ⚠ **ארבעה מסכים ולא אחד.** "שיעורים במכינה" היה דף אחד
        עם ארבע לשוניות פנימיות, ולשונית שנבלעת ברצועה אינה
        קיימת (4ר). כל אחד מהם נפתח מסיבה אחרת.
@@ -112,6 +132,8 @@ export const DUTIES = {
   [DUTY_LEADER]: {
     key: "leader", tone: 4, icon: "sun",
     short: "מוביל שבוע",
+    /* ⚠ "סימון" רק בשבוע ההובלה ובחמשת הימים שאחריו (`markWindow`) */
+    bar: [{ tab: "mark", label: "סימון" }, { tab: "lead-week", label: "ההובלה" }],
     /* ⚠ למוביל השבוע די ב**שיעורים הקרובים** — הוא מדווח קיום
        מפגשים, ואינו עורך גיליונות ואינו רואה כסף. */
     tabs: [

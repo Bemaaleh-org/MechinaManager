@@ -194,7 +194,8 @@ export const api = {
   /** תקציב סוג יום — קייטרינג/קבוע/קניות. ⚠ משנה את כל השנה. */
   setDayTypeBudget: (body) => put("/api/kitchen?action=budget", body),
   /** תקציב החד״א החודשי — ראש המכינה. "" מנקה. */
-  setDiningBudget: (diningBudget) => put("/api/kitchen?action=budget", { diningBudget }),
+  /* ⚠ לחודש אחד — ריק מחזיר את החודש לתקציב הנגזר */
+  setDiningBudget: ({ month, amount }) => put("/api/kitchen?action=budget", { month, diningBudget: amount }),
   /** מחיר חד״א לסועד — ראש המכינה */
   setDiningRate: (diningRate) => put("/api/kitchen?action=budget", { diningRate }),
   /** כמה אכלו בחד״א ביום אחד — השדה הזה בלבד. "" מנקה. */

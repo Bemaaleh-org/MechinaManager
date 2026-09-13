@@ -123,6 +123,10 @@ async function loadSettingNum(name, { force = false } = {}) {
   return Number.isFinite(n) ? n : null;
 }
 
+/** ⚠ תקציב החד״א **לחודש** — שורה בלוח ההגדרות לכל חודש שנקבע לו
+    תקציב ידני. חודש בלי שורה מקבל את התקציב הנגזר (13.9.2026). */
+const diningBudgetKey = (month) => `${SETTING_DINING_BUDGET} ${month}`;
+
 const invalidateBudget = () => {
   invalidate("budget-daytypes"); invalidate("budget-days");
   invalidate("budget-orders"); invalidate("budget-settings");
@@ -201,6 +205,20 @@ function derivedType(iso, byDate, evByDate) {
   return T.routine;
 }
 
+/** סוג היום כפי שהוא יהיה: החריגה אם יש, אחרת הנגזר מהלו״ז */
+async function typeOn(date, ov) {
+  const [calendar, gantt] = await Promise.all([loadCalendar(), loadGantt()]);
+  return {
+    type: (ov && ov.type) || derivedType(date, calendar.byDate, eventsByDate(gantt)),
+    type2: (ov && ov.type2) || null,
+  };
+}
+
+/* ⚠ ספירת סועדים בחד״א — **רק ביום עשייה קהילתית** (בקשת אחים,
+   13.9.2026). סוג ראשי או נוסף — יום שגרה שהייתה בו גם עשייה
+   קהילתית נספר. */
+const isCommunity = (type, type2) => type === T.community || type2 === T.community;
+
 /** כל ימי החודש, גם אלה שמחוץ ללוח השנה — מסע עלייה למשל */
 function datesOfMonth(month) {
   const [y, m] = month.split("-").map(Number);
@@ -236,9 +254,15 @@ function buildMonth(month, { types, overrides, calendar, gantt, heads, diningRat
     const dOver = dHeads == null ? null : dHeads * diningRate;
     const cost = dayCost(type, head, over, extra,
       ov && ov.flat != null ? ov.flat : null, dOver);
+    /* ⚠ התעריף **בלי** הספירה — ממנו נגזר תקציב החד״א של החודש:
+       750 ₪ לכל יום עשייה קהילתית, כפי שהוגדר בסוגי הימים. */
+    const plain = dayCost(type, head, over, extra,
+      ov && ov.flat != null ? ov.flat : null, null);
     return {
       date,
       diningHeads: dHeads,
+      community: isCommunity(typeName, ov ? ov.type2 : null),
+      diningTariff: plain.dining,
       kind: (byDate.get(date) || {}).kind || null,
       type: typeName,
       type2: ov ? ov.type2 : null,
@@ -265,6 +289,12 @@ function buildMonth(month, { types, overrides, calendar, gantt, heads, diningRat
        בלי לדעת מכמה ימים הוא נראה כמו התמונה המלאה (4יח). */
     diningHeads: days.reduce((a, d) => a + (d.diningHeads || 0), 0),
     diningDays: days.filter((d) => d.diningHeads != null).length,
+    /* ⚠⚠ **מה נוצל = מה שנספר בלבד** (סועדים × מחיר). יום שלא
+       נספר אינו "נוצל" — הוא עדיין ממתין לספירה. אחרת 5 סועדים
+       היו נראים כמו 750 ₪ שנוצלו. */
+    diningUsed: days.reduce((a, d) => a + (d.diningHeads != null ? d.diningHeads * diningRate : 0), 0),
+    diningPlan: days.reduce((a, d) => a + (d.diningTariff || 0), 0),
+    communityDays: days.filter((d) => d.community).length,
     purchases: days.reduce((a, d) => a + d.purchases, 0),
     foodTotal: days.reduce((a, d) => a + d.total, 0),
   };
@@ -287,10 +317,10 @@ async function handler(req, res, session) {
   try {
     if (req.method === "GET") {
       const [types, overrides, orders, settings, calendar, gantt,
-        rateSet, diningBudget] = await Promise.all([
+        rateSet] = await Promise.all([
         loadDayTypes(), loadOverrides(), loadOrders(), loadHeadcount(),
         loadCalendar(), loadGantt(),
-        loadSettingNum(SETTING_DINING_RATE), loadSettingNum(SETTING_DINING_BUDGET),
+        loadSettingNum(SETTING_DINING_RATE),
       ]);
       /* ⚠ המחיר לראש מהלוח; הקבוע בקוד הוא נפילה לאחור לשורה
          שטרם נוצרה, ולא מקור אמת (עיקרון 1). */
@@ -333,6 +363,12 @@ async function handler(req, res, session) {
       }
 
       const b = buildMonth(month, { types, overrides, calendar, gantt, heads: settings, diningRate });
+      /* ⚠⚠ **תקציב החד״א נגזר, וניתן לשינוי לחודש אחד** (13.9.2026):
+         ברירת המחדל היא התעריף של ימי העשייה הקהילתית בחודש — שני
+         ימים הם 1,500 ₪, ארבעה הם 3,000. שורה בלוח ההגדרות לחודש
+         מסוים גוברת עליו, ורק עליו. */
+      const monthSet = await loadSettingNum(diningBudgetKey(month));
+      const diningBudget = monthSet != null ? monthSet : b.diningPlan;
 
       /* ⚠ הקניות אינן מוסיפות לתקציב אלא יורדות ממנו: התקציב
          נקבע מסוגי הימים, והקניות הן ההוצאה מולו. ההפרש הוא
@@ -378,12 +414,16 @@ async function handler(req, res, session) {
         diningRate,
         diningHeads: b.diningHeads,
         diningDays: b.diningDays,
+        diningUsed: b.diningUsed,
+        diningPlan: b.diningPlan,
+        diningBudgetSet: monthSet,
+        communityDays: b.communityDays,
         diningBudget,
         /* ⚠ מה הקורא רשאי בדף החד״א — מהשרת ולא נגזר במסך (4יד):
            ספירה — ראש המכינה ואחראי המטבח; תקציב ומחיר — ראש המכינה. */
         canEditDining: mayEdit(session, "kitchen"),
         canSetDining: Boolean(session.isHead),
-        diningLeft: diningBudget == null ? null : diningBudget - b.dining,
+        diningLeft: diningBudget - b.diningUsed,
         diningReady: diningHeadsReady(),
         purchases: b.purchases,
         total: b.foodTotal,
@@ -423,13 +463,23 @@ async function handler(req, res, session) {
             return res.status(400).json({ error: "סכום לא תקין — מספר בין 0 ל-1,000,000" });
           }
         }
+        /* ⚠ **לחודש אחד** (13.9.2026) — התקציב נגזר מימי העשייה
+           הקהילתית, וזה שינוי נקודתי כשצריך. ריק מוחק את השורה
+           והחודש חוזר לתקציב הנגזר. */
+        const month = String(body.month || "").trim();
+        if (!/^\d{4}-\d{2}$/.test(month)) return res.status(400).json({ error: "לא צוין חודש" });
+        const key = diningBudgetKey(month);
         const items = await allItems(B.settings);
-        const hit = items.find((i) => String(i.name || "").trim() === SETTING_DINING_BUDGET);
-        const cols = { [C.settings.value]: n == null ? "" : String(n) };
-        if (hit) await setCols(B.settings, hit.id, cols);
-        else if (n != null) await createItem(B.settings, SETTING_DINING_BUDGET, cols);
+        const hit = items.find((i) => String(i.name || "").trim() === key);
+        if (n == null) {
+          if (hit) await gql(`mutation{ delete_item(item_id:${Number(hit.id)}){ id } }`);
+        } else if (hit) {
+          await setCols(B.settings, hit.id, { [C.settings.value]: String(n) });
+        } else {
+          await createItem(B.settings, key, { [C.settings.value]: String(n) });
+        }
         invalidateBudget();
-        return res.status(200).json({ ok: true, diningBudget: n });
+        return res.status(200).json({ ok: true, month, diningBudget: n });
       }
 
       /* ============================================================
@@ -492,6 +542,16 @@ async function handler(req, res, session) {
         const hit = overrides.find((o) => o.date === date);
         const onlyHeads = hit && !hit.type && !hit.type2 && hit.cost == null
           && hit.flat == null && !hit.note;
+        /* ⚠ רק ביום עשייה קהילתית. ניקוי מותר תמיד — ספירה ישנה
+           ביום אחר צריכה דרך לרדת. */
+        if (h !== null) {
+          const t = await typeOn(date, hit);
+          if (!isCommunity(t.type, t.type2)) {
+            return res.status(400).json({
+              error: `ספירת סועדים נרשמת רק בימי עשייה קהילתית — ${date.slice(8, 10)}/${date.slice(5, 7)} הוא יום ${t.type}`,
+            });
+          }
+        }
         if (h === null) {
           if (hit && onlyHeads) await gql(`mutation{ delete_item(item_id:${Number(hit.id)}){ id } }`);
           else if (hit) await setColsOpen(B.days, hit.id, { [C.days.diningHeads]: "" });
@@ -673,6 +733,19 @@ async function handler(req, res, session) {
 
       const overrides = await loadOverrides({ force: true });
       const hit = overrides.find((o) => o.date === date);
+
+      /* ⚠ ספירת חד״א רק ביום עשייה קהילתית — לפי הסוג שיהיה ליום
+         **אחרי** השמירה: סוג שלא נשלח נשאר כפי שהוא בשורה. */
+      if (dTouched && dHeads !== null) {
+        const t = await typeOn(date, hit);
+        const type = body.type ? String(body.type) : t.type;
+        const type2 = body.type2 ? String(body.type2) : null;
+        if (!isCommunity(type, type2)) {
+          return res.status(400).json({
+            error: "ספירת סועדים בחד״א נרשמת רק ביום עשייה קהילתית — נקו את השדה, או בחרו את הסוג הזה ליום",
+          });
+        }
+      }
 
       /* ריקון מלא = חזרה לגזירה מהלו״ז, כלומר מחיקת החריגה */
       const empty = (body.type === null || body.type === undefined || body.type === "")

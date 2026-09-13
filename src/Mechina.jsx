@@ -3888,6 +3888,60 @@ export function MechinaApp({ auth, onSignedOut }) {
     return (DUTIES[DUTY_LEADER].tabs || []).filter((t) => !PERSONAL_TABS.has(t.tab));
   }, [auth.isLeader, auth.markWindow]);
 
+  /* ============================================================
+     הסרגל התחתון — גנרי, ומותאם לכל בעל תפקיד (13.9.2026)
+     ------------------------------------------------------------
+     הבקשה: *"אחד גנרי לחניכים, ושינויים לכל מי שיש לו הרשאות —
+     מובילי שבוע, אחראי מטבח, לו״ז, אב בית, בטיחות… ושליו״ר ועדה
+     יהיה ניהול הוועדה."*
+
+     · **נגזר מ-`DUTIES[x].bar`** ומ-`auth.teams` — לא רשימה שנייה
+       (4מד). תפקיד שיקבל `bar` מופיע כאן מעצמו.
+     · אחריות אחת → שני מסכים שלה; שתיים → אחד מכל אחת; שלוש
+       ומעלה → שלוש הראשונות. ואחריהם "בקשות" ו"הלו״ז" עד חמישה.
+     · ⚠ **מוביל שבוע ראשון רק כשהוא מוביל עכשיו** (או בחמשת
+       הימים שאחרי). מוביל של שבוע רחוק מקבל את "ההובלה" בסוף.
+     · ⚠ **יו״ר → "הוועדה"**, שפותח ישר את הוועדה שלו (`pick0`).
+     ============================================================ */
+  const [teamOpen, setTeamOpen] = useState({ id: null, n: 0 });
+  const openTeam = (id) => { setTeamOpen((x) => ({ id, n: x.n + 1 })); setTab("teams"); };
+  useEffect(() => {
+    if (tab !== "teams") setTeamOpen((x) => (x.id ? { ...x, id: null } : x));
+  }, [tab]);
+  const roleBar = useMemo(() => {
+    const lists = [];
+    const leading = Boolean(auth.isLeader || auth.markWindow);
+    const leader = (DUTIES[DUTY_LEADER].bar || []).filter((t) => t.tab !== "mark" || leading);
+    if (leading && leader.length) lists.push(leader);
+    for (const r of auth.roles || []) {
+      const b = DUTIES[r] && DUTIES[r].bar;
+      if (b && b.length) lists.push(b);
+    }
+    for (const t of auth.teams || []) {
+      if (!t.isChair) continue;
+      lists.push([{
+        tab: "teams", team: t.id,
+        label: t.category === "סדרה" ? "הסדרה" : t.category === "ועדה" ? "הוועדה" : "הצוות",
+      }]);
+    }
+    if (!leading && auth.leadsAnyWeek && leader.length) lists.push(leader);
+    const cap = lists.length >= 3 ? 3 : 2;
+    const out = [];
+    const seen = new Set();
+    for (let i = 0; i < 3 && out.length < cap; i++) {
+      for (const l of lists) {
+        if (out.length >= cap) break;
+        const it = l[i];
+        if (!it) continue;
+        const k = it.team ? "team:" + it.team : it.tab;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        out.push(it);
+      }
+    }
+    return out;
+  }, [auth.roles, auth.teams, auth.isLeader, auth.markWindow, auth.leadsAnyWeek]);
+
   const [notifOpen, setNotifOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -4022,7 +4076,9 @@ export function MechinaApp({ auth, onSignedOut }) {
             { key: "placements", label: "הענף והוועדות שלי", icon: <MI.users />,
               active: tab === "placements", onClick: () => setTab("placements") },
             { key: "teams", label: "ועדות וסדרות", icon: <MI.tick />,
-              active: tab === "teams", onClick: () => setTab("teams") },
+              active: tab === "teams",
+              /* ⚠ מהמגירה — הרשימה, ולא הוועדה שנפתחה מהסרגל */
+              onClick: () => { setTeamOpen((x) => ({ id: null, n: x.n + 1 })); setTab("teams"); } },
           ] },
 
           /* ============================================================
@@ -4300,7 +4356,8 @@ export function MechinaApp({ auth, onSignedOut }) {
             קיים פשוט לא יעשה כלום, ולכן שתי הרשימות חייבות
             להישאר אותה רשימה. */}
         {tab === "duty" && <DutyPage say={say} go={(t) => setTab(t)} startKey={dutyKey} />}
-        {tab === "teams" && <TeamsPage say={say} go={(t) => setTab(t)} />}
+        {tab === "teams" && <TeamsPage key={"tm" + teamOpen.n} pick0={teamOpen.id}
+          say={say} go={(t) => setTab(t)} />}
         {tab === "chores" && <ChoresPage say={say} />}
         {tab === "laundry" && <LaundryPage say={say} />}
         {tab === "rules" && <RulesPage say={say} />}
@@ -4420,16 +4477,30 @@ export function MechinaApp({ auth, onSignedOut }) {
           ⚠ **המונה על הבקשות הוא `unseen`** — "הוכרעו וטרם
             ראית", כלומר מה שבאמת חדש לחניך.
           ============================================================ */}
-      <NavBar onMore={() => setDrawerOpen(true)} items={[
-        { key: "nv-home", label: "בית", icon: <NAV_ICON.home />,
-          active: tab === "home", onClick: () => setTab("home") },
-        { key: "nv-agenda", label: "הלו״ז", icon: <NAV_ICON.day />,
-          active: tab === "agenda", onClick: () => setTab("agenda") },
-        { key: "nv-req", label: "בקשות", icon: <NAV_ICON.out />,
-          active: tab === "requests", badge: unseen, onClick: () => setTab("requests") },
-        { key: "nv-chores", label: "תורנויות", icon: <NAV_ICON.tick />,
-          active: tab === "chores", onClick: () => setTab("chores") },
-      ]} />
+      {(() => {
+        const agendaI = { key: "nv-agenda", tab: "agenda", label: "הלו״ז", icon: <NAV_ICON.day />,
+          active: tab === "agenda", onClick: () => setTab("agenda") };
+        const reqI = { key: "nv-req", tab: "requests", label: "בקשות", icon: <NAV_ICON.out />,
+          active: tab === "requests", badge: unseen, onClick: () => setTab("requests") };
+        const choresI = { key: "nv-chores", tab: "chores", label: "תורנויות", icon: <NAV_ICON.tick />,
+          active: tab === "chores", onClick: () => setTab("chores") };
+        /* ⚠ בלי תפקיד — הסרגל הגנרי כפי שהיה. עם תפקיד — "בקשות"
+           לפני "הלו״ז", כי המונה עליה הוא מה שחדש. */
+        const generic = roleBar.length ? [reqI, agendaI, choresI] : [agendaI, reqI, choresI];
+        const items = [
+          { key: "nv-home", label: "בית", icon: <NAV_ICON.home />,
+            active: tab === "home", onClick: () => setTab("home") },
+          ...roleBar.map((it) => ({
+            key: "nv-" + (it.team ? "team-" + it.team : it.tab),
+            label: it.label,
+            icon: it.team ? <MI.users /> : (TAB_ICON[it.tab] || <MI.box />),
+            active: tab === it.tab && (!it.team || teamOpen.id === it.team),
+            onClick: () => (it.team ? openTeam(it.team) : setTab(it.tab)),
+          })),
+          ...generic.filter((g) => !roleBar.some((b) => !b.team && b.tab === g.tab)),
+        ];
+        return <NavBar onMore={() => setDrawerOpen(true)} items={items.slice(0, 5)} />;
+      })()}
 
       {toast && <div className="toast">{toast}</div>}
     </div>
