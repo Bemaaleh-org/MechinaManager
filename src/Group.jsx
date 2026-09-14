@@ -279,6 +279,7 @@ function MemberRow({ m }) {
             <span className="pill p-low">שיחה אישית {m.talksSet}/3</span>
           )}
           {m.lastAbsence && <span>· נעדר לאחרונה {dmy(m.lastAbsence.date)}</span>}
+          {m.nextAbsence && <span>· היעדרות מתוכננת {dmy(m.nextAbsence.date)}</span>}
         </div>
       </div>
     </div>

@@ -230,6 +230,10 @@ export const api = {
   deleteTeamEntry: (id) => del("/api/students?action=team-entry", { id }),
   /** תקציב הצוות — הצוות או היו״ר. "" מסיר. */
   setTeamBudget: ({ team, budget }) => put("/api/students?action=team-entry", { team, budget }),
+  /** רשימת הקניות של הוועדה — פריט, והגשה לקניות המכינה */
+  addTeamBuy: ({ team, title, qty, extra }) =>
+    post("/api/students?action=team-entry", { team, buyItem: { title, qty, extra } }),
+  submitTeamBuy: (team) => put("/api/students?action=team-entry", { team, submitBuy: true }),
 
   /* ⚠ סקר אינו חשאי — ראו api/_team-extras.js. */
   addTeamPoll: ({ team, question, options, closes }) =>
@@ -800,6 +804,8 @@ export const api = {
     if (source === "kitchen") return api.setKitchenShoppingStatus({ itemId: id, status });
     if (source === "container") return api.setShoppingStatus({ itemId: id, status });
     if (source === "buy") return api.editBuy({ id, status });
+    /* ⚠ שורת ועדה — "נקנה" נשמר על השורה בלוח הוועדה */
+    if (source === "team") return api.editTeamEntry({ id, done: true });
     return Promise.reject(new Error("מקור קנייה לא מוכר: " + source));
   },
 

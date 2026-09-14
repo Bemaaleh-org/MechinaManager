@@ -49,7 +49,7 @@ const SRC_TONE = { kitchen: "by-k", container: "by-c", buy: "by-b" };
 /* ⚠ הנתונים נטענים ב-`BuyPage` ולא כאן: הלשוניות עצמן
    נגזרות מ-`canGeneral` שבאותה תשובה, וטעינה שנייה הייתה
    שואלת את השרת את אותה שאלה פעמיים. */
-function AllShopping({ d, say }) {
+function AllShopping({ d, say, empty = null, note = null }) {
   const [done, setDone] = useState(() => new Set());
   const [busy, setBusy] = useState(() => new Set());
 
@@ -99,8 +99,8 @@ function AllShopping({ d, say }) {
       {!groups.length ? (
         <div className="empty">
           <div className="e-ico"><YI.cart /></div>
-          <b>אין כרגע מה לקנות מהמכולה</b>
-          <span>מה שנרשם ברשימת הקניות של המכולה יופיע כאן.</span>
+          <b>{empty ? empty.title : "אין כרגע מה לקנות מהמכולה"}</b>
+          <span>{empty ? empty.sub : "מה שנרשם ברשימת הקניות של המכולה יופיע כאן."}</span>
         </div>
       ) : groups.map((g) => (
         <div className="card by-grp" key={g.key}>
@@ -141,8 +141,8 @@ function AllShopping({ d, say }) {
       ))}
 
       <div className="tm-sub by-note">
-        החלק הזה נלקח מרשימת הקניות של המכולה — מוסיפים אליו ממסך
-        המכולה, וסימון כאן נשמר שם.
+        {note || <>החלק הזה נלקח מרשימת הקניות של המכולה — מוסיפים אליו ממסך
+        המכולה, וסימון כאן נשמר שם.</>}
       </div>
     </>
   );
@@ -396,15 +396,43 @@ export function BuyPage({ say }) {
     failed: (d.failed || []).filter((f) => f.key === "container"),
   } : null;
 
+  /* ⚠ **הוועדות — תת-הפרדה לפי ועדה** (14.9.2026): כרטיס לכל
+     ועדה, מתוך אותה קבוצה בתשובה. */
+  const byTeam = (g) => {
+    const m = new Map();
+    for (const r of g.rows) {
+      const k = r.group || "ועדה";
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(r);
+    }
+    return [...m].map(([name, rows]) => ({ key: "team:" + name, title: name, rows }));
+  };
+  const teamBox = d ? {
+    ...d,
+    groups: (d.groups || []).filter((g) => g.key === "team").flatMap(byTeam),
+    missing: (d.missing || []).filter((m) => m.key === "team"),
+    failed: (d.failed || []).filter((f) => f.key === "team"),
+  } : null;
+
   return (
     <>
       <div className="screen-title">קניות המכינה</div>
       <div className="tm-sub">
-        רשימה אחת בשני חלקים: <b>כללי</b> — מה שהצוות מוסיף ישירות, ו<b>מכולה</b> —
-        מה שנרשם ברשימת הקניות של המכולה.
+        רשימה אחת בשלושה חלקים: <b>כללי</b> — מה שהצוות מוסיף ישירות, <b>ועדות</b> —
+        מה שכל ועדה הגישה (עד יום רביעי ב-10:00), ו<b>מכולה</b> — מה שנרשם ברשימת
+        הקניות של המכולה.
       </div>
 
       {d && d.canGeneral && <GeneralList say={say} />}
+
+      {d && d.canGeneral && (
+        <>
+          <div className="sec-label">ועדות</div>
+          <AllShopping d={teamBox} say={say}
+            empty={{ title: "אף ועדה לא הגישה קניות", sub: "ועדות מגישות מהמסך שלהן, עד יום רביעי ב-10:00." }}
+            note="מה שהוועדות הגישו, מחולק לפי ועדה. סימון כאן נשמר ברשימה של הוועדה." />
+        </>
+      )}
 
       <div className="sec-label">מכולה</div>
       {err ? (

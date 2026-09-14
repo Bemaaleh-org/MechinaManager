@@ -41,6 +41,10 @@ import { SHOP_STATUS, AREA, mayArea } from "../shared/container-boards.js";
 import { BUY_STATUS, buyReady } from "../shared/buy-ids.js";
 import { loadShopping } from "./_container-data.js";
 import { loadBuy, maySeeBuy, mayMarkBuy } from "./_buy.js";
+import { loadTeamEntries } from "./_team-extras.js";
+import { loadDefinitions } from "./_placements.js";
+import { teamExtrasReady } from "../shared/team-ids.js";
+import { TEAM_BUY_KIND } from "../shared/team.js";
 
 /* ============================================================
    שלוש הרשימות
@@ -84,6 +88,30 @@ const SOURCES = [
     load: async () => (await loadBuy())
       .filter((r) => r.status === BUY_STATUS.open),
   },
+  /* ⚠⚠ **הוועדות (14.9.2026)** — מה שיו״ר הגיש מרשימת הקניות של
+     הוועדה. השורות נשארות בלוח הוועדה, ו-`group` הוא שם הוועדה,
+     כדי שהמסך יחלק לפיו. סימון "נקנה" נשמר על שורת הוועדה. */
+  {
+    key: "team",
+    title: "ועדות",
+    ready: () => teamExtrasReady(),
+    setup: "npm run seed:teams2",
+    mayRead: (s) => maySeeBuy(s),
+    mayMark: (s) => mayMarkBuy(s),
+    markHint: () => "צוות המכינה",
+    load: async () => {
+      const [entries, defs] = await Promise.all([loadTeamEntries(), loadDefinitions()]);
+      const names = new Map(defs.map((x) => [String(x.id), x.name]));
+      return entries
+        .filter((e) => e.kind === TEAM_BUY_KIND && e.date && !e.done)
+        .map((e) => ({
+          id: e.id, name: e.title,
+          qty: e.qty != null ? String(e.qty) : "",
+          detail: e.extra || "", by: e.by || "", date: e.date,
+          group: names.get(String(e.team)) || "ועדה",
+        }));
+    },
+  },
 ];
 
 async function handler(req, res, session) {
@@ -113,6 +141,7 @@ async function handler(req, res, session) {
           area: r.area || null,
           by: r.by || "",
           date: r.date || null,
+          group: r.group || null,
           source: src.key,
           sourceTitle: src.title,
           canMark: Boolean(src.mayMark(session, r)),

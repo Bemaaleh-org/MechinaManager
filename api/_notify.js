@@ -48,6 +48,9 @@ import { loadRequests } from "./_requests.js";
 import { loadSheets, loadMeetings, loadEvals } from "./_lessons-data.js";
 import { loadGantt } from "./_lessons-gantt.js";
 import { changesSince } from "./_lesson-changes.js";
+import { teamsForStudent } from "./_team-data.js";
+import { loadTeamEntries } from "./_team-extras.js";
+import { TEAM_BUY_KIND, BUY_DEADLINE, nextBuyDeadline } from "../shared/team.js";
 import { loadEquipment } from "./_container-data.js";
 import { loadKitchenEquipment } from "./_kitchen-data.js";
 
@@ -1066,6 +1069,55 @@ async function weeklyNote(session, today) {
   return out;
 }
 /* ============================================================
+   ⚠ תזכורת ליו״ר — רשימת הקניות של הוועדה (14.9.2026)
+   ------------------------------------------------------------
+   *"שיישלח ליו״רים תזכורת 24 שעות לפני אם זה לא קורה."*
+
+   · מיום שלישי ב-10:00 ועד רביעי ב-10:00, ליו״ר שהוועדה שלו
+     **טרם הגישה** מאז הדדליין הקודם.
+   · ⚠ **שער זול ראשון: השעה.** מחוץ לחלון של יממה אין אפילו
+     שאילתה — 33 חניכים כל שלוש דקות.
+   · ⚠ מזהה לפי ועדה ושבוע — "נקרא" אינו מתאפס בכל רענון (4כו).
+   · ⚠ הדחיפה לטלפון יוצאת בסבב היומי (18:00) — ה-cron רץ פעם ביום,
+     ולכן ביום שלישי בערב ולא בדיוק ב-10:00. בפעמון היא מ-10:00.
+   ============================================================ */
+async function buyDeadlineNotes(session, today) {
+  if (!session.isStudent) return [];
+  const dow = new Date(today + "T12:00:00Z").getUTCDay();
+  const h = israelHour();
+  const inWindow = (dow === BUY_DEADLINE.dow - 1 && h >= BUY_DEADLINE.hour)
+    || (dow === BUY_DEADLINE.dow && h < BUY_DEADLINE.hour);
+  if (!inWindow) return [];
+  try {
+    const teams = (await teamsForStudent(session.itemId)).filter((t) => t.isChair);
+    if (!teams.length) return [];
+    const deadline = nextBuyDeadline(today, h);
+    const last = shift(deadline, -7);
+    const entries = await loadTeamEntries();
+    const when = dow === BUY_DEADLINE.dow ? "היום" : "מחר, יום רביעי,";
+    const out = [];
+    for (const t of teams) {
+      const mine = entries.filter((e) => String(e.team) === String(t.id) && e.kind === TEAM_BUY_KIND);
+      if (mine.some((e) => e.date && e.date > last && e.date <= today)) continue;
+      const drafts = mine.filter((e) => !e.date && !e.done).length;
+      out.push(note({
+        id: `buy:deadline:${t.id}:${deadline}`,
+        kind: "קניות", level: "גבוה",
+        title: `רשימת הקניות של ${t.name} טרם הוגשה`,
+        body: drafts
+          ? `${drafts} פריטים ממתינים להגשה · הדדליין ${when} ב-10:00`
+          : `אם הוועדה צריכה לקנות משהו — מגישים עד ${when} ב-10:00`,
+        tab: "teams", when: today,
+      }));
+    }
+    return out;
+  } catch (e) {
+    console.error("[notify:buy]", e && e.message);
+    return [];
+  }
+}
+
+/* ============================================================
    בניית ההתראות של משתמש אחד
    ------------------------------------------------------------
    ⚠⚠ **מיוצאת כי גם סבב הדחיפה קורא לה** (`_push-run.js`).
@@ -1094,6 +1146,8 @@ export async function buildNotes(session, today = israelToday()) {
       jobs.push(projectNotes(session, today));
       /* ⚠ הבונה עוצר בשורה הראשונה כשהחניך אינו מוביל שבוע. */
       jobs.push(leadWeekNotes(session, today));
+      /* ⚠ עוצר על השעה לפני כל שאילתה — ראו הבונה. */
+      jobs.push(buyDeadlineNotes(session, today));
     } else {
       jobs.push(requestNotes(session, today));
       /* ⚠ **לכל הצוות ולא לראש המכינה בלבד.** הסיכום מופנה

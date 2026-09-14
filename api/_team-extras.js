@@ -34,8 +34,8 @@ import { setColumns, renameItem, createItem, deleteItem } from "./_items.js";
 import {
   TEAM_BOARDS as B, TEAM_COLS as C, TEAM_ENTRY_KIND, teamExtrasReady,
 } from "../shared/team-ids.js";
-import { mayTeam, TEAM_BUDGET_KIND } from "../shared/team.js";
-import { teamContext } from "./_team-data.js";
+import { mayTeam, TEAM_BUDGET_KIND, TEAM_BUY_KIND } from "../shared/team.js";
+import { teamContext, israelToday } from "./_team-data.js";
 
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
 /* ⚠ `value === null` הוא המבחן לריק בעמודת סטטוס (5ז). */
@@ -214,6 +214,58 @@ async function entryHandler(req, res, session) {
       }
       bust();
       return res.status(200).json({ ok: true, budget: n });
+    }
+
+    /* ============================================================
+       ⚠⚠ רשימת הקניות של הוועדה (14.9.2026)
+       POST { team, buyItem:{ title, qty, extra } } — כל מי שכותב בצוות
+       PUT  { team, submitBuy: true }               — היו״ר או הצוות
+       ------------------------------------------------------------
+       ⚠ `{ labels: true }` לתווית "לקנות" — אותו חריג מתועד של
+         התקציב: הערך קבוע בקוד (5מז).
+       ⚠ ההגשה מסמנת את **כל הטיוטות** של הוועדה בתאריך היום, ולא
+         שורה-שורה: היו״ר מגיש רשימה, לא פריט.
+       ============================================================ */
+    if (body?.buyItem !== undefined) {
+      if (req.method !== "POST") return res.status(405).json({ error: "פריט נוסף ב-POST" });
+      const g = await gate(body?.team, session, true);
+      if (g.error) return res.status(g.code).json({ error: g.error });
+      const it = body.buyItem || {};
+      const title = String(it.title || "").trim().slice(0, 200);
+      if (!title) return res.status(400).json({ error: "מה צריך לקנות?" });
+      const out = {
+        [C.entries.team]: g.ctx.def.id,
+        [C.entries.by]: String(session.name || "").slice(0, 120),
+        [C.entries.kind]: { label: TEAM_BUY_KIND },
+      };
+      const q = String(it.qty ?? "").trim();
+      if (q) {
+        const n = Number(q);
+        if (!Number.isFinite(n) || n <= 0 || n > 100000) {
+          return res.status(400).json({ error: "כמות — מספר חיובי, או ריק" });
+        }
+        out[C.entries.qty] = String(n);
+      }
+      const ex = String(it.extra || "").trim().slice(0, 500);
+      if (ex) out[C.entries.extra] = ex;
+      const id = await createItem(B.entries, title, out, { labels: true });
+      bust();
+      return res.status(200).json({ ok: true, id: String(id) });
+    }
+    if (body?.submitBuy !== undefined) {
+      if (req.method !== "PUT") return res.status(405).json({ error: "הגשה ב-PUT" });
+      const g = await gate(body?.team, session, true);
+      if (g.error) return res.status(g.code).json({ error: g.error });
+      if (!g.perm.manage) {
+        return res.status(403).json({ error: "את רשימת הקניות מגישים היו״ר או הצוות" });
+      }
+      const today = israelToday();
+      const rows = (await loadTeamEntries({ force: true })).filter((e) =>
+        e.team === g.ctx.def.id && e.kind === TEAM_BUY_KIND && !e.date && !e.done);
+      if (!rows.length) return res.status(400).json({ error: "אין פריטים חדשים להגשה" });
+      for (const r of rows) await setColumns(B.entries, r.id, { [C.entries.date]: { date: today } });
+      bust();
+      return res.status(200).json({ ok: true, submitted: rows.length, date: today });
     }
 
     if (req.method === "POST") {

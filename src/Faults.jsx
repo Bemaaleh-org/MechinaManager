@@ -50,10 +50,18 @@ function useLoad(fn, deps = []) {
 
 const heDate = (iso) => (iso ? iso.split("-").reverse().join("/") : "");
 
-function Pick({ label, options, value, onChange, disabled }) {
+/* ⚠ כוכבית אדומה על שדה חובה שעוד לא מולא — ונעלמת כשמולא
+   (14.9.2026). "לא ברור שצריך לסמן" היה בדיוק הבעיה. */
+const Req = ({ on }) => (on
+  ? <span style={{ color: "var(--clay)", marginInlineStart: 4, fontWeight: 900 }} aria-hidden="true">*</span>
+  : null);
+
+/* ⚠ `sep` — קו הפרדה מעל הקבוצה. שתי קבוצות בחירה זו לצד זו
+   נקראו כאחת, והכותרת של כל אחת ישבה מעל האפשרויות של השנייה. */
+function Pick({ label, options, value, onChange, disabled, required = false, sep = false }) {
   return (
-    <div className="fld">
-      <label>{label}</label>
+    <div className="fld" style={sep ? { borderTop: "1px solid var(--line)", paddingTop: 12 } : undefined}>
+      <label>{label}<Req on={required && !value} /></label>
       <div className="pick">
         {options.map((o) => (
           <button type="button" key={o} className={value === o ? "on" : ""} disabled={disabled}
@@ -76,7 +84,9 @@ function FaultForm({ initial, say, onDone, onCancel, reporter = false }) {
     title: initial?.title || "",
     place: initial?.place || "",
     fix: initial?.fix || "",
-    urgency: initial?.urgency || FAULT_URGENCY.normal,
+    /* ⚠ בדיווח חדש — ריק, וחובה לבחור. ברירת מחדל מסומנת מראש
+       נראתה כמו בחירה שמישהו כבר עשה. */
+    urgency: initial?.urgency || (editing ? FAULT_URGENCY.normal : ""),
     status: initial?.status || FAULT_STATUS.open,
     desc: initial?.desc || "",
     notes: initial?.notes || "",
@@ -91,7 +101,15 @@ function FaultForm({ initial, say, onDone, onCancel, reporter = false }) {
   const set = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
   const setT = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
-  const canSave = f.title.trim() && f.place;
+  /* ⚠ אופן התיקון חובה בדיווח חדש בלבד — תקלה ישנה בלי ערך לא
+     תינעל לעריכה בגללו. */
+  const missing = [
+    !f.title.trim() && "סוג הבעיה",
+    !f.place && "מיקום",
+    !editing && !f.fix && "אופן התיקון",
+    !f.urgency && "דחיפות",
+  ].filter(Boolean);
+  const canSave = missing.length === 0;
 
   /* התמונה נקראת כ-base64 ועוברת בגוף הבקשה, כמו אישור המחלה
      בבקשות היציאה. עד 5MB — צילום טלפון רגיל נכנס בקלות. */
@@ -150,17 +168,17 @@ function FaultForm({ initial, say, onDone, onCancel, reporter = false }) {
 
       <div className="card lift">
         <div className="fld">
-          <label>סוג הבעיה</label>
+          <label>סוג הבעיה<Req on={!f.title.trim()} /></label>
           <input value={f.title} onChange={setT("title")} disabled={busy} autoFocus={!editing}
             placeholder="מה התקלקל, במשפט" />
         </div>
 
-        <Pick label="מיקום" options={FAULT_PLACE} value={f.place} onChange={set("place")} disabled={busy} />
+        <Pick label="מיקום" options={FAULT_PLACE} value={f.place} onChange={set("place")} disabled={busy} required />
 
-        <div className="two">
-          <Pick label="אופן התיקון" options={FIXES} value={f.fix} onChange={set("fix")} disabled={busy} />
-          <Pick label="דחיפות" options={URGENCIES} value={f.urgency} onChange={set("urgency")} disabled={busy} />
-        </div>
+        <Pick label="אופן התיקון" options={FIXES} value={f.fix} onChange={set("fix")} disabled={busy}
+          required={!editing} sep />
+        <Pick label="דחיפות" options={URGENCIES} value={f.urgency} onChange={set("urgency")} disabled={busy}
+          required sep />
 
         {staffEdit && (
           <Pick label="סטטוס" options={STATUSES} value={f.status} onChange={set("status")} disabled={busy} />
@@ -299,6 +317,11 @@ function FaultForm({ initial, say, onDone, onCancel, reporter = false }) {
           </>
         )}
 
+        {missing.length > 0 && (
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--clay)", marginBottom: 8 }}>
+            * חסר: {missing.join(" · ")}
+          </div>
+        )}
         <button className="btn btn-primary" disabled={busy || !canSave} onClick={save}>
           {busy ? "שומר…" : editing ? "שמירת השינויים" : "רישום התקלה"}
         </button>

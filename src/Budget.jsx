@@ -833,7 +833,6 @@ function DiningTab({ data, say, reload }) {
       <div className="card bg-hada">
         <div className="bg-hada-h">
           <span>חדר האוכל של הקיבוץ · {monthLabel(data.month)}</span>
-          <b className="num">{shekel(used)} ₪ מתוך {shekel(budgetN)} ₪</b>
         </div>
         <div className="bg-hada-s">
           {data.diningDays > 0
@@ -1110,8 +1109,9 @@ export function BudgetPage({ say, isHead = false }) {
         {(data.dining > 0 || data.communityDays > 0 || data.diningHeads > 0) && (
           <div className="card bg-hada">
             <div className="bg-hada-h">
+              {/* ⚠ בלי מספר בפינה (14.9.2026) — "1,500 ₪" לבדו לא אמר
+                  מה הוא, והניצול מתחת כבר אומר את מה שצריך. */}
               <span>חדר האוכל של הקיבוץ</span>
-              <b className="num">{shekel(data.dining)} ₪</b>
             </div>
             <div className="bg-hada-s">
               {data.diningDays > 0

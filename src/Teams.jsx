@@ -1686,6 +1686,114 @@ function TeamMoney({ d, say, reload }) {
    ⚠ **קישורים ולא קבצים.** דרייב, טופס, מצגת — זה עוקף את כל
      שאלת האחסון ופותר את רוב הצורך.
    ============================================================ */
+/* ============================================================
+   לקנות לוועדה (14.9.2026)
+   ⚠ מוגש לקניות המכינה עד יום רביעי ב-10:00, ושם מחולק לפי ועדה.
+   ⚠ השורות נשארות כאן — "נקנה" שנסמן בקניות המכינה נשמר כאן.
+   ⚠ כל חבר מוסיף; היו״ר או הצוות מגישים (`me.manage`, מהשרת).
+   ============================================================ */
+function TeamBuy({ d, say, reload }) {
+  const [form, setForm] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const { busy: rowBusy, del } = useEntryActions(say, reload);
+  const rows = d.extras.buy || [];
+  const drafts = rows.filter((r) => !r.date && !r.done);
+  const sent = rows.filter((r) => r.date && !r.done);
+  const bought = rows.filter((r) => r.done);
+  const manage = Boolean(d.me && d.me.manage);
+  const dl = d.extras.buyDeadline;
+
+  const add = () => {
+    if (!form.title.trim()) { say("מה צריך לקנות?"); return; }
+    setBusy(true);
+    api.addTeamBuy({ team: d.team.id, title: form.title.trim(), qty: form.qty.trim(), extra: form.extra.trim() })
+      .then(() => { say("נוסף לרשימה"); setForm(null); reload(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+  const submit = () => {
+    setBusy(true);
+    api.submitTeamBuy(d.team.id)
+      .then((r) => { say(`הוגשו ${r.submitted} פריטים לקניות המכינה`); reload(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+  const line = (r, tag) => (
+    <div className="tm-entry-row" key={r.id}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="tm-entry-t">{r.title}</div>
+        <div className="tm-entry-m">
+          {r.qty != null && <span>{r.qty} יח׳</span>}
+          {r.extra && <span>· {r.extra}</span>}
+          <span>· {tag}</span>
+        </div>
+      </div>
+      {d.me.write && !r.done && (
+        <button className="btn btn-ghost btn-sm ev-del" disabled={rowBusy === r.id}
+          onClick={() => del(r)}>מחיקה</button>
+      )}
+    </div>
+  );
+
+  return (
+    <>
+      <div className="grp-h"><span>לקנות לוועדה</span></div>
+      <div className="tm-note" style={{ padding: "0 0 8px" }}>
+        מגישים ל״קניות המכינה״ עד יום רביעי ב-10:00{dl ? ` · ההגשה הקרובה: ${dmy2(dl)}` : ""}.
+        שם הרשימה מחולקת לפי ועדה, והצוות קונה.
+      </div>
+      {rows.length === 0 && !form && (
+        <div className="tm-note" style={{ padding: "0 0 8px" }}>אין עדיין פריטים.</div>
+      )}
+      {drafts.length > 0 && <div className="rows">{drafts.map((r) => line(r, "טרם הוגש"))}</div>}
+      {sent.length > 0 && (
+        <div className="rows" style={{ marginTop: 8 }}>{sent.map((r) => line(r, `הוגש ${dmy2(r.date)}`))}</div>
+      )}
+      {bought.length > 0 && (
+        <div className="tm-note" style={{ padding: "6px 0" }}>
+          נקנו: {bought.slice(0, 8).map((r) => r.title).join(" · ")}
+          {bought.length > 8 ? ` ועוד ${bought.length - 8}` : ""}
+        </div>
+      )}
+
+      {form ? (
+        <div className="card" style={{ marginTop: 8, marginBottom: 8 }}>
+          <div className="fld">
+            <label>מה צריך לקנות</label>
+            <input value={form.title} autoFocus onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          </div>
+          <div className="fld">
+            <label>כמה (לא חובה)</label>
+            <input value={form.qty} inputMode="numeric" dir="ltr"
+              onChange={(e) => setForm({ ...form, qty: e.target.value })} />
+          </div>
+          <div className="fld">
+            <label>פירוט (לא חובה)</label>
+            <input value={form.extra} placeholder="לאיזה צורך, איפה קונים, דגם"
+              onChange={(e) => setForm({ ...form, extra: e.target.value })} />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn btn-primary btn-sm" disabled={busy} onClick={add}>{busy ? "…" : "הוספה"}</button>
+            <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => setForm(null)}>ביטול</button>
+          </div>
+        </div>
+      ) : d.me.write && (
+        <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}
+          onClick={() => setForm({ title: "", qty: "", extra: "" })}><TI.plus />פריט לקנות</button>
+      )}
+
+      {drafts.length > 0 && (manage ? (
+        <button className="btn btn-primary" style={{ width: "100%", marginTop: 10, marginBottom: 14 }}
+          disabled={busy} onClick={submit}>
+          {busy ? "…" : `הגשה לקניות המכינה (${drafts.length})`}
+        </button>
+      ) : (
+        <div className="tm-note" style={{ padding: "6px 0 14px" }}>את הרשימה מגישים היו״ר או הצוות.</div>
+      ))}
+    </>
+  );
+}
+
 function LinksGear({ d, say, reload }) {
   const [adding, setAdding] = useState(null);
   const { busy, del } = useEntryActions(say, reload);
@@ -1733,6 +1841,7 @@ function LinksGear({ d, say, reload }) {
 
   return (
     <>
+      <TeamBuy d={d} say={say} reload={reload} />
       <Section title="קישורים ומסמכים" rows={d.extras.links} kind="קישור"
         empty="דרייב, טופס, מצגת — כל מה שהצוות צריך למצוא שוב." />
       <Section title="ציוד באחריות הצוות" rows={d.extras.gear} kind="ציוד"

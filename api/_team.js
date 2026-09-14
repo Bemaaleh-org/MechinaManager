@@ -26,6 +26,7 @@ import { loadDefinitions } from "./_placements.js";
 import { loadEvals } from "./_lessons-data.js";
 import {
   mayTeam, mayEditTask, progressOf, isLate, isTeamCategory, ownerIds, TEAM_BUDGET_KIND,
+  TEAM_BUY_KIND, nextBuyDeadline, israelHourNow,
 } from "../shared/team.js";
 import {
   loadTeamEntries, loadTeamFeedback, loadTeamPolls,
@@ -284,6 +285,11 @@ function extrasFor(all, teamId, today) {
   /* ⚠ תקציב הצוות (13.9.2026) — `null` כשלא נקבע, ולא 0 (4ט). */
   const bRow = of(TEAM_BUDGET_KIND)[0] || null;
   const budget = bRow && bRow.amount != null ? bRow.amount : null;
+  /* ⚠ רשימת הקניות — טיוטות קודם, אחר כך מה שהוגש, והנקנה בסוף */
+  const rank = (e) => (e.done ? 2 : e.date ? 1 : 0);
+  const buy = of(TEAM_BUY_KIND)
+    .map((e) => ({ id: e.id, title: e.title, qty: e.qty, extra: e.extra, date: e.date, done: e.done, by: e.by }))
+    .sort((a, b) => rank(a) - rank(b) || (b.date || "").localeCompare(a.date || ""));
 
   return {
     minutes: of("פרוטוקול").sort((a, b) => (b.date || "").localeCompare(a.date || "")),
@@ -291,6 +297,8 @@ function extrasFor(all, teamId, today) {
     links: of("קישור"),
     gear: of("ציוד"),
     handover: of("חפיפה"),
+    buy,
+    buyDeadline: nextBuyDeadline(today, israelHourNow()),
     money: [...of("הוצאה"), ...of("הכנסה")]
       .sort((a, b) => (b.date || "").localeCompare(a.date || "")),
     sum: {

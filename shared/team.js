@@ -76,6 +76,39 @@ export const VOCAB_KINDS = [VOCAB_KIND.status, VOCAB_KIND.stage];
    ============================================================ */
 export const TEAM_BUDGET_KIND = "תקציב";
 
+/* ============================================================
+   ⚠ רשימת הקניות של הוועדה — מוגשת לקניות המכינה (14.9.2026)
+   ------------------------------------------------------------
+   הבקשה: *"לכל ועדה רשימת ציוד, ואם היא רוצה להגיש — הדדליין יום
+   רביעי ב-10:00, ותזכורת ליו״רים 24 שעות לפני אם זה לא קורה."*
+   ובקניות המכינה: *"רשימה אחת ארוכה, עם תת-הפרדה לפי ועדה."*
+
+   · שורה מסוג `לקנות` בלוח רשומות הצוות. `date` ריק = טיוטה;
+     `date` = יום ההגשה; `done` = נקנה.
+   · ⚠ **השורות נשארות בלוח של הוועדה** וקניות המכינה קוראת
+     אותן — אותו דפוס של רשימת המכולה (5מ): עותק בשני לוחות
+     פירושו שסימון באחד משאיר את השני פתוח.
+   · ⚠ לא ב-`TEAM_ENTRY_KIND`, כמו התקציב: ההגשה היא של היו״ר
+     או הצוות, במסלול משלה.
+   ============================================================ */
+export const TEAM_BUY_KIND = "לקנות";
+/** הדדליין השבועי: יום רביעי ב-10:00, שעון ישראל */
+export const BUY_DEADLINE = { dow: 3, hour: 10 };
+
+/** תאריך הרביעי של ההגשה הקרובה. רביעי אחרי 10:00 — כבר השבוע הבא. */
+export function nextBuyDeadline(todayIso, hour) {
+  const d = new Date(String(todayIso) + "T12:00:00Z");
+  let add = (BUY_DEADLINE.dow - d.getUTCDay() + 7) % 7;
+  if (add === 0 && Number(hour) >= BUY_DEADLINE.hour) add = 7;
+  d.setUTCDate(d.getUTCDate() + add);
+  return d.toISOString().slice(0, 10);
+}
+
+/** השעה בשעון ישראל — ⚠ לא שעת השרת (Vercel ב-UTC) */
+export const israelHourNow = () => Number(new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Asia/Jerusalem", hour: "2-digit", hour12: false,
+}).format(new Date())) % 24;
+
 export function mayTeam(session, ctx) {
   const s = session || {};
   const c = ctx || {};

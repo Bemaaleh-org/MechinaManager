@@ -216,7 +216,12 @@ async function enrichMembers(membersFull, today) {
       ? requests.filter((r) => r.studentId === s.id && r.status === REQ_STATUS.pending).length
       : 0;
     const talks = Array.isArray(s.profile && s.profile.talks) ? s.profile.talks : [null, null, null];
-    const mine = absences ? absences.filter((a) => a.studentId === s.id).sort((a, b) => b.date.localeCompare(a.date)) : [];
+    /* ⚠ "נעדר לאחרונה" — **רק מה שכבר קרה** (14.9.2026). היעדרות
+       עתידית (יציאה שאושרה לשבוע הבא) הופיעה כאן כ"לאחרונה", כי
+       המיון לפי תאריך יורד מעלה אותה ראשונה. היא מוצגת בנפרד. */
+    const all = absences ? absences.filter((a) => a.studentId === s.id) : [];
+    const mine = all.filter((a) => a.date <= today).sort((a, b) => b.date.localeCompare(a.date));
+    const ahead = all.filter((a) => a.date > today).sort((a, b) => a.date.localeCompare(b.date));
 
     return {
       id: s.id,
@@ -234,6 +239,7 @@ async function enrichMembers(membersFull, today) {
       /* כמה משלושת תאריכי השיחה האישית כבר נקבעו */
       talksSet: talks.filter(Boolean).length,
       lastAbsence: mine[0] ? { date: mine[0].date, type: mine[0].type } : null,
+      nextAbsence: ahead[0] ? { date: ahead[0].date } : null,
     };
   });
 
