@@ -113,10 +113,35 @@ try {
       { user: DEMO_USER, password: DEMO_PASS });
     ok("חשבון הבדיקה נכנס", r.s === 200, `${r.s} ${r.b.error || ""}`);
 
+    /* ============================================================
+       ⚠⚠ **חשבון הבדיקה נושא אחראי לו״ז, ולכן הוא כן מגיע.**
+
+       כאן היה כתוב `403` על שני המסלולים, וזה היה נכון כל עוד
+       חשבון הבדיקה היה חניך בלי תפקידים. הוא נושא חמישה (4ת)
+       ובהם **אחראי לו״ז** — כלומר 200 הוא התשובה הנכונה, ושלוש
+       הטענות נפלו על התנהגות תקינה.
+
+       ⚠ **וזה בדיוק המצב של perm-test ו-chores-test (5כז):**
+         דרך החשבון הזה אי אפשר לבדוק את הצד החוסם **כלל**.
+         לכן הטענה מול השרת נגזרת מהזכויות בפועל, והכלל עצמו
+         נבדק טהור מול `lessonRights` — בשני הכיוונים.
+       ============================================================ */
+    const { lessonRights } = await import("../../api/_lesson-rights.js");
+    const meS = await call(S, "GET", "/api/auth?action=me");
+    const mayRead = (await lessonRights(meS.b)).read;
     r = await call(S, "GET", "/api/lessons?action=sheet&id=" + id);
-    ok("חניך אינו מגיע לגיליון בכלל", r.s === 403, `${r.s} ${r.b.error || ""}`);
+    ok(`הגיליון תואם את lessonRights.read (${mayRead})`,
+      r.s === (mayRead ? 200 : 403), `${r.s} · isScheduler=${meS.b.isScheduler}`);
     r = await call(S, "GET", "/api/lessons?action=list");
-    ok("ולא לרשימת הגיליונות", r.s === 403, String(r.s));
+    ok("וגם רשימת הגיליונות", r.s === (mayRead ? 200 : 403), String(r.s));
+
+    /* ⚠ הכלל עצמו — חניך בלי תפקיד נחסם, ואחראי לו״ז נפתח. */
+    ok("lessonRights חוסם חניך בלי תפקיד",
+      (await lessonRights({ isStudent: true })).read === false);
+    ok("ופותח לאחראי הלו״ז",
+      (await lessonRights({ isStudent: true, isScheduler: true })).read === true);
+    ok("ולכל כניסת צוות",
+      (await lessonRights({ isManager: true })).read === true);
 
     /* המסלול שחניך כן מגיע אליו — ושם אין פרטי קשר */
     r = await call(S, "GET", "/api/lessons?action=rate");
@@ -177,8 +202,20 @@ try {
     const S2 = jar();
     await call(S2, "POST", "/api/auth?action=signin",
       { user: DEMO_USER, password: DEMO_PASS });
+    /* ⚠ **אחראי הלו״ז כן רואה — הוא מסכם עם המרצים** (5ו),
+       וחשבון הבדיקה נושא את התפקיד. הטענה נגזרת מהזכות
+       בפועל, והכלל נבדק טהור מתחתיה. */
+    const meP = await call(S2, "GET", "/api/auth?action=me");
+    const mayP = Boolean(!meP.b.isStudent || meP.b.isScheduler);
     r = await call(S2, "GET", "/api/lessons?action=pay");
-    ok("חניך אינו רואה את דוח התשלום", r.s === 403, `${r.s} ${r.b.error || ""}`);
+    ok(`דוח התשלום תואם את הכלל (${mayP})`, r.s === (mayP ? 200 : 403),
+      `${r.s} · isScheduler=${meP.b.isScheduler}`);
+    /* ⚠⚠ **והכיוון שחשוב באמת: חניך רגיל אינו רואה כסף.**
+       מוביל שבוע מדווח על קיום מפגשים ואינו רואה מחירים —
+       וזו הסיבה שהבדיקה היא `isScheduler` ולא שלילת `isLeader`. */
+    r = await call(S2, "GET", "/api/lessons?action=rate");
+    ok("ודירוג השיעורים אינו נושא מחירים",
+      r.s === 200 && !/"price"/.test(JSON.stringify(r.b)), String(r.s));
   }
   r = await call(G, "PUT", "/api/lessons?action=pay", { id, price: 100 });
   ok("ומדריך אינו קובע מחיר", r.s === 403, `${r.s} ${r.b.error || ""}`);

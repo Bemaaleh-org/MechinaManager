@@ -251,7 +251,33 @@ try {
      (5יג), ולא סינון אחד בסוף. */
   r = await call(S, "GET", "/api/container?action=allshop");
   ok("בעל תפקיד כן מגיע למסך המאוחד", r.s === 200, `${r.s}`);
-  ok("והלשונית הכללית סגורה לו", r.b.canGeneral === false, String(r.b.canGeneral));
+
+  /* ============================================================
+     ⚠⚠ **הטענה הזו התהפכה, וזו החלטה ולא רגרסיה (15.9.2026).**
+
+     כאן היה כתוב `canGeneral === false` — אב הבית ואחראי
+     המטבח מגיעים למסך ואינם רואים את הלשונית הכללית. הבקשה
+     של ראש המכינה הייתה במפורש ההפך: *"תוסיף אפשרות לאב
+     בית, אחראי בטיחות ולאחראי מטבח, גם להם רשימות קניות
+     שהם מוסיפים שבסוף זה מתווסף לרשימת הקניות הכללית"* —
+     ולכן `roleHolder` נכלל ב-`maySeeBuy`.
+
+     ⚠ **והציפייה נגזרת מהכלל ואינה קבועה**, כי חשבון הבדיקה
+       נושא את כל חמשת התפקידים ומחר הם עשויים להשתנות (4ת).
+     ============================================================ */
+  const { maySeeBuy } = await import("../../api/_buy.js");
+  const meBuy = await call(S, "GET", "/api/auth?action=me");
+  ok("והלשונית הכללית תואמת את maySeeBuy",
+    r.b.canGeneral === maySeeBuy(meBuy.b),
+    `canGeneral=${r.b.canGeneral} · isKitchen=${meBuy.b.isKitchen} · isHouse=${meBuy.b.isHouse}`);
+
+  /* ⚠ **והכלל עצמו — טהור, ובשני הכיוונים.** דרך חשבון הבדיקה
+     אי אפשר לבדוק את הצד החוסם כלל, בדיוק כמו ב-chores-test
+     (5כז) וב-perm-test. */
+  ok("maySeeBuy חוסם חניך בלי תפקיד", maySeeBuy({ isStudent: true }) === false);
+  ok("ופותח לאב הבית", maySeeBuy({ isStudent: true, isHouse: true }) === true);
+  ok("ולאחראי הבטיחות", maySeeBuy({ isStudent: true, isSafety: true }) === true);
+  ok("ולכל כניסת צוות", maySeeBuy({ isManager: true }) === true);
   ok("והרשימה הכללית אינה בגוף התשובה שלו",
     !(r.b.groups || []).some((g) => g.key === "buy"),
     JSON.stringify((r.b.groups || []).map((g) => g.key)));

@@ -253,12 +253,47 @@ try {
      ============================================================ */
   console.log("\n=== דיווח על מפגשים ===");
   {
+    /* ============================================================
+       ⚠⚠⚠ **חשבון הבדיקה נושא גם את תפקיד אחראי הלו״ז (4ת),
+         ולכן דרכו אי אפשר לבדוק את הגבול הזה כלל.**
+
+       חמש טענות כאן נכשלו על התנהגות **נכונה**: אחראי לו״ז
+       אכן מסמן מפגשים ואכן רואה את דוח התשלום. זה בדיוק המצב
+       של `chores-test` (5כז), של `perm-test` ושל `sheet-test`.
+
+       לכן: מה שנבדק מול השרת נגזר מהתפקידים בפועל, והכלל
+       עצמו — שמוביל שבוע **אינו** מסמן ואינו רואה כסף — נבדק
+       **טהור**, בשני הכיוונים, ותמיד.
+
+       ⚠ ובדרך אגב נחסך כאן גם משהו אחר: הגרסה הקודמת כתבה
+         `happened: "כן"` על **מפגש אמיתי** וסמכה על שחזור.
+         כשהיא מקבלת 200 היא נוגעת בנתוני המכינה (5א).
+       ============================================================ */
+    const meL = await call(S, "GET", "/api/auth?action=me");
+    const leaderOnly = Boolean(meL.b.isStudent && !meL.b.isScheduler);
+    if (!leaderOnly) {
+      console.log("  ⚠ חשבון הבדיקה נושא אחראי לו״ז — הטענות מול השרת נגזרות,");
+      console.log("    והכלל עצמו נבדק טהור מתחת.");
+    }
+
     const board = await call(S, "GET", "/api/lessons?action=board");
     ok("מוביל שבוע פותח את לוח השיעורים", board.s === 200, String(board.s));
     /* ⚠ מה שמותר נשלח מהשרת ואינו נגזר במסך (4יד). */
     ok("והשרת אומר על אילו טווחים מותר",
-      board.b.markAll === false && Array.isArray(board.b.markWeeks),
+      board.b.markAll === !leaderOnly && Array.isArray(board.b.markWeeks),
       JSON.stringify({ all: board.b.markAll, weeks: board.b.markWeeks }));
+
+    /* ⚠⚠ **הכלל עצמו — טהור, ובשני הכיוונים.** */
+    const { lessonRights } = await import("../../api/_lesson-rights.js");
+    const { mayPay } = await import("../../api/_lesson-pay.js");
+    ok("מוביל שבוע אינו כותב ללו״ז (5לד)",
+      (await lessonRights({ isStudent: true, isLeader: true, leadsAnyWeek: true })).write === false);
+    ok("ואחראי הלו״ז כן",
+      (await lessonRights({ isStudent: true, isScheduler: true })).write === true);
+    ok("מוביל שבוע אינו רואה כסף",
+      mayPay({ isStudent: true, isLeader: true, leadsAnyWeek: true }) === false);
+    ok("ואחראי הלו״ז כן — הוא מסכם עם המרצים (5ו)",
+      mayPay({ isStudent: true, isScheduler: true }) === true);
     /* ============================================================
        ⚠⚠⚠ **הטענות כאן התהפכו במכוון (10.9.2026, 5לד).**
        מובילי שבוע ירדו מסימון השיעורים — גם בשבוע שלהם. שתי
@@ -277,28 +312,31 @@ try {
     const inside2 = all.find((m) => m.date >= wStart && m.date <= wEnd);
     const outside2 = all.find((m) => m.date < wStart || m.date > wEnd);
 
-    if (inside2) {
-      const was = inside2.happened ?? null;
+    /* ⚠ **נוגעים במפגש אמיתי רק כשהתשובה אמורה להיות 403.**
+       כשהחשבון רשאי, הבקשה הייתה **כותבת** על שורה של
+       המכינה ונשענת על שחזור שיכול להיכשל (5א). */
+    if (inside2 && leaderOnly) {
       const r2 = await call(S, "POST", "/api/lessons?action=mark",
         { meetingId: inside2.id, happened: "כן" });
       ok("ואינו מסמן מפגש גם בשבוע שלו (5לד)", r2.s === 403,
         `${r2.s} ${r2.b.error || ""}`);
-      /* ⚠ ואם בכל זאת נכתב — מחזירים למה שהיה, הבדיקה כותבת על
-         שורה אמיתית (5א). */
+      /* ⚠ ואם בכל זאת נכתב — מחזירים למה שהיה. */
       if (r2.s === 200) {
         await call(S, "POST", "/api/lessons?action=mark",
-          { meetingId: inside2.id, happened: was });
+          { meetingId: inside2.id, happened: inside2.happened ?? null });
       }
+    } else if (!leaderOnly) {
+      console.log("  (החשבון רשאי לסמן — לא נוגעים במפגש אמיתי)");
     } else console.log("  (אין מפגש בשבוע הזה — הטענה דולגה)");
 
-    if (outside2) {
+    if (outside2 && leaderOnly) {
       const r3 = await call(S, "POST", "/api/lessons?action=mark",
         { meetingId: outside2.id, happened: "כן" });
       ok("ואינו מסמן מפגש מחוץ לשבוע שלו", r3.s === 403, `${r3.s} ${r3.b.error || ""}`);
       /* ⚠ ההודעה אומרת **מי כן רשאי**, ולא "אין הרשאה" (4כב). */
       ok("וההודעה אומרת מי כן מסמן",
         /אחראי הלו״ז/.test(r3.b.error || ""), r3.b.error);
-    } else console.log("  (אין מפגש מחוץ לשבוע — הטענה דולגה)");
+    } else if (leaderOnly) console.log("  (אין מפגש מחוץ לשבוע — הטענה דולגה)");
 
     /* ============================================================
        ⚠⚠ **הטענה ששומרת על הרחבת השער.**
@@ -319,14 +357,20 @@ try {
 
        ⚠ ולכן נבדק כאן **גם התוכן ולא רק הסטטוס**: 403 יכול
        להגיע מעשר סיבות, וזו הסיבה היחידה שמעניינת. */
-    const pay = await call(S, "GET", "/api/lessons?action=pay");
-    ok("ומוביל שבוע אינו רואה את דוח התשלום למרצים",
-      pay.s === 403 && /מוביל שבוע/.test(pay.b.error || ""),
-      `${pay.s} ${pay.b.error || ""}`);
-    /* ⚠ וגם כתיבה — לא רק קריאה. */
-    const payW = await call(S, "PUT", "/api/lessons?action=pay",
-      { sheet: "999999999", price: 100 });
-    ok("וגם אינו קובע מחיר", payW.s === 403, `${payW.s} ${payW.b.error || ""}`);
+    if (leaderOnly) {
+      const pay = await call(S, "GET", "/api/lessons?action=pay");
+      ok("ומוביל שבוע אינו רואה את דוח התשלום למרצים",
+        pay.s === 403 && /מוביל שבוע/.test(pay.b.error || ""),
+        `${pay.s} ${pay.b.error || ""}`);
+      /* ⚠ וגם כתיבה — לא רק קריאה. */
+      const payW = await call(S, "PUT", "/api/lessons?action=pay",
+        { sheet: "999999999", price: 100 });
+      ok("וגם אינו קובע מחיר", payW.s === 403, `${payW.s} ${payW.b.error || ""}`);
+    } else {
+      /* ⚠ החשבון רשאי — הכלל נבדק טהור למעלה (mayPay). */
+      const pay = await call(S, "GET", "/api/lessons?action=pay");
+      ok("והדוח תואם את mayPay", pay.s === 200, `${pay.s} ${pay.b.error || ""}`);
+    }
   }
 
   console.log("\n=== המנהל אינו מוגבל ===");
