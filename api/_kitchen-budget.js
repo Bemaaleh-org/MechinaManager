@@ -22,7 +22,7 @@ import { loadGantt } from "./_lessons-gantt.js";
 import {
   BUDGET_BOARDS as B, BUDGET_COLS as C, budgetReady,
   DEFAULT_HEADCOUNT, SETTING_HEADCOUNT,
-  SETTING_DINING_RATE, SETTING_DINING_BUDGET, DEFAULT_DINING_RATE,
+  SETTING_DINING_RATE, SETTING_DINING_BUDGET, SETTING_DINING_MOVED, DEFAULT_DINING_RATE,
   diningHeadsReady, DAY_COMMUNITY,
   dayCost, perPersonOf, sortTypes, orderShareFor, monthsOf,
   headcountAt, ORDER_KIND, ORDER_KINDS,
@@ -157,6 +157,8 @@ export async function duplicateSettings({ force = false } = {}) {
 /** ⚠ תקציב החד״א **לחודש** — שורה בלוח ההגדרות לכל חודש שנקבע לו
     תקציב ידני. חודש בלי שורה מקבל את התקציב הנגזר (13.9.2026). */
 const diningBudgetKey = (month) => `${SETTING_DINING_BUDGET} ${month}`;
+/* ⚠ שורה לחודש — ראו shared/budget-boards.js. */
+const diningMovedKey = (month) => `${SETTING_DINING_MOVED} ${month}`;
 
 const invalidateBudget = () => {
   invalidate("budget-daytypes"); invalidate("budget-days");
@@ -401,6 +403,37 @@ async function handler(req, res, session) {
       const monthSet = await loadSettingNum(diningBudgetKey(month));
       const diningBudget = monthSet != null ? monthSet : b.diningPlan;
 
+      /* ============================================================
+         ⚠⚠ **היתרה עוברת רק כשאין עוד מה לחכות לו.**
+
+         שני תנאים נפרדים, ושניהם נחוצים:
+           · כל ימי העשייה הקהילתית בחודש **עברו**
+           · וכולם **נספרו**
+
+         ⚠ יום שעבר ולא נספר אינו "לא נוצל" — הוא **לא
+           ידוע** (4ט), והעברת היתרה שלו היא העברת כסף
+           שכבר הוצא. זה בדיוק המצב שאי אפשר לשחזר
+           בסוף השנה.
+
+         ⚠ והסיבה מוחזרת במילים: כפתור מושבת בלי הסבר
+           שולח לנחש (4כב).
+         ============================================================ */
+      /* ⚠ שעון ישראל ולא שעון השרת — Vercel רצה ב-UTC,
+         והגבול "היום עבר" היה זז במוצאי שבת. */
+      const todayIso = israelToday();
+      const moved = await loadSettingNum(diningMovedKey(month));
+      const diningMoved = moved || 0;
+      const pastCommunity = b.days.filter((d) => d.community && d.date < todayIso);
+      const uncounted = pastCommunity.filter((d) => d.diningHeads == null).length;
+      const future = b.days.filter((d) => d.community && d.date >= todayIso).length;
+      const surplus = Math.max(0, Math.round((diningBudget - b.diningUsed - diningMoved) * 100) / 100);
+      let diningMoveReason = null;
+      if (!b.communityDays) diningMoveReason = "אין ימי עשייה קהילתית בחודש הזה";
+      else if (future) diningMoveReason = `נותרו ${future} ימי עשייה קהילתית שטרם הגיעו`;
+      else if (uncounted) diningMoveReason = `${uncounted} ימי עשייה קהילתית עברו וטרם נספרו`;
+      else if (!surplus) diningMoveReason = "לא נותרה יתרה להעביר";
+      const diningMovable = diningMoveReason ? 0 : surplus;
+
       /* ⚠ הקניות אינן מוסיפות לתקציב אלא יורדות ממנו: התקציב
          נקבע מסוגי הימים, והקניות הן ההוצאה מולו. ההפרש הוא
          שאומר אם חרגנו. */
@@ -476,11 +509,37 @@ async function handler(req, res, session) {
            שינוי צריך לדעת למה. */
         settingDupes: await duplicateSettings().catch(() => []),
         diningLeft: diningBudget - b.diningUsed,
+        /* ============================================================
+           ⚠⚠ **העברת היתרה לתקציב הקניות — מוצעת, ולא
+           קורית מעצמה.** השרת מחשב מתי זה אפשרי ומה
+           הסכום, והאדם מכריע — אותו דפוס של המלצת
+           התורניות (4צ). ראו shared/budget-boards.js.
+
+           ⚠ `canMoveDining` אומר אם **מותר לו**, ו-`diningMovable`
+             אם **יש מה להעביר**. שני דברים שונים, ודגל
+             אחד לשניהם היה מסתיר את הסכום ממי שאינו רשאי
+             להעביר — והוא צריך לדעת שיש כאן משהו.
+           ============================================================ */
+        diningMoved,
+        diningMovable,
+        diningMoveReason,
+        canMoveDining: Boolean(session.isHead),
         diningReady: diningHeadsReady(),
-        purchases: b.purchases,
+        /* ============================================================
+           ⚠⚠ **תקציב הקניות כולל את מה שהועבר מהחד״א.**
+           אחרת ההעברה הייתה רשומה בלוח ולא משנה אף
+           מספר על המסך — כלומר כפתור שמדווח הצלחה ולא
+           עושה דבר, וזה גרוע מכפתור שנכשל (עיקרון 6).
+
+           ⚠ ו-`purchasesBase` נשלח לצידו כדי שהמסך יוכל
+             לומר **מאיפה המספר** — סכום שגדל בלי הסבר
+             נראה כמו טעות (4לג: מספר בלי מקור).
+           ============================================================ */
+        purchasesBase: b.purchases,
+        purchases: b.purchases + diningMoved,
         total: b.foodTotal,
         spent,
-        left: b.purchases - spent,
+        left: b.purchases + diningMoved - spent,
         /* ============================================================
            ⚠⚠ **"כמה מהחודש כבר נסגר" — ולא "ניצול מתוך הסך הכול".**
 
@@ -526,6 +585,81 @@ async function handler(req, res, session) {
          ⚠ **מעדכן את השורה הקיימת לפי השם** ויוצר אותה רק אם אינה —
            שתי שורות באותו שם היו נותנות לקורא לבחור אחת בשקט.
          ============================================================ */
+      /* ============================================================
+         ⚠⚠ **העברת יתרת החד״א לתקציב הקניות.**
+
+         ⚠ **ראש המכינה בלבד** — זו העברה בין סעיפי תקציב,
+           והיא באותה רמה של קביעת התקציב עצמו.
+
+         ⚠⚠ **הסכום נגזר בשרת ואינו מתקבל מהמסך.** מסך
+           ששולח סכום הוא מסך שיכול לשלוח כל סכום, והתנאי
+           היה הופך להצעה. המסך מבקש "להעביר", והשרת
+           מחשב כמה — אותו כלל של מחיר הבקשה (4ר) ושל
+           התקרה בחיוב ימי החופש (5כד).
+
+         ⚠ **וההעברה מצטברת ואינה דורסת**: אם נספר עוד יום
+           אחרי העברה ראשונה, ההעברה הבאה מעבירה את
+           ההפרש בלבד — `surplus` מחסר את מה שכבר הועבר.
+
+         ⚠ **והתשובה מחזירה את ההצהרה כטקסט**, כפי שהתבקשה
+           — והמסך אינו מנסח אותה מחדש (4מד).
+         ============================================================ */
+      if (body.diningMove !== undefined) {
+        if (!session.isHead) {
+          return res.status(403).json({ error: "העברת יתרת החד״א נעשית על ידי ראש המכינה" });
+        }
+        const month = String(body.month || "").trim();
+        if (!/^\d{4}-\d{2}$/.test(month)) return res.status(400).json({ error: "לא צוין חודש" });
+
+        /* ⚠ **נבנה מחדש באותה `buildMonth` של ה-GET**, ולא
+           בחישוב שני — שתי הגדרות ל"כמה נותר" היו
+           מתפצלות בתיקון הראשון, והמסך היה מציג סכום
+           אחד והשרת מעביר אחר (4מד). */
+        const [types2, ov2, heads2, cal2, gantt2, rate2] = await Promise.all([
+          loadDayTypes({ force: true }), loadOverrides({ force: true }), loadHeadcount(),
+          loadCalendar(), loadGantt(), loadSettingNum(SETTING_DINING_RATE, { force: true }),
+        ]);
+        const bb = buildMonth(month, {
+          types: types2, overrides: ov2, calendar: cal2, gantt: gantt2, heads: heads2,
+          diningRate: rate2 != null && rate2 > 0 ? rate2 : DEFAULT_DINING_RATE,
+        });
+        const set2 = await loadSettingNum(diningBudgetKey(month));
+        const budget2 = set2 != null ? set2 : bb.diningPlan;
+        const already = (await loadSettingNum(diningMovedKey(month))) || 0;
+        const todayIso2 = israelToday();
+        const future2 = bb.days.filter((d) => d.community && d.date >= todayIso2).length;
+        const uncounted2 = bb.days
+          .filter((d) => d.community && d.date < todayIso2 && d.diningHeads == null).length;
+        const amount = Math.round((budget2 - bb.diningUsed - already) * 100) / 100;
+
+        /* ⚠ ההודעה אומרת **למה** ולא "לא ניתן" (4כב). */
+        if (!bb.communityDays) return res.status(400).json({ error: "אין ימי עשייה קהילתית בחודש הזה" });
+        if (future2) {
+          return res.status(400).json({
+            error: `נותרו ${future2} ימי עשייה קהילתית שטרם הגיעו — היתרה עודיין עשויה להידרש` });
+        }
+        if (uncounted2) {
+          return res.status(400).json({
+            error: `${uncounted2} ימי עשייה קהילתית עברו וטרם נספרו — יש לספור אותם קודם` });
+        }
+        if (amount <= 0) return res.status(400).json({ error: "לא נותרה יתרה להעביר" });
+
+        const key = diningMovedKey(month);
+        const items = await allItems(B.settings);
+        const hit = items.find((i) => String(i.name || "").trim() === key);
+        const total = Math.round((already + amount) * 100) / 100;
+        if (hit) await setCols(B.settings, hit.id, { [C.settings.value]: String(total) });
+        else await createItem(B.settings, key, { [C.settings.value]: String(total) });
+        invalidateBudget();
+
+        const nis = (n) => n.toLocaleString("he-IL", { maximumFractionDigits: 2 });
+        return res.status(200).json({
+          ok: true, month, moved: amount, totalMoved: total,
+          /* ⚠ הנוסח שראש המכינה ביקש, מהשרת ולא מהמסך. */
+          note: `הוספתי ${nis(amount)} שקלים לתקציב הקניות, וירד מתקציב החד״א`,
+        });
+      }
+
       if (body.diningBudget !== undefined) {
         if (!session.isHead) {
           return res.status(403).json({ error: "תקציב החד״א החודשי נקבע על ידי ראש המכינה" });

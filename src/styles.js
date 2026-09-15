@@ -3373,6 +3373,15 @@ html,body{margin:0;padding:0;background:#012E58}
 .bg-hada-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
   font-size:13.5px;font-weight:900;color:var(--ink)}
 .bg-hada-s{font-size:11.5px;font-weight:700;color:var(--faint);margin-top:3px}
+/* ---- העברת יתרת החד״א לתקציב הקניות ----
+   ⚠ ההצהרה נשארת על המסך גם אחרי ההעברה: העברה שנעלמת היא
+     בדיוק מה שאיש לא יזכור בעוד חודשיים (5ו). */
+.bg-moved{margin-top:9px;padding:9px 11px;border-radius:var(--r-sm);
+  background:var(--ok-soft);color:var(--ok);font-size:12.5px;font-weight:700}
+.bg-move{margin-top:9px;padding:11px 12px;border-radius:var(--r-sm);
+  background:var(--t6-s);color:var(--ink);font-size:13px;font-weight:700}
+.bg-btns{display:flex;gap:8px;margin-top:9px}
+.bg-btns>*{flex:1}
 
 .ch-pn{flex:0 0 auto;min-width:24px;height:24px;display:inline-flex;align-items:center;
   justify-content:center;border-radius:999px;background:var(--sand);color:var(--muted);

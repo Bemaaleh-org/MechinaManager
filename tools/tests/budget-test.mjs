@@ -79,7 +79,8 @@ const users = (await gql(`{ boards(ids:[${AUTH_BOARD}]){ items_page(limit:100){i
   .boards[0].items_page.items;
 const codeOf = (t) => cv(users.find((x) => x.name.includes(t)), AUTH_COLS.code);
 
-const reg = await tempRegister("דני לויט");
+/* ⚠ גם נעם — הכיוון השני של העברת החד״א נבדק דרכו. */
+const reg = await tempRegister("דני לויט", "נעם");
 const M = jar();
 let r = await call(M, "POST", "/api/auth?action=login", { code: codeOf("דני לויט") });
 if (r.s !== 200) { console.log("כניסה נכשלה", r.b); await reg.restore(); process.exit(1); }
@@ -121,6 +122,49 @@ try {
     ok("וחודש הפתיחה הוא המוקדם שנבחר",
       cv(row, C.orders.startMonth) === "2026-09", cv(row, C.orders.startMonth));
   }
+
+  /* ============================================================
+     ⚠⚠ **העברת יתרת החד״א לתקציב הקניות (15.9.2026).**
+
+     ⚠ **הבדיקה אינה מעבירה כסף באמת.** ההעברה כותבת
+       שורת הגדרה בלוח האמיתי ומשנה תקציב שהמכינה
+       עובדת לפיו עכשיו — והרצה שתיפול באמצע תשאיר
+       אותה שם (5א). מה שנבדק הוא **השער והחישוב**.
+
+     ⚠⚠ **ושני הכיוונים באותה הרצה:** השדות יוצאים,
+       ומי שאינו ראש מכינה נחסם. טענה אחת בלבד הייתה
+       נשארת ירוקה גם אילו כל איש צוות יכול להעביר כסף
+       בין סעיפי תקציב.
+     ============================================================ */
+  console.log("\n=== העברת יתרת החד״א ===");
+  r = await call(M, "GET", "/api/kitchen?action=budget");
+  const bd = r.b;
+  ok("השדות יוצאים מהשרת",
+    typeof bd.diningMoved === "number" && typeof bd.diningMovable === "number"
+      && typeof bd.canMoveDining === "boolean",
+    `moved=${bd.diningMoved} movable=${bd.diningMovable} may=${bd.canMoveDining}`);
+  /* ⚠ **כשאי אפשר להעביר יש סיבה במילים**, ולא כפתור
+     מושבת בלי הסבר (4כב). */
+  ok("וכשאין מה להעביר — יש סיבה במילים",
+    bd.diningMovable > 0 || Boolean(bd.diningMoveReason),
+    bd.diningMoveReason || "(ניתן להעביר)");
+  /* ⚠ תקציב הקניות כולל את מה שהועבר — אחרת ההעברה
+     רשומה בלוח ואינה משנה אף מספר (עיקרון 6). */
+  ok("ותקציב הקניות כולל את המועבר",
+    bd.purchases === bd.purchasesBase + bd.diningMoved,
+    `${bd.purchases} = ${bd.purchasesBase} + ${bd.diningMoved}`);
+  /* ⚠⚠ **והכיוון השני: מי שאינו ראש מכינה נחסם.**
+     זו העברה בין סעיפי תקציב, באותה רמה של קביעת
+     התקציב עצמו. נבדק על חודש שאין בו ימי עשייה
+     קהילתית, כלומר גם אילו השער היה נפתח לא היה מה
+     להעביר — הבדיקה אינה נוגעת בכסף בשום מצב. */
+  const G = jar();
+  await call(G, "POST", "/api/auth?action=login", { code: codeOf("נעם") });
+  r = await call(G, "PUT", "/api/kitchen?action=budget",
+    { month: "2026-07", diningMove: true });
+  ok("מדריך נחסם בהעברה",
+    r.s === 403 && /ראש המכינה/.test(r.b.error || ""),
+    `${r.s} ${r.b.error || ""}`);
 
   console.log("\n=== ניקוי ===");
   await cleanup();
