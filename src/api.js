@@ -813,6 +813,10 @@ export const api = {
   /** יצירת רשימת קניות — כמה שורות בבת אחת, בתחום אחד */
   addShopping: (items, area) => post("/api/container?action=shop", { items, area }),
   setShoppingStatus: ({ itemId, status }) => put("/api/container?action=shop", { itemId, status }),
+  /* ⚠ עריכת שם וכמות של שורה ברשימת ציוד המכינה.
+     ⚠ התחום נלקח **מהשורה** בשרת ולא מגוף הבקשה (4כב). */
+  editShopping: ({ itemId, name, qty }) =>
+    put("/api/container?action=shop", { itemId, name, qty }),
   deleteShopping: (itemId) => del("/api/container?action=shop", { itemId }),
 
   /* ============================================================
@@ -847,6 +851,27 @@ export const api = {
     /* ⚠ שורת ועדה — "נקנה" נשמר על השורה בלוח הוועדה */
     if (source === "team") return api.editTeamEntry({ id, done: true });
     return Promise.reject(new Error("מקור קנייה לא מוכר: " + source));
+  },
+
+  /* ============================================================
+     ⚠ **אותו דפוס של `markShopRow`:** `source` הוא החוזה,
+       וכאן המקום היחיד שמתרגם אותו לנקודת קצה
+       (עיקרון 7). מסך שירכיב כתובת בעצמו הוא בדיוק
+       הדרך שבה נולד הבאג של עיקרון 6.
+     ⚠ והשדות מפורקים במפורש: שדה שאינו כתוב כאן
+       נשמט בשקט, וזו הדרך שבה שדה חדש נראה עובד
+       במסך ואינו מגיע לשרת (4לג).
+     ============================================================ */
+  editShopRow: ({ source, id, name, qty }) => {
+    if (source === "container") return api.editShopping({ itemId: id, name, qty });
+    if (source === "buy") return api.editBuy({ id, name, qty });
+    return Promise.reject(new Error("שורה ממקור זה אינה ניתנת לעריכה: " + source));
+  },
+
+  deleteShopRow: ({ source, id }) => {
+    if (source === "container") return api.deleteShopping(id);
+    if (source === "buy") return api.deleteBuy(id);
+    return Promise.reject(new Error("שורה ממקור זה אינה ניתנת למחיקה: " + source));
   },
 
   /** שיבוץ מובילי השבוע — 43 השבועות והרשימה לשיבוץ. מנהל בלבד. */

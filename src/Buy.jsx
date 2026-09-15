@@ -49,9 +49,13 @@ const SRC_TONE = { kitchen: "by-k", container: "by-c", buy: "by-b" };
 /* ⚠ הנתונים נטענים ב-`BuyPage` ולא כאן: הלשוניות עצמן
    נגזרות מ-`canGeneral` שבאותה תשובה, וטעינה שנייה הייתה
    שואלת את השרת את אותה שאלה פעמיים. */
-function AllShopping({ d, say, empty = null, note = null }) {
+function AllShopping({ d, say, empty = null, note = null, reload = null }) {
   const [done, setDone] = useState(() => new Set());
   const [busy, setBusy] = useState(() => new Set());
+  /* ⚠ שורה אחת פתוחה לעריכה בכל רגע — שתיים בבת אחת
+     הן הדרך לשמור בטעות את השורה הלא-נכונה. */
+  const [edit, setEdit] = useState(null);   // { key, name, qty }
+  const [ask, setAsk] = useState(null);     // אישור מחיקה
 
   /* ⚠ אופטימי: השורה מסומנת מיד והבקשה יוצאת ברקע (4י).
      ⚠ ובכישלון חוזרים אחורה **ואומרים** — סימון שנשאר על
@@ -68,6 +72,36 @@ function AllShopping({ d, say, empty = null, note = null }) {
         say(e.message || "הסימון לא נשמר");
       })
       .finally(() => setBusy((s) => { const n = new Set(s); n.delete(key); return n; }));
+  };
+
+  /* ============================================================
+     ⚠ **עריכה אינה אופטימית, בניגוד לסימון.**
+     סימון "נקנה" הוא מצב בוליאני שקל להחזיר (4י);
+     עריכה מחליפה טקסט שהמשתמש הקליד, ו"חזרה אחורה"
+     שלה מוחקת את מה שהוא כתב. עדיף לחכות שנייה.
+     ============================================================ */
+  const save = () => {
+    if (!edit) return;
+    const name = String(edit.name || "").trim();
+    if (!name) { say("שם הפריט אינו יכול להיות ריק"); return; }
+    const key = edit.key;
+    setBusy((s2) => new Set(s2).add(key));
+    api.editShopRow({ source: edit.source, id: edit.id, name, qty: String(edit.qty || "").trim() })
+      .then(() => { say("נשמר"); setEdit(null); if (reload) reload(); })
+      .catch((e) => say(e.message || "העריכה לא נשמרה"))
+      .finally(() => setBusy((s2) => { const n = new Set(s2); n.delete(key); return n; }));
+  };
+
+  /* ⚠ **אישור בתוך המסך ולא `confirm()` של הדפדפן** — הוא
+     נראה זר, ובחלק מהדפדפנים במובייל הוא נחסם לגמרי,
+     כלומר הכפתור פשוט אינו עושה כלום (4ק). */
+  const remove = (row) => {
+    const key = row.source + ":" + row.id;
+    setBusy((s2) => new Set(s2).add(key));
+    api.deleteShopRow({ source: row.source, id: row.id })
+      .then(() => { say(`"${row.name}" נמחק`); setAsk(null); if (reload) reload(); })
+      .catch((e) => say(e.message || "המחיקה לא בוצעה"))
+      .finally(() => setBusy((s2) => { const n = new Set(s2); n.delete(key); return n; }));
   };
 
   const groups = (d.groups || []).filter((g) => g.rows.length);
@@ -111,6 +145,33 @@ function AllShopping({ d, say, empty = null, note = null }) {
           {g.rows.map((r) => {
             const key = r.source + ":" + r.id;
             const hit = done.has(key);
+            const isEdit = edit && edit.key === key;
+            const isAsk = ask === key;
+
+            /* ⚠ עריכה מחליפה את השורה במקומה ואינה נפתחת
+               מתחת לה: שתי שורות לאותו פריט הן בדיוק המקום
+               שבו משנים את השורה הלא-נכונה. */
+            if (isEdit) {
+              return (
+                <div className="by-row by-edit" key={key}>
+                  <div className="by-t">
+                    <input className="in" value={edit.name} autoFocus
+                      placeholder="שם הפריט"
+                      onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
+                    <input className="in" value={edit.qty} placeholder="כמות"
+                      inputMode="numeric"
+                      onChange={(e) => setEdit({ ...edit, qty: e.target.value })} />
+                    <div className="by-btns">
+                      <button className="btn btn-primary btn-sm" onClick={save}
+                        disabled={busy.has(key)}>שמירה</button>
+                      <button className="btn btn-ghost btn-sm"
+                        onClick={() => setEdit(null)}>ביטול</button>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <div className={"by-row" + (hit ? " is-done" : "")} key={key}>
                 <div className="by-t">
@@ -121,19 +182,58 @@ function AllShopping({ d, say, empty = null, note = null }) {
                     {r.area && <>{r.area}</>}
                     {(r.qty || r.area) && r.date && " · "}
                     {r.date && <>נרשם {dmy(r.date)}</>}
+                    {/* ⚠⚠ **מי הוסיף — וזה אינו סתירה לעיקרון 5.**
+                        שם כאן אינו מעקב על ביצוע אלא "את מי
+                        לשאול איזה מיקרוגל התכוון" — אותו נימוק
+                        של "מי לקח" בפניות הגיוס (5כו).
+                        ⚠ ואינו יוצא לוואטסאפ: שם השאלה בקופה
+                        היא "מה לקנות" ולא "מי ביקש". */}
+                    {r.by && <> · הוסיף {r.by}</>}
                   </span>
                   {r.detail && <span className="by-d">{r.detail}</span>}
+
+                  {/* ⚠ אישור המחיקה אומר **מה** נמחק. "בטוח?" על
+                      פעולה שאי אפשר לבטל אינה שאלה שאפשר
+                      לענות עליה (4ק). */}
+                  {isAsk && (
+                    <div className="by-ask">
+                      <span>למחוק את "{r.name}" מהרשימה?</span>
+                      <div className="by-btns">
+                        <button className="btn btn-danger btn-sm" onClick={() => remove(r)}
+                          disabled={busy.has(key)}>מחיקה</button>
+                        <button className="btn btn-ghost btn-sm"
+                          onClick={() => setAsk(null)}>ביטול</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {r.canMark ? (
-                  <button className={"by-ok" + (hit ? " on" : "")} onClick={() => mark(r)}
-                    disabled={hit} aria-label={"סימון " + r.name + " כנקנה"}>
-                    <YI.check />
-                  </button>
-                ) : (
-                  /* ⚠ מי שאינו רשאי רואה למה, ולא כפתור מושבת
-                     בלי הסבר. */
-                  <span className="by-locked">מסמן {r.markHint || r.sourceTitle}</span>
-                )}
+
+                <div className="by-acts">
+                  {r.canMark ? (
+                    <button className={"by-ok" + (hit ? " on" : "")} onClick={() => mark(r)}
+                      disabled={hit} aria-label={"סימון " + r.name + " כנקנה"}>
+                      <YI.check />
+                    </button>
+                  ) : (
+                    /* ⚠ מי שאינו רשאי רואה למה, ולא כפתור מושבת
+                       בלי הסבר. */
+                    <span className="by-locked">מסמן {r.markHint || r.sourceTitle}</span>
+                  )}
+                  {/* ⚠ `canEdit` מגיע מהשרת ואינו נגזר במסך (4יד). */}
+                  {r.canEdit && !hit && (
+                    <>
+                      <button className="by-mini" title="עריכה" aria-label={"עריכת " + r.name}
+                        onClick={() => { setAsk(null); setEdit({ key, source: r.source, id: r.id, name: r.name, qty: r.qty || "" }); }}>
+                        <YI.pen />
+                      </button>
+                      <button className="by-mini by-del" title="מחיקה"
+                        aria-label={"מחיקת " + r.name}
+                        onClick={() => { setEdit(null); setAsk(isAsk ? null : key); }}>
+                        <YI.trash />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -492,7 +592,7 @@ export function BuyPage({ say }) {
       ) : !d ? (
         <><div className="skel skel-card" /><div className="skel skel-card" /></>
       ) : (
-        <AllShopping d={d} say={say}
+        <AllShopping d={d} say={say} reload={() => setN((x) => x + 1)}
           empty={{ title: "אין כרגע מה לקנות", sub: "כל הרשימות ריקות." }} />
       )}
     </>
@@ -548,6 +648,21 @@ export const BUY_CSS = `
 .kx .by-icon.by-del{color:var(--clay)}
 .by-locked{font-size:12px;font-weight:700;color:var(--faint);flex-shrink:0;
   align-self:center;text-align:center;max-width:86px;line-height:1.4}
+
+/* עריכה ומחיקה של שורת קנייה */
+.by-acts{display:flex;align-items:center;gap:6px;flex-shrink:0}
+/* ⚠ קידומת מלאה: הכלל על kx button מאפס רקע ומסגרת
+   בסגוליות גבוהה יותר מכלל על מחלקה לבדה (4מח). */
+.kx .by-mini{width:34px;height:34px;flex-shrink:0;display:flex;align-items:center;
+  justify-content:center;border-radius:10px;border:1.5px solid var(--line2);
+  background:var(--surface);color:var(--muted);transition:all 120ms var(--ease)}
+.kx .by-mini:hover{border-color:var(--accent);color:var(--accent)}
+.kx .by-mini.by-del:hover{border-color:var(--clay);color:var(--clay)}
+.by-ask{display:block;margin-top:9px;padding:10px 11px;border-radius:var(--r-sm);
+  background:var(--t8-s);font-size:13px;font-weight:700;color:var(--ink)}
+.by-ask .by-btns{margin-top:8px}
+.by-edit .by-t{gap:7px}
+.by-edit .in{width:100%}
 
 .kx .by-hist{display:flex;align-items:center;justify-content:space-between;width:100%;
   padding:12px 14px;background:transparent;border:none;font-size:13.5px;font-weight:800;

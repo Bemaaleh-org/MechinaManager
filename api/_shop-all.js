@@ -131,6 +131,24 @@ async function handler(req, res, session) {
           source: src.key,
           sourceTitle: src.title,
           canMark: Boolean(src.mayMark(session, r)),
+          /* ============================================================
+             ⚠⚠ **עריכה ומחיקה נגזרות בשרת, כמו כל השאר.**
+
+             ברירת המחדל היא `mayMark`: מי שרשאי לסמן
+             שורה כ"נקנתה" רשאי גם לתקן בה הקלדה — זו
+             אותה רשימה ואותו אחראי. בציוד המכינה זה
+             לפי **התחום שעל השורה** ולא לפי דגל (4כב).
+
+             ⚠ **ומקור שאינו ניתן לעריכה מצהיר זאת במפורש**
+               (`mayEdit: () => false`). שורת קנייה של המטבח,
+               למשל, נוצרת מהפריט עצמו והשם הוא מה
+               שמתאים אותה למחיר (4לז) — שינוי שם שם
+               היה מנתק את השורה מהפריט בשקט.
+             ============================================================ */
+          canEdit: Boolean(src.mayEdit
+            ? src.mayEdit(session, r) : src.mayMark(session, r)),
+          editHint: src.editHint ? src.editHint(r)
+            : (src.markHint ? src.markHint(r) : ""),
           markHint: src.markHint ? src.markHint(r) : "",
         }));
       all.push(...rows);
