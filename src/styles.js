@@ -939,6 +939,14 @@ html,body{margin:0;padding:0;background:#012E58}
   color:var(--muted);opacity:.9}
 
 /* ---- תקציב המטבח ---- */
+/* ---- אישור מחיקת קנייה ----
+   ⚠ בתוך המסך ולא confirm() של הדפדפן (4ק). */
+.ord-ask{margin-top:8px;padding:9px 11px;border-radius:var(--r-sm);
+  background:var(--t8-s,rgba(158,54,38,.07));border:1px solid var(--line2);
+  font-size:12px;font-weight:700;line-height:1.5}
+.ord-ask-b{display:flex;gap:7px;margin-top:8px}
+.kx .ord-ask-b .btn{min-height:34px;padding:0 13px;font-size:12px}
+
 /* ---- הקבלה על הקנייה, ומי העלה אותה ----
    ⚠ שם המעלה בקטן ולא במשקל של שם הקנייה — הוא
      תשובה ל"את מי לשאול", לא כותרת.

@@ -1145,6 +1145,10 @@ export function BudgetPage({ say, isHead = false }) {
   const { data, err, busy, reload } = useLoad(() => api.getBudget(month), [month]);
   const [editing, setEditing] = useState(null);
   const [adding, setAdding] = useState(false);
+  /* ⚠ אישור מחיקת קנייה — מזהה השורה שנפתחה, כדי
+     שלא ייפתחו שני אישורים בבת אחת. */
+  const [del, setDel] = useState(null);
+  const [busyDel, setBusyDel] = useState(false);
   const [headEdit, setHeadEdit] = useState(false);
   const [head, setHead] = useState("");
   const [headMode, setHeadMode] = useState("forward");
@@ -1485,14 +1489,46 @@ export function BudgetPage({ say, isHead = false }) {
                     {o.date && <span className="num">· {dm(o.date)}</span>}
                   </div>
                   <Receipt order={o} canUpload={data.canUploadReceipt} say={say} reload={reload} />
+                  {/* ============================================================
+                      ⚠⚠ **אישור לפני מחיקת קנייה — והוא אומר מה יוצא מהסכום.**
+
+                      עד כאן "מחיקה" מחקה מיד: נגיעה אחת בטלפון על שורה של
+                      2,637 ₪, בלי שאלה ובלי דרך לחזור. זה בדיוק מה ש-4ק
+                      קובע ("מחיקה שקטה היא סוג הפעולה שאי אפשר לתקן")
+                      ומה ש-5ו דורש מאישור על פעולה כספית: **כמה ומה**,
+                      ולא "בטוח?".
+
+                      ⚠ ואישור **בתוך המסך** ולא `confirm()` של הדפדפן —
+                        הוא נראה זר, ובחלק מהדפדפנים במובייל הוא נחסם
+                        לגמרי, כלומר הכפתור פשוט לא עושה כלום (4ק).
+                      ============================================================ */}
+                  {del === o.id && (
+                    <div className="ord-ask">
+                      <div>למחוק את "{o.name}"? יורדו {shekel(o.share)} ₪ מהחודש
+                        {o.kind === ORDER_KIND.quarterly && o.months.length > 1
+                          && ` (ומהחודשים ${o.months.map(monthLabel).join(" · ")})`}.</div>
+                      <div className="ord-ask-b">
+                        <button className="btn btn-sm" disabled={busyDel}
+                          onClick={() => { setBusyDel(true);
+                            api.deletePurchase(o.id)
+                              .then(() => { say("הקנייה נמחקה"); setDel(null); reload(); })
+                              .catch((e) => say(e.message))
+                              .finally(() => setBusyDel(false)); }}>
+                          {busyDel ? "מוחק…" : "כן, למחוק"}
+                        </button>
+                        <button className="btn btn-ghost btn-sm" disabled={busyDel}
+                          onClick={() => setDel(null)}>ביטול</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <b className="num" style={{ flex: "0 0 auto", color: "var(--clay)" }}>
                   −{shekel(o.share)}
                 </b>
                 <button className="btn btn-ghost btn-sm" style={{ color: "var(--clay)" }}
-                  onClick={() => api.deletePurchase(o.id)
-                    .then(() => { say("הקנייה נמחקה"); reload(); })
-                    .catch((e) => say(e.message))}>מחיקה</button>
+                  onClick={() => setDel(del === o.id ? null : o.id)}>
+                  {del === o.id ? "סגירה" : "מחיקה"}
+                </button>
               </div>
             ))}
           </div>
