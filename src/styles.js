@@ -479,6 +479,18 @@ html,body{margin:0;padding:0;background:#012E58}
 .rq-meta{font-size:12px;color:var(--muted);margin-top:5px;font-weight:600;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
 .rq-detail{font-size:13.5px;line-height:1.55;color:var(--muted);font-weight:500;
   margin-top:9px;white-space:pre-wrap}
+/* ---- אירועי הגאנט בימי הבקשה ----
+   ⚠ גוון ניטרלי ולא אדום: זה הקשר ולא אזהרה. אירוע בגאנט אינו
+     סיבה לדחות, והוא בוודאי אינו חוסם (4כ). */
+.rq-gantt{display:flex;gap:8px;align-items:flex-start;margin-top:9px;
+  padding:8px 10px;border-radius:var(--r-sm);background:var(--sand)}
+.rq-gantt svg{flex:0 0 auto;width:15px;height:15px;color:var(--faint);margin-top:1px}
+.rq-gantt-l{display:flex;flex-wrap:wrap;gap:5px;min-width:0}
+.rq-gantt-l span{font-size:12px;font-weight:700;color:var(--muted);
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:999px;padding:2px 9px}
+/* ⚠ "לא נטען" נראה אחרת מ"אין אירועים", ואינו נבלע (עיקרון 6). */
+.rq-gantt-off span{font-size:12px;font-weight:700;color:var(--faint);line-height:1.45}
 .rq-act{display:flex;gap:6px;margin-top:12px}
 .rq-act button{flex:1;min-height:46px;border-radius:10px;border:1.5px solid var(--line2);font-size:13.5px;
   font-weight:800;color:var(--muted);background:var(--surface)}

@@ -30,6 +30,19 @@
 
 import { withAuth } from "./_session.js";
 import { studentRows, toPublic } from "./_student-rows.js";
+/* ============================================================
+   ⚠⚠ **הגאנט כאן הוא הקשר, ולא הכרעה.**
+
+   4מב הסיר את הקשר בין הגאנט לשיעורים, מפני ששם הוא **קבע**
+   אם מפגש מתקיים — וזה היה שגוי. כאן הוא אינו קובע דבר: הוא
+   אומר למדריך "החניך מבקש לצאת בתאריך שיש בו סמינר", והמדריך
+   מחליט. אין חסימה, אין סינון, ואין השפעה על המכסה.
+
+   ⚠ ולכן גם אירוע שנראה חוסם אינו מונע הגשה — 4כ: "מוצג ולא
+     נמחק. הגאנט עשוי להיות זה שטועה."
+   ============================================================ */
+import { loadGantt } from "./_lessons-gantt.js";
+import { eventsByDate } from "../shared/gantt-days.js";
 import { gql, allItems, uploadFile } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
 import { setColumns, renameItem, deleteItem } from "./_items.js";
@@ -132,6 +145,45 @@ async function list(req, res, session) {
     const byId = new Map(rows.map((r) => [r.id, r]));
 
     /* ============================================================
+       ⚠ **הגאנט נתפס בנפרד ואינו מפיל את הרשימה** (4כו).
+         בקשת יציאה שלא נטענת בגלל לוח משני היא תקלה גרועה
+         בהרבה מבקשה בלי שורת אירועים.
+
+       ⚠ **ו-`null` אינו מערך ריק** (4ט): כשל טעינה ו"אין
+         אירועים באותם ימים" הם שני מצבים, והמסך אומר אותם
+         אחרת. `evIndex === null` פירושו לא נטען.
+       ============================================================ */
+    let evIndex = null;
+    try {
+      evIndex = eventsByDate(await loadGantt());
+    } catch (e) {
+      console.error("[requests:gantt]", e);
+    }
+
+    /* אירועי הגאנט בטווח הבקשה, בלי כפילויות ובמיפוי מפורש.
+       ⚠ תקרה של 60 יום: טווח פגום בלוח לא יסובב לולאה. */
+    const MAX_SPAN = 60;
+    const eventsFor = (r) => {
+      if (!evIndex) return null;
+      const end = r.endDate || r.date;
+      const out = [];
+      const seen = new Set();
+      let n = 0;
+      for (let d = new Date(r.date + "T12:00:00Z");
+           d.toISOString().slice(0, 10) <= end && n < MAX_SPAN;
+           d.setUTCDate(d.getUTCDate() + 1), n++) {
+        for (const e of evIndex.get(d.toISOString().slice(0, 10)) || []) {
+          if (seen.has(e.id)) continue;
+          seen.add(e.id);
+          /* ⚠ מיפוי מפורש ולא פריסה — עמודה חדשה בלוח הגאנט
+             לא תדלוף לכאן מעצמה (עיקרון 4). */
+          out.push({ id: e.id, name: e.name, type: e.type, start: e.start, end: e.end });
+        }
+      }
+      return out;
+    };
+
+    /* ============================================================
        ⚠⚠ **כמה ימי חופש נגבו בפועל — ולא כמה הבקשה "עולה".**
 
        `cost` הוא החישוב מהשעות (24 שעות = יום), ו-`charged` הוא
@@ -213,6 +265,13 @@ async function list(req, res, session) {
             appealAt: r.appealAt,
             canAppeal: appealReady()
               && r.status !== REQ_STATUS.pending && !r.appeal,
+            /* ⚠ **גם לחניך, וזו אינה דליפה.** הגאנט הוא לוח
+               השנה המשותף של המכינה — החניך חי אותו ורואה
+               אותו בכל מסך אחר. מה ש-4א אוסר להדליף אליו הוא
+               **השלב** וההמלצה, ולא מה כתוב ביומן. וכאן זה
+               דווקא עוזר לו: מי שרואה "סמינר" לפני ההגשה
+               יודע מה הוא מבקש. */
+            gantt: eventsFor(r),
           };
         }
 
@@ -273,6 +332,10 @@ async function list(req, res, session) {
                הלחיצה (4יד). */
           canRecost: !session.isStudent && !session.viewOnly
             && r.status === REQ_STATUS.approved && isChargeable(r.type),
+          /* ⚠ **הקשר למכריע, ולא חסימה.** "מבקש לצאת ביום
+             שיש בו סמינר" היא בדיוק השאלה שהמדריך היה שואל
+             בוואטסאפ. הוא מחליט; הגאנט אינו קובע דבר. */
+          gantt: eventsFor(r),
           decideAs: session.isHead ? "head"
             : (stage === REQ_STAGE.guide && isGuideOf(session, guide)) ? "guide" : null,
           student: byId.get(r.studentId)

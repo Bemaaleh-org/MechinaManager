@@ -1002,6 +1002,28 @@ function RequestCard({ r, onDecide, busyId, onEdit, onWithdraw, onAppeal, onReco
         </div>
       )}
       {r.detail && <div className="rq-detail">{r.detail}</div>}
+      {/* ============================================================
+          ⚠ **מה יש בגאנט באותם ימים — הקשר, ולא חסימה.**
+            "מבקש לצאת ביום שיש בו סמינר" היא בדיוק השאלה
+            שהמדריך היה שואל בוואטסאפ. הוא מחליט; הגאנט אינו
+            קובע דבר (4כ: מוצג ולא נמחק).
+
+          ⚠ **ריק אינו מוצג בכלל.** כותרת מעל ריק נראית כמו
+            תקלה (4מא), ורוב הימים אין בהם אירוע.
+          ⚠ **אבל `null` — שהוא "לא נטען" — כן נאמר** (עיקרון 6).
+          ============================================================ */}
+      {r.gantt === null ? (
+        <div className="rq-gantt rq-gantt-off">
+          <MI.cal /><span>לוח השנה לא נטען — ייתכן שיש אירועים בימים האלה</span>
+        </div>
+      ) : r.gantt && r.gantt.length > 0 ? (
+        <div className="rq-gantt">
+          <MI.cal />
+          <div className="rq-gantt-l">
+            {r.gantt.map((e) => <span key={e.id}>{e.name}</span>)}
+          </div>
+        </div>
+      ) : null}
       {r.canEdit && (onEdit || onWithdraw) && (
         <div className="rq-act rq-own">
           {onEdit && (

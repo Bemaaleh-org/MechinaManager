@@ -183,8 +183,19 @@ ok("והשדות שכן — בדיוק אלה שהוגדרו",
        בשקט. outAt ו-backAt נוספו במודע — הן שעות שהחניך
        עצמו הזין. canEdit ו-fileUrl נוספו עם העריכה העצמית:
        הראשון נגזר בשרת כדי שהכפתור יידע מראש, והשני הוא
-       הקובץ שהחניך עצמו צירף. */
-    ["backAt","canEdit","date","decidedAt","decidedBy","detail","endDate","fileUrl","hasFile","id","outAt","status","type"]),
+       הקובץ שהחניך עצמו צירף.
+
+       ⚠⚠ **הרשימה הזו הייתה מיושנת בארבעה שדות** (cost, appeal,
+         appealAt, canAppeal) — הם נוספו למיפוי והרשימה לא
+         עודכנה, כי החבילה נופלת בכניסה מאז שחניכים נרשמים
+         (5מד) ואיש לא ראה את הטענה נכשלת. זו בדיוק הסכנה
+         שבבדיקה שאינה רצה: היא נראית כמו רשת ביטחון ואינה.
+
+       ⚠ gantt נוסף במודע (15.9): אירועי לוח השנה של המכינה
+         אינם שלב פנימי ואינם נתון על אדם אחר — החניך רואה
+         אותם בכל מסך אחר. מה ש-4א אוסר להדליף אליו הוא
+         ההמלצה והשלב, והם ב-LEAK למעלה. */
+    ["appeal","appealAt","backAt","canAppeal","canEdit","cost","date","decidedAt","decidedBy","detail","endDate","fileUrl","gantt","hasFile","id","outAt","status","type"]),
   Object.keys(q).sort().join(","));
 ok("ולא רואה בקשות של אחרים",
   !mineReqs.requests.some((x) => x.id === noGroupId), "מספר בקשות: " + mineReqs.requests.length);
