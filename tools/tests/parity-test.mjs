@@ -36,9 +36,32 @@ console.log("=== חניך בעל תפקיד מול מנהל ===");
 const roster = (await gql(`{ boards(ids:[${MB.roster}]){ items_page(limit:100){items{id name column_values(ids:["${MC.roster.tz}","${MC.roster.active}","${ROLES_COL}"]){id text}}} } }`))
   .boards[0].items_page.items.filter((x) => cv(x, MC.roster.tz) && cv(x, MC.roster.active) === "v");
 
-/* ⚠ הבדיקה מוסיפה תפקיד לחניך ומחזירה בדיוק את מה שהיה.
-   השורה נקראת לפני ואחרי, ולא מונחת עליה רשימה מנוחשת. */
-const target = roster[0];
+/* ============================================================
+   ⚠⚠⚠ **חשבון הבדיקה, ולא `roster[0]`.**
+   ------------------------------------------------------------
+   שתי תקלות נפרדות ישבו כאן, ושתיהן נגרמו מבחירה
+   לפי מיקום בלוח — בדיוק הכלל שכבר נכתב על `perm-test`
+   ("לבחור את נתוני הבדיקה לפי התכונה שנבדקת") ועל `auth-test`:
+
+     1. **הבדיקה כתבה תפקידים על חניך אמיתי.** השחזור
+        יושב בשורה האחרונה ולא ב-`finally`, ולכן כל נפילה
+        באמצע השאירה אותו עם תפקידים שהבדיקה המציאה.
+        זה קרה בפועל (5א).
+     2. **והכניסה נשברה לגמרי** ביום שאותו חניך נרשם:
+        `?action=login` בת"ז מחזיר 409 לחניך רשום (4ע), וכל 17
+        הטענות נפלו ב-401.
+
+   חשבון הבדיקה פותר את שתיהן: הוא אינו נספר בשום מונה
+   (4לא), ויש לו שם וסיסמה — כלומר הדרך שכתובה ב-4ע
+   לסגירת הפער ("להעביר את הבדיקות לחשבון עם סיסמה").
+   ============================================================ */
+const target = roster.find((x) => /בדיקה/.test(x.name));
+if (!target) {
+  console.log("✗ אין חשבון בדיקה — npm run seed:demo");
+  console.log("\n0 עברו, 1 נכשלו");
+  await reg.restore();
+  process.exit(1);
+}
 const before = cv(target, ROLES_COL);
 console.log(`  חניך הבדיקה: ${target.name} (תפקידים כעת: ${before || "—"})`);
 
@@ -48,16 +71,69 @@ const setRoles = async (list) => {
     { b: MB.roster, i: target.id, v: JSON.stringify({ [ROLES_COL]: { labels: list } }) });
 };
 
+/* ============================================================
+   ⚠⚠ **השחזור גם בנפילה, ולא רק בסוף הקובץ.**
+   ההחזרה ישבה בשורה האחרונה בלבד, והרצה שנפלה
+   באמצע השאירה תפקידים שהבדיקה המציאה על השורה.
+   זה קרה: קריסה בשורה 117 השאירה את השורה על `HOUSE`.
+
+   ⚠ והוא מחזיר **את מה שנקרא לפני** ולא רשימה מנוחשת.
+   ============================================================ */
+const restore = async () => {
+  try {
+    await setRoles(before ? before.split(",").map((x) => x.trim()).filter(Boolean) : []);
+  } catch (e) { console.error("⚠ השחזור נכשל:", e.message); }
+  try { await reg.restore(); } catch { /* כבר שוחזר */ }
+};
+process.on("uncaughtException", async (e) => {
+  console.error(e);
+  await restore();
+  console.log("\n0 עברו, 1 נכשלו");
+  process.exit(1);
+});
+
+/* ============================================================
+   ⚠⚠ **להמתין על תנאי ולא על זמן.**
+   ------------------------------------------------------------
+   מטמון השורות יושב **בתהליך של השרת**, ו-`invalidate()`
+   בסקריפט בדיקה אינו נוגע בו. בלי ההמתנה הזו הטענה
+   הבאה נבדקת על התפקידים הקודמים — וזה קרה כאן:
+   "אב בית נכנס לציוד הניקיון" קיבל 403 על התנהגות **נכונה**,
+   כי השרת עדיין ראה את התפקידים שלפני.
+
+   ⚠ והוא **נכשל ברעש** אחרי המתנה ארוכה, ואינו ממשיך
+     בשקט: טענה שרצה על נתון ישן היא טענה שעוברת
+     מסיבה שגויה, וזה גרוע מטענה שנכשלת.
+   ============================================================ */
+const waitRoles = async (j, want) => {
+  for (let i = 0; i < 40; i++) {
+    const m = await call(j, "GET", "/api/auth?action=me");
+    const got = m.b.roles || [];
+    if (want.every((x) => got.includes(x)) && got.length === want.length) return true;
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  ok(`השרת ראה את התפקידים ${want.join(" · ")}`, false, "המטמון לא התרענן");
+  return false;
+};
+
 const ROLES = ["אחראי מטבח", "אחראי מכולה", "אחראי בטיחות"];
 const HOUSE = ["אב בית"];
 await setRoles(ROLES);
 
+/* ⚠ **שם וסיסמה ולא ת"ז.** `?action=login` בת"ז פתוח רק
+   לחניך שטרם נרשם, והוא הפער ש-4ע מסמן כפתוח
+   במודע **בגלל הבדיקות האלה**. כל חבילה שעוברת
+   ל-signin מקרבת את סגירתו. */
+const signin = async (j) => call(j, "POST", "/api/auth?action=signin",
+  { user: "bdika", password: process.env.DEMO_PASS || "mechina2026" });
+
 const S = jar();
-let r = await call(S, "POST", "/api/students?action=login", { tz: cv(target, MC.roster.tz) });
+let r = await signin(S);
 ok("החניך נכנס", r.s === 200, r.b.error);
 /* ⚠ תשובת הכניסה אינה נושאת תפקידים בכוונה — הם נקראים טרי
    מהלוח בכל בקשה, כדי שהסרת תפקיד תיסגר מיד ולא בכניסה
    הבאה. לכן נבדקים ב-me ולא בתשובת הכניסה. */
+await waitRoles(S, ROLES);
 const me = await call(S, "GET", "/api/auth?action=me");
 ok("והתפקידים נקראים טרי מהלוח", ROLES.every((x) => (me.b.roles || []).includes(x)),
   JSON.stringify(me.b.roles));
@@ -101,7 +177,8 @@ ok("אחראי מכולה נחסם מציוד הניקיון", r.s === 403, `${r
 
 await setRoles(HOUSE);
 const H = jar();
-await call(H, "POST", "/api/students?action=login", { tz: cv(target, MC.roster.tz) });
+await signin(H);
+await waitRoles(H, HOUSE);
 r = await call(H, "GET", CLEAN);
 ok("אב בית נכנס לציוד הניקיון", r.s === 200, `${r.s} ${r.b.error || ""}`);
 ok("  ומקבל את הפריטים", Array.isArray(r.b.equipment), `${(r.b.equipment || []).length} פריטים`);
@@ -117,7 +194,8 @@ ok("ואינו מוסיף לרשימת הקניות של המכולה", r.s === 
 const cleanItem = (await call(H, "GET", CLEAN)).b.equipment[0];
 await setRoles(ROLES);
 const K = jar();
-await call(K, "POST", "/api/students?action=login", { tz: cv(target, MC.roster.tz) });
+await signin(K);
+await waitRoles(K, ROLES);
 if (cleanItem) {
   r = await call(K, "PUT", "/api/container?action=equip", { itemId: cleanItem.id, delta: 1 });
   ok("אחראי מכולה אינו משנה כמות בפריט ניקיון", r.s === 403, `${r.s} ${r.b.error || ""}`);
@@ -133,6 +211,7 @@ ok("בוגרים נשארים חסומים לחניך", r.s === 403, `${r.s}`);
 
 /* ---------- החזרת המצב ---------- */
 await setRoles(before ? before.split(",").map((x) => x.trim()).filter(Boolean) : []);
+/* ⚠ האימות בקריאה חוזרת מהלוח ולא על סמך הכתיבה. */
 const back = (await gql(`{ items(ids:[${target.id}]){ column_values(ids:["${ROLES_COL}"]){ text } } }`))
   .items[0].column_values[0].text || "";
 ok("התפקידים הוחזרו כפי שהיו", back === before, `"${back}" מול "${before}"`);
@@ -177,15 +256,35 @@ ok("מספר המבוטלים שווה למי שסומן \"לא\"",
   L.counts.cancelled === L.cancelled.filter((m) => m.planned === PLANNED.no).length,
   `${L.counts.cancelled}`);
 
-/* ⚠ המקרה הקונקרטי שהמנהל דיווח עליו */
+/* ============================================================
+   ⚠ המקרה הקונקרטי שהמנהל דיווח עליו.
+
+   ⚠⚠ **נבדק מול `cancelled` ולא מול `upcoming`.**
+     הגרסה הראשונה דרשה שהמפגש של 14/9 יופיע ב"שיעורים
+     הקרובים", והיא נכשלה על התנהגות **נכונה לחלוטין**:
+     מאז הפילוט אחראי הלו"ז **דיווח** על המפגשים האלה,
+     ומפגש שדווח אינו "קרוב" — הוא נגמר.
+
+     זה בדיוק הכלל שכבר נכתב על `perm-test`: **לבחור את
+     נתוני הבדיקה לפי התכונה שנבדקת.** התכונה כאן היא
+     "מתוכנן שבגיליון מכריע", והיא יציבה; "קרוב" תלוי גם
+     בדיווח, שמשתנה מדי שבוע.
+   ============================================================ */
 const board7 = await call(D, "GET", "/api/lessons?action=board&today=2026-09-07");
 const b14 = await call(D, "GET", "/api/lessons?action=board&today=2026-09-14");
+const mine7 = (b) => (b.cancelled || []).filter((m) => m.date === "2026-09-07"
+  && m.subject.includes("מסע בתרבות"));
 const on7 = board7.b.upcoming.filter((m) => m.date === "2026-09-07"
   && m.subject.includes("מסע בתרבות"));
-const on14 = b14.b.upcoming.filter((m) => m.date === "2026-09-14"
-  && m.subject.includes("מסע בתרבות"));
 ok("\"מסע בתרבות היהודית\" אינו מוצג ב-7/9", on7.length === 0);
-ok("ומוצג ב-14/9", on14.length === 1, `${on14.length}`);
+/* ⚠ ולא נעלם בשקט — הוא ב"לא מתקיימים" עם הסיבה (4כ) */
+ok("  ויושב ב\"לא מתקיימים\" עם הסיבה", mine7(board7.b).length >= 1,
+  (mine7(board7.b)[0] || {}).planReason || "לא נמצא");
+/* ⚠ וב-14/9 הגיליון אומר שהוא כן מתקיים — כלומר איננו
+   במבוטלים. אם הוא גם דווח — זה מצב תקין ולא כישלון. */
+const cancelled14 = (b14.b.cancelled || []).filter((m) => m.date === "2026-09-14"
+  && m.subject.includes("מסע בתרבות"));
+ok("וב-14/9 הוא אינו מבוטל", cancelled14.length === 0, `${cancelled14.length}`);
 
 console.log(`  קרובים: ${L.counts.upcoming} · מבוטלים: ${L.counts.cancelled} · טרם דווחו: ${L.counts.unreported} · ביום אחר: ${L.counts.offDay}`);
 
@@ -240,5 +339,5 @@ ok("לוח השיעורים אינו מייבא את הגאנט",
 console.log(`\n${pass} עברו, ${fail} נכשלו`);
 /* ⚠ השחזור **לפני** היציאה. הוא ישב אחרי process.exit ומעולם לא רץ —
    שורת מנהל שנרשמה זמנית נשארה "רשומה" אחרי כל הרצה. */
-await reg.restore();
+await restore();
 process.exit(fail ? 1 : 0);

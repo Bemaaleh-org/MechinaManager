@@ -6,7 +6,7 @@
      מחזירה. כך הפרסרים נבדקים על נתונים אמיתיים בלי לגעת
      בגוגל ובלי לכתוב לשום מקום.
    ============================================================ */
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import {
   readDate, parseSubjectTab, parseAttendanceTab, parseGanttGrid, parseRange, ABSENCE_CODES,
 } from "../../shared/sheet-read.js";
@@ -14,6 +14,31 @@ import {
 let pass = 0, fail = 0;
 const ok = (l, c, x = "") => { console.log((c ? "  V " : "  X ") + l + (x ? "  -> " + x : "")); c ? pass++ : fail++; };
 const load = (n) => JSON.parse(readFileSync(`scratchpad/fixtures/${n}.json`, "utf8"));
+
+/* ============================================================
+   ⚠⚠ **הקבצים אינם במאגר, וזו אינה תקלה בקוד.**
+   ------------------------------------------------------------
+   הפיקסטורות נולדו משלושת קבצי האקסל שהמכינה שלחה,
+   והן נשארו ב-`scratchpad/` — שהוא **ב-`.gitignore`**. כלומר
+   מי שמושך את המאגר במחשב אחר מקבל את הבדיקה בלי
+   הקלט שלה. זה בדיוק הלקח שבגללו הבדיקות עצמן
+   הועברו ל-`tools/tests/` (4ת) — והקלט שלהן נשכח מאחור.
+
+   ⚠ **קריסה עם stack נראית כמו בדיקה שבורה**, והיא
+     שלחה לחפש באג שאינו קיים. אמירה מפורשת היא
+     עיקרון 6: כשל טעינה נראה אחרת מ"אין נתונים".
+
+   ⚠ **והיא עדיין נכשלת (קוד 1).** "דילוג שקט" היה הופך
+     את הבדיקה הזו למשהו שאיש לא יריץ אותו שוב לעולם.
+   ============================================================ */
+if (!existsSync("scratchpad/fixtures/lessons.json")) {
+  console.log("✗ חסרות הפיקסטורות: scratchpad/fixtures/*.json");
+  console.log("  הן המרה של שלושת קבצי האקסל שהמכינה שלחה,");
+  console.log("  ו-scratchpad/ הוא ב-.gitignore — כלומר הן מעולם לא נכנסו למאגר.");
+  console.log("  הפרסרים עצמם (shared/sheet-read.js) נבדקים גם ב-sheet-test.");
+  console.log("\n0 עברו, 1 נכשלו");
+  process.exit(1);
+}
 
 /* ============ 1 · תאריכים ============ */
 console.log("=== תאריכים ===");
