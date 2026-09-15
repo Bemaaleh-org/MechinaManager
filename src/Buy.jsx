@@ -151,14 +151,14 @@ function AllShopping({ d, say, empty = null, note = null }) {
 /* ============================================================
    הרשימה הכללית — של ראש המכינה
    ============================================================ */
-function GeneralList({ say }) {
+function GeneralList({ say, categories = [], formOnly = false, onAdded }) {
   const [d, setD] = useState(null);
   const [err, setErr] = useState(null);
   const [n, setN] = useState(0);
   const [adding, setAdding] = useState(false);
   const [edit, setEdit] = useState(null);
   const [showDone, setShowDone] = useState(false);
-  const [form, setForm] = useState({ name: "", qty: "", detail: "" });
+  const [form, setForm] = useState({ name: "", qty: "", detail: "", category: "" });
 
   useEffect(() => {
     let alive = true;
@@ -167,12 +167,13 @@ function GeneralList({ say }) {
       .catch((e) => { if (alive) setErr(e); });
     return () => { alive = false; };
   }, [n]);
-  const reload = () => setN((x) => x + 1);
+  const reload = () => { setN((x) => x + 1); onAdded?.(); };
 
   const add = () => {
     const name = form.name.trim();
     if (!name) { say("צריך שם לפריט"); return; }
-    api.addBuy([{ name, qty: form.qty.trim(), detail: form.detail.trim() }])
+    api.addBuy([{ name, qty: form.qty.trim(), detail: form.detail.trim(),
+      category: form.category }])
       .then(() => {
         say("נוסף לרשימה");
         setForm({ name: "", qty: "", detail: "" });
@@ -252,6 +253,18 @@ function GeneralList({ say }) {
             <input value={form.qty} placeholder="למשל: 30 כיסאות · שני שקים"
               onChange={(e) => setForm({ ...form, qty: e.target.value })} />
           </label>
+          {/* ⚠ **הקטגוריה היא מה שמקבץ את הרשימה**, ולכן היא
+              בטופס ולא בעריכה בלבד. ⚠ ריק מותר ומשמעותו "טרם
+              סווג" — הפריט יופיע ב"ללא קטגוריה" וניתן יהיה
+              למצוא אותו ולסווג, במקום ליפול ל"אחר" בשקט (4ט). */}
+          <label className="fld">
+            <span>קטגוריה <i>לא חובה</i></span>
+            <select value={form.category}
+              onChange={(e) => setForm({ ...form, category: e.target.value })}>
+              <option value="">ללא קטגוריה</option>
+              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </label>
           <label className="fld">
             <span>פירוט <i>לא חובה</i></span>
             <textarea rows={2} value={form.detail} placeholder="לאיזה צורך, איפה קונים, עד מתי"
@@ -264,7 +277,15 @@ function GeneralList({ say }) {
         </div>
       )}
 
-      {!open.length ? (
+      {/* ============================================================
+          ⚠⚠ **ב-`formOnly` הרשימה כאן אינה מרונדרת.**
+            מאז שהמסך מקבץ לפי קטגוריה, השורות הכלליות מופיעות
+            ברשימה המאוחדת יחד עם כל השאר — וזה כל העניין. מה
+            שנשאר כאן הוא **הטופס** וההיסטוריה של מה שנקנה.
+            רינדור כפול היה מציג את אותו פריט פעמיים, וזה בדיוק
+            מה שרשימה "אחת מאוחדת" נועדה למנוע.
+          ============================================================ */}
+      {formOnly ? null : !open.length ? (
         <div className="empty">
           <div className="e-ico"><YI.box /></div>
           <b>הרשימה ריקה</b>
@@ -377,6 +398,8 @@ function GeneralList({ say }) {
 export function BuyPage({ say }) {
   const [d, setD] = useState(null);
   const [err, setErr] = useState(null);
+  const [n, setN] = useState(0);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -384,68 +407,94 @@ export function BuyPage({ say }) {
       .then((r) => { if (alive) { setD(r); setErr(null); } })
       .catch((e) => { if (alive) setErr(e); });
     return () => { alive = false; };
-  }, []);
+  }, [n]);
 
-  /* ⚠ החלק הכללי מגיע מ-GeneralList (עם ההיסטוריה והטופס), ולכן
-     מהתשובה המאוחדת נלקח חלק המכולה בלבד — אחרת שורה כללית
-     הייתה מוצגת פעמיים. */
-  const box = d ? {
-    ...d,
-    groups: (d.groups || []).filter((g) => g.key === "container"),
-    missing: (d.missing || []).filter((m) => m.key === "container"),
-    failed: (d.failed || []).filter((f) => f.key === "container"),
-  } : null;
+  /* ============================================================
+     ⚠⚠ **הרשימה לוואטסאפ נבנית מהמסך ולא מהשרת.**
 
-  /* ⚠ **הוועדות — תת-הפרדה לפי ועדה** (14.9.2026): כרטיס לכל
-     ועדה, מתוך אותה קבוצה בתשובה. */
-  const byTeam = (g) => {
-    const m = new Map();
-    for (const r of g.rows) {
-      const k = r.group || "ועדה";
-      if (!m.has(k)) m.set(k, []);
-      m.get(k).push(r);
+     הבקשה: *"אפשרות להעתיק את הרשימה לווצטאפ."* מה שנשלח הוא
+     בדיוק מה שרואים — אותן קבוצות, אותו סדר, ורק הפתוחות.
+     טקסט שנבנה בשרת היה מתפצל מהתצוגה בתיקון הראשון (4מד).
+
+     ⚠ **בלי שמות של מי הוסיף.** הרשימה יוצאת לקבוצה, והשאלה
+       בקופה היא "מה לקנות" ולא "מי ביקש". זה גם עיקרון 5.
+     ⚠ ובלי מזהי שורות — הם חסרי משמעות מחוץ למערכת.
+     ============================================================ */
+  const groups = (d?.groups || []).filter((g) => g.rows.length);
+  const asText = () => {
+    const lines = ["🛒 קניות המכינה"];
+    for (const g of groups) {
+      lines.push("", "*" + g.title + "*");
+      for (const r of g.rows) {
+        lines.push("• " + r.name + (r.qty ? " — " + r.qty : "")
+          + (r.detail ? " (" + r.detail + ")" : ""));
+      }
     }
-    return [...m].map(([name, rows]) => ({ key: "team:" + name, title: name, rows }));
+    return lines.join("\n");
   };
-  const teamBox = d ? {
-    ...d,
-    groups: (d.groups || []).filter((g) => g.key === "team").flatMap(byTeam),
-    missing: (d.missing || []).filter((m) => m.key === "team"),
-    failed: (d.failed || []).filter((f) => f.key === "team"),
-  } : null;
+
+  const toWhatsApp = () => {
+    /* ⚠ wa.me פותח את וואטסאפ עם הטקסט מוכן — במובייל
+       באפליקציה, במחשב ב-WhatsApp Web. */
+    window.open("https://wa.me/?text=" + encodeURIComponent(asText()), "_blank", "noopener");
+  };
+
+  const copy = async () => {
+    /* ⚠ **נפילה לאחור, כי `clipboard` אינו תמיד זמין**: הוא
+       דורש הקשר מאובטח ועשוי להידחות. כפתור שלא עושה כלום
+       גרוע מכפתור שאינו קיים (4ק). */
+    try {
+      await navigator.clipboard.writeText(asText());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      say("ההעתקה נחסמה בדפדפן. אפשר לשלוח ישירות לוואטסאפ.");
+    }
+  };
 
   return (
     <>
       <div className="screen-title">קניות המכינה</div>
       <div className="tm-sub">
-        רשימה אחת בשלושה חלקים: <b>כללי</b> — מה שהצוות מוסיף ישירות, <b>ועדות</b> —
-        מה שכל ועדה הגישה (עד יום רביעי ב-10:00), ו<b>מכולה</b> — מה שנרשם ברשימת
-        הקניות של המכולה.
+        רשימה אחת לכל המכינה — מכולה, אב בית, אחראי בטיחות, ציוד מטבח והרשימה
+        הכללית — מקובצת לפי <b>סוג הפריט</b>, כדי שמי שיוצא לקניות יראה יחד את
+        מה שנקנה באותו מקום.
       </div>
 
-      {d && d.canGeneral && <GeneralList say={say} />}
-
-      {d && d.canGeneral && (
-        <>
-          <div className="sec-label">ועדות</div>
-          <AllShopping d={teamBox} say={say}
-            empty={{ title: "אף ועדה לא הגישה קניות", sub: "ועדות מגישות מהמסך שלהן, עד יום רביעי ב-10:00." }}
-            note="מה שהוועדות הגישו, מחולק לפי ועדה. סימון כאן נשמר ברשימה של הוועדה." />
-        </>
+      {/* ⚠ מוצג רק כשיש מה לשלוח: כפתור שישלח רשימה ריקה
+          מלמד לא ללחוץ עליו. */}
+      {groups.length > 0 && (
+        <div className="by-share">
+          <button className="btn btn-primary btn-sm" onClick={toWhatsApp}>
+            שליחה לוואטסאפ
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={copy}>
+            {copied ? "הועתק ✓" : "העתקת הרשימה"}
+          </button>
+        </div>
       )}
 
-      <div className="sec-label">מכולה</div>
+      {/* ⚠ הטופס בלבד — השורות שנוספות כאן מופיעות ברשימה
+          המאוחדת למטה, ולא פעמיים (ראו formOnly). */}
+      {d && d.canGeneral && (
+        <GeneralList say={say} formOnly categories={d.categories || []}
+          onAdded={() => setN((x) => x + 1)} />
+      )}
+
       {err ? (
         <div className="alert a-clay">
           <YI.warn />
           <div style={{ flex: 1 }}>
-            <div className="ttl">לא הצלחנו לטעון את רשימת המכולה</div>
+            <div className="ttl">לא הצלחנו לטעון את רשימת הקניות</div>
             <div className="bd">{err.message}</div>
           </div>
         </div>
-      ) : !box ? (
+      ) : !d ? (
         <><div className="skel skel-card" /><div className="skel skel-card" /></>
-      ) : <AllShopping d={box} say={say} />}
+      ) : (
+        <AllShopping d={d} say={say}
+          empty={{ title: "אין כרגע מה לקנות", sub: "כל הרשימות ריקות." }} />
+      )}
     </>
   );
 }
@@ -455,6 +504,11 @@ export function BuyPage({ say }) {
      דורש. הקובץ הזה ניתן להסרה בחתיכה אחת.
    ============================================================ */
 export const BUY_CSS = `
+/* ---- שליחה והעתקה ----
+   ⚠ קידומת by- כמו כל הקובץ, ו-.kx מלא על הכפתורים כי
+     .kx button מאפסת רקע ומסגרת בסגוליות גבוהה (4מח). */
+.by-share{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.kx .by-share button{flex:1 1 140px;min-height:44px}
 .by-add{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-bottom:12px}
 .by-form{padding:14px 15px;margin-bottom:12px}
 .by-btns{display:flex;gap:9px;margin-top:4px}

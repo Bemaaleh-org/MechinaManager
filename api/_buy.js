@@ -30,8 +30,9 @@
    ⚠ **404 ולא 403** על שורה שאינה קיימת.
    ============================================================ */
 
+import { BUY_CATEGORIES } from "../shared/buy-categories.js";
 import { withAuth, actorName } from "./_session.js";
-import { allItems } from "./_monday.js";
+import { allItems, gql } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
 import { setColumns, createItem, deleteItem, renameItem } from "./_items.js";
 import { israelToday } from "./_attendance-data.js";
@@ -43,12 +44,50 @@ const val = (i, c) => (c && (i.column_values.find((x) => x.id === c) || {}).text
 const clip = (v, n) => String(v ?? "").trim().slice(0, n);
 const MAX = { name: 200, qty: 60, detail: 2000 };
 
-/** ⚠ מי מנהל את הרשימה — כל הצוות. ראו ההערה בראש הקובץ. */
-export const mayManageBuy = (s) => Boolean(s && s.isManager && !s.viewOnly);
-/** ⚠ מי מסמן "נקנה" — כל הצוות. */
-export const mayMarkBuy = (s) => Boolean(s && s.isManager && !s.viewOnly);
+/* ============================================================
+   ⚠ **קטגוריה נבדקת מול הרשימה ואינה טקסט חופשי.**
+     `create_labels_if_missing` הוא false בכל האפליקציה, ותווית
+     שאינה קיימת גורמת ל-monday לדחות את **כל השורה** — בדיוק
+     מה שקרה במגדר בייבוא המחזור (4לב). ריק מותר ומשמעותו
+     "טרם סווג".
+   ⚠ מוחזר "" לערך לא מוכר, והקורא מחליט — לא נכתב בשקט.
+   ============================================================ */
+const cat = (v) => {
+  const t = String(v || "").trim();
+  return BUY_CATEGORIES.includes(t) ? t : "";
+};
+
+/* ============================================================
+   ⚠⚠ **שלושת בעלי התפקיד נכנסו לרשימה הכללית** (15.9.2026)
+
+   הבקשה: *"רשימת קניות אחת פשוט עם הכול מאוחד — מכולה, אב
+   בית, אחראי בטיחות, ציוד מטבח (לא אוכל או חד״פ) וכללי."*
+
+   ⚠ **אין לוח רביעי.** אחראי המטבח שצריך מיקרוגל מוסיף שורה
+     **לרשימה הכללית** עם קטגוריה "כלי מטבח" — הוא אינו צריך
+     לוח משלו, ולוח כזה היה עוד מקור לתחזק ועוד רשימה
+     שאפשר לפספס. לוח המטבח נשאר למה שהוא: אוכל וחד״פ, עם
+     מפתח ומלאי מאחוריהם.
+
+   ⚠ **והשאלה היא איחוד, ולכן היא בקוד ולא בדגל של `withAuth`**
+     שדגליו AND — אותו דפוס של `mayArea` (4כב), `mayTeam` (4נ)
+     ו-`mayChores` (5כז).
+
+   ⚠ **`viewOnly` חוסם את שלושתם** כמו את הצוות: העמודה הזו
+     אומרת "רואה ואינו משנה", והיא חלה על כל מסלול כתיבה (4ע).
+   ============================================================ */
+const roleHolder = (s) => Boolean(s && (s.isHouse || s.isSafety || s.isKitchen));
+
+/** ⚠ מי מוסיף לרשימה — הצוות ושלושת בעלי התפקיד. */
+export const mayManageBuy = (s) =>
+  Boolean(s && (s.isManager || roleHolder(s)) && !s.viewOnly);
+/** ⚠ מי מסמן "נקנה" — אותו קהל. מי שיוצא לקניות אינו בהכרח
+    מי שכתב, ושרת שידרוש את הכותב דווקא בקופה יחזיר את
+    הרשימה לוואטסאפ (5מ). */
+export const mayMarkBuy = (s) =>
+  Boolean(s && (s.isManager || roleHolder(s)) && !s.viewOnly);
 /** ⚠ מי קורא את הרשימה. */
-export const maySeeBuy = (s) => Boolean(s && s.isManager);
+export const maySeeBuy = (s) => Boolean(s && (s.isManager || roleHolder(s)));
 
 export async function loadBuy({ force = false } = {}) {
   if (!buyReady()) return [];
@@ -64,6 +103,11 @@ export async function loadBuy({ force = false } = {}) {
            סטטוס, והיא בדיוק זו שצריך לקנות; ברירת מחדל אחרת
            הייתה מסתירה אותה (4ט, 5כו). */
         status: val(i, C.status) || BUY_STATUS.open,
+        /* ⚠ **ריק אינו "אחר".** פריט שטרם סווג הוא מצב שלישי
+           (`null`), והמסך מציג אותו כ"ללא קטגוריה" כדי שאפשר
+           יהיה למצוא אותו ולסווג. ברירת מחדל שקטה ל"אחר"
+           הייתה מסתירה בדיוק את זה (4ט). */
+        category: (C.category ? val(i, C.category) : "") || null,
         by: val(i, C.by),
         date: val(i, C.date) || null,
       }))
@@ -73,6 +117,35 @@ export async function loadBuy({ force = false } = {}) {
 }
 
 export const invalidateBuy = () => invalidate("buy");
+
+/* ============================================================
+   ⚠ **רשימת הקטגוריות נקראת מהלוח ולא מהקוד** (עיקרון 1).
+     `BUY_CATEGORIES` היא רשימת ההקמה; מרגע שהעמודה קיימת,
+     מנהל המכינה מוסיף שם קטגוריה ב-monday והיא מופיעה בבורר
+     בלי דיפלוי — אותו דפוס בדיוק של רשימת התפקידים
+     (`availableRoles` ב-_student-role.js).
+
+   ⚠ **תווית מושבתת יורדת מהבורר.** `update_status_column`
+     דורס את כל הרשימה, ולכן הדרך היחידה להוריד תווית בלי
+     לאבד את השורות שיושבות עליה היא להשבית — וקורא שמתעלם
+     מ-`deactivated_labels` מציע בדיוק את מה שהורידו (5ז).
+   ============================================================ */
+export async function buyCategories({ force = false } = {}) {
+  if (!buyReady() || !C.category) return BUY_CATEGORIES;
+  return cached("buy-categories", async () => {
+    const d = await gql(
+      `{ boards(ids:[${B.board}]){ columns(ids:["${C.category}"]){ settings_str } } }`,
+    );
+    let st = {};
+    try { st = JSON.parse(d.boards?.[0]?.columns?.[0]?.settings_str || "{}"); } catch { st = {}; }
+    const off = new Set((st.deactivated_labels || []).map(String));
+    const out = Object.entries(st.labels || {})
+      .filter(([k, v]) => v && !off.has(String(k)))
+      .map(([, v]) => String(v));
+    /* ⚠ ריק נופל לרשימת ההקמה ולא מחזיר בורר ריק (עיקרון 6). */
+    return out.length ? out : BUY_CATEGORIES;
+  }, { force, ttl: 10 * 60_000 });
+}
 
 const setup = (res) => res.status(503).json({
   error: "לוח הקניות הכלליות טרם הוקם ב-monday. הריצו: npm run seed:buy",
@@ -129,6 +202,11 @@ async function handler(req, res, session) {
           [C.qty]: clip(raw?.qty, MAX.qty),
           [C.detail]: clip(raw?.detail, MAX.detail),
           [C.status]: { label: BUY_STATUS.open },
+          /* ⚠ **`null` ולא `{label:""}`** לשורה בלי קטגוריה.
+             מחרוזת ריקה בעמודת סטטוס כותבת `index 5` — כלומר
+             **קובעת** את התווית שיושבת במשבצת הריקה במקום
+             לנקות (5ז). */
+          ...(C.category && cat(raw?.category) ? { [C.category]: { label: cat(raw.category) } } : {}),
           [C.by]: by,
           [C.date]: { date: today },
         });
@@ -163,6 +241,27 @@ async function handler(req, res, session) {
       /* ---------- עריכת התוכן — ראש המכינה ----------
          ⚠ **403 מפורש ולא התעלמות שקטה.** שדה שנשלח ולא נכתב
            נראה בדיוק כאילו נשמר (5יט). */
+      /* ---------- הקטגוריה ----------
+         ⚠ **מי שמוסיף גם מסווג.** הסיווג אינו החלטה ניהולית —
+           הוא מה שהופך את הרשימה לקריאה בקופה, ולכן הוא באותו
+           קהל של ההוספה ולא מצומצם ממנו.
+         ⚠ ומחרוזת ריקה **מנקה** — עם `null`, לא `{label:""}`
+           שכותב index 5 (5ז). */
+      if (body?.category !== undefined && C.category) {
+        if (!mayManageBuy(session)) {
+          return res.status(403).json({ error: "סיווג פריט הוא של צוות המכינה ובעלי התפקידים" });
+        }
+        const rawCat = String(body.category || "").trim();
+        const c = cat(rawCat);
+        if (rawCat && !c) {
+          return res.status(400).json({ error: `קטגוריה לא מוכרת: ${rawCat}` });
+        }
+        if (c !== (row.category || "")) {
+          patch[C.category] = c ? { label: c } : null;
+          changed.push("קטגוריה");
+        }
+      }
+
       const wantsEdit = ["name", "qty", "detail"].some((k) => body?.[k] !== undefined);
       if (wantsEdit && !mayManageBuy(session)) {
         return res.status(403).json({ error: "עריכת הרשימה הכללית היא של צוות המכינה" });

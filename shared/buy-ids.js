@@ -32,6 +32,7 @@ export const BUY_COLS = {
   "qty": "text_mm746k57",
   "detail": "long_text_mm74j82e",
   "status": "color_mm74tn6j",
+  "category": "color_mm77wnxh",
   "by": "text_mm74bj4m",
   "date": "date_mm74r55j"
 };

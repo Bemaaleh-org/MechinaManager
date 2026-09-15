@@ -40,11 +40,8 @@ import { withAuth } from "./_session.js";
 import { SHOP_STATUS, AREA, mayArea } from "../shared/container-boards.js";
 import { BUY_STATUS, buyReady } from "../shared/buy-ids.js";
 import { loadShopping } from "./_container-data.js";
-import { loadBuy, maySeeBuy, mayMarkBuy } from "./_buy.js";
-import { loadTeamEntries } from "./_team-extras.js";
-import { loadDefinitions } from "./_placements.js";
-import { teamExtrasReady } from "../shared/team-ids.js";
-import { TEAM_BUY_KIND } from "../shared/team.js";
+import { loadBuy, maySeeBuy, mayMarkBuy, buyCategories } from "./_buy.js";
+import { BUY_CATEGORIES, NO_CATEGORY, categoryRank } from "../shared/buy-categories.js";
 
 /* ============================================================
    שלוש הרשימות
@@ -74,6 +71,8 @@ const SOURCES = [
     mayMark: (s, row) => mayArea(s, row.area),
     markHint: (row) => (row.area === AREA.cleaning ? "אב הבית" : "אחראי המכולה"),
     rowRead: (s, row) => mayArea(s, row.area),
+    /* ⚠ התחום **הוא** הקטגוריה כאן, והוא כבר על השורה (4כב). */
+    categoryOf: (row) => (row.area === AREA.cleaning ? "ניקיון" : "מכולה"),
     load: async () => (await loadShopping())
       .filter((r) => r.status === SHOP_STATUS.open),
   },
@@ -88,36 +87,18 @@ const SOURCES = [
     load: async () => (await loadBuy())
       .filter((r) => r.status === BUY_STATUS.open),
   },
-  /* ⚠⚠ **הוועדות (14.9.2026)** — מה שיו״ר הגיש מרשימת הקניות של
-     הוועדה. השורות נשארות בלוח הוועדה, ו-`group` הוא שם הוועדה,
-     כדי שהמסך יחלק לפיו. סימון "נקנה" נשמר על שורת הוועדה. */
-  {
-    key: "team",
-    title: "ועדות",
-    ready: () => teamExtrasReady(),
-    setup: "npm run seed:teams2",
-    mayRead: (s) => maySeeBuy(s),
-    mayMark: (s) => mayMarkBuy(s),
-    markHint: () => "צוות המכינה",
-    load: async () => {
-      const [entries, defs] = await Promise.all([loadTeamEntries(), loadDefinitions()]);
-      const names = new Map(defs.map((x) => [String(x.id), x.name]));
-      return entries
-        .filter((e) => e.kind === TEAM_BUY_KIND && e.date && !e.done)
-        .map((e) => ({
-          id: e.id, name: e.title,
-          qty: e.qty != null ? String(e.qty) : "",
-          detail: e.extra || "", by: e.by || "", date: e.date,
-          group: names.get(String(e.team)) || "ועדה",
-        }));
-    },
-  },
+  /* ⚠⚠ **הוועדות יצאו מכאן (15.9.2026, בקשת אחים).**
+     "רשימת קניות אחת עם הכול מאוחד — מכולה, אב בית, אחראי
+     בטיחות, ציוד מטבח וכללי." הוועדות אינן ברשימה הזו: להן
+     מנגנון הגשה משלהן ומועד משלהן, והן מקבלות מסך נפרד.
+     ⚠ השורות עצמן לא נגעו — הן נשארות בלוח הוועדה, ומה
+     שהשתנה הוא מי קורא אותן. */
 ];
 
 async function handler(req, res, session) {
   if (req.method !== "GET") return res.status(405).json({ error: "מתודה לא נתמכת" });
 
-  const groups = [];
+  const all = [];
   const failed = [];
   const missing = [];
 
@@ -139,6 +120,11 @@ async function handler(req, res, session) {
           qty: r.qty || "",
           detail: r.detail || "",
           area: r.area || null,
+          /* ⚠ **הקטגוריה היא מה שמקבץ עכשיו.** לרשימה הכללית
+             היא עמודה בלוח; לציוד המכינה היא נגזרת מהתחום —
+             שם "מכולה" ו"ניקיון" הם בדיוק מה שהפריט הוא,
+             ואין טעם לבקש מאחראי המכולה לסווג פעמיים. */
+          category: r.category || (src.categoryOf ? src.categoryOf(r) : null),
           by: r.by || "",
           date: r.date || null,
           group: r.group || null,
@@ -147,12 +133,47 @@ async function handler(req, res, session) {
           canMark: Boolean(src.mayMark(session, r)),
           markHint: src.markHint ? src.markHint(r) : "",
         }));
-      groups.push({ key: src.key, title: src.title, rows });
+      all.push(...rows);
     } catch (e) {
       console.error("[shop-all]", src.key, e);
       failed.push({ key: src.key, title: src.title });
     }
   }
+
+  /* ============================================================
+     ⚠⚠ **הקיבוץ הוא לפי קטגוריה של הפריט ולא לפי מקור.**
+
+     זה השינוי שנתבקש: *"רשימת קניות אחת פשוט עם הכול מאוחד…
+     שיהיה מקוטלג לפי קטגוריה של הדבר."* מי שיוצא לקניות קונה
+     לפי חנות, לא לפי בעל תפקיד — כיסא שאב הבית ביקש וכיסא
+     שראש המכינה ביקש נקנים באותה נסיעה ובאותו מקום, ורשימה
+     שמפרידה ביניהם מייצרת שתי נסיעות.
+
+     ⚠ **המקור נשאר על כל שורה** (`source`, `sourceTitle`) —
+       הוא מה ש-`api.markShopRow` צריך כדי לדעת לאן לפנות
+       (5מ), והוא גם התשובה ל"את מי לשאול על השורה הזו".
+
+     ⚠ **"ללא קטגוריה" הוא קבוצה אמיתית ואחרונה**, ולא השמטה:
+       פריט שטרם סווג חייב להיות נראה כדי שיסווגו אותו (4ט).
+
+     ⚠ **וסדר לא-מוכר יורד לסוף** (`categoryRank`) — `indexOf`
+       על מערך סגור מחזיר -1 לקטגוריה שנוספה בלוח, והיא הייתה
+       קופצת לראש המיון בלי שום שגיאה (4ס).
+     ============================================================ */
+  const byCat = new Map();
+  for (const r of all) {
+    const key = r.category || NO_CATEGORY;
+    if (!byCat.has(key)) byCat.set(key, []);
+    byCat.get(key).push(r);
+  }
+  const groups = [...byCat]
+    .map(([title, rows]) => ({ key: title, title, rows }))
+    .sort((a, b) => {
+      /* ⚠ "ללא קטגוריה" תמיד אחרון, גם מול ערך לא-מוכר. */
+      const ra = a.title === NO_CATEGORY ? 1e6 : categoryRank(a.title);
+      const rb = b.title === NO_CATEGORY ? 1e6 : categoryRank(b.title);
+      return ra - rb || a.title.localeCompare(b.title, "he");
+    });
 
   const open = groups.reduce((n, g) => n + g.rows.length, 0);
   res.status(200).json({
@@ -164,6 +185,11 @@ async function handler(req, res, session) {
        ל-403 היא בדיוק מה ש-4יד אוסר, ודגל שייגזר בדפדפן היה
        הגדרה שנייה של אותו כלל (4מד). */
     canGeneral: maySeeBuy(session),
+    /* ⚠ **רשימת הקטגוריות מהלוח ולא מהקוד** — המכינה מוסיפה
+       קטגוריה ב-monday בלי דיפלוי, והבורר במסך נבנה ממה
+       שהוחזר כאן (עיקרון 1). ⚠ נפילה מחזירה את רשימת ההקמה
+       ולא רשימה ריקה: בורר ריק נראה כמו מסך שבור. */
+    categories: await buyCategories().catch(() => BUY_CATEGORIES),
     /* ⚠ כמה מהשורות אני בכלל יכול לסמן. מסך שמציג ארבעים
        שורות ואף כפתור אינו נראה כמו תקלה. */
     markable: groups.reduce((n, g) => n + g.rows.filter((r) => r.canMark).length, 0),

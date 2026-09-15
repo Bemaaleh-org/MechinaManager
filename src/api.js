@@ -784,11 +784,14 @@ export const api = {
   /** הרשימה הכללית של ראש המכינה: פתוחות והיסטוריה */
   getBuy: () => get("/api/container?action=buy"),
   addBuy: (items) => post("/api/container?action=buy", { items }),
-  editBuy: ({ id, name, qty, detail, status }) =>
-    put("/api/container?action=buy", { id, name, qty, detail, status }),
+  /* ⚠ **פירוק מפורש, ולכן `category` חייב להיות כאן.** שדה
+     שאינו ברשימה נשמט בשקט — זו הדרך שבה שדה חדש נראה עובד
+     במסך ואינו מגיע לשרת (4לג). */
+  editBuy: ({ id, name, qty, detail, status, category }) =>
+    put("/api/container?action=buy", { id, name, qty, detail, status, category }),
   deleteBuy: (id) => del("/api/container?action=buy", { id }),
 
-  /** כל מה שפתוח בשלוש הרשימות, מקובץ לפי מקור */
+  /** כל מה שפתוח בכל הרשימות, מקובץ **לפי קטגוריה של הפריט** */
   getAllShopping: () => get("/api/container?action=allshop"),
 
   /* ============================================================

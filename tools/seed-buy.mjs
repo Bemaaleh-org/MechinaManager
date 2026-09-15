@@ -17,6 +17,7 @@
    ============================================================ */
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { gql } from "../api/_monday.js";
+import { BUY_CATEGORIES } from "../shared/buy-categories.js";
 import { BUY_STATUSES } from "../shared/buy-ids.js";
 
 const TITLE = "מכינה – קניות כלליות";
@@ -67,6 +68,11 @@ const out = {
   /* ⚠ שם ולא מזהה: הרשימה מנוהלת על ידי ראש המכינה, וה"מי
      הוסיף" כאן הוא מי לשאול על השורה — לא מעקב על חניך
      (עיקרון 5, ואותו נימוק של "מי לקח" בפניות הגיוס 5כו). */
+  /* ⚠⚠ **הקטגוריה בעמודה ולא בקוד** (עיקרון 1): המכינה מוסיפה
+     קטגוריה בלוח בלי דיפלוי, והקוד קורא את התוויות משם.
+     ⚠ ו-labels() מדלג על מפתח 5 — המשבצת הריקה של monday,
+     שאחרת "אחר" הייתה נקראת על כל שורה בלי סיווג (5ז). */
+  category: await make(board, "קטגוריה", "status", labels(BUY_CATEGORIES)),
   by: await make(board, "מי הוסיף", "text"),
   date: await make(board, "נוסף בתאריך", "date"),
 };

@@ -119,8 +119,12 @@ try {
   console.log("\n=== כל הקניות במסך אחד ===");
   r = await call(H, "GET", "/api/container?action=allshop");
   ok("המסך המאוחד נטען", r.s === 200 && Array.isArray(r.b.groups), `${r.s}`);
-  const grp = (r.b.groups || []).find((g) => g.key === "buy");
-  const hit = grp && grp.rows.find((x) => x.id === id);
+  /* ⚠⚠ **המסך מקבץ לפי קטגוריה של הפריט ולא לפי מקור**
+     (15.9.2026). הטענה נשארה מה שהייתה — שהשורה מגיעה למסך
+     ונושאת את המקור שלה — אבל היא מחפשת אותה **בכל הקבוצות**,
+     כי `g.key` הוא עכשיו שם קטגוריה. */
+  const allRows = (r.b.groups || []).flatMap((g) => g.rows);
+  const hit = allRows.find((x) => x.id === id);
   /* ⚠⚠ **הטענה המרכזית של המסך המאוחד.** שורה שלא תגיע אליו
      נראית בדיוק כמו רשימה ריקה — ואז מי שיוצא לקניות מפספס
      אותה, וזה ההפך המדויק ממה שהמסך נועד לעשות. */
@@ -130,11 +134,54 @@ try {
     hit ? `${hit.source} canMark=${hit.canMark}` : "—");
   /* ⚠ **המטבח יצא מהמסך (12.9.2026)** — הטענה נועלת את
      ההיעדר, אחרת מקור שיחזור בטעות יעבור בשקט. */
-  ok("והמטבח אינו במסך — כללי ומכולה בלבד",
-    !(r.b.groups || []).some((g) => g.key === "kitchen")
+  /* ⚠ הבדיקה היא על **המקור של השורות** ולא על מפתח הקבוצה,
+     שהוא עכשיו שם קטגוריה. */
+  ok("והמטבח אינו במסך",
+    !allRows.some((x) => x.source === "kitchen")
       && !(r.b.missing || []).some((g) => g.key === "kitchen"),
+    JSON.stringify([...new Set(allRows.map((x) => x.source))]));
+  /* ⚠⚠ **והוועדות יצאו** (15.9.2026) — להן מסך ומועד משלהן.
+     בלי הטענה הזו מקור שיחזור בטעות יעבור בשקט, בדיוק כמו
+     שקרה עם המטבח. */
+  ok("והוועדות אינן במסך",
+    !allRows.some((x) => x.source === "team"),
+    JSON.stringify([...new Set(allRows.map((x) => x.source))]));
+  /* ⚠ הקיבוץ עצמו: מפתח הקבוצה הוא שם הקטגוריה, והוא זהה
+     לכותרת. מפתח שיחזור להיות שם מקור ייפול כאן. */
+  ok("הקיבוץ הוא לפי קטגוריה",
+    (r.b.groups || []).every((g) => g.key === g.title)
+      && Array.isArray(r.b.categories) && r.b.categories.length > 0,
     JSON.stringify((r.b.groups || []).map((g) => g.key)));
   ok("ולראש המכינה הלשונית הכללית פתוחה", r.b.canGeneral === true, String(r.b.canGeneral));
+
+  /* ============ 2ב · הקטגוריה — סיווג, ניקוי, וערך לא מוכר ============ */
+  console.log("\n=== קטגוריה ===");
+  const CAT = (r.b.categories || [])[0];
+  r = await call(H, "PUT", "/api/container?action=buy", { id, category: CAT });
+  ok("סיווג נשמר", r.s === 200 && (r.b.changed || []).includes("קטגוריה"),
+    `${r.s} ${JSON.stringify(r.b.changed)}`);
+  r = await call(H, "GET", "/api/container?action=allshop");
+  let mine = (r.b.groups || []).flatMap((g) => g.rows.map((x) => ({ ...x, g: g.title })))
+    .find((x) => x.id === id);
+  ok("והשורה עברה לקבוצה של הקטגוריה", mine && mine.g === CAT, mine ? mine.g : "לא נמצאה");
+
+  /* ⚠⚠ **ניקוי חייב להחזיר ל"ללא קטגוריה" ולא לקבוע תווית.**
+     מחרוזת ריקה בעמודת סטטוס כותבת `index 5` — המשבצת הריקה
+     של monday — וזה **קובע** את התווית שיושבת שם במקום לנקות
+     (5ז). בלי הטענה הזו הבאג עובר בשקט. */
+  r = await call(H, "PUT", "/api/container?action=buy", { id, category: "" });
+  ok("ניקוי הסיווג נשמר", r.s === 200, `${r.s} ${r.b.error || ""}`);
+  r = await call(H, "GET", "/api/container?action=allshop");
+  mine = (r.b.groups || []).flatMap((g) => g.rows.map((x) => ({ ...x, g: g.title })))
+    .find((x) => x.id === id);
+  ok("והיא באמת חזרה ל\"ללא קטגוריה\"",
+    mine && mine.g === "ללא קטגוריה" && !mine.category,
+    mine ? `${mine.g} category=${JSON.stringify(mine.category)}` : "לא נמצאה");
+
+  /* ⚠ ערך לא מוכר נדחה ברעש ואינו נכתב: `create_labels_if_missing`
+     הוא false, ותווית שאינה קיימת מפילה את **כל** השורה (4לב). */
+  r = await call(H, "PUT", "/api/container?action=buy", { id, category: "קטגוריה שלא קיימת" });
+  ok("קטגוריה לא מוכרת נדחית ב-400", r.s === 400, `${r.s} ${r.b.error || ""}`);
 
   /* ============ 3 · סימון "נקנה" מוריד מהמסך המאוחד ============ */
   r = await call(H, "PUT", "/api/container?action=buy", { id, status: BUY_STATUS.bought });
