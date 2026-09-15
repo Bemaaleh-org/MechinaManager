@@ -930,9 +930,15 @@ export const api = {
   assignPlacement: ({ placementId, semester, studentIds }) =>
     post("/api/students?action=placements", { placementId, semester, studentIds }),
 
-  /** קביעת תפקידי חניך. מנהל בלבד. נושא את הרשימה המלאה. */
-  setRoles: ({ studentId, roles }) =>
-    post("/api/students?action=role", { studentId, roles }),
+  /** קביעת תפקידי חניך. מנהל בלבד. נושא את הרשימה המלאה.
+      ⚠ `lockCode` חובה — השרת חוסם בלעדיו (api/_roles-lock.js). */
+  setRoles: ({ studentId, roles, lockCode }) =>
+    post("/api/students?action=role", { studentId, roles, lockCode }),
+
+  /** בדיקת קוד נעילת התפקידים, בלי לשנות דבר.
+      ⚠ נקראת **לפני** שהמסך מאפשר סימון, כי הסימון אופטימי. */
+  verifyRolesLock: (lockCode) =>
+    post("/api/students?action=role", { verify: true, lockCode }),
 
   /* ============================================================
      שיעורים במכינה

@@ -2771,6 +2771,34 @@ export function RoleHolders({ say }) {
   const [open, setOpen] = useState(null);   // התפקיד הפתוח לעריכה
   const [q, setQ] = useState("");
   const [busyRole, setBusyRole] = useState(null);
+  /* ============================================================
+     ⚠ **נעילת התפקידים** — הקוד מוחזק בזיכרון המסך בלבד
+       ומצורף לכל בקשה; השרת בודק אותו **בכל פעם** ולא סומך
+       על כך שהמסך שאל (api/_roles-lock.js).
+
+     ⚠ ונבדק **לפני** שהסימון נפתח, כי הסימון אופטימי (4י):
+       קוד שגוי שהיה מתגלה אחרי הלחיצה היה מדליק סימון
+       ומקפיץ אותו אחורה (4יד).
+
+     ⚠ הקוד אינו נשמר ב-localStorage: נעילה ששורדת סגירת
+       דפדפן על מכשיר משותף אינה נעילה.
+     ============================================================ */
+  const [lock, setLock] = useState("");        // הקוד שאומת
+  const [lockIn, setLockIn] = useState("");    // מה שמוקלד כרגע
+  const [lockErr, setLockErr] = useState("");
+  const [lockBusy, setLockBusy] = useState(false);
+
+  const unlock = (e) => {
+    e?.preventDefault?.();
+    const code = lockIn.trim();
+    if (!code || lockBusy) return;
+    setLockBusy(true);
+    setLockErr("");
+    api.verifyRolesLock(code)
+      .then(() => { setLock(code); setLockIn(""); })
+      .catch((e2) => setLockErr(e2.message))
+      .finally(() => setLockBusy(false));
+  };
 
   if (busy && !data) return <Loading what="טוען תפקידים" />;
   if (err) return <LoadFail msg={err} onRetry={reload} />;
@@ -2786,15 +2814,22 @@ export function RoleHolders({ say }) {
   /* ⚠ אופטימי, כמו ברשימת הקניות: הסימון מוצג מיד והבקשה
      נשלחת ברקע. בכישלון חוזרים אחורה ואומרים. */
   const toggle = (s2, role) => {
+    /* ⚠ שער במסך **בנוסף** לשער בשרת, ולא במקומו. זה כאן כדי
+       שהסימון האופטימי לא יידלק ויקפוץ אחורה; ההגנה עצמה
+       יושבת ב-api/_roles-lock.js. */
+    if (!lock) return;
     const cur = rolesOf(s2);
     const next = cur.includes(role) ? cur.filter((r) => r !== role) : [...cur, role];
     const before = cur;
     setPatch((p2) => ({ ...p2, [s2.id]: next }));
     setBusyRole(role);
-    api.setRoles({ studentId: s2.id, roles: next })
+    api.setRoles({ studentId: s2.id, roles: next, lockCode: lock })
       .catch((e) => {
         say(e.message);
         setPatch((p2) => ({ ...p2, [s2.id]: before }));
+        /* ⚠ קוד שנפסל באמצע (הוחלף בלוח) נועל מחדש ואינו
+           נשאר "פתוח" על סמך אימות ישן. */
+        if (String(e.message || "").includes("קוד")) setLock("");
       })
       .finally(() => setBusyRole(null));
   };
@@ -2803,6 +2838,36 @@ export function RoleHolders({ say }) {
 
   return (
     <>
+      {/* ============================================================
+          ⚠ **הרצועה מוצגת תמיד, נעולה או פתוחה.**
+            מסך שנראה רגיל ואז דוחה כל לחיצה הוא בדיוק מה
+            ש-4יד אוסר — מי שנכנס צריך לדעת מראש שצריך קוד.
+          ============================================================ */}
+      {lock ? (
+        <div className="card rlk rlk-on">
+          <MI.lock />
+          <span>התפקידים פתוחים לעריכה</span>
+          <button className="mini" onClick={() => setLock("")}>נעילה</button>
+        </div>
+      ) : (
+        <form className="card rlk" onSubmit={unlock}>
+          <MI.lock />
+          <div className="rlk-t">
+            <b>התפקידים נעולים</b>
+            <span>שינוי בעל תפקיד דורש קוד. הקוד נמצא בלוח ההרשאות.</span>
+          </div>
+          <input
+            className="rlk-in" type="password" inputMode="numeric"
+            autoComplete="off" placeholder="קוד"
+            value={lockIn} onChange={(e) => { setLockIn(e.target.value); setLockErr(""); }}
+          />
+          <button className="btn" disabled={!lockIn.trim() || lockBusy}>
+            {lockBusy ? "בודק…" : "פתיחה"}
+          </button>
+          {lockErr && <p className="rlk-e">{lockErr}</p>}
+        </form>
+      )}
+
       {roles.map((role) => {
         const info = ROLE_INFO[role] || null;
         const h = holders(role);
@@ -2872,7 +2937,12 @@ export function RoleHolders({ say }) {
                 <Escalate duty={role} label={role} say={say} compact
                   who={h.map((s2) => s2.name).join(" · ") || null} />
 
-                <div className="rl-k">בחירת חניכים</div>
+                <div className="rl-k">
+                  בחירת חניכים
+                  {/* ⚠ נאמר **בתוך** הכרטיס ולא רק ברצועה שלמעלה:
+                      מי שגלל עד לכאן כבר אינו רואה אותה. */}
+                  {!lock && <span className="rl-lk"> · נעול</span>}
+                </div>
                 <input className="search" value={q} placeholder="חיפוש חניך"
                   onChange={(e) => setQ(e.target.value)} />
                 {/* ⚠ גלילה בתוך הכרטיס, כמו במובילי שבוע: 33
@@ -2882,7 +2952,7 @@ export function RoleHolders({ say }) {
                     const on = rolesOf(s2).includes(role);
                     return (
                       <button className="st-row" key={s2.id}
-                        disabled={busyRole === role}
+                        disabled={busyRole === role || !lock}
                         onClick={() => toggle(s2, role)}>
                         <div className={"tick" + (on ? " on" : "")}>
                           {on && <span style={{ color: "#fff", fontWeight: 900 }}>✓</span>}

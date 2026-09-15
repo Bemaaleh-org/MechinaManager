@@ -24,6 +24,7 @@ import { invalidate } from "./_cache.js";
 import { cached } from "./_cache.js";
 import { MECHINA_BOARDS } from "../shared/mechina-boards.js";
 import { ROLES_COL } from "../shared/lessons-boards.js";
+import { checkRolesLock } from "./_roles-lock.js";
 
 /** התוויות שמוגדרות בעמודה בלוח — מקור האמת לרשימת התפקידים */
 export async function availableRoles({ force = false } = {}) {
@@ -45,11 +46,44 @@ async function handler(req, res) {
 
   try {
     const body = req.body ?? (await readJson(req));
+
+    /* ============================================================
+       ⚠⚠ **אימות הקוד בלבד, בלי לגעת בדבר.**
+
+       המסך מסמן תפקיד **אופטימית** — מיד, והבקשה ברקע (4י).
+       בלי מסלול אימות מוקדם, מי ששכח את הקוד היה רואה את
+       הסימון נדלק ואז קופץ אחורה, וזה בדיוק ה-403 שמגיע
+       אחרי שהמשתמש כבר פעל (4יד).
+
+       ⚠ ואינו מחזיר את הקוד, רק ok.
+       ============================================================ */
+    if (body?.verify) {
+      const v = await checkRolesLock(body?.lockCode);
+      if (!v.ok) { const { status, ...rest } = v; return res.status(status).json(rest); }
+      return res.status(200).json({ ok: true, unlocked: true });
+    }
+
     const studentId = String(body?.studentId || "").trim();
     const roles = Array.isArray(body?.roles) ? body.roles.map((r) => String(r).trim()) : null;
 
     if (!studentId) return res.status(400).json({ error: "לא צוין חניך" });
     if (!roles) return res.status(400).json({ error: "לא נשלחה רשימת תפקידים" });
+
+    /* ============================================================
+       ⚠⚠ **הנעילה, לפני כל נגיעה בנתונים.**
+
+       הבדיקה ראשונה בכוונה: היא זולה, והיא זו שנשאלה. שער
+       שיושב אחרי שליפת החניכים ואימות התוויות עדיין נכון,
+       אבל הוא מזמין את מי שיוסיף מסלול מחר לשכוח אותו.
+
+       ⚠ ונכשל **סגור** — ראו api/_roles-lock.js. הודעת
+         ה-503 נושאת את שם הסקריפט, ולא "אין הרשאה".
+       ============================================================ */
+    const lock = await checkRolesLock(body?.lockCode);
+    if (!lock.ok) {
+      const { status, ...rest } = lock;
+      return res.status(status).json(rest);
+    }
 
     const rows = await studentRows();
     const student = rows.find((r) => r.id === studentId);

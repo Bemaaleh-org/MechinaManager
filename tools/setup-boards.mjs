@@ -131,7 +131,7 @@ const stepOk = async (s) =>
 
 const done = [];
 for (const s of STEPS) {
-  const ranOk = run(s);
+  const ranOk = run(s, s.args || []);
   if (ranOk && await stepOk(s)) { done.push(s); continue; }
   console.error("\n" + "═".repeat(56));
   if (ranOk) {

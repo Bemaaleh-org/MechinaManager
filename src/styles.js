@@ -534,7 +534,7 @@ html,body{margin:0;padding:0;background:#012E58}
 /* ---------- הוספה ושינוי שם של סוג יום ---------- */
 .bg-add{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
 .kx .bg-add input{flex:1;min-width:180px;height:38px;border-radius:var(--r-sm);
-  border:1px solid var(--line2);background:var(--soft);color:var(--ink);
+  border:1px solid var(--line2);background:var(--sand);color:var(--ink);
   padding:0 11px;font-size:14px;font-weight:600}
 .kx input.bg-rename{flex:1;min-width:120px;height:30px;border-radius:var(--r-sm);
   border:1px solid var(--accent);background:var(--card);color:var(--ink);
@@ -554,11 +554,11 @@ html,body{margin:0;padding:0;background:#012E58}
 
 /* ⚠ סגור לדירוג — אומר למה ולא נעלם בשקט (עיקרון 6). */
 .ar-closed{margin-top:10px;font-size:12.5px;color:var(--muted);font-weight:700;
-  background:var(--soft);border-radius:var(--r-sm);padding:8px 11px}
+  background:var(--sand);border-radius:var(--r-sm);padding:8px 11px}
 .cap-edit{display:flex;gap:8px;align-items:center;flex-wrap:wrap;
   margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
 .kx .cap-edit input{width:100px;height:38px;border-radius:var(--r-sm);
-  border:1px solid var(--line2);background:var(--soft);color:var(--ink);
+  border:1px solid var(--line2);background:var(--sand);color:var(--ink);
   padding:0 10px;font-size:14px;font-weight:700;text-align:center}
 /* עריכה וביטול של בקשה ממתינה — כפתורי רפאים, לא כפתורי הכרעה */
 .rq-act.rq-own{margin-top:10px}
@@ -1924,6 +1924,30 @@ html,body{margin:0;padding:0;background:#012E58}
 .tr-legs b{display:block;font-size:16px;font-weight:800}
 .tr-legs span{display:block;font-size:10.5px;font-weight:700;color:var(--faint);margin-top:1px}
 
+/* ---- נעילת התפקידים ----
+   ⚠ הרצועה מוצגת תמיד, נעולה או פתוחה. מסך שנראה רגיל ואז
+     דוחה כל לחיצה הוא בדיוק מה ש-4יד אוסר.
+   ⚠ קידומת .kx מלאה על השדה ועל הכפתור: .kx button מאפסת
+     רקע ומסגרת בסגוליות גבוהה יותר (4מח). */
+.kx .rlk{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:13px 15px;margin-bottom:11px}
+.kx .rlk svg{flex:0 0 auto;color:var(--faint)}
+.rlk-t{flex:1 1 170px;min-width:0;display:flex;flex-direction:column;gap:2px}
+.rlk-t b{font-size:13.5px}
+.rlk-t span{font-size:11.5px;color:var(--faint);line-height:1.45}
+.kx .rlk-in{flex:0 0 96px;height:40px;border-radius:var(--r-sm);
+  border:1px solid var(--line2);background:var(--sand);
+  padding:0 11px;font:inherit;font-size:14px;letter-spacing:3px;
+  text-align:center;direction:ltr}
+.kx .rlk-in:focus{outline:none;border-color:var(--accent);
+  box-shadow:0 0 0 3px var(--accent-soft)}
+.rlk-e{flex:1 1 100%;margin:0;font-size:12px;color:var(--clay);font-weight:700}
+/* ⚠ פתוח נראה אחרת מנעול, ולא רק בטקסט. */
+.kx .rlk-on{background:var(--ok-soft);border-color:var(--ok)}
+.kx .rlk-on svg{color:var(--ok)}
+.kx .rlk-on span{flex:1 1 auto;font-size:13px;font-weight:700;color:var(--ok)}
+.rl-lk{color:var(--clay);font-weight:900}
+
 /* ---- מסך התפקידים ----
    ⚠ התפקיד הוא הכרטיס, לא החניך. השאלה שנשאלת כאן היא "מי
      אחראי על X", ולא "אילו תפקידים יש ל-Y" — ולכן הרשימה
@@ -3272,7 +3296,7 @@ html,body{margin:0;padding:0;background:#012E58}
 .rq-appeal-h{font-size:10.5px;font-weight:900;opacity:.85;margin-bottom:3px}
 .rq-appeal-n{font-size:11.5px;font-weight:700;color:var(--faint);line-height:1.5;
   margin-bottom:7px}
-.rq-appeal-box,.rq-redo{margin-top:10px;background:var(--soft);
+.rq-appeal-box,.rq-redo{margin-top:10px;background:var(--sand);
   border-radius:var(--r-sm);padding:10px 11px}
 .rq-appeal-box textarea{width:100%}
 
@@ -3282,7 +3306,7 @@ html,body{margin:0;padding:0;background:#012E58}
 .bg-hada-s{font-size:11.5px;font-weight:700;color:var(--faint);margin-top:3px}
 
 .ch-pn{flex:0 0 auto;min-width:24px;height:24px;display:inline-flex;align-items:center;
-  justify-content:center;border-radius:999px;background:var(--soft);color:var(--muted);
+  justify-content:center;border-radius:999px;background:var(--sand);color:var(--muted);
   font-size:12px;font-weight:900;font-variant-numeric:tabular-nums}
 .kx .st-row:disabled .st-n{color:var(--faint)}
 

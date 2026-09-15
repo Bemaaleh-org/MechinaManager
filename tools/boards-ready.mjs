@@ -63,6 +63,13 @@ export const STEPS = [
      ids+ready ולא הקובץ (5לב). */
   { script: "tools/seed-recdays.mjs", title: "ימים לפי המדריך בבקשות היציאה",
     ids: "shared/mechina-boards.js", ready: "guideDaysReady" },
+  /* ⚠⚠ **`args: ["--go"]` — והוא אינו קישוט.** הסקריפט הזה
+     נוגע בלוח ההרשאות ולכן ברירת המחדל שלו היא הרצה יבשה
+     (5ז). בלי הדגל הוא היה מדפיס מה הוא *היה* עושה, יוצא 0,
+     וההקמה הייתה מדווחת הצלחה על שלב שלא קרה — בדיוק התקלה
+     של clean:defaults ב-5כג. */
+  { script: "tools/seed-roles-lock.mjs", title: "קוד נעילת התפקידים", args: ["--go"],
+    ids: "shared/auth-board.js", ready: "rolesLockReady" },
 ];
 
 /**
