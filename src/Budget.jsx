@@ -1449,7 +1449,20 @@ export function BudgetPage({ say, isHead = false }) {
         <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 14 }}
           onClick={exportMonth}><BI.dl />הורדת החודש לאקסל</button>
 
-        <div className="sec-label">קניות החודש</div>
+        {/* ⚠⚠ **כמה מהתמונה חסר — ולא רק מה שיש.**
+            "נקנה 4,200 ₪" בלי לומר שלשלוש מתוך חמש הקניות אין
+            קבלה נקרא כמו חודש מתועד. אותו כלל של `unpriced`
+            בשווי המלאי ושל `unmarked` באירוחים (4לג, 4יח).
+            ⚠ ומוצג רק כשהוא נכון — שורה קבועה "0 בלי קבלה"
+            היא רעש שמפסיקים לראות. */}
+        <div className="sec-label">
+          קניות החודש
+          {data.canUploadReceipt && monthOrders.some((o) => !o.receipt) && (
+            <span className="sec-more">
+              {monthOrders.filter((o) => !o.receipt).length} בלי קבלה
+            </span>
+          )}
+        </div>
         {monthOrders.length === 0 ? (
           <div className="card" style={{ marginBottom: 10, fontSize: 13.5, color: "var(--muted)",
                                          fontWeight: 600, textAlign: "center" }}>
