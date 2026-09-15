@@ -43,6 +43,7 @@ import { DutyTodayCard, NextChoreCard } from "./DutyToday.jsx";
 import { AbsentTodayCard } from "./AbsentToday.jsx";
 import { LessonChangesCard } from "./LessonChanges.jsx";
 import { LastEvalCard } from "./LastEval.jsx";
+import { DevSwitch } from "./DevSwitch.jsx";
 import { BugsPage } from "./Bugs.jsx";
 import { StuLessonsPage, MyStuLessonCard } from "./StuLessons.jsx";
 import { PlenaryPage, LecturersPage, LECT_TITLE } from "./Plenary.jsx";
@@ -3650,6 +3651,9 @@ function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey, navGroups 
         <div className="h2-txt">
           <div className="h2-greet">{greet()}{first ? `, ${first}` : ""}</div>
           <div className="h2-date">{longDate(new Date())}</div>
+          {/* ⚠ **מתחת לברכה, ורק לאחראי בינה.** הרכיב מחזיר
+              null לכל השאר — ראו src/DevSwitch.jsx. */}
+          <DevSwitch isDev={auth.isDev} devMode={auth.devMode} name={first} />
         </div>
       </div>
 

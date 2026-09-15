@@ -148,9 +148,12 @@ const mine = (p, id) =>
  *   שתי גרסאות שלה נפרדות זו מזו בתיקון הראשון, וזו בדיקת
  *   הרשאה — לא נוחות.
  */
-export async function mineProject(projectId, studentId) {
+export async function mineProject(projectId, studentId, devMode = false) {
   const p = (await loadProjects()).find((x) => x.id === String(projectId || ""));
-  return p && mine(p, studentId) ? p : null;
+  /* ⚠⚠ **מצב מפתח עובר את בדיקת השייכות** — ראו ההערה ב-
+     `?action=projects` למטה. ⚠ הפרמטר הוא `devMode` ולא `isDev`:
+     מי שחזר למצב חניך רואה את שלו בלבד. */
+  return p && (devMode || mine(p, studentId)) ? p : null;
 }
 
 /* ============================================================
@@ -269,7 +272,7 @@ async function handler(req, res, session) {
     ? (req.body ?? (await readJson(req))) : {};
 
   try {
-    if (req.method === "GET") return list(res, me);
+    if (req.method === "GET") return list(res, me, session.devMode);
     if (req.method === "POST") return create(res, me, body);
     if (req.method === "PUT") return edit(res, me, body);
     if (req.method === "DELETE") return remove(res, me, body);
@@ -280,12 +283,28 @@ async function handler(req, res, session) {
   }
 }
 
-async function list(res, me) {
+async function list(res, me, devMode = false) {
   const [projects, tasks, money, entries, students] = await Promise.all([
     loadProjects(), loadProjectTasks(), loadProjectMoney(), loadEntries(), assignableStudents(),
   ]);
   const byId = new Map(students.map((s) => [String(s.id), s.name]));
-  const ours = projects.filter((p) => mine(p, me));
+  /* ============================================================
+     ⚠⚠⚠ **מצב מפתח רואה את כל הפרויקטים — הבטחה שנשברה במודע.**
+
+     כל הקובץ נכתב סביב זה שפרויקט הוא המקום שבו חניך **מנסה**:
+     הוא מתכנן תקציב שאולי לא יסתדר וכותב משימות שאולי לא
+     יבוצעו, וברגע שהוא יודע שמישהו קורא — הוא כותב אחרת
+     (5ח). לכן `isManager` דווקא **מבטל** כאן גישה.
+
+     אחראי בינה במצב מפתח כן רואה. זו הכרעה מפורשת של ראש
+     המכינה (15.9.2026), שנשאלה בדיוק ובניסוח הזה.
+
+     ⚠⚠ **והמשפט `.pr-private` במסך תוקן בהתאם.** הוא הבטיח
+       שאיש אינו קורא, וזה הפסיק להיות מדויק. הבטחה שאינה
+       מתקיימת גרועה מהיעדר הבטחה — וזה בדיוק הכלל של 5ח
+       עצמו ("המחיר מוצהר במסך").
+     ============================================================ */
+  const ours = devMode ? projects : projects.filter((p) => mine(p, me));
 
   const full = ours.map((p) => ({
     ...p,

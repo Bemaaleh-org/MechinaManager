@@ -31,6 +31,7 @@ import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { AbsentTodayCard } from "./AbsentToday.jsx";
 import { LessonChangesCard } from "./LessonChanges.jsx";
 import { LastEvalCard } from "./LastEval.jsx";
+import { DevSwitch } from "./DevSwitch.jsx";
 import { BugsPage } from "./Bugs.jsx";
 import { StuLessonsPage } from "./StuLessons.jsx";
 import { PlenaryPage, LecturersPage } from "./Plenary.jsx";
@@ -647,7 +648,7 @@ function Staff({ auth, onSignedOut }) {
               ============================================================ */}
           <ErrorBoundary resetKey={section} what={section}>
           {section === "dash" && isMgr && (
-            <ManagerDash pendingList={pendingList} cycle={auth.cycle} goStaff={goStaff} goLessons={goLessons}
+            <ManagerDash pendingList={pendingList} cycle={auth.cycle} auth={auth} goStaff={goStaff} goLessons={goLessons}
               goKitchen={goKitchen} goContainer={goContainer}
               goPlacements={() => setSection("placements")}
               goSafety={() => setSection("safety")}
@@ -785,7 +786,7 @@ function Staff({ auth, onSignedOut }) {
 
    ⚠ כל שליפה נכשלת בשקט ומורידה את הרכיב שלה בלבד — מסך
      הבית לעולם לא נופל בגלל תחום אחד (או תחום שטרם הוקם). */
-function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goContainer,
+function ManagerDash({ pendingList, cycle, auth, goStaff, goLessons, goKitchen, goContainer,
   goPlacements, goSafety, goFaults, goGantt, goBudget, goAgenda, goNews, navGroups }) {
   /* ⚠ מה שממתין *לי*, מתוך כל מה שממתין. ראו ההערה למעלה. */
   const mineList = pendingList.filter((r) => r.canDecide);
@@ -932,6 +933,17 @@ function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goCont
         <div className="h2-txt">
           <div className="h2-greet">{greet()}</div>
           <div className="h2-date">{hebDate(new Date())}</div>
+          {/* ============================================================
+              ⚠⚠ **הבורר חייב להיות גם כאן, ולא רק במעטפת החניך.**
+                במצב מפתח אחראי הבינה מקבל את **מעטפת הצוות** —
+                וזו המעטפת שהוא רואה אחרי המעבר. בלי הבורר כאן
+                אין לו דרך לחזור חוץ מניקוי אחסון הדפדפן.
+                אותו כלל של 4יט, בכיוון שקל לפספס.
+
+              ⚠ ולאיש צוות אמיתי הוא מחזיר `null` — `isDev` שלו
+                אינו מוגדר, ואיש צוות אינו חניך שמחליף תצוגה.
+              ============================================================ */}
+          <DevSwitch isDev={auth?.isDev} devMode={auth?.devMode} name={auth?.name} />
         </div>
       </div>
 

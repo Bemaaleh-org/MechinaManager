@@ -134,7 +134,7 @@ async function handler(req, res, session) {
 
   try {
     if (req.method === "POST") {
-      const p = await mineProject(body?.project, me);
+      const p = await mineProject(body?.project, me, session.devMode);
       if (!p) return res.status(404).json({ error: "הפרויקט אינו נמצא" });
       const title = String(body?.title || "").trim().slice(0, 200);
       if (!title) return res.status(400).json({ error: "לא הוזנה כותרת" });
@@ -161,7 +161,7 @@ async function handler(req, res, session) {
     if (!id) return res.status(400).json({ error: "לא צוינה רשומה" });
     const row = (await loadEntries()).find((x) => x.id === id);
     /* ⚠ 404 גם כשהשורה קיימת אך אינה בפרויקט שלו (4מה). */
-    if (!row || !(await mineProject(row.project, me))) {
+    if (!row || !(await mineProject(row.project, me, session.devMode))) {
       return res.status(404).json({ error: "הרשומה אינה נמצאת" });
     }
 
