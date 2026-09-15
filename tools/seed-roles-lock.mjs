@@ -22,7 +22,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { gql } from "../api/_monday.js";
 import {
-  AUTH_BOARD, AUTH_COLS, SETTINGS_ROW, ROLES_LOCK_DEFAULT,
+  AUTH_BOARD, AUTH_COLS, SETTINGS_ROW, ROLES_LOCK_DEFAULT, KIND,
 } from "../shared/auth-board.js";
 
 const GO = process.argv.includes("--go");
@@ -67,10 +67,19 @@ const haveRow = rows.find((r) => String(r.name).trim() === SETTINGS_ROW);
 if (haveRow) {
   say(`  קיימת שורה: ${SETTINGS_ROW} → ${haveRow.id}`);
 } else if (GO) {
-  /* ⚠ code ריק ו-active כבוי — ראו האזהרה בראש הקובץ. */
+  /* ⚠ code ריק ו-active כבוי — ראו האזהרה בראש הקובץ.
+
+     ⚠⚠ **ו-kind = "קוד משותף", כדי ש-`identities()` תדלג עליה.**
+       המסנן הזה כבר קיים ומתועד ("אינו אדם ולכן אין לו זהות
+       אישית"), והשורה הזו אינה אדם בדיוק באותו מובן. בלעדיו
+       היא נכנסת לרשימת הזהויות כאיש צוות ש-`isFresh` שלו
+       true — כלומר "טרם נרשם" — וכל מסלול שמחפש שם עובר
+       עליה. אין היום מסך שמציג אותה, וזו בדיוק הסיבה לסגור
+       את זה עכשיו ולא אחרי שייכתב אחד. */
   const vals = JSON.stringify({
     [AUTH_COLS.code]: "",
     [AUTH_COLS.active]: { checked: "false" },
+    [AUTH_COLS.kind]: { label: KIND.shared },
     ...(colId ? { [colId]: ROLES_LOCK_DEFAULT } : {}),
   });
   const d = await gql(

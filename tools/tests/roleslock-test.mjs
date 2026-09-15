@@ -63,6 +63,13 @@ ok("עמודת הקוד מלאה", Boolean(CODE));
    וקוד נעילה שהיה יושב בה היה הופך ל-דלת כניסה למערכת. */
 ok("עמודת code (סוד הכניסה) ריקה", cv(settings, AUTH_COLS.code).trim() === "");
 ok("השורה כבויה", cv(settings, AUTH_COLS.active).trim() !== "v");
+/* ⚠ **ואינה נספרת כאדם.** בלי kind="קוד משותף" היא נכנסת
+   ל-identities() כאיש צוות ש-isFresh שלו true — "טרם נרשם" —
+   וכל מסלול שמחפש שם עובר עליה. אין היום מסך שמציג אותה,
+   וזו בדיוק הסיבה לנעול את זה לפני שייכתב אחד. */
+const { identities } = await import("../../api/_identity.js");
+ok("אינה ברשימת הזהויות",
+  !(await identities()).some((r) => String(r.name).trim() === SETTINGS_ROW));
 
 const anon = jar();
 let r = await call(anon, "POST", "/api/auth?action=login", { code: CODE });
