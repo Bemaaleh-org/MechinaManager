@@ -48,6 +48,11 @@ export async function loadSheets({ force = false } = {}) {
            ומפגשיו ממשיכים להופיע בכל מסך אחר. ראו ההערה
            ב-shared/lessons-boards.js. */
         noPay: Boolean(S.noPay) && val(i, S.noPay) === "v",
+        /* ⚠ **הגיליון באחריות ועדת קבוצה ותוכן** — ראו
+           shared/lessons-boards.js. ⚠ בלי העמודה זה `false`
+           לכולם, והוועדה נחסמת עד שההקמה תרוץ: זה הכיוון
+           הבטוח, ולא "פתוח עד שיסומן". */
+        contentTeam: Boolean(S.contentTeam) && val(i, S.contentTeam) === "v",
         /* ⚠⚠ פרטי אדם חיצוני. נקראים כאן, ו**אינם יוצאים לחניך** —
            ראו `toStudentSheet` ב-api/_lessons-list.js. */
         phone: val(i, S.phone) || null,

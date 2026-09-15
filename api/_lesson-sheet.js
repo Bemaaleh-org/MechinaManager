@@ -27,9 +27,32 @@ async function handler(req, res, session) {
     return res.status(403).json({ error: rights.hint });
   }
 
+  /* ============================================================
+     ⚠⚠ **הוועדה אינה יוצרת גיליון חדש ואינה עורכת גיליון
+       שאינו באחריותה.**
+
+       יצירה: גיליון חדש נולד **בלי** סימון האחריות, ולכן
+       הוועדה הייתה יוצרת משהו שהיא עצמה לא תראה. יצירת
+       גיליון היא החלטה של אחראי הלו״ז ממילא.
+     ============================================================ */
   if (req.method === "GET") return read(req, res, session, rights);
-  if (req.method === "POST") return create(req, res, session);
-  if (req.method === "PUT") return edit(req, res, session);
+  if (req.method === "POST") {
+    if (rights.limited) {
+      return res.status(403).json({ error: "יצירת גיליון נעשית על ידי אחראי הלו״ז" });
+    }
+    return create(req, res, session);
+  }
+  if (req.method === "PUT") {
+    if (rights.limited) {
+      const id = String((req.body || {}).id || req.query?.id || "");
+      const hit = (await loadSheets()).find((x) => x.id === id);
+      /* ⚠ 404 כמו בקריאה — ולא 403 שמאשר שהגיליון קיים. */
+      if (!hit || !rights.mayWrite(hit)) {
+        return res.status(404).json({ error: "הגיליון אינו נמצא" });
+      }
+    }
+    return edit(req, res, session);
+  }
   return res.status(405).json({ error: "רק GET, POST ו-PUT נתמכים כאן" });
 }
 
@@ -37,6 +60,16 @@ async function read(req, res, session, rights) {
   try {
     const id = String(req.query?.id || "");
     if (!id) return res.status(400).json({ error: "לא צוין גיליון" });
+    /* ⚠⚠ **404 ולא 403 על גיליון שאינו באחריות הוועדה.**
+       403 מאשר שהגיליון קיים; לוועדה הוא פשוט אינו ברשימה
+       שלה, וזה המצב שהמסך מתאר. אותו דפוס של פרויקט שאינו
+       שלי (5ח) ושל משימת צוות אחר (4נ). */
+    if (rights.limited) {
+      const hit = (await loadSheets()).find((x) => x.id === id);
+      if (!hit || !rights.mayRead(hit)) {
+        return res.status(404).json({ error: "הגיליון אינו נמצא" });
+      }
+    }
 
     const [sheets, meetings] = await Promise.all([loadSheets(), loadMeetings()]);
     const sheet = sheets.find((s) => s.id === id);

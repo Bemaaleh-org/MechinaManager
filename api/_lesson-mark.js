@@ -85,6 +85,18 @@ async function handler(req, res, session) {
     const rights = await lessonRights(session);
     if (!rights.write) return res.status(403).json({ error: rights.hint });
 
+    /* ⚠⚠ **והוועדה מסמנת רק במפגשים של הגיליונות שלה.**
+       `rights.write` לבדו הוא בוליאני גורף — הוא היה מאפשר
+       לסמן "התקיים" באימונים ובתנ״ך. הגיליון נלקח **מהמפגש**
+       ולא מגוף הבקשה, בדיוק כמו התחום בציוד המכולה (4כב).
+       ⚠ 404 ולא 403 — 403 מאשר שהמפגש קיים. */
+    if (rights.limited) {
+      const sheet = (await loadSheets()).find((x) => x.id === meeting.sheetId);
+      if (!sheet || !rights.mayWrite(sheet)) {
+        return res.status(404).json({ error: "המפגש אינו נמצא" });
+      }
+    }
+
     const fields = { happened };
     if (body?.note !== undefined) fields.note = body.note;
     if (body?.lecturer !== undefined) fields.lecturer = body.lecturer;

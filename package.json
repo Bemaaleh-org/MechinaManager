@@ -62,7 +62,8 @@
     "check:seeds": "node tools/tests/seed-dry.mjs",
     "check:css": "node tools/check-css.mjs",
     "check:nav": "node tools/check-nav.mjs",
-    "seed:roles-lock": "node --env-file=.env tools/seed-roles-lock.mjs"
+    "seed:roles-lock": "node --env-file=.env tools/seed-roles-lock.mjs",
+    "seed:content-sheets": "node --env-file=.env tools/seed-content-sheets.mjs"
   },
   "dependencies": {
     "nodemailer": "^9.0.5",

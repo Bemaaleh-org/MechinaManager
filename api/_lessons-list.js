@@ -24,7 +24,14 @@ async function handler(req, res, session) {
   try {
     const [sheets, meetings] = await Promise.all([loadSheets(), loadMeetings()]);
 
-    const list = sheets.map((s) => ({ ...s, counts: countFor(s.id, meetings) }));
+    /* ⚠⚠ **הרשימה מסוננת לוועדה** — היא רואה רק את הגיליונות
+       שסומנו באחריותה (בקשת אחים: "אפילו רק תציג להם את
+       הדברים האלה"). לצוות ולאחראי הלו״ז שום דבר לא השתנה.
+       ⚠ והסינון **לפני** חישוב הסיכומים, אחרת המספרים בראש
+       המסך מדברים על גיליונות שאינם מוצגים — וזה נראה כמו
+       באג ולא כמו הרשאה. */
+    const seen = rights.limited ? sheets.filter((x) => rights.mayRead(x)) : sheets;
+    const list = seen.map((s) => ({ ...s, counts: countFor(s.id, meetings) }));
 
     /* סיכום כללי — אותם מספרים שבדאשבורד שבקובץ המקור */
     const totals = list.reduce((a, s) => ({

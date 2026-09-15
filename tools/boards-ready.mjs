@@ -70,6 +70,11 @@ export const STEPS = [
      של clean:defaults ב-5כג. */
   { script: "tools/seed-roles-lock.mjs", title: "קוד נעילת התפקידים", args: ["--go"],
     ids: "shared/auth-board.js", ready: "rolesLockReady" },
+  /* ⚠ שלב שלישי על shared/lessons-boards.js (עמודות התוכן ויומן
+     השינויים הם הראשונים) — הזיהוי הוא הצמד ids+ready (5לב).
+     ⚠ ו---go: ברירת המחדל שלו היא הרצה יבשה. */
+  { script: "tools/seed-content-sheets.mjs", title: "הגיליונות של ועדת קבוצה ותוכן",
+    args: ["--go"], ids: "shared/lessons-boards.js", ready: "contentSheetsReady" },
 ];
 
 /**
