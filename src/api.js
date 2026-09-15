@@ -65,12 +65,49 @@ function setOffline(next, at) {
 
 export const offlineState = () => ({ offline, staleAt });
 
+/* ============================================================
+   ⚠⚠ **מצב מפתח — אחראי בינה**
+
+   הכותרת `x-kx-dev` נשלחת בכל בקשה כשהמצב דלוק, והיא אומרת
+   "אני רוצה את מצב המפתח" ולא "מגיע לי": השרת פותח אותו **רק**
+   למי שנושא את התפקיד בלוח, ובודק את זה טרי בכל בקשה. כותרת
+   על משתמש שאינו אחראי בינה אינה עושה דבר.
+
+   ⚠ **נשמר ב-`localStorage` ולא בשרת**, כמו העדפות התצוגה
+     (5יד): זו בחירה של המכשיר ולא של האדם, והיא שורדת רענון.
+     ⚠ ועטוף ב-try/catch — הגישה נכשלת בחלון פרטי.
+
+   ⚠ **וזו הדלת היחידה.** `src/api.js` הוא המקום היחיד שמכיר
+     כתובות (עיקרון 7), ולכן גם המקום היחיד שמצרף את הכותרת —
+     מסך ששולח אותה בעצמו היה עוקף את השכבה ומאבד גם את
+     טיפול ה-401.
+   ============================================================ */
+const DEV_KEY = "kx-dev-mode";
+let devMode = (() => {
+  try { return localStorage.getItem(DEV_KEY) === "1"; } catch { return false; }
+})();
+const devSubs = new Set();
+
+export const isDevMode = () => devMode;
+export const onDevMode = (f) => { devSubs.add(f); return () => devSubs.delete(f); };
+export function setDevMode(on) {
+  devMode = Boolean(on);
+  try {
+    if (devMode) localStorage.setItem(DEV_KEY, "1");
+    else localStorage.removeItem(DEV_KEY);
+  } catch { /* חלון פרטי — המצב עדיין תקף לסשן הזה */ }
+  for (const f of devSubs) f(devMode);
+}
+/** ⚠ מצורף לכל בקשה, ולא רק לחלקן — מסך אחד שיישכח היה
+    מחזיר נתוני חניך בתוך תצוגת מפתח, וזה נראה כמו באג. */
+const devHeaders = () => (devMode ? { "x-kx-dev": "1" } : {});
+
 async function send(method, path, body) {
   let r;
   try {
     r = await fetch(path, {
       method,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...devHeaders() },
       body: JSON.stringify(body),
     });
   } catch {
@@ -105,7 +142,7 @@ const del = (path, body) => send("DELETE", path, body);
 async function get(path) {
   let r;
   try {
-    r = await fetch(path);
+    r = await fetch(path, { headers: devHeaders() });
   } catch {
     setOffline(true);
     throw new Error("אין חיבור, ואין גם עותק שמור של המסך הזה.");

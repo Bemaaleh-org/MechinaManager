@@ -22,7 +22,7 @@ import { AUTH_BOARD, AUTH_COLS, KIND, STAFF_ROLE } from "../shared/auth-board.js
 import { cached } from "./_cache.js";
 import { studentRows } from "./_student-rows.js";
 import { ensureCycle } from "./_cycle.js";
-import { ROLE_CONTAINER, ROLE_KITCHEN, ROLE_SAFETY, ROLE_HOUSE } from "../shared/lessons-boards.js";
+import { ROLE_CONTAINER, ROLE_KITCHEN, ROLE_SAFETY, ROLE_HOUSE, ROLE_DEV } from "../shared/lessons-boards.js";
 import { inMarkWindow, leadersForDate, weeksOfStudent } from "./_leader-weeks.js";
 import { parseTestDate } from "./_test-date.js";
 import { mayEdit, editHint, EDIT_AREA } from "../shared/edit-rights.js";
@@ -193,6 +193,33 @@ export async function requireAuth(req, res) {
     }
     catch { /* כשל בשליפת השיבוץ לא מפיל את הכניסה — נשאר העוקף הידני */ }
 
+    /* ============================================================
+       ⚠⚠⚠ **מצב מפתח — אחראי בינה**
+
+       החניך שנושא את התפקיד נשאר חניך, ובנוסף יכול **לבקש**
+       מצב מפתח שבו הסשן שלו מקבל `isManager`.
+
+       ⚠⚠ **הבקשה מהדפדפן אינה ההרשאה.** הכותרת `x-kx-dev`
+         אומרת "אני רוצה את מצב המפתח" ולא "מגיע לי" — היא
+         לבדה אינה פותחת דבר. ההרשאה נגזרת מ-`isDev`, שנקרא
+         **טרי מלוח החניכים בכל בקשה**, בדיוק כמו כל תפקיד
+         אחר. הסרת התפקיד בלוח סוגרת את המצב **מיד**, גם
+         באמצע סשן ועם הכותרת דלוקה.
+
+         זו אינה סתירה לעיקרון 3 ("לא לפי מה שהדפדפן מצהיר"):
+         הדפדפן בוחר **בין שני מצבים שכבר מגיעים לו**, ואינו
+         מצהיר על זהות. ההצהרה היחידה שנשמעת היא מהלוח.
+
+       ⚠ **ברירת המחדל היא חניך.** מצב שנדלק מעצמו היה גורם
+         למפתח לראות נתונים אישיים של חבריו בלי להתכוון.
+
+       ⚠ ו-`isStudent` **נשאר true**: הוא עדיין נספר בנוכחות,
+         בתורנויות ובמכסות, והשיוך שלו לא השתנה. מה שהשתנה
+         הוא מה הוא רשאי לקרוא.
+       ============================================================ */
+    const isDev = (row.roles || []).includes(ROLE_DEV);
+    const devMode = isDev && String(req?.headers?.["x-kx-dev"] || "") === "1";
+
     return {
       kind: "student",
       itemId: row.id,
@@ -200,7 +227,15 @@ export async function requireAuth(req, res) {
       /* ⚠ נכנס עם ת"ז וטרם בחר שם וסיסמה. withAuth חוסם לו
          כל נקודת קצה חוץ ממסך ההקמה. */
       setup: Boolean(payload.setup),
-      isManager: false,
+      /* ⚠ **כאן נפתחת גישת הצוות**, ורק כששני התנאים מתקיימים:
+         התפקיד בלוח **וגם** בקשה מפורשת מהמסך. */
+      isManager: devMode,
+      /* ⚠ שני דגלים ולא אחד: `isDev` אומר "רשאי להיכנס למצב
+         מפתח" ופותח את הבורר במסך; `devMode` אומר "נמצא בו
+         עכשיו". מסך שיבדוק את הראשון כדי להחליט מה להציג
+         יראה תמיד את תצוגת המפתח, גם כשהמשתמש חזר לחניך. */
+      isDev,
+      devMode,
       /* ⚠ חניך לעולם אינו "צפייה בלבד" — הדגל שייך ללוח
          ההרשאות של הצוות. מוגדר במפורש כדי שלא יהיה undefined
          בענף אחד ו-false בשני. */
