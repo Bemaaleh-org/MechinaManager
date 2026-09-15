@@ -922,6 +922,21 @@ html,body{margin:0;padding:0;background:#012E58}
 .bg-total-k{font-size:11.5px;font-weight:800;letter-spacing:.6px;opacity:.75}
 .bg-total-v{font-family:'Suez One',Heebo,serif;font-size:36px;line-height:1.2;margin:4px 0 2px}
 .bg-total-s{font-size:12.5px;font-weight:700;opacity:.85}
+/* ---- כמה מהחודש כבר נסגר ----
+   ⚠ הכרטיס כהה ו-color:#fff יורש לכאן, ולכן הצבעים כאן הם
+     שקיפויות של לבן ולא טוקנים — טוקן בהיר על רקע כהה נעלם.
+   ⚠ ופס אחד ולא אחוז גדול: 4ו אוסר למדוד ניצול מול הסך הכול,
+     והפס מראה יחס בלי לטעון שהוא "ניצול". */
+.bg-total-sp{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;
+  margin-top:13px;padding-top:12px;border-top:1px solid rgba(255,255,255,.18)}
+.bg-sp-bar{flex:1 1 100%;height:7px;border-radius:99px;
+  background:rgba(255,255,255,.2);overflow:hidden}
+.bg-sp-bar span{display:block;height:100%;border-radius:99px;background:#fff;opacity:.9}
+.bg-sp-n{flex:1 1 0;min-width:78px;display:flex;flex-direction:column;gap:1px}
+.bg-sp-n b{font-size:15.5px;font-weight:900;line-height:1.2}
+.bg-sp-n span{font-size:10.5px;font-weight:700;opacity:.75}
+.bg-total-why{margin-top:10px;font-size:11px;font-weight:600;opacity:.7;
+  line-height:1.5;text-align:start}
 .bg-head{display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:10px 14px}
 .bg-head input{flex:1;min-height:42px;background:var(--bg);border:1px solid var(--line2);
   border-radius:10px;padding:0 12px;font-size:15px;outline:none;text-align:center}

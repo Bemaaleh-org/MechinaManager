@@ -778,12 +778,19 @@ function DiningTab({ data, say, reload }) {
   const [budget, setBudget] = useState("");
   const [rEdit, setREdit] = useState(false);
   const [rateVal, setRateVal] = useState("");
+  /* ⚠ **התעריף ליום** נפרד מ**המחיר לסועד**, והבלבול ביניהם הוא
+     בדיוק מה שהמסך צריך למנוע: 600 ₪ הוא מה שיום עשייה
+     קהילתית עולה כשאיש לא נספר, ו-45 ₪ הוא מה שכל סועד עולה
+     כשכן. שני שדות, שני כפתורים, ושתי הסברות. */
+  const [dEdit, setDEdit] = useState(false);
+  const [dayVal, setDayVal] = useState("");
   const [sBusy, setSBusy] = useState(false);
 
   useEffect(() => {
     setVals({});
     setBEdit(false);
     setREdit(false);
+    setDEdit(false);
   }, [data.month]);
 
   if (!data.diningReady) {
@@ -847,9 +854,52 @@ function DiningTab({ data, say, reload }) {
         )}
         <div style={{ fontSize: 12, color: "var(--faint)", fontWeight: 600, marginTop: 8 }}>
           {derived
-            ? <>התקציב נגזר מתעריף החד״א של {data.communityDays} ימי העשייה הקהילתית בחודש.</>
+            ? <>התקציב נגזר מתעריף החד״א — {data.diningDayRate != null
+                ? <b>{shekel(data.diningDayRate)} ₪</b> : "—"} ל{data.communityDays === 1
+                ? "יום עשייה קהילתית" : `כל אחד מ-${data.communityDays} ימי העשייה הקהילתית`} בחודש.</>
             : <>התקציב נקבע ידנית לחודש הזה. הנגזר מימי העשייה הקהילתית: {shekel(plan)} ₪.</>}
         </div>
+
+        {/* ============================================================
+            ⚠ **התעריף ליום — ראש המכינה, מהמסך.**
+              הוא יושב על סוג היום בלוח (עיקרון 1) והיה ניתן לשינוי
+              רק דרך monday. ⚠ `canSetDayRate` מהשרת ולא נגזר כאן
+              (4יד), ו-`diningDayTypeId` הוא מה שהשרת מצפה לו —
+              המסך אינו מחפש את סוג היום בעצמו.
+            ============================================================ */}
+        {data.canSetDayRate && data.diningDayTypeId && !dEdit && (
+          <div style={{ marginTop: 6 }}>
+            <button className="btn btn-ghost btn-sm"
+              onClick={() => { setDayVal(String(data.diningDayRate ?? "")); setDEdit(true); }}>
+              שינוי התעריף ליום
+            </button>
+          </div>
+        )}
+        {data.canSetDayRate && dEdit && (
+          <div style={{ marginTop: 8 }}>
+            <div className="fld">
+              <label htmlFor="dn-dr">תעריף החד״א ליום עשייה קהילתית (₪)</label>
+              <input id="dn-dr" type="number" inputMode="decimal" min="0" dir="ltr" autoFocus
+                value={dayVal} onChange={(e) => setDayVal(e.target.value)} />
+            </div>
+            {/* ⚠ נאמר מה זה משנה **לפני** השמירה: התעריף חל על כל
+                חודשי השנה, ולא רק על החודש שמוצג. */}
+            <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 600, marginBottom: 8 }}>
+              חל על כל החודשים, ומשנה את התקציב הנגזר בכל אחד מהם.
+              יום שנספרו בו סועדים מחושב לפי הספירה ולא לפי התעריף.
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-primary btn-sm" disabled={sBusy}
+                onClick={() => run(api.setDayTypeBudget({
+                  typeId: data.diningDayTypeId, dining: dayVal.trim(),
+                }), "תעריף החד״א ליום עודכן")}>
+                {sBusy ? "…" : "שמירה"}
+              </button>
+              <button className="btn btn-ghost btn-sm" disabled={sBusy}
+                onClick={() => setDEdit(false)}>ביטול</button>
+            </div>
+          </div>
+        )}
 
         {/* ⚠ "לא בגדול" — כפתור קטן, ורק לראש המכינה. */}
         {canSet && !bEdit && (
@@ -1060,6 +1110,25 @@ export function BudgetPage({ say, isHead = false }) {
     <>
       <div className="screen-title">תקציב המטבח</div>
 
+      {/* ============================================================
+          ⚠⚠ **שורת הגדרה כפולה בלוח — נאמרת ואינה נבלעת.**
+            נמצאו שתי שורות "מספר סועדים" (37 ו-33), והשרת קורא
+            את הראשונה. מי שערך את השנייה ב-monday לא ראה שום
+            שינוי ולא קיבל שום שגיאה — בדיוק סוג התקלה שאין לה
+            סימן (4ט). ההתנהגות לא שונתה; מה שנוסף הוא שהמסך
+            אומר שזה קורה ומה לעשות.
+          ============================================================ */}
+      {Array.isArray(data.settingDupes) && data.settingDupes.length > 0 && (
+        <div className="bg-fixed" style={{ marginBottom: 10 }}>
+          {data.settingDupes.map((d) => (
+            <div key={d.name}>
+              ⚠ בלוח ההגדרות יש <b>{d.count}</b> שורות בשם "{d.name}" — נקראת הראשונה.
+              כדאי למחוק את המיותרת ב-monday, אחרת עריכה של השורה השנייה לא תשפיע.
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="seg">
         <button className={view === "month" ? "on" : ""} onClick={() => setView("month")}>חודש</button>
         <button className={view === "year" ? "on" : ""} onClick={() => setView("year")}>כל השנה</button>
@@ -1088,6 +1157,47 @@ export function BudgetPage({ say, isHead = false }) {
             קייטרינג {shekel(data.catering)}
             {data.dining > 0 ? ` · חד״א ${shekel(data.dining)}` : ""}
             {" · קניות "}{shekel(data.purchases)}
+          </div>
+          {/* ============================================================
+              ⚠⚠ **"כמה כבר נסגר" — ולא "כמה נוצל מתוך הסך הכול".**
+
+                הבקשה הייתה 16,000/25,000. ⚠ אבל 4ו קובע שהניצול
+                נמדד מול **הקניות** ולא מול הסך הכול, כי
+                הקייטרינג הוא חוזה: הוא אינו "מנוצל", הוא פשוט
+                עולה, ואחוז שמודד אותו כאילו אפשר לחסוך בו
+                מייפה את התמונה בדיוק ברגע שמסתכלים עליה כדי
+                להחליט.
+
+                לכן שני מספרים ושתי מילים שונות — "נסגר"
+                מול "לשיקול דעת" — ולא אחוז אחד שקורא
+                לשניהם אותו דבר (4יח).
+              ============================================================ */}
+          {data.committed != null && (
+            <div className="bg-total-sp">
+              <div className="bg-sp-bar">
+                <span style={{ width: `${Math.min(100,
+                  Math.round((data.committed / (data.total || 1)) * 100))}%` }} />
+              </div>
+              <div className="bg-sp-n">
+                <b className="num">{shekel(data.committed)}</b>
+                <span>כבר נסגר</span>
+              </div>
+              <div className="bg-sp-n">
+                <b className="num">{shekel(data.total)}</b>
+                <span>סך החודש</span>
+              </div>
+              {data.left != null && (
+                <div className="bg-sp-n">
+                  <b className="num">{shekel(data.left)}</b>
+                  <span>לשיקול דעת</span>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="bg-total-why">
+            ״נסגר״ = קייטרינג + חד״א שנאכל + קניות שכבר בוצעו.
+            הקייטרינג הוא חוזה ואינו ניתן לחיסכון, ולכן ״לשיקול דעת״
+            הוא מה שנשאר בתקציב הקניות בלבד.
           </div>
         </div>
 

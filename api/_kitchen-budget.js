@@ -23,7 +23,7 @@ import {
   BUDGET_BOARDS as B, BUDGET_COLS as C, budgetReady,
   DEFAULT_HEADCOUNT, SETTING_HEADCOUNT,
   SETTING_DINING_RATE, SETTING_DINING_BUDGET, DEFAULT_DINING_RATE,
-  diningHeadsReady,
+  diningHeadsReady, DAY_COMMUNITY,
   dayCost, perPersonOf, sortTypes, orderShareFor, monthsOf,
   headcountAt, ORDER_KIND, ORDER_KINDS,
 } from "../shared/budget-boards.js";
@@ -115,12 +115,43 @@ async function loadHeadcount({ force = false } = {}) {
  * ⚠ מחזירה `null` כשהשורה אינה קיימת או ריקה — ולא ברירת מחדל
  *   שקטה. מי שקורא מחליט מה לעשות עם "לא הוגדר" (4ט).
  */
+/* ============================================================
+   ⚠⚠ **שורת הגדרה כפולה — הראשונה מנצחת, וזה מדווח.**
+
+   נמצאו בלוח **שתי** שורות "מספר סועדים" (37 ו-33), ו-`find`
+   לוקח את הראשונה. מי שיערוך את השנייה ב-monday לא יראה שום
+   שינוי במסך, ולא תהיה שום שגיאה — בדיוק סוג התקלה שאין לה
+   סימן (4ט).
+
+   ⚠ **ההתנהגות לא שונתה בכוונה**: הראשונה ממשיכה לנצח. שינוי
+     של מי מנצח היה מזיז מספרי כסף של חודשים שכבר חושבו, בלי
+     שאיש ביקש. מה שנוסף הוא **דיווח** — ללוג, וב-`warnings`
+     לתשובה, כדי שהמסך יוכל לומר "יש שתי שורות בשם הזה".
+   ============================================================ */
+const settingDupes = new Set();
+
 async function loadSettingNum(name, { force = false } = {}) {
   const items = await cached("budget-settings-raw", () => allItems(B.settings), { force });
-  const hit = items.find((i) => String(i.name || "").trim() === name);
+  const all = items.filter((i) => String(i.name || "").trim() === name);
+  if (all.length > 1 && !settingDupes.has(name)) {
+    settingDupes.add(name);
+    console.warn(`[budget] ${all.length} שורות בשם "${name}" בלוח ההגדרות — הראשונה נקראת`);
+  }
+  const hit = all[0];
   if (!hit) return null;
   const n = num(hit, C.settings.value);
   return Number.isFinite(n) ? n : null;
+}
+
+/** שמות הגדרות שיש להן יותר משורה אחת בלוח. ⚠ נאסף בקריאה. */
+export async function duplicateSettings({ force = false } = {}) {
+  const items = await cached("budget-settings-raw", () => allItems(B.settings), { force });
+  const seen = new Map();
+  for (const i of items) {
+    const nm = String(i.name || "").trim();
+    if (nm) seen.set(nm, (seen.get(nm) || 0) + 1);
+  }
+  return [...seen].filter(([, n]) => n > 1).map(([nm, n]) => ({ name: nm, count: n }));
 }
 
 /** ⚠ תקציב החד״א **לחודש** — שורה בלוח ההגדרות לכל חודש שנקבע לו
@@ -423,12 +454,56 @@ async function handler(req, res, session) {
            ספירה — ראש המכינה ואחראי המטבח; תקציב ומחיר — ראש המכינה. */
         canEditDining: mayEdit(session, "kitchen"),
         canSetDining: Boolean(session.isHead),
+        /* ⚠ **התעריף ליום עשייה קהילתית, ומי רשאי לשנותו.**
+           הוא יושב על סוג היום בלוח (עיקרון 1) והוא כבר ניתן
+           לעריכה דרך `PUT { typeId, dining }` — מה שחסר היה
+           רק לומר למסך מה הערך ומי רשאי, כדי שהכפתור לא
+           יופיע למי שיקבל 403 אחרי הלחיצה (4יד). */
+        diningDayRate: (types.find((t) => t.name === DAY_COMMUNITY) || {}).dining ?? null,
+        diningDayTypeId: (types.find((t) => t.name === DAY_COMMUNITY) || {}).id || null,
+        /* ⚠⚠ **`mayEdit(kitchen)` ולא `isHead`** — כי זה מה
+           שהשרת באמת אוכף על `PUT { typeId, dining }`: השער
+           הוא `edit:"kitchen"` של הנתב, ו-`isHead` שמור שם
+           לשינוי **שם** סוג היום בלבד.
+
+           ⚠ דגל מחמיר מהשרת אינו "בטוח יותר" — הוא מסתיר
+             כפתור ממי שכן רשאי, ואז אחראי המטבח מדווח שהמסך
+             שבור בזמן שהשרת היה מקבל את הבקשה. זה 4יד מהכיוון
+             ההפוך, ואותה מלכודת של שתי הגדרות לאותו כלל (4מד). */
+        canSetDayRate: mayEdit(session, "kitchen"),
+        /* ⚠ שורת הגדרה כפולה נאמרת ואינה נבלעת — ראו
+           loadSettingNum. מי שערך את השורה השנייה ולא ראה
+           שינוי צריך לדעת למה. */
+        settingDupes: await duplicateSettings().catch(() => []),
         diningLeft: diningBudget - b.diningUsed,
         diningReady: diningHeadsReady(),
         purchases: b.purchases,
         total: b.foodTotal,
         spent,
         left: b.purchases - spent,
+        /* ============================================================
+           ⚠⚠ **"כמה מהחודש כבר נסגר" — ולא "ניצול מתוך הסך הכול".**
+
+           הבקשה הייתה "מתוך התקציב 25 אלף כמה נשאר החודש,
+           16,000/25,000". ⚠ אבל 4ו קובע במפורש שהניצול נמדד
+           מול **הקניות** ולא מול הסך הכול, והנימוק נכון:
+           הקייטרינג הוא חוזה — הוא אינו "מנוצל", הוא פשוט
+           עולה, ואחוז שמודד אותו כאילו הוא ניתן לחיסכון
+           מייפה את התמונה בדיוק ברגע שמסתכלים עליה כדי
+           להחליט.
+
+           הפתרון הוא שני מספרים מפורשים ולא אחוז אחד:
+
+             `committed` — קייטרינג + חד״א שנאכל + קניות שכבר
+               בוצעו. זה מה שכבר סגור, ואין עליו שיקול דעת.
+             `left`      — מה שנשאר **בתקציב הקניות**, וזה
+               היחיד שיש מולו החלטה.
+
+           ⚠ ולכן המסך אומר "נסגר" ו"לשיקול דעת" ולא "נוצל"
+             ו"נותר": שתי מילים שונות לשני דברים שונים, כדי
+             שלא ייקראו כמו אותו מספר (4יח).
+           ============================================================ */
+        committed: b.catering + b.dining + spent,
         byType: Object.values(byType).sort((a, b2) => b2.total - a.total),
         orders: orders.map((o) => ({ ...o, months: monthsOf(o), share: orderShareFor(o, month) })),
       });
