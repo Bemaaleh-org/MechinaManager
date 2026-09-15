@@ -55,37 +55,58 @@ const inGroup = new Set((await allItems(PB.assignments))
   .filter((a) => groups.has(cv(a, PC.assignments.placement)))
   .map((a) => cv(a, PC.assignments.student)));
 
-const withG = roster.find((x) => inGroup.has(String(x.id)));
-const noG = roster.find((x) => !inGroup.has(String(x.id)));
-/* ⚠ הבדיקה לא תלויה בשיבוצים של המכינה. אם אין חניך משובץ
-   לקבוצה — היא משבצת אחד בעצמה ומחזירה את המצב בסוף. בדיקה
-   שנופלת כי מישהו שינה שיבוץ אינה בדיקה, היא מלכודת. */
-let mineAssignment = null;
-let withGuide = withG;
-if (!noG) { console.log("נדרש לפחות חניך אחד בלי שיבוץ לקבוצה"); process.exit(1); }
-if (!withGuide) {
-  const grp = defs.find((d) => cv(d, PC.definitions.category) === "קבוצה" && /נעם/.test(d.name));
-  if (!grp) { console.log("לא נמצאה קבוצת נעם"); process.exit(1); }
-  withGuide = roster.find((x) => String(x.id) !== String(noG.id));
-  const d = await gql(
-    `mutation($b:ID!,$n:String!,$v:JSON!){ create_item(board_id:$b,item_name:$n,column_values:$v,create_labels_if_missing:false){ id } }`,
-    { b: PB.assignments, n: `${withGuide.name} — ${grp.name}`, v: JSON.stringify({
-        [PC.assignments.student]: String(withGuide.id),
-        [PC.assignments.studentName]: withGuide.name,
-        [PC.assignments.placement]: String(grp.id),
-        [PC.assignments.placementName]: grp.name,
-        [PC.assignments.semester]: { label: "שנתי" },
-      }) });
-  mineAssignment = d.create_item.id;
-  console.log("שובץ זמנית לבדיקה:", withGuide.name, "→", grp.name);
-}
-console.log(`משובץ: ${withGuide.name} · לא משובץ: ${noG.name}`);
+/* ============================================================
+   ⚠⚠⚠ **הכול על חשבון הבדיקה, ובשני שלבים.**
 
-const S = await loginStudent(cv(withGuide, MC.roster.tz));
-/* ⚠ noG הוא חשבון הבדיקה, והוא רשום — לכן סיסמה ולא ת"ז.
-   הדגל נגזר מהנתונים ולא מקובע: אם ייבחר חניך אחר שאינו
-   רשום, המסלול יתאים את עצמו. */
-const S2 = await loginStudent(cv(noG, MC.roster.tz), noG.name.includes("בדיקה"));
+   קודם הבדיקה בחרה **חניך אמיתי משובץ** ונכנסה בת"ז.
+   מאז שנסגרה עקיפת הסיסמה (4ע) חניך שנרשם מקבל 409,
+   והחבילה **נפלה לפני הטענה הראשונה** — פער שתועד
+   ב-CLAUDE.md 5מד כפתוח, עם ההערה "הדרך היא הדפוס של
+   charge-test".
+
+   השאלה שהקשתה: הבדיקה צריכה **חניך משובץ וחניך ללא
+   שיבוץ**, וחשבון הבדיקה הוא היחיד שאפשר להיכנס אליו.
+   הפתרון: **הוא משמש כשניהם, בזה אחר זה.**
+     · שלב א׳ — ללא שיבוץ: הבקשה הולכת ישר לראש המכינה
+     · שלב ב׳ — משובץ זמנית לקבוצת נעם: שני השלבים
+
+   ⚠ והשיבוץ מוסר ב-`finally` — הרצה שתיפול באמצע היתה
+     משאירה את חשבון הבדיקה משובץ לקבוצה אמיתית.
+   ============================================================ */
+const demoRow = roster.find((x) => String(x.name || "").includes("בדיקה"));
+if (!demoRow) { console.log("אין חשבון בדיקה — npm run seed:demo"); process.exit(1); }
+/* ============================================================
+   ⚠⚠ **שיבוץ קיים מוסר זמנית ומוחזר — ולא נמחק.**
+
+   הבדיקה צריכה את חשבון הבדיקה **בלי קבוצה** בשלב
+   א׳, ו-`charge-test` משבץ אותו זמנית לקבוצת נעם — כלומר
+   הרצה שלו שנקטעה משאירה שיבוץ, וזה מה שנמצא בלוח.
+
+   ⚠ **לפי מזהה ולא לפי שם**, ומוחזר בסוף — בדיקה שמוחקת
+     נתון שלא היא יצרה היא בדיוק מה שקרה ב-`quota-test` (5א).
+   ============================================================ */
+let parked = null;
+if (inGroup.has(String(demoRow.id))) {
+  const mine = (await allItems(PB.assignments))
+    .filter((a) => cv(a, PC.assignments.student) === String(demoRow.id));
+  parked = mine.map((a) => ({
+    id: String(a.id), name: String(a.name || ""),
+    placement: cv(a, PC.assignments.placement),
+    placementName: cv(a, PC.assignments.placementName),
+    semester: cv(a, PC.assignments.semester),
+  }));
+  for (const a of parked) await del(a.id);
+  console.log(`הוסר זמנית שיבוץ קיים: ${parked.map((a) => a.placementName).join(" · ")}`);
+}
+const grp = defs.find((d) => cv(d, PC.definitions.category) === "קבוצה" && /נעם/.test(d.name));
+if (!grp) { console.log("לא נמצאה קבוצת נעם"); process.exit(1); }
+let mineAssignment = null;
+const withGuide = demoRow, noG = demoRow;
+console.log(`חשבון הבדיקה: ${demoRow.name} · קבוצה לשלב ב׳: ${grp.name}`);
+
+/* ⚠ סיסמה ולא ת"ז — החשבון רשום (4ע). */
+const S = await loginStudent(null, true);
+const S2 = S;   /* ⚠ אותו חשבון — מה שמשתנה הוא השיבוץ, לא הסשן. */
 /* ⚠ מנהל שטרם בחר שם וסיסמה חסום בכל נקודות הקצה מאז שנוספה
    ההרשמה. הרישום כאן זמני, הסיסמה שנוצרת אינה קיימת, והשחזור
    בסוף חובה. ראו tools/tests/_auth.mjs. */
@@ -123,6 +144,44 @@ r = await call(NOAM.j, "POST", "/api/attendance?action=decide", { requestId: noG
 ok("ונחסם בשרת", r.status === 403, `${r.status} ${r.b.error}`);
 r = await call(DANI.j, "POST", "/api/attendance?action=decide", { requestId: noGroupId, decision: "reject" });
 ok("דני דוחה", r.status === 200 && r.b.status === "נדחה", r.b.error || r.b.status);
+
+/* ============================================================
+   ⚠⚠ **שלב ב׳ — מכאן ואילך חשבון הבדיקה משובץ.**
+   השיבוץ נעשה כאן ולא בהתחלה, כדי שהסעיף שלמעלה
+   יבדוק באמת חניך **בלי** קבוצה — אותו חשבון, שני מצבים.
+
+   ⚠ והמתנה **על תנאי** עד שהשרת רואה את השיבוץ —
+     מטמון השיבוצים יושב בתהליך של השרת.
+   ============================================================ */
+console.log("\n=== שיבוץ זמני לקבוצה ===");
+{
+  const d = await gql(
+    `mutation($b:ID!,$n:String!,$v:JSON!){ create_item(board_id:$b,item_name:$n,column_values:$v,create_labels_if_missing:false){ id } }`,
+    { b: PB.assignments, n: `${withGuide.name} — ${grp.name}`, v: JSON.stringify({
+        [PC.assignments.student]: String(withGuide.id),
+        [PC.assignments.studentName]: withGuide.name,
+        [PC.assignments.placement]: String(grp.id),
+        [PC.assignments.placementName]: grp.name,
+        [PC.assignments.semester]: { label: "שנתי" },
+      }) });
+  mineAssignment = d.create_item.id;
+}
+/* ⚠⚠ **המתנה שאינה יוצרת נתונים.** גרסה ראשונה הגישה
+   בקשה בלולאה ומחקה אותה — עד ארבעים שורות בלוח
+   אמיתי רק כדי לבדוק מטמון, וכל אחת מול מכסת
+   החופש האמיתית.
+
+   השיבוץ נראה ב**קריאה**: השלב נגזר בכל שליפה (4א),
+   ולכן בקשה שכבר קיימת מקבלת `guideName` ברגע שהשרת
+   רואה את השיבוץ. אפס שורות נוצרות. */
+let sawGroup = false;
+for (let i = 0; i < 40; i++) {
+  const chk = (await call(DANI.j, "GET", "/api/attendance?action=requests"))
+    .b.requests.find((x) => x.id === noGroupId);
+  if (chk && chk.guideName) { sawGroup = true; break; }
+  await new Promise((z) => setTimeout(z, 1500));
+}
+ok("השרת רואה את השיבוץ", sawGroup);
 
 console.log("\n=== חניך עם קבוצה: מדריך ואז ראש מכינה ===");
 r = await call(S.j, "POST", "/api/attendance?action=requests",
@@ -167,6 +226,33 @@ ok("השלב הסתיים", r.b.stage === "הסתיים", r.b.stage);
 r = await call(DANI.j, "POST", "/api/attendance?action=decide", { requestId: id, decision: "reject" });
 ok("ואי אפשר להכריע פעמיים", r.status === 409, `${r.status} ${r.b.error}`);
 
+/* ============================================================
+   ⚠⚠ **שורת בקשה של חניך אחר, שהבדיקה יצרה.**
+
+   חשבון הבדיקה הוא היחיד שאפשר להיכנס אליו (4ע),
+   ולכן "בקשה שאינה שלי" היא **שורה בלוח** ולא סשן
+   שני. הטענה היא על הבעלות של השורה, וזה בדיוק מה
+   שהשרת בודק.
+
+   ⚠ נוצרת כאן ולא מאוחר יותר, כדי שגם "אינו רואה
+     בקשות של אחרים" תיבדק מולה — קודם היא נבדקה מול
+     הבקשה של החניך הלא-משובץ, ומרגע ששניהם אותו
+     חשבון היא היתה טענה ריקה.
+   ============================================================ */
+const other = roster.find((x) => String(x.id) !== String(demoRow.id));
+let foreignId = null;
+if (other) {
+  const d = await gql(
+    `mutation($b:ID!,$n:String!,$v:JSON!){ create_item(board_id:$b,item_name:$n,column_values:$v,create_labels_if_missing:false){ id } }`,
+    { b: MB.requests, n: "בדיקה — של אחר", v: JSON.stringify({
+        [MC.requests.student]: String(other.id),
+        [MC.requests.date]: { date: "2026-12-29" },
+        [MC.requests.type]: { label: "חופש" },
+        [MC.requests.status]: { label: "ממתין" },
+      }) });
+  foreignId = d.create_item.id;
+}
+
 console.log("\n=== מה החניך רואה ===");
 const mineReqs = (await call(S.j, "GET", "/api/attendance?action=requests")).b;
 q = mineReqs.requests.find((x) => x.id === id);
@@ -195,10 +281,15 @@ ok("והשדות שכן — בדיוק אלה שהוגדרו",
          אינם שלב פנימי ואינם נתון על אדם אחר — החניך רואה
          אותם בכל מסך אחר. מה ש-4א אוסר להדליף אליו הוא
          ההמלצה והשלב, והם ב-LEAK למעלה. */
-    ["appeal","appealAt","backAt","canAppeal","canEdit","cost","date","decidedAt","decidedBy","detail","endDate","fileUrl","gantt","hasFile","id","outAt","status","type"]),
+    /* ⚠ past נוסף במודע (15.9): "היום שלה עבר והיא לא
+       נענתה" הוא תאריך שלו מול הלוח, ולא שלב פנימי
+       ולא נתון על אדם אחר (4א). */
+    ["appeal","appealAt","backAt","canAppeal","canEdit","cost","date","decidedAt","decidedBy","detail","endDate","fileUrl","gantt","hasFile","id","outAt","past","status","type"]),
   Object.keys(q).sort().join(","));
+/* ⚠ מול השורה של החניך האחר, ולא מול בקשה שלו עצמו. */
 ok("ולא רואה בקשות של אחרים",
-  !mineReqs.requests.some((x) => x.id === noGroupId), "מספר בקשות: " + mineReqs.requests.length);
+  Boolean(foreignId) && !mineReqs.requests.some((x) => x.id === foreignId),
+  "מספר בקשות: " + mineReqs.requests.length);
 
 /* ============================================================
    עריכה וביטול — החניך, ורק כשהבקשה ממתינה
@@ -232,8 +323,9 @@ q = (await call(DANI.j, "GET", "/api/attendance?action=requests")).b.requests.fi
 ok("הבקשה חזרה לשלב המדריך", q.stage === "אצל המדריך" && q.guideDecision === null, JSON.stringify({ s: q.stage, g: q.guideDecision }));
 ok("והצוות רואה את השעות", q.outAt === "16:00" && q.backAt === "20:00", JSON.stringify({ o: q.outAt, b: q.backAt }));
 
-r = await call(S2.j, "PUT", "/api/attendance?action=requests", { id: editId, detail: "לא שלי" });
-ok("חניך אחר — 404", r.status === 404, String(r.status));
+r = await call(S.j, "PUT", "/api/attendance?action=requests",
+  { id: foreignId, detail: "לא שלי" });
+ok("בקשה של חניך אחר — 404", r.status === 404, String(r.status));
 r = await call(DANI.j, "PUT", "/api/attendance?action=requests", { id: editId, detail: "צוות" });
 ok("צוות — 403", r.status === 403, String(r.status));
 r = await call(S.j, "PUT", "/api/attendance?action=requests", { id, detail: "כבר הוכרעה" });
@@ -241,8 +333,14 @@ ok("בקשה שהוכרעה — 409", r.status === 409, String(r.status));
 r = await call(S.j, "PUT", "/api/attendance?action=requests", { id: editId, outAt: "25:00" });
 ok("שעה לא חוקית נדחית", r.status === 400, String(r.status));
 
-r = await call(S2.j, "DELETE", "/api/attendance?action=requests", { id: editId });
-ok("ביטול על ידי חניך אחר — 404", r.status === 404, String(r.status));
+if (foreignId) {
+  r = await call(S.j, "DELETE", "/api/attendance?action=requests", { id: foreignId });
+  ok("וביטול שלה — 404", r.status === 404, String(r.status));
+  /* ⚠ והשורה שרדה — בלי הטענה השנייה, 404 שמגיע אחרי
+     מחיקה מוצלחת נראה בדיוק כמו הצלחה (4ס). */
+  const still = (await allItems(MB.requests)).some((x) => String(x.id) === String(foreignId));
+  ok("  והשורה שרדה", still);
+}
 r = await call(S.j, "DELETE", "/api/attendance?action=requests", { id: editId });
 ok("החניך מבטל", r.status === 200, r.b.error);
 ok("והבקשה נעלמה",
@@ -277,6 +375,26 @@ ok("שתי הבקשות נמחקו", !left.some((x) => [id, noGroupId].includes(
    חבילות יכלו להיכשל בלי שאיש יראה. זה בדיוק סוג הכשל שהבדיקות
    קיימות כדי למנוע.
    ============================================================ */
+/* ⚠⚠ **השיבוץ הזמני והשורה הזרה נמחקים לפי מזהה.**
+   הרצה שתיפול באמצע היתה משאירה את חשבון הבדיקה
+   משובץ לקבוצה אמיתית ושורת בקשה על חניך אחר. */
+if (mineAssignment) { try { await del(mineAssignment); } catch { /* כבר נמחק */ } }
+/* ⚠ והשיבוץ שהיה לפני הבדיקה חוזר כפי שהיה. */
+for (const a of (parked || [])) {
+  try {
+    await gql(
+      `mutation($b:ID!,$n:String!,$v:JSON!){ create_item(board_id:$b,item_name:$n,column_values:$v,create_labels_if_missing:false){ id } }`,
+      { b: PB.assignments, n: a.name, v: JSON.stringify({
+          [PC.assignments.student]: String(demoRow.id),
+          [PC.assignments.studentName]: demoRow.name,
+          [PC.assignments.placement]: a.placement,
+          [PC.assignments.placementName]: a.placementName,
+          ...(a.semester ? { [PC.assignments.semester]: { label: a.semester } } : {}),
+        }) });
+  } catch (e) { console.error("⚠ השיבוץ לא הוחזר:", a.placementName, e.message); }
+}
+if (foreignId) { try { await del(foreignId); } catch { /* כבר נמחק */ } }
+
 console.log(`\n${pass} עברו, ${fail} נכשלו`);
 /* ⚠ השחזור **לפני** היציאה. הוא ישב אחרי process.exit ומעולם לא רץ —
    שורת מנהל שנרשמה זמנית נשארה "רשומה" אחרי כל הרצה. */
