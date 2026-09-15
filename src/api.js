@@ -993,6 +993,10 @@ export const api = {
        וזו הדרך שבה שדה חדש נראה עובד במסך ואינו
        מגיע לשרת (4לג).
      ============================================================ */
+  /* ⚠ רשימות הציוד השבועיות — קריאה בלבד. ההגשה
+     נעשית במסך הועדה (`editTeamEntry`), ושני מסלולי
+     הגשה היו שני מקורות אמת (5מט). */
+  getGearWeek: () => get("/api/students?action=gear-week"),
   getPros: () => get("/api/students?action=pros"),
   addPro: ({ name, profession, phone, notes, photoName, photoMime, photoData }) =>
     post("/api/students?action=pros",

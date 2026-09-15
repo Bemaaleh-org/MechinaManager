@@ -24,6 +24,7 @@ import { LessonsPage, LessonsBoard, LESSON_TABS } from "./Lessons.jsx";
 import { AlumniPage, HostingPage, LoansPage } from "./Extras.jsx";
 import { MenuPage } from "./Menu.jsx";
 import { BuyPage } from "./Buy.jsx";
+import { GearWeekPage } from "./GearWeek.jsx";
 import { ContainerPage } from "./Container.jsx";
 import { BudgetPage } from "./Budget.jsx";
 import { GanttPage } from "./Gantt.jsx";
@@ -450,6 +451,10 @@ function Staff({ auth, onSignedOut }) {
                  קניות מטבח (12.9.2026). */
               { key: "buy", label: "קניות המכינה", icon: <I.cart />,
                 active: section === "buy", onClick: () => setSection("buy") },
+              /* ⚠ רשימות הציוד שהוועדות מגישות — מסך שקורא
+                 את לוח רשומות הצוות, ולא לוח נוסף (5מ). */
+              { key: "gear-week", label: "רשימות ציוד שבועיות", icon: <I.box />,
+                active: section === "gear-week", onClick: () => setSection("gear-week") },
               { key: "a-teams", label: "ניהול צוותים", icon: <I.users />, active: section === "teams",
                 onClick: () => setSection("teams") },
               /* ⚠ **צוות בלבד.** אין כאן סוד — כל שורה גלויה
@@ -699,6 +704,7 @@ function Staff({ auth, onSignedOut }) {
           {section === "hosting" && <HostingPage say={say} />}
           {section === "loans" && <LoansPage say={say} />}
           {section === "buy" && <BuyPage say={say} />}
+          {section === "gear-week" && <GearWeekPage say={say} />}
 
           {/* ⚠ ההרשאה נאכפת בשרת; הבדיקה כאן היא תצוגה בלבד. */}
           {section === "mechina" && isMgr && (

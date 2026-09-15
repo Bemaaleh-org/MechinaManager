@@ -64,6 +64,9 @@ import faultsSetup from "./_faults-setup.js";
 /* ⚠ מאגר אנשי המקצוע — `?action=` תחת הנתב הקיים,
    ולא קובץ נספר חדש. מגבלת 12 הפונקציות עומדת על 8. */
 import pros from "./_pros.js";
+/* ⚠ רשימות הציוד השבועיות — מסך שקורא את לוח רשומות
+   הצוות, ולא לוח שני. */
+import gearWeek from "./_gear-week.js";
 import alumni from "./_alumni.js";
 import hosting from "./_hosting.js";
 /* ---- אחריות: מרכז התפקיד, משימות והצפות ----
@@ -136,4 +139,5 @@ export default router({ login, list, year, leader, weeks, role, profile, inciden
   "team-lecturer": teamLecturer,
   "lead-week": leadWeek, "lead-activity": leadActivity,
   notices, mpoll, mfeedback, search, mydata, trends, laundry, quotes, mishmar, group,
-  recruit, bugs, "stu-lessons": stuLessons, plenary, lecturers, pros });
+  recruit, bugs, "stu-lessons": stuLessons, plenary, lecturers, pros,
+  "gear-week": gearWeek });
