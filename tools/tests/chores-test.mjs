@@ -13,6 +13,9 @@ import { tempRegister } from "./_auth.mjs";
 import { AUTH_BOARD, AUTH_COLS } from "../../shared/auth-board.js";
 import { studentRows } from "../../api/_student-rows.js";
 import { CHORE_BOARDS, CHORE_COLS } from "../../shared/chores-ids.js";
+import { MECHINA_BOARDS } from "../../shared/mechina-boards.js";
+import { ROLES_COL } from "../../shared/lessons-boards.js";
+import { invalidate } from "../../api/_cache.js";
 import {
   KIND, fridayAfterTuesday, dowOf, TUESDAY, mayChores, mayAssign,
 } from "../../shared/chores.js";
@@ -67,12 +70,30 @@ await call(ST, "POST", "/api/auth?action=signin", { user: DEMO_USER, password: D
    ולכן mayChores נותן לו assign — וזה נכון. כדי לבדוק את הגבול
    של חניך רגיל צריך חניך **בלי תפקידים**, ולכן נבחר אחד כזה
    מהנתונים ולא לפי מיקום ברשימה. */
-const plainRow = (await studentRows()).find(
-  (x) => x.active && !x.demo && !(x.roles || []).length);
-if (!plainRow) { console.log("אין חניך בלי תפקידים"); process.exit(1); }
+/* ============================================================
+   ⚠⚠ **החניך ה"רגיל" הוא חשבון הבדיקה עם תפקידים
+   מכובים זמנית, ולא חניך אמיתי.**
+
+   קודם נבחר כאן חניך אמיתי בלי תפקידים, והכניסה נעשתה
+   בת"ז. מאז שנסגרה עקיפת הסיסמה (4ע), חניך שנרשם
+   מקבל 409 — וכל חמש הטענות של הסעיף נפלו ב-401.
+
+   ⚠ וזו גם הדרך הנכונה לגופה: הבדיקה אינה נוגעת
+     בחניך אמיתי בכלל, והחשבון אינו נספר בשום מונה
+     (4לא). אותו דפוס של dev-test ו-parity-test.
+
+   ⚠ הכיבוי נעשה בסעיף 5 עצמו והשחזור ב-`finally`,
+     כדי ששאר הסעיפים ימשיכו לרוץ על התפקידים המלאים.
+   ============================================================ */
+const demoRoles = demo.roles || [];
+const setDemoRoles = async (list) => {
+  await gql(
+    `mutation($b:ID!,$i:ID!,$v:JSON!){ change_multiple_column_values(board_id:$b,item_id:$i,column_values:$v,create_labels_if_missing:false){id} }`,
+    { b: MECHINA_BOARDS.roster, i: demo.id,
+      v: JSON.stringify({ [ROLES_COL]: { labels: list } }) });
+  invalidate("student-rows");
+};
 const PLAIN = jar();
-await call(PLAIN, "POST", "/api/students?action=login", { tz: plainRow.tz });
-console.log("חניך רגיל: " + plainRow.name);
 
 const made = { sectors: [], rows: [], adjusts: [], done: [], tasks: [] };
 const EV = "בדיקה — גזרת בדיקה";
@@ -84,8 +105,8 @@ try {
   ok("המסך נטען", r.s === 200 && Array.isArray(r.b.sectors), r.b.error || "");
   ok("ואב הבית רשאי לשבץ", r.b.me.assign === true, r.b.me.role);
   const students = r.b.admin.students;
-  const week = r.b.periods[0];
-  if (!week) throw new Error("אין שבועות בלוח מובילי השבוע");
+  /* ⚠ השבוע עצמו נבחר בסעיף 2, לפי מי שפנוי בו. */
+  if (!r.b.periods?.length) throw new Error("אין שבועות בלוח מובילי השבוע");
 
   r = await call(MGR, "POST", "/api/chores?action=sector",
     { name: EV, kind: KIND.evening, cap: 2, detail: "בדיקה אוטומטית" });
@@ -108,14 +129,54 @@ try {
 
   /* ============ 2 · שיבוץ ============ */
   console.log("\n2 · שיבוץ לשבוע");
-  const two = students.slice(0, 2).map((s) => s.id);
+  /* ============================================================
+     ⚠⚠ **לבחור לפי התכונה שנבדקת, ולא `slice(0,2)`.**
+
+     מאז 5כט חניך משובץ ל**גזרה אחת בלבד בשבוע**, ושני
+     הראשונים ברשימה צברו שיבוץ אמיתי במהלך הפילוט.
+     הטענה נכשלה על **התנהגות נכונה לחלוטין** — וגררה
+     אחריה את כל סעיפי המעקב וההתאמה, שנשענים עליה.
+
+     זה בדיוק הכלל שכתוב על `perm-test`: **לבחור את נתוני
+     הבדיקה לפי התכונה שנבדקת, לא לפי מיקום.**
+     ============================================================ */
+  /* ============================================================
+     ⚠⚠ **ושבוע שאיש עוד לא נגע בו** (5א).
+
+     הבדיקה עבדה על `periods[0]` — השבוע הנוכחי — ושם
+     אב הבית כבר שיבץ כמעט את כולם. שני כללים נפרדים
+     פוסלים מועמד — גזרה אחת בשבוע (5כט) ופטור מובילי
+     שבוע (4צ) — ובשבוע פעיל נשאר **חניך אחד פנוי**.
+
+     ⚠ וזו אינה רק נוחות: שיבוץ בשבוע הנוכחי נוגע
+       בשבוע שהמכינה עובדת לפיו **עכשיו**, והרצה שתיפול
+       באמצע תשאיר שם שורות. שבוע עתידי ריק אינו משנה
+       שום דבר שמישהו מסתכל עליו היום.
+     ============================================================ */
+  const allWeeks = (await call(MGR, "GET", "/api/chores?action=view&admin=1")).b.admin?.weeks || [];
+  let week = null, free = [];
+  /* מהסוף אחורה: השבועות הרחוקים הם הפחות משובצים. */
+  for (const w of [...allWeeks].reverse()) {
+    const v = await call(MGR, "GET", "/api/chores?action=view&admin=1&week=" + encodeURIComponent(w.id));
+    const per = (v.b.periods || []).find((x) => x.id === w.id);
+    if (!per) continue;
+    const busy = new Set((w.leaders || []).map(String));
+    for (const sec of (per.sectors || [])) {
+      for (const m of (sec.members || [])) busy.add(String(m.id));
+    }
+    const f = students.filter((x) => !busy.has(String(x.id)));
+    if (f.length >= 3) { week = w; free = f; break; }
+  }
+  if (!week) throw new Error("לא נמצא שבוע עם שלושה חניכים פנויים");
+  console.log(`  שבוע ${week.num} (${week.start}) · פנויים: ${free.length} · נבחרו: ${free[0].name} · ${free[1].name}`);
+  const two = free.slice(0, 2).map((x) => x.id);
   r = await call(MGR, "POST", "/api/chores?action=assign",
     { sector: SEC, date: "2026-09-07", students: two });
   ok("תאריך לגזרת סוף יום נדחה",
     r.s === 400 && /שבוע ולא תאריך/.test(r.b.error || ""), r.b.error || "");
 
   r = await call(MGR, "POST", "/api/chores?action=assign",
-    { sector: SEC, week: week.id, students: [...two, students[2].id] });
+    { sector: SEC, week: week.id, students: [...two, free[2].id] });
   ok("מעל המכסה נדחה", r.s === 400 && /מקומות/.test(r.b.error || ""), r.b.error || "");
 
   r = await call(MGR, "POST", "/api/chores?action=assign",
@@ -163,6 +224,16 @@ try {
 
   /* ============ 5 · הגבול של החניך ============ */
   console.log("\n5 · מה חניך יכול");
+  /* ⚠ מכבים את התפקידים של חשבון הבדיקה רק לסעיף הזה,
+     וממתינים **על תנאי** עד שהשרת רואה את הכיבוי —
+     מטמון השורות יושב בתהליך של השרת. */
+  await setDemoRoles([]);
+  await call(PLAIN, "POST", "/api/auth?action=signin",
+    { user: DEMO_USER, password: DEMO_PASS });
+  await until("השרת רואה חניך בלי תפקידים", async () => {
+    const x = await call(PLAIN, "GET", "/api/chores?action=view");
+    return x.s === 200 && x.b.me && x.b.me.assign === false;
+  }, 40);
   r = await call(PLAIN, "GET", "/api/chores?action=view");
   ok("חניך רואה את המסך", r.s === 200, r.b.error || "");
   /* ⚠ בקשה מפורשת של המכינה: הטבלה גלויה לכולם. */
@@ -179,6 +250,10 @@ try {
 
   r = await call(PLAIN, "POST", "/api/chores?action=sector", { id: SEC, name: EV });
   ok("עריכת גזרה מחניך נחסמת", r.s === 403, r.s + " " + (r.b.error || ""));
+
+  /* ⚠ מחזירים מיד אחרי הסעיף, ולא רק ב-`finally`:
+     שאר הבדיקה רצה על התפקידים המלאים. */
+  await setDemoRoles(demoRoles);
 
   /* ============================================================
      5ב · הגבול של אחראי המטבח — שני הכיוונים
@@ -468,6 +543,12 @@ try {
   fail++;
 } finally {
   console.log("\nניקוי…");
+  /* ⚠⚠ **התפקידים חוזרים גם אחרי נפילה.** סעיף 5 מכבה
+     אותם זמנית, והרצה שנקטעה באמצע הייתה משאירה את
+     חשבון הבדיקה בלי תפקידים — ואז כל חבילה שנשענת
+     עליהם נופלת מסיבה שאינה קשורה אליה. זה הלקח של
+     `tools/demo-flag.mjs` (5א), בדיוק אותו דפוס. */
+  try { await setDemoRoles(demoRoles); } catch (e) { console.error("⚠ התפקידים לא הוחזרו:", e.message); }
   /* ⚠ ארבעה לוחות, לפי מזהה, ולא סינון לפי ערך. */
   const rows = (await allItems(CHORE_BOARDS.roster))
     .filter((i) => made.sectors.includes(cv(i, R.sector))
