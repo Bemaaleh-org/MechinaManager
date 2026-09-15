@@ -42,6 +42,11 @@ import { lessonArchive, lessonContent } from "./_lesson-content.js";
 /* ⚠ יומן השינויים — ההתראה שמאפשרת לעדכן את היומן החיצוני.
    הרישום עצמו נעשה במסלולי הכתיבה (api/_lesson-changes.js). */
 import changes from "./_lesson-changes-list.js";
+/* ⚠ חוות הדעת האחרונה לכרטיס במסך הבית. נקודת קצה קלה משלה
+   ולא ?action=evals — זו מחזירה את כל מאות השורות, וכרטיס
+   בית שמושך אותן בכל טעינה הוא בדיוק מה שהפעמון משלם עליו (4צ). */
+import lastEval from "./_lesson-last-eval.js";
 
 export default router({ list, sheet, mark, meeting, evals, gantt, report, rate, agenda, board,
-  export: exportSheet, pay, content: lessonContent, archive: lessonArchive, changes });
+  export: exportSheet, pay, content: lessonContent, archive: lessonArchive, changes,
+  "last-eval": lastEval });

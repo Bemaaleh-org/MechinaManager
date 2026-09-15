@@ -35,7 +35,8 @@ import { LESSONCHANGES_CSS } from "./LessonChanges.jsx";
 import { BUY_CSS } from "./Buy.jsx";
 import { NAVBAR_CSS } from "./NavBar.jsx";
 import { SHORTCUTS_CSS } from "./Shortcuts.jsx";
+import { LASTEVAL_CSS } from "./LastEval.jsx";
 
 export const ALL_CSS = CSS + LAUNDRY_CSS + QUOTES_CSS + MISHMAR_CSS + ARCHIVE_CSS
   + GROUP_CSS + RECRUIT_CSS + MENU_CSS + DUTYTODAY_CSS + ABSENT_CSS + BUGS_CSS + STULESSON_CSS + PLENARY_CSS
-  + LESSONCHANGES_CSS + BUY_CSS + NAVBAR_CSS + SHORTCUTS_CSS;
+  + LESSONCHANGES_CSS + BUY_CSS + NAVBAR_CSS + SHORTCUTS_CSS + LASTEVAL_CSS;

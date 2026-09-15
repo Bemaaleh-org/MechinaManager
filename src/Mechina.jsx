@@ -42,6 +42,7 @@ import MyDataPage, { NewsStrip } from "./MyData.jsx";
 import { DutyTodayCard, NextChoreCard } from "./DutyToday.jsx";
 import { AbsentTodayCard } from "./AbsentToday.jsx";
 import { LessonChangesCard } from "./LessonChanges.jsx";
+import { LastEvalCard } from "./LastEval.jsx";
 import { BugsPage } from "./Bugs.jsx";
 import { StuLessonsPage, MyStuLessonCard } from "./StuLessons.jsx";
 import { PlenaryPage, LecturersPage, LECT_TITLE } from "./Plenary.jsx";
@@ -3530,7 +3531,7 @@ function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey, navGroups 
   /* ⚠ שבעה מקורות: חמישה כאן + כרטיס הלו״ז + כרטיס השינויים
      בלו״ז, ששניהם מדווחים בעצמם.
      `year` ו-`reqs` מגיעים מהמעטפת ונבדקים בנפרד למטה. */
-  const gate = useHomeGate(7);
+  const gate = useHomeGate(8);
   const bump = gate.bump;
 
   useEffect(() => {
@@ -3675,6 +3676,14 @@ function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey, navGroups 
           ============================================================ */}
       <LessonChangesCard enabled={Boolean(auth.isScheduler)}
         onOpen={() => go("l-changes")} onSettled={bump} />
+
+      {/* ⚠ **חוות הדעת האחרונה** — אותו רכיב בדיוק של מסך הבית
+          של המנהל (4יט). נטען למי שהשרת פותח לו את חוות הדעת:
+          אחראי הלו״ז וועדת קבוצה ותוכן. ⚠ שער זול לפני קריאת
+          רשת — בלעדיו כל חניך מחובר מושך שליפה מיותרת (4צ).
+          ⚠ ומדווח onSettled גם כשאינו מוצג. */}
+      <LastEvalCard enabled={Boolean(auth.isScheduler || auth.isContentTeam)}
+        onOpen={() => go("l-evals")} onSettled={bump} />
 
       {/* ============================================================
           ⚠⚠ **דירוג שיעורים — בראש המסך, ולא בתחתיתו.**

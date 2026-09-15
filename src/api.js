@@ -1011,6 +1011,12 @@ export const api = {
 
   getRatable: () => get("/api/lessons?action=rate"),
 
+  /** חוות הדעת האחרונה — לכרטיס במסך הבית.
+      ⚠ נקודת קצה קלה משלה ולא getEvals(), שמחזירה את כל
+        השורות: כרטיס בית שמושך מאות שורות בכל טעינה הוא
+        בדיוק מה שהפעמון משלם עליו (4צ). */
+  getLastEval: () => get("/api/lessons?action=last-eval"),
+
   /** דירוג 1–10. דירוג חוזר מעדכן את הקודם. */
   rateLesson: ({ meetingId, score }) =>
     post("/api/lessons?action=rate", { meetingId, score }),

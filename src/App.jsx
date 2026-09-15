@@ -30,6 +30,7 @@ import { GanttPage } from "./Gantt.jsx";
 import { AgendaPage, TodayAgenda } from "./Agenda.jsx";
 import { AbsentTodayCard } from "./AbsentToday.jsx";
 import { LessonChangesCard } from "./LessonChanges.jsx";
+import { LastEvalCard } from "./LastEval.jsx";
 import { BugsPage } from "./Bugs.jsx";
 import { StuLessonsPage } from "./StuLessons.jsx";
 import { PlenaryPage, LecturersPage } from "./Plenary.jsx";
@@ -796,7 +797,10 @@ function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goCont
   const [failed, setFailed] = useState(false);
   /* ⚠ שישה מקורות — חמישה כאן וכרטיס השינויים בלו״ז, שמדווח
      בעצמו. ראו useHomeGate ב-Agenda.jsx. */
-  const gate = useHomeGate(6);
+  /* ⚠ שבעה מקורות — חמישה כאן, כרטיס השינויים בלו״ז וכרטיס
+     חוות הדעת האחרונה, ששניהם מדווחים בעצמם. מקור שיתווסף
+     בלי לעדכן את המספר משאיר את המסך ב"טוען" לנצח. */
+  const gate = useHomeGate(7);
   const bump = gate.bump;
 
   useEffect(() => {
@@ -942,6 +946,11 @@ function ManagerDash({ pendingList, cycle, goStaff, goLessons, goKitchen, goCont
           שהוא בא לטפל בו; כאן הוא אחרי הלו״ז, כי איש הצוות
           בא לראות מה קורה היום. */}
       <LessonChangesCard enabled onOpen={() => goLessons("changes")} onSettled={bump} />
+
+      {/* ⚠ **חוות הדעת האחרונה** — אותו רכיב בדיוק של מסך הבית
+          של אחראי הלו״ז (4יט). מחזיר null כשאין, ולכן אינו
+          תופס מקום ברוב הימים. */}
+      <LastEvalCard enabled onOpen={() => goLessons("evals")} onSettled={bump} />
 
       {/* ⚠ **מי לא כאן היום** — השאלה שנשאלת בבוקר, שעד היום
           דרשה לפתוח את מסך הסימון ולקרוא 33 שורות. `staff`
