@@ -1225,6 +1225,10 @@ export function BudgetPage({ say, isHead = false }) {
   const idx = data.months.indexOf(data.month);
   const go = (i) => { if (i >= 0 && i < data.months.length) setMonth(data.months[i]); };
   const monthOrders = data.orders.filter((o) => o.share > 0);
+  /* ⚠ הרשאת הכתיבה מהשרת ואינה נגזרת במסך (4יד).
+     `canSetDayRate` הוא `mayEdit(session,"kitchen")` בדיוק — אותה
+     שאלה שהשרת אוכף על כל כתיבה בתקציב. */
+  const canWrite = data.canSetDayRate !== false;
 
   /* ⚠ אותו בורר חודש לשתי התצוגות — חודש וחד״א. */
   const monthNav = (
@@ -1502,7 +1506,7 @@ export function BudgetPage({ say, isHead = false }) {
                         הוא נראה זר, ובחלק מהדפדפנים במובייל הוא נחסם
                         לגמרי, כלומר הכפתור פשוט לא עושה כלום (4ק).
                       ============================================================ */}
-                  {del === o.id && (
+                  {canWrite && del === o.id && (
                     <div className="ord-ask">
                       <div>למחוק את "{o.name}"? יורדו {shekel(o.share)} ₪ מהחודש
                         {o.kind === ORDER_KIND.quarterly && o.months.length > 1
@@ -1525,10 +1529,16 @@ export function BudgetPage({ say, isHead = false }) {
                 <b className="num" style={{ flex: "0 0 auto", color: "var(--clay)" }}>
                   −{shekel(o.share)}
                 </b>
-                <button className="btn btn-ghost btn-sm" style={{ color: "var(--clay)" }}
-                  onClick={() => setDel(del === o.id ? null : o.id)}>
-                  {del === o.id ? "סגירה" : "מחיקה"}
-                </button>
+                {/* ⚠ מי שאינו רשאי לכתוב אינו רואה כפתור מחיקה.
+                    ה-GET של התקציב פתוח לכל כניסת צוות והכתיבה
+                    לראש המכינה ולאחראי המטבח (5יז), וכפתור שמחזיר
+                    403 אחרי הלחיצה הוא בדיוק 4יד. */}
+                {canWrite && (
+                  <button className="btn btn-ghost btn-sm" style={{ color: "var(--clay)" }}
+                    onClick={() => setDel(del === o.id ? null : o.id)}>
+                    {del === o.id ? "סגירה" : "מחיקה"}
+                  </button>
+                )}
               </div>
             ))}
           </div>
