@@ -61,6 +61,9 @@ import safety from "./_safety.js";
 import safetySetup from "./_safety-setup.js";
 import faults from "./_faults.js";
 import faultsSetup from "./_faults-setup.js";
+/* ⚠ מאגר אנשי המקצוע — `?action=` תחת הנתב הקיים,
+   ולא קובץ נספר חדש. מגבלת 12 הפונקציות עומדת על 8. */
+import pros from "./_pros.js";
 import alumni from "./_alumni.js";
 import hosting from "./_hosting.js";
 /* ---- אחריות: מרכז התפקיד, משימות והצפות ----
@@ -133,4 +136,4 @@ export default router({ login, list, year, leader, weeks, role, profile, inciden
   "team-lecturer": teamLecturer,
   "lead-week": leadWeek, "lead-activity": leadActivity,
   notices, mpoll, mfeedback, search, mydata, trends, laundry, quotes, mishmar, group,
-  recruit, bugs, "stu-lessons": stuLessons, plenary, lecturers });
+  recruit, bugs, "stu-lessons": stuLessons, plenary, lecturers, pros });

@@ -14,6 +14,9 @@ export const FAULTS = { board: "5102833573" };
 export const FAULTS_BOARD = FAULTS.board;
 
 export const FAULTS_COLS = {
+  /* ⚠ תקלה או שדרוג — ריקה עד `npm run seed:fault-kind`.
+     ריק בשורה = "תקלה"; ראו shared/faults-board.js. */
+  kind: "color_mm77fchj",
   date: "date_mm6htkm2", place: "color_mm6hyxwh", fix: "color_mm6h5fdq", urgency: "color_mm6hg4rf", status: "color_mm6hkm26",
   desc: "long_text_mm6h5qb5", notes: "long_text_mm6hycz5",
   /* ---- מעקב טיפול (צוות בלבד) ---- */

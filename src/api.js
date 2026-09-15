@@ -983,6 +983,22 @@ export const api = {
   deleteFault: (id) => del("/api/students?action=faults", { id }),
   setupFaults: () => post("/api/students?action=faults-setup", {}),
 
+  /* ============================================================
+     מאגר אנשי המקצוע — אב הבית והצוות.
+     ⚠ פירוק מפורש: שדה שאינו כתוב כאן נשמט בשקט,
+       וזו הדרך שבה שדה חדש נראה עובד במסך ואינו
+       מגיע לשרת (4לג).
+     ============================================================ */
+  getPros: () => get("/api/students?action=pros"),
+  addPro: ({ name, profession, phone, notes, photoName, photoMime, photoData }) =>
+    post("/api/students?action=pros",
+      { name, profession, phone, notes, photoName, photoMime, photoData }),
+  editPro: ({ id, name, profession, phone, notes, active, photoName, photoMime, photoData }) =>
+    put("/api/students?action=pros",
+      { id, name, profession, phone, notes, active, photoName, photoMime, photoData }),
+  /* ⚠ מכבה "פעיל" ואינו מוחק — ראו api/_pros.js. */
+  archivePro: (id) => del("/api/students?action=pros", { id }),
+
   /* ---------- שיבוצי חניכים ---------- */
 
   /** ההגדרות והשיבוצים. מנהל מקבל הכול; חניך — את שלו בלבד. */

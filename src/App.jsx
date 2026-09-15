@@ -504,7 +504,7 @@ function Staff({ auth, onSignedOut }) {
                 onClick: () => setSection("safety") },
               { key: "hosting", label: "אירוח קבוצות", icon: <I.home />,
                 active: section === "hosting", onClick: () => setSection("hosting") },
-              { key: "faults", label: "תקלות ובעיות", icon: <I.gear />, active: section === "faults",
+              { key: "faults", label: "תקלות ושידרוגים", icon: <I.gear />, active: section === "faults",
                 onClick: () => setSection("faults") },
               /* ⚠ **באג במערכת אינו תקלה במכינה.** מזגן שבור
                  הולך לאב הבית; כפתור שאינו מגיב הולך למי

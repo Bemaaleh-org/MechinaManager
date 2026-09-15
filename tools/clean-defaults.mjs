@@ -23,6 +23,7 @@ import { LEAD_BOARDS } from "../shared/lead-ids.js";
 import { BOARD_BOARDS } from "../shared/board-ids.js";
 import { TEAM_BOARDS } from "../shared/team-ids.js";
 import { BUY_BOARDS } from "../shared/buy-ids.js";
+import { PRO_BOARDS } from "../shared/pros-ids.js";
 
 const GO = process.argv.includes("--go");
 
@@ -38,6 +39,9 @@ const TARGETS = {
   "ביצוע הובלה": LEAD_BOARDS.log,
   "בנק פעילויות": LEAD_BOARDS.activities,
   "לוח מודעות": BOARD_BOARDS.notices,
+  /* ⚠ לוח חדש נוצר עם "Task 1", ובמאגר אנשי המקצוע
+     הוא נראה כמו איש מקצוע אמיתי (5יב). */
+  "אנשי מקצוע": PRO_BOARDS.board,
   "תגובות": BOARD_BOARDS.comments,
   "סקרי מכינה": BOARD_BOARDS.polls,
   "הצבעות מכינה": BOARD_BOARDS.votes,

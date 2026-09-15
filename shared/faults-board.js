@@ -35,6 +35,33 @@ export const FIXES = [FAULT_FIX.pro, FAULT_FIX.inhouse];
 export const FAULT_URGENCY = { urgent: "דחוף", normal: "רגיל" };
 export const URGENCIES = [FAULT_URGENCY.urgent, FAULT_URGENCY.normal];
 
+/* ============================================================
+   ⚠⚠ **תקלה או שדרוג — שתי שאלות שונות לאותו לוח.**
+   ------------------------------------------------------------
+   הבקשה: *"בתקלות תוסיף אופציה לשידרוגים ותקרא
+   לזה תקלות ושידרוגים, וגם שתיהיה בחירה האם זה
+   תקלה או שדרוג."*
+
+   ⚠ **לוח אחד ולא שניים.** אותו מקום, אותו אחראי,
+     אותו מחזור חיים ואותן תמונות — זה הדפוס של לוח
+     רשומות הצוות שמחזיק חמישה סוגים (5י). שני לוחות
+     היו מתפצלים בתיקון הראשון.
+
+   ⚠⚠ **וריק הוא "תקלה".** 40 השורות שכבר בלוח נכתבו
+     בעולם שבו כל שורה היא תקלה, וברירת מחדל אחרת
+     הייתה מסווגת את כולן מחדש למפרע — ולמחוק את המספר
+     שההבחנה קיימת בשבילו.
+
+   ⚠ וזה **מה זה**, ולא **כמה זה דחוף**: שדרוג יכול
+     להיות דחוף (מזגן לפני הקיץ) ותקלה יכולה להמתין.
+     שני שדות, ולא אחד שמנסה לומר את שניהם.
+   ============================================================ */
+export const FAULT_KIND = { fault: "תקלה", upgrade: "שדרוג" };
+export const KINDS = [FAULT_KIND.fault, FAULT_KIND.upgrade];
+
+/** ⚠ בלי העמודה המסך פשוט אינו מציג בורר — ולא נופל (עיקרון 6). */
+export const faultKindReady = () => Boolean(FAULTS_COLS.kind);
+
 /** מחזור החיים של תקלה */
 export const FAULT_STATUS = { open: "פתוחה", working: "בטיפול", done: "טופלה" };
 export const STATUSES = [FAULT_STATUS.open, FAULT_STATUS.working, FAULT_STATUS.done];
@@ -60,6 +87,10 @@ export function toStudentFault(f, mine = true) {
     title: f.title,
     date: f.date,
     place: f.place,
+    /* ⚠ גם לחניך: "תקלה" מול "שדרוג" אינו נתון רגיש —
+       הוא מה שהוא עצמו בחר כשדיווח, ובלעדיו הרשימה
+       המשותפת מערבבת שתי רשימות שונות. */
+    kind: f.kind,
     urgency: f.urgency,
     status: f.status,
     desc: f.desc,

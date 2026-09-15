@@ -75,6 +75,14 @@ export const STEPS = [
      ⚠ ו---go: ברירת המחדל שלו היא הרצה יבשה. */
   { script: "tools/seed-content-sheets.mjs", title: "הגיליונות של ועדת קבוצה ותוכן",
     args: ["--go"], ids: "shared/lessons-boards.js", ready: "contentSheetsReady" },
+  /* ⚠ שלב רביעי על shared/lessons-boards.js — הזיהוי הוא
+     הצמד ids+ready ולא הקובץ (5לב). */
+  { script: "tools/seed-lesson-quota.mjs", title: "תקן השיעורים בגיליונות",
+    args: ["--go"], ids: "shared/lessons-boards.js", ready: "quotaReady" },
+  { script: "tools/seed-fault-kind.mjs", title: "תקלה או שדרוג בלוח התקלות",
+    ids: "shared/faults-board.js", ready: "faultKindReady" },
+  { script: "tools/seed-pros.mjs", title: "מאגר אנשי המקצוע",
+    ids: "shared/pros-board.js", ready: "prosReady" },
 ];
 
 /**

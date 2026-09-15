@@ -29,6 +29,7 @@ import { israelToday } from "./_attendance-data.js";
 import {
   FAULTS, FAULTS_COLS as C, faultsReady, toStudentFault,
   FAULT_PLACE, FIXES, URGENCIES, STATUSES, FAULT_STATUS, FAULT_URGENCY,
+  KINDS, FAULT_KIND, faultKindReady,
 } from "../shared/faults-board.js";
 
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
@@ -76,6 +77,11 @@ export async function loadFaults({ force = false } = {}) {
           date: val(i, C.date),
           place: val(i, C.place),
           fix: val(i, C.fix),
+          /* ⚠⚠ **ריק הוא "תקלה".** 40 השורות שנכתבו לפני
+             שהעמודה נוספה הן תקלות, ולא שורות בלי סוג.
+             ⚠ ובלי העמודה בכלל זה פשוט "תקלה" — המערכת
+               עובדת במלואה עד שההקמה תרוץ (עיקרון 6). */
+          kind: (C.kind ? val(i, C.kind) : "") || FAULT_KIND.fault,
           urgency: val(i, C.urgency) || FAULT_URGENCY.normal,
           status: val(i, C.status) || FAULT_STATUS.open,
           desc: val(i, C.desc),
@@ -110,6 +116,9 @@ function colsFrom(body, res) {
     cols[C.date] = { date: d };
   }
   const enums = [
+    /* ⚠ רק כשהעמודה קיימת — כתיבה לעמודה שאינה
+       קיימת נדחית על ידי monday ומפילה את כל השמירה. */
+    ...(faultKindReady() ? [["kind", C.kind, KINDS, "סוג הדיווח"]] : []),
     ["place", C.place, FAULT_PLACE, "מיקום"],
     ["fix", C.fix, FIXES, "אופן התיקון"],
     ["urgency", C.urgency, URGENCIES, "דחיפות"],

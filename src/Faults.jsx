@@ -15,11 +15,11 @@
    שהפתוחות והדחופות תמיד למעלה, והמסך נפתח על "פתוחות".
    ============================================================ */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { api } from "./api.js";
 import ScrollTabs from "./Tabs.jsx";
 import {
-  FAULT_PLACE, FIXES, URGENCIES, STATUSES, FAULT_STATUS, FAULT_URGENCY,
+  FAULT_PLACE, FIXES, URGENCIES, KINDS, FAULT_KIND, STATUSES, FAULT_STATUS, FAULT_URGENCY,
 } from "../shared/faults-board.js";
 
 const FI = {
@@ -27,6 +27,7 @@ const FI = {
   warn: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3 2 20h20L12 3z"/><path d="M12 9v5M12 17.5h.01"/></svg>,
   chev: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
   plus: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" {...p}><path d="M12 5v14M5 12h14"/></svg>,
+  pen: (p) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M4 20h4L20 8l-4-4L4 16v4z"/></svg>,
   camera: (p) => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 8.5A2 2 0 0 1 5 6.5h2.2l1.3-2h7l1.3 2H19a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8.5z"/><circle cx="12" cy="13" r="3.4"/></svg>,
   check: (p) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M4 12.5 9.5 18 20 6.5"/></svg>,
   coin: (p) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="9"/><path d="M14.6 9.2a3 3 0 0 0-2.6-1.2c-1.6 0-2.6.9-2.6 2s1 1.8 2.6 2 2.7.8 2.7 2-1.1 2-2.7 2a3 3 0 0 1-2.6-1.2M12 6.2v11.6"/></svg>,
@@ -82,6 +83,12 @@ function FaultForm({ initial, say, onDone, onCancel, reporter = false }) {
   const staffEdit = editing && !reporter;
   const [f, setF] = useState(() => ({
     title: initial?.title || "",
+    /* ⚠ **תקלה או שדרוג** — בדיווח חדש נפתח על "תקלה",
+       שהוא רוב המוחלט של המקרים — וזה גם מה שריק
+       בלוח אומר. בניגוד לדחיפות, כאן ברירת המחדל
+       אינה "בחירה שמישהו כבר עשה" — היא מה שהמסך
+       נקרא בשבילו. */
+    kind: initial?.kind || FAULT_KIND.fault,
     place: initial?.place || "",
     fix: initial?.fix || "",
     /* ⚠ בדיווח חדש — ריק, וחובה לבחור. ברירת מחדל מסומנת מראש
@@ -98,6 +105,18 @@ function FaultForm({ initial, say, onDone, onCancel, reporter = false }) {
   const [photo, setPhoto] = useState(null);
   const [busy, setBusy] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
+  /* ⚠ **נטען רק בטופס הצוות.** חניך שמדווח תקלה אינו
+     רשאי לראות את המאגר והשרת יחזיר לו 403, וקריאה
+     בכל דיווח היא בדיוק מה שהפעמון משלם עליו (4צ). */
+  const [pros, setPros] = useState([]);
+  useEffect(() => {
+    if (!staffEdit) return undefined;
+    let alive = true;
+    api.getPros()
+      .then((r) => { if (alive) setPros((r.pros || []).filter((p) => p.active)); })
+      .catch(() => { /* מאגר שלא נטען אינו מפיל טופס תקלה */ });
+    return () => { alive = false; };
+  }, [staffEdit]);
   const set = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
   const setT = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
@@ -163,15 +182,25 @@ function FaultForm({ initial, say, onDone, onCancel, reporter = false }) {
         <FI.chev style={{ transform: "rotate(180deg)" }} />חזרה
       </button>
       <div className="screen-title">
-        {editing ? (reporter ? "עריכת הדיווח" : "עריכת תקלה") : "תקלה חדשה"}
+        {/* ⚠ הכותרת נגזרת ממה שנבחר, ולא קבועה על "תקלה". */}
+        {editing
+          ? (reporter ? "עריכת הדיווח" : `עריכת ${f.kind === FAULT_KIND.upgrade ? "השדרוג" : "התקלה"}`)
+          : (f.kind === FAULT_KIND.upgrade ? "שדרוג חדש" : "תקלה חדשה")}
       </div>
 
       <div className="card lift">
         <div className="fld">
-          <label>סוג הבעיה<Req on={!f.title.trim()} /></label>
+          <label>{f.kind === FAULT_KIND.upgrade ? "מה לשדרג" : "סוג הבעיה"}<Req on={!f.title.trim()} /></label>
           <input value={f.title} onChange={setT("title")} disabled={busy} autoFocus={!editing}
-            placeholder="מה התקלקל, במשפט" />
+            placeholder={f.kind === FAULT_KIND.upgrade
+              ? "מה כדאי לשפר, במשפט" : "מה התקלקל, במשפט"} />
         </div>
+
+        {/* ⚠⚠ **ראשון בטופס, ולא בסוף.** הוא משנה את משמעות
+            כל שאר השדות — "מה התקלקל" מול "מה כדאי
+            לשפר" — ובחירה שיושבת אחרי שכבר מילאו את
+            הכול מבקשת לקרוא את הטופס מחדש. */}
+        <Pick label="מה זה" options={KINDS} value={f.kind} onChange={set("kind")} disabled={busy} />
 
         <Pick label="מיקום" options={FAULT_PLACE} value={f.place} onChange={set("place")} disabled={busy} required />
 
@@ -285,6 +314,35 @@ function FaultForm({ initial, say, onDone, onCancel, reporter = false }) {
                 placeholder="מה נעשה, מי הוזמן, מה סוכם" />
             </div>
 
+            {/* ============================================================
+                ⚠⚠ **בורר מהמאגר, והשדות נשארים חופשיים.**
+
+                הבקשה: *"לבחור מהם כשתקלה הולכת לטיפול עם
+                איש מקצוע."* הבחירה **ממלאת** את שני השדות
+                ואינה מחליפה אותם: הרשומה על התקלה היא האמת,
+                והמאגר הוא נוחות — אחרת כיבוי איש מקצוע
+                היה משנה למפרע מה כתוב על ארבעים תקלות.
+
+                ⚠ **ומי שאינו במאגר מוקלד כרגיל.** בורר שחוסם
+                  הקלדה היה שולח את אב הבית להוסיף למאגר
+                  באמצע דיווח — והוא פשוט לא ידווח.
+                ============================================================ */}
+            {pros.length > 0 && (
+              <div className="fld">
+                <label>בחירה מהמאגר</label>
+                <div className="fl-pros">
+                  {pros.map((p) => (
+                    <button type="button" key={p.id} disabled={busy}
+                      className={"fl-pro" + (f.pro === p.name ? " on" : "")}
+                      onClick={() => setF((q) => ({ ...q, pro: p.name, proPhone: p.phone || q.proPhone }))}>
+                      <b>{p.name}</b>
+                      {p.profession && <span>{p.profession}</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="two">
               <div className="fld">
                 <label>איש מקצוע</label>
@@ -356,6 +414,12 @@ function FaultCard({ x, onOpen }) {
             {x.status}
           </span>
           {urgent && <span className="pill p-low">דחוף</span>}
+          {/* ⚠ **תג רק לשדרוג.** "תקלה" הוא רוב הרשימה
+              וגם ברירת המחדל, ותג על כל שורה הוא רעש
+              שמפסיקים לראות — בדיוק כמו המקרא הכפול
+              בתורניות (4ק). ⚠ ובגוון תחום ולא בצבע מצב
+              — שדרוג אינו בעיה ואינו תקין (4ג). */}
+          {x.kind === FAULT_KIND.upgrade && <span className="pill p-up">שדרוג</span>}
           {x.place && <span>{x.place}</span>}
           {x.fix && <span>· {x.fix}</span>}
           <span className="num">{heDate(x.date)}</span>
@@ -475,7 +539,7 @@ export function FaultReportPage({ say }) {
 
   return (
     <>
-      <div className="screen-title">תקלות ובעיות</div>
+      <div className="screen-title">תקלות ושידרוגים</div>
 
       <div className="card" style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 600, lineHeight: 1.6 }}>
@@ -563,11 +627,179 @@ export function FaultReportPage({ say }) {
   );
 }
 
+/* ============================================================
+   מאגר אנשי המקצוע
+   ------------------------------------------------------------
+   ⚠ **המחיקה היא כיבוי.** מי שלא עובד איתנו יותר יורד מהבורר
+     שבטופס התקלה ונשאר כאן, מעומעם — טלפון של מי שתיקן את
+     המזגן לפני שנתיים הוא בדיוק מה שמחפשים כשהוא מתקלקל שוב.
+     ⚠ ולכן הכפתור אומר "הוצאה מהרשימה" ולא "מחיקה" (4לו).
+   ============================================================ */
+function ProsTab({ say }) {
+  const { data, err, busy, reload } = useLoad(() => api.getPros(), []);
+  const [form, setForm] = useState(null);   // null | {} | row
+  const [saving, setSaving] = useState(false);
+  const [photo, setPhoto] = useState(null);
+
+  if (busy && !data) return <div className="empty"><div className="e1">טוען…</div></div>;
+  /* ⚠ כשל הקמה נראה אחרת מ"אין אנשי מקצוע" (עיקרון 6). */
+  if (err?.setupRequired) return (
+    <div className="alert a-amber">
+      <FI.warn />
+      <div style={{ flex: 1 }}>
+        <div className="ttl">מאגר אנשי המקצוע טרם הוקם</div>
+        <div className="bd">להקמה: <code>npm run seed:pros</code></div>
+      </div>
+    </div>
+  );
+  if (err) return (
+    <div className="alert a-clay">
+      <FI.warn />
+      <div style={{ flex: 1 }}>
+        <div className="ttl">לא הצלחנו לטעון את המאגר</div>
+        <div className="bd">{err.message}</div>
+        <button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} onClick={reload}>נסו שוב</button>
+      </div>
+    </div>
+  );
+  if (!data) return null;
+
+  const pros = data.pros || [];
+  const live = pros.filter((p) => p.active);
+  const off = pros.filter((p) => !p.active);
+
+  const pick = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) { setPhoto(null); return; }
+    if (file.size > 5 * 1024 * 1024) { say("התמונה גדולה מדי — עד 5MB"); e.target.value = ""; return; }
+    const reader = new FileReader();
+    reader.onload = () => setPhoto({
+      name: file.name, mime: file.type || "image/jpeg",
+      data: String(reader.result).split(",")[1],
+    });
+    reader.readAsDataURL(file);
+  };
+
+  const save = () => {
+    const name = String(form.name || "").trim();
+    if (!name) { say("לא הוזן שם"); return; }
+    setSaving(true);
+    const body = {
+      id: form.id, name,
+      profession: form.profession || "",
+      phone: form.phone || "", notes: form.notes || "",
+      ...(photo ? { photoName: photo.name, photoMime: photo.mime, photoData: photo.data } : {}),
+    };
+    (form.id ? api.editPro(body) : api.addPro(body))
+      .then((r) => {
+        say(r && r.photoUploaded === false
+          ? "נשמר, אבל העלאת התמונה נכשלה"
+          : form.id ? "נשמר" : "נוסף למאגר");
+        setForm(null); setPhoto(null); reload();
+      })
+      .catch((e) => say(e.message))
+      .finally(() => setSaving(false));
+  };
+
+  const archive = (p) => {
+    api.archivePro(p.id)
+      .then(() => { say(`"${p.name}" הוצא מהרשימה`); reload(); })
+      .catch((e) => say(e.message));
+  };
+
+  const restore = (p) => {
+    api.editPro({ id: p.id, active: true })
+      .then(() => { say(`"${p.name}" חזר לרשימה`); reload(); })
+      .catch((e) => say(e.message));
+  };
+
+  if (form) return (
+    <div className="card lift">
+      <div className="fld">
+        <label>שם<Req on={!String(form.name || "").trim()} /></label>
+        <input value={form.name || ""} autoFocus disabled={saving}
+          onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="שם מלא" />
+      </div>
+      {/* ⚠ הרשימה מגיעה מהשרת ואינה מוקלדת במסך — עיקרון 4מד. */}
+      <Pick label="מקצוע" options={data.professions || []} value={form.profession || ""}
+        onChange={(v) => setForm({ ...form, profession: v })} disabled={saving} />
+      <div className="fld">
+        <label>טלפון</label>
+        <input value={form.phone || ""} inputMode="tel" disabled={saving} dir="ltr"
+          onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="050-0000000" />
+      </div>
+      <div className="fld">
+        <label>פרטים</label>
+        <textarea rows={3} value={form.notes || ""} disabled={saving}
+          onChange={(e) => setForm({ ...form, notes: e.target.value })}
+          placeholder="על מה הוא עובד, מחירים, מי המליץ, אזור" />
+      </div>
+      <div className="fld">
+        <label>תמונה</label>
+        <input type="file" accept="image/*" onChange={pick} disabled={saving} />
+      </div>
+      <button className="btn btn-primary" disabled={saving} onClick={save}>
+        {saving ? "שומר…" : form.id ? "שמירת השינויים" : "הוספה למאגר"}
+      </button>
+      <button className="btn btn-ghost" style={{ marginTop: 8 }} disabled={saving}
+        onClick={() => { setForm(null); setPhoto(null); }}>ביטול</button>
+    </div>
+  );
+
+  const card = (p, dim) => (
+    <div className={"st-row pr-row" + (dim ? " is-off" : "")} key={p.id}>
+      {p.photoUrl && <span className="thumb"><img src={p.photoUrl} alt="" /></span>}
+      <div className="st-main">
+        <div className="st-n">{p.name}</div>
+        <div className="st-m">
+          {p.profession && <span className="pill p-up">{p.profession}</span>}
+          {/* ⚠ dir=ltr — בלעדיו 050-1234567 מוצג הפוך. */}
+          {p.phone && <a href={`tel:${p.phone}`} dir="ltr" className="pr-tel">{p.phone}</a>}
+        </div>
+        {p.notes && <div className="pr-note">{p.notes}</div>}
+      </div>
+      <div className="pr-acts">
+        <button className="by-mini" aria-label={"עריכת " + p.name}
+          onClick={() => { setPhoto(null); setForm(p); }}><FI.pen /></button>
+        {dim
+          ? <button className="btn btn-ghost btn-sm" onClick={() => restore(p)}>החזרה</button>
+          : <button className="btn btn-ghost btn-sm" style={{ color: "var(--clay)" }}
+              onClick={() => archive(p)}>הוצאה</button>}
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <button className="btn btn-primary by-add" onClick={() => { setPhoto(null); setForm({}); }}>
+        <FI.plus />איש מקצוע חדש
+      </button>
+
+      {live.length === 0 ? (
+        <div className="empty">
+          <div className="e1">המאגר ריק</div>
+          <div className="e2">מי שיתווסף כאן יופיע בבורר שבטופס התקלה.</div>
+        </div>
+      ) : <div className="rows">{live.map((p) => card(p, false))}</div>}
+
+      {/* ⚠ מי שהוצא נשאר גלוי ומעומעם, ולא נעלם (4לו, 4ק). */}
+      {off.length > 0 && (
+        <>
+          <div className="sec-label">לא בשימוש</div>
+          <div className="rows">{off.map((p) => card(p, true))}</div>
+        </>
+      )}
+      <div style={{ height: 40 }} />
+    </>
+  );
+}
+
 /* ---------- הדף המלא — צוות ---------- */
 export function FaultsPage({ say }) {
   const { data, err, busy, reload } = useLoad(() => api.getFaults(), []);
   const [filter, setFilter] = useState("open"); // open | done | all
   const [form, setForm] = useState(null);
+  const [tab, setTab] = useState("faults"); // faults | pros
 
   if (busy && !data) return (
     <div className="empty" style={{ paddingTop: 60 }}><div className="e1">טוען תקלות…</div></div>
@@ -599,9 +831,34 @@ export function FaultsPage({ say }) {
     filter === "urgent" ? x.status !== FAULT_STATUS.done && x.urgency === FAULT_URGENCY.urgent :
     x.status !== FAULT_STATUS.done);
 
+  /* ============================================================
+     ⚠⚠ **מאגר אנשי המקצוע באותו מסך, ולא בדף משלו.**
+     אב הבית שרואה תקלה ורוצה להוסיף את החשמלאי
+     שהולך לטפל בה לא צריך לעזוב את המסך ולמצוא דף אחר —
+     זו בדיוק הטעות של מסך ההצפות (4ס) ושל עריכת
+     המטלות בתורניות (4ק).
+     ============================================================ */
+  if (tab === "pros") {
+    return (
+      <>
+        <div className="screen-title">תקלות ושידרוגים</div>
+        <ScrollTabs className="seg">
+          <button onClick={() => setTab("faults")}>הדיווחים</button>
+          <button className="on">אנשי מקצוע</button>
+        </ScrollTabs>
+        <ProsTab say={say} />
+      </>
+    );
+  }
+
   return (
     <>
-      <div className="screen-title">תקלות ובעיות</div>
+      <div className="screen-title">תקלות ושידרוגים</div>
+
+      <ScrollTabs className="seg">
+        <button className="on">הדיווחים</button>
+        <button onClick={() => setTab("pros")}>אנשי מקצוע</button>
+      </ScrollTabs>
 
       {/* ⚠ שלושת המספרים שמסכמים את מצב התחזוקה על כהה, ואחריהם
           הפירוט. הדחופות ראשונות — הן מה שקובע אם צריך לרוץ. */}

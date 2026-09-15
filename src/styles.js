@@ -278,6 +278,33 @@ html,body{margin:0;padding:0;background:#012E58}
 .p-low{background:var(--clay-soft);color:var(--clay)}
 .p-ok{background:var(--ok-soft);color:var(--ok)}
 .p-new{background:var(--amber-soft);color:var(--amber)}
+/* ⚠ שדרוג — גוון תחום ולא צבע מצב: הוא אינו בעיה
+   ואינו תקין, הוא סיווג (4ג). */
+.p-up{background:var(--t5-s);color:var(--t5)}
+
+/* ---- בורר אנשי המקצוע בטופס התקלה ----
+   ⚠ צ׳יפים ולא select: רשימה של עשרים אנשי מקצוע עם המקצוע
+     לצידם נקראת בסריקה, ו-select במגע מסתיר אותה מאחורי
+     לחיצה. ⚠ וגלילה אנכית מוגבלת עם .scroll-y הקיימת, כי
+     max-height חדש בתוך .rows נבלע (4ק). */
+.fl-pros{display:flex;flex-wrap:wrap;gap:6px;max-height:34vh;overflow-y:auto}
+.kx .fl-pro{display:flex;flex-direction:column;align-items:flex-start;gap:1px;
+  padding:7px 11px;border-radius:999px;border:1.5px solid var(--line2);
+  background:var(--surface);transition:all 120ms var(--ease);text-align:right}
+.kx .fl-pro b{font-size:13px;font-weight:800;color:var(--ink)}
+.kx .fl-pro span{font-size:10.5px;font-weight:700;color:var(--faint)}
+.kx .fl-pro.on{border-color:var(--accent);background:var(--accent-soft)}
+.kx .fl-pro.on b{color:var(--accent)}
+
+/* ---- מאגר אנשי המקצוע ---- */
+.pr-row{align-items:flex-start}
+/* ⚠ מי שהוצא מעומעם ולא מוסתר — הטלפון שלו הוא בדיוק מה
+   שמחפשים כשאותו מזגן מתקלקל שוב (4לו). */
+.pr-row.is-off{opacity:.55}
+.pr-tel{font-weight:800;color:var(--accent);text-decoration:none}
+.pr-note{font-size:12.5px;color:var(--muted);font-weight:600;line-height:1.6;margin-top:5px;
+  white-space:pre-wrap}
+.pr-acts{display:flex;align-items:center;gap:6px;flex-shrink:0}
 /* ⚠ שני גוונים שנוספו לרצועת המספרים בשורת החניך.
    p-cool — יום חופש, שהוא זכות במכסה ולא בעיה, ולכן אינו אדום.
    p-idle — "לא סומן", שהוא היעדר נתון ולא מצב, ולכן אפור. */
