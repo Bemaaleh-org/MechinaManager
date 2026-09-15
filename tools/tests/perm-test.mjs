@@ -3,6 +3,7 @@ import { gql } from "../../api/_monday.js";
 import { tempRegister } from "./_auth.mjs";
 import { AUTH_BOARD, AUTH_COLS } from "../../shared/auth-board.js";
 import { MECHINA_BOARDS as MB, MECHINA_COLS as MC } from "../../shared/mechina-boards.js";
+import { mayEdit } from "../../shared/edit-rights.js";
 
 const B = "http://localhost:5173";
 let pass = 0, fail = 0;
@@ -54,11 +55,54 @@ const S = jar();
 let r = await call(S, "POST", "/api/auth?action=signin",
   { user: "bdika", password: process.env.DEMO_PASS || "mechina2026" });
 ok("חניך נכנס", r.s === 200, r.b.error);
+
+/* ============================================================
+   ⚠⚠ **הציפייה נגזרת מהסשן ואינה קבועה בבדיקה.**
+
+   כאן היה כתוב `canEdit === false`, וזה היה נכון כל עוד חשבון
+   הבדיקה לא נשא תפקידים. מרגע שהוא נושא חמישה (4ת) — ובהם
+   אחראי מטבח — שתי הטענות נכשלו על התנהגות **נכונה**:
+   `mayEdit` פותח לו את המטבח בדיוק כפי שהוא אמור.
+
+   וגרוע מזה בכיוון השני: בהרצה שבה תפקידיו נמחקו (חבילה
+   שנקטעה באמצע ולא שחזרה) הטענות **עברו** — כלומר הבדיקה
+   דיווחה ירוק דווקא על חשבון פגום, ואמרה "13 עברו" על מצב
+   שהיה צריך לצעוק.
+
+   עכשיו היא נועלת את מה שבאמת חשוב כאן: **המסך והשרת מסכימים**
+   (4יד). הכלל עצמו נבדק טהור ובשני הכיוונים, למטה.
+   ============================================================ */
+const me = await call(S, "GET", "/api/auth?action=me");
+const wantEdit = mayEdit(me.b, "kitchen");
 r = await call(S, "GET", "/api/kitchen?action=menu");
 ok("ורואה את התפריט", r.s === 200, r.s === 200 ? `${r.b.dishes.length} מנות` : r.b.error);
-ok("אבל canEdit=false", r.s === 200 && r.b.canEdit === false, String(r.b.canEdit));
-r = await call(S, "POST", "/api/kitchen?action=menu", { name: "נסיון", baseHeads: 35, items: "x 1" });
-ok("וכתיבה נחסמת", r.s === 403, `${r.s} ${r.b.error || ""}`);
+ok(`ו-canEdit תואם את mayEdit (${wantEdit})`,
+  r.s === 200 && r.b.canEdit === wantEdit,
+  `canEdit=${r.b.canEdit} · isKitchen=${me.b.isKitchen} · isHead=${me.b.isHead}`);
+
+/* ⚠⚠ **בקשה שנדחית ממילא, כדי שלא ייווצר נתון.**
+
+   הגרסה הקודמת שלחה מנה **תקינה** בשם "נסיון". כל עוד הכתיבה
+   נחסמה ב-403 זה לא הזיק; ברגע שחשבון הבדיקה קיבל את תפקיד
+   אחראי המטבח, כל הרצה **יצרה מנה אמיתית בלוח** — ונמצאו שם
+   ארבע שורות כאלה, פעילות ומופיעות בבורר המנות של המטבח.
+
+   שם ריק נדחה ב-400 בהנדלר, ו-`withAuth` מחזיר 403 **לפניו**.
+   כלומר הסטטוס עדיין מעיד על ההרשאה, ושום מנה אינה נוצרת
+   באף אחד משני המסלולים. */
+r = await call(S, "POST", "/api/kitchen?action=menu", { name: "" });
+ok(wantEdit ? "והכתיבה עוברת את השער ונבדקת בהנדלר" : "וכתיבה נחסמת",
+  r.s === (wantEdit ? 400 : 403), `${r.s} ${r.b.error || ""}`);
+
+/* ⚠ **והכלל עצמו — טהור, ובארבעת הכיוונים.** חשבון הבדיקה נושא
+   את תפקיד אחראי המטבח, ולכן דרכו אי אפשר לבדוק את הצד החוסם
+   **כלל**. אותו נימוק בדיוק כמו ב-chores-test (5כז), ושם הוא
+   נכתב אחרי שטענה אחת נשארה ירוקה גם כשהגבול נשבר. */
+ok("mayEdit חוסם חניך בלי תפקיד", mayEdit({ isStudent: true }, "kitchen") === false);
+ok("ופותח לאחראי המטבח", mayEdit({ isStudent: true, isKitchen: true }, "kitchen") === true);
+ok("ולראש המכינה", mayEdit({ isHead: true }, "kitchen") === true);
+ok("ו-viewOnly גובר על שניהם",
+  mayEdit({ isHead: true, isKitchen: true, viewOnly: true }, "kitchen") === false);
 
 console.log("\n=== השיחה האישית — המדריך בלבד ===");
 const D = jar();
