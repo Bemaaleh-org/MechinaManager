@@ -48,7 +48,7 @@ import { cached, invalidate } from "./_cache.js";
 import { setColumns, renameItem, deleteItem } from "./_items.js";
 import { nudge } from "./_push-now.js";
 import {
-  loadCalendar, loadAbsences, loadMarked, summarize, vacationRule, israelToday,
+  loadCalendar, loadAbsences, loadMarked, summarize, vacationRule, israelToday, todayFor,
 } from "./_attendance-data.js";
 import {
   MECHINA_BOARDS, MECHINA_COLS, ABSENCE, REQ_STATUS, REQ_STAGE, requestStage,
@@ -211,6 +211,33 @@ async function list(req, res, session) {
       return hit.reduce((n, a) => n + (a.cost == null ? 1 : a.cost), 0);
     };
 
+    /* ============================================================
+       ⚠⚠ **בקשה שהתאריך שלה עבר — `past`**
+       ------------------------------------------------------------
+       בקשה שנשארה ממתינה והיום שלה כבר חלף אינה
+       החלטה שמישהו יכול לקבל עוד — איש אינו מאשר
+       נסיעה שכבר הייתה או לא הייתה. היא נשארת בלוח
+       ונשארת ניתנת להכרעה, אבל היא **יורדת מהרשימות
+       הפעילות ומהפעמון**.
+
+       ⚠ **נגזר בשרת ולא במסך**, כמו `canDecide` ו-`canEdit`:
+         `israelToday()` הוא התאריך בשעון ישראל, ו-`new Date()`
+         גולמי בדפדפן היה מזיז את הקו במוצאי שבת וב-UTC.
+
+       ⚠ **לפי `endDate` ולא `date`.** בקשה שנפתחה אתמול
+         ונמשכת עד מחר היא עדיין החלטה שצריך לקבל היום.
+
+       ⚠ **ורק על ממתינה.** בקשה שהוכרעה אינה "תקועה" —
+         מקומה ב"הוכרעו", והיא שם בלי קשר לתאריך.
+       ============================================================ */
+    /* ⚠ `todayFor` ולא `israelToday()` ישירות: הוא מכבד את
+       שער הבדיקה `?today=`, שחסום לחלוטין בכל דיפלוי
+       (api/_test-date.js). בלעדיו אי אפשר לבדוק את הגבול
+       הזה בלי להמתין שיום יעבור. */
+    const todayIso = todayFor(req);
+    const isPast = (r) => r.status === REQ_STATUS.pending
+      && String(r.endDate || r.date) < todayIso;
+
     // ⚠ הסינון כאן. חניך לעולם לא מקבל בקשות של אחרים.
     const mine = session.isManager ? all : all.filter((r) => r.studentId === session.itemId);
 
@@ -248,6 +275,11 @@ async function list(req, res, session) {
               ? vacationCost(r.date, r.outAt, r.endDate, r.backAt) : null,
             /* ⚠ נגזר בשרת כדי שהכפתור יידע מראש (4יד). */
             canEdit: r.status === REQ_STATUS.pending,
+            /* ⚠ **גם לחניך, וזו אינה דליפה.** זה תאריך שלו
+               מול הלוח — ולא שלב, לא המלצה ולא מי המדריך
+               (4א). והוא בדיוק מה שהוא צריך לדעת: הבקשה
+               לא נענתה והיום עבר. */
+            past: isPast(r),
             /* ============================================================
                ⚠⚠ **ערר — רק על בקשה שהוכרעה, ורק פעם אחת.**
 
@@ -312,6 +344,14 @@ async function list(req, res, session) {
           canDecide: stage !== REQ_STAGE.done &&
             (Boolean(session.isHead) ||
              (stage === REQ_STAGE.guide && isGuideOf(session, guide))),
+          /* ⚠⚠ **`past` מסמן ואינו חוסם.** `canDecide` נשאר
+             כשהיה, ולכן בקשה שנשכחה עדיין ניתנת
+             להכרעה — מדריך שרוצה לסגור אותה בדיעבד
+             (ולחייב את המכסה, או לא) חייב להיות יכול.
+             מה שהוא כן עושה: מוציא אותה מהרשימות
+             הפעילות ומהפעמון. חסימה הייתה משאירה שורה
+             תקועה לנצח בלי שום מסך שיסגור אותה (4צ). */
+          past: isPast(r),
           /* ⚠ באיזה כובע המשתמש הזה מחליט כאן. ראש מכינה מכריע
              תמיד, גם בשלב המדריך — ולכן אצלו הכפתור אומר
              "אישור" ולא "ממליץ לאשר". */
@@ -344,15 +384,24 @@ async function list(req, res, session) {
         };
       }),
       count: filtered.length,
-      /* כמה ממתינות *להחלטתי* — מה שממלא את המונה במסך */
+      /* כמה ממתינות *להחלטתי* — מה שממלא את המונה במסך
+         ⚠⚠ **ובלי שעברו.** המונה הזה הוא התג על הפעמון
+         ועל הסרגל התחתון, ו"3 בקשות להחלטתך" שכולן על
+         תאריכים שעברו הוא בדיוק המספר שמלמד להפסיק
+         להסתכל על הפעמון (4כו). הרשימה עצמה ממשיכה
+         להכיל אותן — בלשונית משלהן. */
       mine: mine.filter((r) => {
+        if (isPast(r)) return false;
         const g = guides.get(r.studentId) || null;
         const st = requestStage(r, Boolean(g));
         return st !== REQ_STAGE.done &&
           (Boolean(session.isHead) ||
            (st === REQ_STAGE.guide && isGuideOf(session, g)));
       }).length,
-      pending: mine.filter((r) => r.status === REQ_STATUS.pending).length,
+      pending: mine.filter((r) => r.status === REQ_STATUS.pending && !isPast(r)).length,
+      /* ⚠ **וכמה עברו — מספר משלו.** מה שירד מהמונה
+         חייב להיספר במקום אחר, אחרת הוא נעלם בשקט (4ט). */
+      past: mine.filter(isPast).length,
     });
   } catch (e) {
     console.error("[requests:list]", e);

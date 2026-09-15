@@ -2001,6 +2001,10 @@ const EMPTY = {
             "כשחניך יגיש בקשה היא תופיע כאן, עם השלב שהיא נמצאת בו."],
   decided: ["עדיין לא הוכרעה בקשה",
             "בקשות שראש המכינה אישר או דחה יופיעו כאן."],
+  /* ⚠ "שעברו" הוא המצב הטוב, והטקסט אומר זאת. רשימה
+     ריקה כאן פירושה שלא נשכחה אף בקשה. */
+  past: ["לא נשכחה אף בקשה",
+         "בקשה שהיום שלה עבר בלי שהוכרעה תופיע כאן."],
 };
 
 function ManagerRequests({ say }) {
@@ -2059,11 +2063,25 @@ function ManagerRequests({ say }) {
 
   /* ⚠ שלוש רשימות ולא שתיים. "ממתינות" בלבד לא הספיק ברגע
      שיש שני שלבים: מדריך צריך לראות מיד מה תלוי בו, ולא לחפש
-     בין בקשות שממתינות לראש המכינה. */
-  const mine = data.requests.filter((r) => r.canDecide);
-  const pending = data.requests.filter((r) => r.status === "ממתין");
+     בין בקשות שממתינות לראש המכינה.
+
+     ⚠⚠ **ורביעית מאז  15.9.2026: "שעברו".** בקשה שנשארה
+     ממתינה והיום שלה חלף הייתה יושבת לנצח בראש
+     "להחלטתי" ובמונה שעל הפעמון, ודוחקת למטה את מה
+     שבאמת דורש החלטה היום. ⚠ **היא אינה נעלמת** ואפשר
+     להכריע בה משם כרגיל — `canDecide` לא השתנה.
+
+     ⚠ **ו-`r.past` מגיע מהשרת.** השוואת תאריך במסך הייתה
+     דורשת `new Date()` גולמי, שהוא הדבר ששעון ישראל
+     אוסר במפורש, והיא גם הייתה הגדרה שנייה שתתפצל
+     מזו שהפעמון משתמש בה (4מד). */
+  const past = data.requests.filter((r) => r.past);
+  const mine = data.requests.filter((r) => r.canDecide && !r.past);
+  const pending = data.requests.filter((r) => r.status === "ממתין" && !r.past);
   const decided = data.requests.filter((r) => r.status !== "ממתין");
-  const list = tab === "mine" ? mine : tab === "pending" ? pending : decided;
+  const list = tab === "mine" ? mine
+    : tab === "pending" ? pending
+      : tab === "past" ? past : decided;
 
   return (
     <>
@@ -2075,7 +2093,23 @@ function ManagerRequests({ say }) {
           בתהליך{pending.length ? ` (${pending.length})` : ""}
         </button>
         <button className={tab === "decided" ? "on" : ""} onClick={() => setTab("decided")}>הוכרעו</button>
+        {/* ⚠ **מוצגת רק כשיש מה.** לשונית קבועה שריקה רוב השנה
+            היא רעש ברצועה שיש בה כבר שלוש. */}
+        {past.length > 0 && (
+          <button className={tab === "past" ? "on" : ""} onClick={() => setTab("past")}>
+            שעברו ({past.length})
+          </button>
+        )}
       </div>
+
+      {/* ⚠ **ההסבר בלשונית עצמה.** רשימה של בקשות ממתינות
+          שאינן ב"להחלטתי" נראית כמו באג עד שאומרים למה. */}
+      {tab === "past" && past.length > 0 && (
+        <div className="hint" style={{ marginBottom: 10 }}>
+          היום שלהן כבר עבר והן לא הוכרעו. אינן נספרות במונה
+          ואינן שולחות התראה — ועדיין אפשר להכריע בהן כאן.
+        </div>
+      )}
 
       {data.requests.length > 0 && (
         <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginBottom: 10 }}
@@ -4395,10 +4429,43 @@ export function MechinaApp({ auth, onSignedOut }) {
                 <div className="e1">אין בקשות</div>
                 <div className="e2">בקשה שתגיש תופיע כאן עם הסטטוס שלה.</div>
               </div>
-            ) : reqs.data.requests.map((r) => (
-              <RequestCard key={r.id} r={r} onEdit={setEditReq} onWithdraw={withdraw}
-                onAppeal={appealReq} />
-            )))}
+            ) : (() => {
+              /* ============================================================
+                 ⚠⚠ **"שעברו" בנפרד, ולמטה.**
+                 ------------------------------------------------------------
+                 בקשה שהיום שלה עבר ולא נענתה היתה יושבת
+                 בראש הרשימה (המיון הוא לפי תאריך יורד)
+                 ומסתירה את מה שבאמת קורה עכשיו.
+
+                 ⚠ **והיא אינה נמחקת ואינה נעלמת.** החניך
+                   הגיש אותה, ומסך שיבלע אותה בשקט נראה
+                   בדיוק כמו מערכת שאיבדה אותה (עיקרון 6).
+                   הוא גם עדיין יכול לבטל אותה משם.
+                 ============================================================ */
+              const live = reqs.data.requests.filter((r) => !r.past);
+              const gone = reqs.data.requests.filter((r) => r.past);
+              const card = (r) => (
+                <RequestCard key={r.id} r={r} onEdit={setEditReq} onWithdraw={withdraw}
+                  onAppeal={appealReq} />
+              );
+              return (
+                <>
+                  {live.map(card)}
+                  {gone.length > 0 && (
+                    <>
+                      <div className="sec-label">בקשות שעברו</div>
+                      {/* ⚠ המשפט הזה הוא התשובה ל"למה איש לא
+                          ענה לי" — בלעדיו הוא שואל בוואטסאפ. */}
+                      <div className="hint" style={{ marginBottom: 8 }}>
+                        היום שלהן עבר והן לא נענו. אם זה עדיין רלוונטי —
+                        שווה לדבר עם המדריך שלך.
+                      </div>
+                      {gone.map(card)}
+                    </>
+                  )}
+                </>
+              );
+            })())}
 
             <div className="sticky">
               <button className="btn btn-primary" onClick={() => setTab("new")}>

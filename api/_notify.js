@@ -490,7 +490,25 @@ async function requestNotes(session, today) {
     }));
   }
 
-  const pending = reqs.filter((r) => r.status === REQ_STATUS.pending);
+  /* ============================================================
+     ⚠⚠ **בקשה שהיום שלה עבר אינה מתריעה.**
+     ------------------------------------------------------------
+     היא עדיין ניתנת להכרעה (ראו `past` ב-_requests.js)
+     ויושבת בלשונית "שעברו", אבל היא אינה משהו
+     שצריך לקרות **היום**: היום עבר, וההכרעה היא
+     סדר שורות ולא החלטה.
+
+     זה בדיוק 4כו: התראה שאי אפשר לעשות איתה דבר
+     היא רעש, ומספר שרק עולה מלמד לסגור את הפעמון
+     ולא לפתוח אותו. בסוף השנה הן עשרות.
+
+     ⚠ **והוא נגזר מהמצב ואינו דגל.** בקשה שהוכרעה
+       יוצאת מכאן מעצמה, וכך גם בקשה שתאריכה נערך
+       קדימה — היא חוזרת להתריע בלי שאיש יסמן דבר.
+     ============================================================ */
+  const live = (r) => String(r.endDate || r.date || "") >= today;
+
+  const pending = reqs.filter((r) => r.status === REQ_STATUS.pending && live(r));
   if (!pending.length) return out;
 
   /* ⚠ מה שממתין **לו** ולא מה שממתין בכלל. איש צוות שמקבל
@@ -544,7 +562,12 @@ async function studentNotes(session, today) {
     }));
   }
 
-  const pending = reqs.filter((r) => r.status === REQ_STATUS.pending);
+  /* ⚠ **גם לחניך, ומאותה סיבה.** "בקשה ממתינה לתשובה"
+     על יום שכבר עבר אינה אומרת לו שום דבר שהוא יכול
+     לפעול לפיו, והיא מצטברת. הבקשה עצמה נשארת
+     במסך שלו, בחלק "שעברו". */
+  const pending = reqs.filter((r) => r.status === REQ_STATUS.pending
+    && String(r.endDate || r.date || "") >= today);
   if (pending.length) {
     out.push(note({
       id: `req:pending:${pending.length}`, kind: "בקשה", level: "נמוך",
