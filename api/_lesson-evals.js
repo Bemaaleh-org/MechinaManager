@@ -64,12 +64,28 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 async function gate(session) {
   const staff = Boolean(session.isManager) || Boolean(session.isScheduler);
   const may = await mayContent(session);
-  const content = may.ok && !session.viewOnly;
+  /* ⚠⚠ **`!may.staff` — "הוא הועדה", ולא "מותר לו לקרוא".**
+     `mayFlagged` מחזירה `ok:true` לכל כניסת צוות, ובלעדיו
+     `write` נפתח ל**כל איש צוות** — מדריך, רואה חשבון
+     ובוגר יכלו לערוך דירוגים וחוות דעת. זה סתר את
+     הצמצום של 4ע, ו-`rating-test` תפס את זה.
+     ⚠ `read` ממשיך לקרוא `may.ok` — צוות כן קורא.
+     ראו api/_flag-team.js ו-api/_lesson-rights.js. */
+  const content = may.ok && !may.staff && !session.viewOnly;
   return {
     read: staff || may.ok,
     write: mayEdit(session, "scheduler") || content,
     moveCycle: Boolean(session.isHead) && !session.viewOnly,
-    hint: contentHint(may),
+    /* ⚠⚠ **ההודעה אומרת את **כל** מי שכן רשאי** (4ע).
+       `contentHint` לבדו אומר "המסך מנוהל על ידי ועדת
+       קבוצה ותוכן" — נכון וחלקי. מדריך שנחסם וקורא
+       אותו ילך לועדה במקום לאחראי הלו״ז, שהוא הכתובת
+       הנכונה רוב הזמן. אותה נוסחה של `lessonRights.hint`.
+       ⚠ ובמצב `setup` ההודעה אומרת מה להריץ, וזה
+         דווקא מה שצריך להיאמר שם (עיקרון 6). */
+    hint: may && may.setup
+      ? contentHint(may)
+      : "עריכת חוות הדעת נעשית על ידי ראש המכינה, אחראי הלו״ז וועדת קבוצה ותוכן",
   };
 }
 

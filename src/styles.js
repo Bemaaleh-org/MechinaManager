@@ -1648,6 +1648,21 @@ html,body{margin:0;padding:0;background:#012E58}
 .mini-bar.low .mini-fill{background:var(--clay)}
 .mini-bar.mid .mini-fill{background:var(--amber)}
 
+/* ---- תקן השיעורים בראש הגיליון ----
+   הבקשה: כמה שיעורים התקיימו מתוך התקן הרצוי, בירוק.
+   ⚠ והפס רחב כאן ולא 150px: הוא המדד המרכזי של הכרטיס
+     ולא שורת עזר בתוך רשימה. */
+.lq{padding:12px 14px}
+.lq-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.lq-h span{font-size:13px;font-weight:800;color:var(--muted)}
+.lq-h b{font-size:20px;font-weight:900;font-variant-numeric:tabular-nums}
+.lq-ok{color:var(--ok)}
+/* ⚠ חריגה מהתקן אינה ירוקה — 27/25 בירוק נקרא כמו "הכול בסדר"
+   בדיוק כשיש מה לבדוק. ענבר ולא אדום: זו אינה תקלה. */
+.lq-over{color:var(--amber)}
+.lq .mini-bar{max-width:none;height:6px;margin-top:9px}
+.lq-n{margin-top:7px;font-size:12.5px;font-weight:700;color:var(--faint)}
+
 /* ---- רשימות ---- */
 .kx .rows{overflow:hidden}
 .st-row{border-bottom-color:rgba(211,201,182,.45)}

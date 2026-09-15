@@ -63,7 +63,8 @@
     "check:css": "node tools/check-css.mjs",
     "check:nav": "node tools/check-nav.mjs",
     "seed:roles-lock": "node --env-file=.env tools/seed-roles-lock.mjs",
-    "seed:content-sheets": "node --env-file=.env tools/seed-content-sheets.mjs"
+    "seed:content-sheets": "node --env-file=.env tools/seed-content-sheets.mjs",
+    "seed:lesson-quota": "node --env-file=.env tools/seed-lesson-quota.mjs"
   },
   "dependencies": {
     "nodemailer": "^9.0.5",

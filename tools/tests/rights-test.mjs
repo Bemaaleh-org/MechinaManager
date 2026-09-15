@@ -104,7 +104,12 @@ try {
   ok("ומדריך קורא את הגיליונות", r.s === 200, `${r.s} ${r.b.error || ""}`);
   ok("אבל canEdit=false", r.s === 200 && r.b.canEdit === false, String(r.b.canEdit));
 
-  r = await call(N.j, "POST", "/api/lessons?action=list", { name: "בדיקה — אסור" });
+  /* ⚠ **אל מסלול הכתיבה האמיתי.** הטענה שלחה POST ל-
+     `?action=list`, שהוא קריאה בלבד — וקיבלה 405 מהנתב
+     במקום 403 מהשער. כלומר היא "עברה" על המסלול
+     הלא-נכון ולא בדקה את ההרשאה בכלל. יצירת גיליון
+     היא `POST ?action=sheet`. */
+  r = await call(N.j, "POST", "/api/lessons?action=sheet", { subject: "בדיקה — אסור" });
   ok("וכתיבה לגיליונות נחסמת, עם שם מי כן רשאי",
     r.s === 403 && /אחראי הלו/.test(r.b.error || ""), `${r.s} ${r.b.error || ""}`);
 

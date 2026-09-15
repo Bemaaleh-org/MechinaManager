@@ -406,6 +406,46 @@ function SheetDetail({ sheet, onBack, say }) {
         {data.sheet.lecturer || "ללא מרצה"}{data.sheet.dayTime ? " · " + data.sheet.dayTime : ""}
       </div>
 
+      {/* ============================================================
+          ⚠⚠ **תקן השיעורים — בראש הגיליון.**
+          הבקשה: *"תוסיף לכל גיליון בלמעלה תקן שיעורים,
+          ובירוק לדוגמא 1/25 שיעורים שהתקיימו מתוך התקן."*
+
+          ⚠ **גיליון בלי תקן אינו מקבל שורה כלל.** "0/0" נראה
+            כמו נתון, ו"טרם נקבע תקן" על 21 גיליונות הוא
+            קופסה ריקה שמלמדת להתעלם (4ש, עיקרון 6).
+
+          ⚠ **והמספר הוא `happened` ולא `total`** — התקן הוא כמה
+            שיעורים **התקיימו**, ומפגש שנקבע וטרם דווח
+            אינו שיעור שהתקיים (4ח).
+
+          ⚠ וחריגה מהתקן אינה ירוקה: 27/25 בירוק נקרא כמו
+            "הכול בסדר" בדיוק כשיש משהו לבדוק.
+          ============================================================ */}
+      {data.sheet.quota != null && (
+        <div className="card lq" style={{ marginBottom: 12 }}>
+          <div className="lq-h">
+            <span>תקן שיעורים</span>
+            <b className={live.happened > data.sheet.quota ? "lq-over" : "lq-ok"}>
+              {live.happened}/{data.sheet.quota}
+            </b>
+          </div>
+          {/* ⚠ הילד חייב לשאת `mini-fill` — זה מה ש-styles.js
+              מעצב, ו-`<i>` ריק היה פס בלתי נראה. */}
+          <div className="mini-bar">
+            <div className="mini-fill" style={{ width: Math.min(100,
+              data.sheet.quota ? (live.happened / data.sheet.quota) * 100 : 0) + "%" }} />
+          </div>
+          <div className="lq-n">
+            {live.happened > data.sheet.quota
+              ? `מעל התקן ב-${live.happened - data.sheet.quota}`
+              : live.happened === data.sheet.quota
+                ? "התקן הושלם"
+                : `נותרו ${data.sheet.quota - live.happened} שיעורים עד סוף השנה`}
+          </div>
+        </div>
+      )}
+
       <LecturerContact sheet={data.sheet} canEdit={data.canEdit} say={say} onSaved={reload} />
 
       <div className="stats" style={{ marginBottom: 12 }}>

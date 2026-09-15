@@ -86,9 +86,24 @@ try {
   const S = jar();
   let r = await call(S, "POST", "/api/auth?action=login", { code: cv(dani, AUTH_COLS.code) });
   ok("נכנס", r.s === 200, `${r.s} ${r.b.error || ""}`);
-  r = await call(S, "GET", "/api/lessons?action=list");
-  ok("רואה את כל הגיליונות", r.s === 200 && (r.b.sheets || []).length === sheets.length,
-    `${r.s} ${(r.b.sheets || []).length} מתוך ${sheets.length}`);
+  /* ============================================================
+     ⚠⚠ **על תנאי ולא על זמן.**
+     הטענה משווה קריאה טרייה מהלוח מול תשובת השרת,
+     ומטמון הגיליונות יושב **בתהליך של השרת**. חבילה
+     שרצה לפני (sheet-test יוצר גיליון ומוחק אותו) משאירה
+     את השרת עם רשימה בת 22 בעוד בלוח 21 — והטענה
+     נכשלת על **התנהגות נכונה לחלוטין**. זה בדיוק
+     הכלל שכתוב ב-CLAUDE.md על מטמון השרת.
+     ============================================================ */
+  let seen = 0;
+  for (let i = 0; i < 24; i++) {
+    r = await call(S, "GET", "/api/lessons?action=list");
+    seen = (r.b.sheets || []).length;
+    if (r.s === 200 && seen === sheets.length) break;
+    await new Promise((x) => setTimeout(x, 2000));
+  }
+  ok("רואה את כל הגיליונות", r.s === 200 && seen === sheets.length,
+    `${r.s} ${seen} מתוך ${sheets.length}`);
   if (other) {
     r = await call(S, "GET", "/api/lessons?action=sheet&id=" + other.id);
     ok(`ונכנס לגיליון שאינו של הוועדה (${other.name})`, r.s === 200, String(r.s));

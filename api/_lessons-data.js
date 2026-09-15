@@ -44,6 +44,10 @@ export async function loadSheets({ force = false } = {}) {
            מתנדב, וריק הוא "לא סוכם". */
         price: val(i, S.price) === "" ? null : Number(val(i, S.price)),
         payNote: val(i, S.payNote) || null,
+        /* ⚠ **תקן השיעורים — ריק אינו אפס.** גיליון בלי תקן
+           הוא "טרם נקבע" ואינו "אפס שיעורים" (4ט), והמסך
+           אינו מציג לו פס התקדמות כלל. */
+        quota: (!S.quota || val(i, S.quota) === "") ? null : Number(val(i, S.quota)),
         /* ⚠ **מחוץ לדוח התשלום בלבד** — הגיליון נשאר פעיל
            ומפגשיו ממשיכים להופיע בכל מסך אחר. ראו ההערה
            ב-shared/lessons-boards.js. */
