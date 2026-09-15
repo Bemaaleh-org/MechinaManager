@@ -5165,7 +5165,9 @@ chores · cron`. **נותרו 4.**
 npm run setup:boards
 ```
 
-⚠ **17 שלבים כרגע** (`tools/boards-ready.mjs` הוא המקור).
+⚠ **25 שלבים כרגע** (`tools/boards-ready.mjs` הוא המקור, והטבלה
+כאן היא האחרונים בלבד — מספר שנכתב ביד מתישן בהוספה הראשונה,
+ולכן הספירה הנכונה היא `STEPS.length`).
 
 | שלב | מה |
 |---|---|
@@ -5181,6 +5183,10 @@ npm run setup:boards
 | `seed:lecturers` | קטגוריה ו"נשלחה הודעה" במאגר המרצים |
 | `seed:lesson-changes` | ארבע עמודות יומן השינויים בגיליונות |
 | `seed:buy` | לוח רשימת הקניות הכללית |
+| `seed:fault-kind` | תקלה או שדרוג בלוח התקלות |
+| `seed:pros` | מאגר אנשי המקצוע של אב הבית |
+| `seed:lesson-quota` | תקן השיעורים בגיליונות |
+| `seed:receipt` | קבלה ומי העלה אותה, בלוח הקניות |
 
 ⚠⚠ **שלושה שלבים חולקים את `shared/mechina-boards.js` ושניים
 את `shared/lessons-boards.js` ואת `shared/lecturers-ids.js`.**
