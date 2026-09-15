@@ -26,20 +26,81 @@ const roster = (await gql(`{ boards(ids:[${MB.roster}]){ items_page(limit:100){ 
   id name column_values(ids:["${MC.roster.tz}","${MC.roster.active}",${CIDS}]){ id text } } } } }`))
   .boards[0].items_page.items.filter((x) => cv(x, MC.roster.tz) && cv(x, MC.roster.active) === "v");
 
-const me = roster[0];
+/* ============================================================
+   ⚠⚠⚠ **החניך נבחר לפי התכונה שנבדקת, ולא לפי מיקום.**
+
+   עד 15.9.2026 כאן היה `roster[0]`, והבדיקה הניחה בשקט שהוא
+   **טרם נרשם**. בפיילוט הוא נרשם, ומאז:
+
+     · `before` צילם את מצבו ה**רשום**
+     · `restore()` בתחילת ההרצה החזיר אותו לרשום ולא לריק
+     · הכניסה הראשונה קיבלה 409 "כבר נרשמת"
+     · ו-**35 הטענות שאחריה נפלו ב-401**, כי מעולם לא נוצר סשן
+
+   ⚠⚠ **וזה הרעיל את כל חבילת הבדיקות.** 36 כשלונות כניסה
+     מאותו IP חוצים את `MAX_FAILS` (10), ההשהיה הגוברת ננעלת
+     לעשר דקות — וכל חבילה שרצה **אחרי** auth-test נפלה
+     ב"יותר מדי ניסיונות" בלי שום קשר לנושא שלה. `npm test`
+     המלא לא יכול היה לעבור.
+
+   זה בדיוק הכלל שכבר כתוב ב-CLAUDE.md על `perm-test`:
+   **לבחור את נתוני הבדיקה לפי התכונה שנבדקת, לא לפי מיקום.**
+
+   ⚠ ומי שאין לו זהות הוא הנכון כאן: `restore()` מחזיר אותו
+     למצב הריק שהיה, ולא "מוחק" למישהו את החשבון.
+   ============================================================ */
+const isFreshRow = (x) => !cv(x, T.user).trim() && !cv(x, T.pass).trim();
+const me = roster.find(isFreshRow)
+  /* ⚠ נפילה לאחור לחשבון הבדיקה: הוא אינו אדם ואינו נספר
+     (4לא), ולכן מותר לאפס לו זהות ולהחזיר. */
+  || roster.find((x) => String(x.name).includes("בדיקה"));
+
+if (!me) {
+  console.log("✗ אין חניך בלי זהות ואין חשבון בדיקה — אי אפשר לבדוק כניסה ראשונה.");
+  console.log("  ⚠ אל תריצו את זה על חניך רשום: הבדיקה מאפסת לו את הזהות.");
+  console.log("\n0 עברו, 1 נכשלו");
+  process.exit(1);
+}
+
 const TZ = cv(me, MC.roster.tz).replace(/\D/g, "");
 const before = Object.fromEntries(Object.entries(T).map(([k, id]) => [id, cv(me, id)]));
-console.log(`חניך הבדיקה: ${me.name}`);
+console.log(`חניך הבדיקה: ${me.name}` + (isFreshRow(me) ? " (טרם נרשם)" : " (חשבון הבדיקה)"));
+
+/* ============================================================
+   ⚠⚠ **`blank()` בתחילת ההרצה ולא `restore()`.**
+
+   ההערה למטה אמרה "מתחילים ממצב טרם נקבעה זהות", וזה היה נכון
+   כל עוד החניך שנבחר היה **ריק** — אז `before` היה ריק
+   ו-`restore()` אכן ניקה. מרגע שהחשבון רשום, `before` מצלם
+   זהות **קיימת**, ו"השחזור" מחזיר אותה: הכניסה הראשונה מקבלת
+   409 ו-35 הטענות שאחריה נופלות ב-401.
+
+   שתי פונקציות ולא אחת: `blank()` מנקה, `restore()` מחזיר.
+   ⚠ ו-`restore()` חייב לרוץ גם ב-uncaughtException — הרצה
+     שנקטעה באמצע משאירה את חשבון הבדיקה **בלי זהות**, וכל
+     חבילה אחרת נכנסת דרכו (אותו לקח של demo-test ב-CLAUDE.md).
+   ============================================================ */
+const blank = async () => {
+  await gql(`mutation($b:ID!,$i:ID!,$v:JSON!){ change_multiple_column_values(board_id:$b,item_id:$i,column_values:$v,create_labels_if_missing:false){ id } }`,
+    { b: MB.roster, i: me.id, v: JSON.stringify(Object.fromEntries(Object.values(T).map((id) => [id, ""]))) });
+};
 
 const restore = async () => {
   await gql(`mutation($b:ID!,$i:ID!,$v:JSON!){ change_multiple_column_values(board_id:$b,item_id:$i,column_values:$v,create_labels_if_missing:false){ id } }`,
     { b: MB.roster, i: me.id, v: JSON.stringify(before) });
 };
 
+/* ⚠ גם כשההרצה נקטעת — אחרת חשבון הבדיקה נשאר בלי זהות. */
+process.on("uncaughtException", async (e) => {
+  console.error(e);
+  try { await restore(); } catch { /* כבר אבוד */ }
+  process.exit(1);
+});
+
 try {
   /* ============ 1 · כניסה ראשונה עם ת"ז ============ */
   console.log("\n=== כניסה ראשונה ===");
-  await restore(); // מתחילים ממצב "טרם נקבעה זהות"
+  await blank(); // ⚠ מנקה, לא משחזר — ראו ההערה מעל
 
   let r = await call(jar(), "POST", "/api/auth?action=signin", { user: TZ, password: "לאנכון" });
   ok("ת\"ז עם סיסמה שגויה נדחית", r.s === 401, `${r.s} ${r.b.error || ""}`);
@@ -253,7 +314,25 @@ try {
   const r = await fetch(B + "/api/students?action=login", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ tz: TZ }) });
-  ok("והכניסה הישנה עם ת\"ז עדיין עובדת", r.status === 200, String(r.status));
+  /* ============================================================
+     ⚠⚠ **הטענה הזו התהפכה, והקוד הוא שצדק.**
+
+     היא נכתבה כשכניסה בת״ז עבדה תמיד. 4ע סגר את זה במפורש:
+     `/api/students?action=login` נתן **סשן מלא** לכל מי שמחזיק
+     ת״ז של חניך — גם אחרי שהחניך בחר שם משתמש וסיסמה — וזו
+     עקיפת סיסמה. חניך **רשום** מקבל היום 409.
+
+     ⚠ ולכן מה שנבדק כאן הוא שהחשבון חזר להיות **רשום**, ולא
+       שהדלת האחורית עדיין פתוחה. 200 כאן היה אומר שהשחזור
+       נכשל ושהחשבון נשאר בלי זהות — וזה המצב שמפיל את כל
+       שאר חבילות הבדיקה.
+
+     ⚠ **וחשבון שטרם נרשם כן מקבל 200**, וזה תקין ומתועד (4ע):
+       אין לו סיסמה לעקוף. לכן הציפייה נגזרת מהמצב ולא קבועה.
+     ============================================================ */
+  const wasFresh = !(before[T.user] || "").trim() && !(before[T.pass] || "").trim();
+  ok(wasFresh ? "וחשבון שטרם נרשם עדיין נכנס בת\"ז" : "וחשבון רשום מקבל 409 על ת\"ז (4ע)",
+    wasFresh ? r.status === 200 : r.status === 409, String(r.status));
 }
 
 /* ============================================================

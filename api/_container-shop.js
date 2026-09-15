@@ -17,7 +17,7 @@ import {
   CONTAINER_BOARDS, CONTAINER_COLS, SHOP_STATUS, AREA, AREAS, mayArea,
 } from "../shared/container-boards.js";
 import {
-  loadShopping, invalidateContainer, setColumns, createItem, deleteItem,
+  loadShopping, invalidateContainer, setColumns, createItem, deleteItem, renameItem,
 } from "./_container-data.js";
 
 const S = CONTAINER_COLS.shopping;
@@ -69,19 +69,50 @@ async function handler(req, res, session) {
 
     if (req.method === "PUT") {
       const itemId = String(body?.itemId || "").trim();
-      const status = String(body?.status || "");
       if (!itemId) return res.status(400).json({ error: "לא צוינה שורה" });
-      if (![SHOP_STATUS.open, SHOP_STATUS.bought].includes(status)) {
-        return res.status(400).json({ error: "סטטוס לא מוכר" });
-      }
       const rows = await loadShopping();
       const row = rows.find((x) => x.id === itemId);
       if (!row) return res.status(404).json({ error: "השורה אינה נמצאת" });
       /* ⚠ התחום מהשורה עצמה ולא מהבקשה */
       if (!mayArea(session, row.area)) return deny(res, row.area);
-      await setColumns(CONTAINER_BOARDS.shopping, itemId, { [S.status]: { label: status } });
+
+      /* ============================================================
+         ⚠ **עריכת שם וכמות** (15.9.2026) — עד היום המסלול הזה
+           קיבל סטטוס בלבד, ומי שהקליד "3 כיסאות" במקום "30"
+           היה צריך למחוק ולהוסיף מחדש.
+
+         ⚠ **שדה שלא נשלח אינו משתנה**, ושליחת סטטוס לבדו
+           ממשיכה לעבוד בדיוק כמו קודם — זה המסלול שסימון
+           "נקנה" משתמש בו.
+         ============================================================ */
+      const cols = {};
+      const changed = [];
+      if (body?.status !== undefined) {
+        const status = String(body.status || "");
+        if (![SHOP_STATUS.open, SHOP_STATUS.bought].includes(status)) {
+          return res.status(400).json({ error: "סטטוס לא מוכר" });
+        }
+        cols[S.status] = { label: status };
+        changed.push("סטטוס");
+      }
+      if (body?.qty !== undefined) {
+        cols[S.qty] = String(body.qty || "").trim().slice(0, 60);
+        changed.push("כמות");
+      }
+      const name = body?.name !== undefined ? String(body.name || "").trim().slice(0, 200) : null;
+      if (name !== null && !name) {
+        return res.status(400).json({ error: "שם הפריט אינו יכול להיות ריק" });
+      }
+      if (!Object.keys(cols).length && name === null) {
+        return res.status(400).json({ error: "לא נשלח מה לשנות" });
+      }
+      if (Object.keys(cols).length) await setColumns(CONTAINER_BOARDS.shopping, itemId, cols);
+      if (name && name !== row.name) {
+        await renameItem(CONTAINER_BOARDS.shopping, itemId, name);
+        changed.push("שם");
+      }
       invalidateContainer();
-      return res.status(200).json({ ok: true, id: itemId, status });
+      return res.status(200).json({ ok: true, id: itemId, changed });
     }
 
     if (req.method === "DELETE") {
