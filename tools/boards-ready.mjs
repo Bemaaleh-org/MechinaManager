@@ -83,6 +83,10 @@ export const STEPS = [
     ids: "shared/faults-board.js", ready: "faultKindReady" },
   { script: "tools/seed-pros.mjs", title: "מאגר אנשי המקצוע",
     ids: "shared/pros-board.js", ready: "prosReady" },
+  /* ⚠ שלב שני על shared/budget-boards.js (הראשון הוא ספירת
+     הסועדים בחד״א) — הזיהוי הוא הצמד ids+ready ולא הקובץ (5לב). */
+  { script: "tools/seed-receipt.mjs", title: "קבלה ומי העלה אותה בלוח הקניות",
+    ids: "shared/budget-boards.js", ready: "receiptReady" },
 ];
 
 /**

@@ -939,6 +939,24 @@ html,body{margin:0;padding:0;background:#012E58}
   color:var(--muted);opacity:.9}
 
 /* ---- תקציב המטבח ---- */
+/* ---- הקבלה על הקנייה, ומי העלה אותה ----
+   ⚠ שם המעלה בקטן ולא במשקל של שם הקנייה — הוא
+     תשובה ל"את מי לשאול", לא כותרת.
+   ⚠ וקידומת מלאה לכפתורים: .kx button מאפסת רקע
+     ומסגרת בסגוליות גבוהה יותר (4מח). */
+.rc-line{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:6px}
+.rc-file{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:800;
+  color:var(--accent);text-decoration:none;max-width:190px;overflow:hidden;
+  white-space:nowrap;text-overflow:ellipsis}
+.rc-file.rc-off{color:var(--muted)}
+.rc-by{font-size:10.5px;font-weight:700;color:var(--muted);opacity:.9}
+.kx .rc-add,.kx .rc-x{display:inline-flex;align-items:center;gap:4px;
+  background:var(--t-s,rgba(0,0,0,.04));border:1px solid var(--line2);border-radius:8px;
+  padding:3px 9px;font-size:11px;font-weight:800;color:var(--muted);cursor:pointer;
+  transition:background .12s var(--ease)}
+.kx .rc-add{color:var(--accent)}
+.kx .rc-x{color:var(--clay)}
+.kx .rc-add:disabled,.kx .rc-x:disabled{opacity:.55;cursor:default}
 .bg-nav{display:flex;align-items:center;gap:8px;margin-bottom:14px}
 .bg-nav select{flex:1;min-height:46px;background:var(--surface);border:1px solid var(--line2);
   border-radius:11px;padding:0 13px;font-size:15px;font-weight:700;outline:none;text-align:center}

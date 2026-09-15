@@ -249,6 +249,20 @@ export const api = {
   /** קנייה — שבועית או רבעונית. ⚠ יורדת מתקציב הקניות. */
   addPurchase: (body) => post("/api/kitchen?action=budget", body),
   deletePurchase: (orderId) => del("/api/kitchen?action=budget", { orderId }),
+  /* ============================================================
+     ⚠ **הקבלה — הקובץ בלבד, והשם נכתב בשרת.**
+
+     שם המעלה **אינו** נשלח מכאן, כי הוא מגיע מהסשן. שדה שנשלח
+     מהמסך הוא שדה שאפשר לכתוב בו כל דבר, וכל התכלית היא לדעת
+     את מי לשאול על הקנייה הזו.
+
+     ⚠ ו-`fileData` ריק פירושו **הסרה** — הקובץ והשם יחד. */
+  setReceipt: ({ orderId, fileData, fileName, fileMime }) =>
+    put("/api/kitchen?action=budget", {
+      receiptFor: orderId, fileData: fileData || null, fileName, fileMime,
+    }),
+  removeReceipt: (orderId) =>
+    put("/api/kitchen?action=budget", { receiptFor: orderId, fileData: null }),
 
   /* ---------- מרצים של סדרה, וסיכום סדרה ----------
      ⚠ כל חברי הסדרה כותבים, ולא רק היו״ר. */

@@ -22,7 +22,79 @@ const BI = {
   plus: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" {...p}><path d="M12 5v14M5 12h14"/></svg>,
   warn: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3 2 20h20L12 3z"/><path d="M12 9v5M12 17.5h.01"/></svg>,
   dl: (p) => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3v12M7 11l5 5 5-5M4 20h16"/></svg>,
+  clip: (p) => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M21 12.5 12.5 21a5 5 0 0 1-7-7l8-8a3.5 3.5 0 0 1 5 5l-8 8a2 2 0 0 1-3-3l7.5-7.5"/></svg>,
 };
+
+/* ============================================================
+   הקבלה על הקנייה, ומי העלה אותה
+   ------------------------------------------------------------
+   ⚠ **שם המעלה מוצג בקטן לצד הקובץ** — זו הבקשה, ומה שהוא עונה
+     עליו הוא "את מי לשאול על הקנייה הזו". השם נכתב בשרת מהסשן
+     ואינו נשלח מהמסך (5כו).
+
+   ⚠ **בלי קבלה מוצג כפתור ולא מסגרת ריקה.** שורה שכתוב בה
+     "אין קבלה" בכל קנייה היא רעש שמפסיקים לראות (4ש).
+
+   ⚠ **וכשל נאמר ולא נבלע.** קובץ שנבחר ולא עלה, בלי מילה,
+     נראה בדיוק כמו קובץ שעלה (עיקרון 6).
+   ============================================================ */
+function Receipt({ order, canUpload, say, reload }) {
+  const [busy, setBusy] = useState(false);
+  const ref = React.useRef(null);
+
+  const pick = (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    /* ⚠ אותו גבול של השרת, ונאמר לפני ההמתנה ולא אחריה. */
+    if (f.size > 3.5 * 1024 * 1024) { say("הקובץ גדול מ-3.5MB — צלמו שוב או הקטינו"); return; }
+    setBusy(true);
+    const fr = new FileReader();
+    fr.onerror = () => { setBusy(false); say("קריאת הקובץ נכשלה"); };
+    fr.onload = () => {
+      const data = String(fr.result || "").split(",")[1] || "";
+      api.setReceipt({ orderId: order.id, fileData: data, fileName: f.name, fileMime: f.type })
+        .then((r) => { say(`הקבלה הועלתה · ${r.by}`); reload(); })
+        .catch((e) => say(e.message))
+        .finally(() => setBusy(false));
+    };
+    fr.readAsDataURL(f);
+  };
+
+  if (!order.receipt && !canUpload) return null;
+
+  return (
+    <div className="rc-line">
+      {order.receipt ? (
+        <>
+          {order.receipt.url
+            ? <a className="rc-file" href={order.receipt.url} target="_blank" rel="noreferrer">
+                <BI.clip />{order.receipt.name}
+              </a>
+            : <span className="rc-file rc-off"><BI.clip />{order.receipt.name}</span>}
+          {/* ⚠ **מי העלה — בקטן, לצד הקובץ.** */}
+          {order.by && <span className="rc-by">העלה/תה {order.by}</span>}
+          {canUpload && (
+            <button className="rc-x" disabled={busy}
+              onClick={() => { setBusy(true);
+                api.removeReceipt(order.id)
+                  .then(() => { say("הקבלה הוסרה"); reload(); })
+                  .catch((e) => say(e.message))
+                  .finally(() => setBusy(false)); }}>הסרה</button>
+          )}
+        </>
+      ) : (
+        <button className="rc-add" disabled={busy} onClick={() => ref.current && ref.current.click()}>
+          <BI.clip />{busy ? "מעלה…" : "העלאת קבלה"}
+        </button>
+      )}
+      {canUpload && (
+        <input ref={ref} type="file" accept="image/*,application/pdf"
+          style={{ display: "none" }} onChange={pick} />
+      )}
+    </div>
+  );
+}
 
 const DOW = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
 const dowOf = (iso) => DOW[new Date(iso + "T12:00:00Z").getUTCDay()];
@@ -1399,6 +1471,7 @@ export function BudgetPage({ say, isHead = false }) {
                     )}
                     {o.date && <span className="num">· {dm(o.date)}</span>}
                   </div>
+                  <Receipt order={o} canUpload={data.canUploadReceipt} say={say} reload={reload} />
                 </div>
                 <b className="num" style={{ flex: "0 0 auto", color: "var(--clay)" }}>
                   −{shekel(o.share)}

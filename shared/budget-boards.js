@@ -119,6 +119,12 @@ export const DEFAULT_DINING_RATE = 45;
 /** האם עמודת "אכלו בחד״א" כבר הוקמה. ⚠ בלעדיה הכול עובד כמקודם. */
 export const diningHeadsReady = () => Boolean(BUDGET_COLS.days.diningHeads);
 
+/** האם עמודות הקבלה הוקמו (npm run seed:receipt).
+    ⚠ **שתיהן או אף אחת.** קבלה בלי שם המעלה היא בדיוק
+      מה שהתבקש כאן ואינו קיים, ושם בלי קובץ אינו אומר דבר. */
+export const receiptReady = () =>
+  Boolean(BUDGET_COLS.orders.receipt && BUDGET_COLS.orders.by);
+
 /* ------------------------------------------------------------
    חישוב יום
    ------------------------------------------------------------ */

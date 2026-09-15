@@ -14,8 +14,9 @@
    ============================================================ */
 
 import { mayEdit } from "../shared/edit-rights.js";
-import { withAuth } from "./_session.js";
-import { gql, allItems } from "./_monday.js";
+import { withAuth, actorName } from "./_session.js";
+import { gql, allItems, uploadFile } from "./_monday.js";
+import { setColumns } from "./_items.js";
 import { cached, invalidate } from "./_cache.js";
 import { loadCalendar, israelToday } from "./_attendance-data.js";
 import { loadGantt } from "./_lessons-gantt.js";
@@ -23,13 +24,16 @@ import {
   BUDGET_BOARDS as B, BUDGET_COLS as C, budgetReady,
   DEFAULT_HEADCOUNT, SETTING_HEADCOUNT,
   SETTING_DINING_RATE, SETTING_DINING_BUDGET, SETTING_DINING_MOVED, DEFAULT_DINING_RATE,
-  diningHeadsReady, DAY_COMMUNITY,
+  diningHeadsReady, receiptReady, DAY_COMMUNITY,
   dayCost, perPersonOf, sortTypes, orderShareFor, monthsOf,
   headcountAt, ORDER_KIND, ORDER_KINDS,
 } from "../shared/budget-boards.js";
 import {
   eventsByDate, prevDay, dow, isFriday, isSaturday, HOME_RE, SERIES_RE,
 } from "../shared/gantt-days.js";
+
+/* ⚠ מעל ~4MB גוף הבקשה נחסם על ידי Vercel עוד קודם (_requests.js). */
+const MAX_RECEIPT = 3.5 * 1024 * 1024;
 
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
 const num = (i, c) => { const t = val(i, c); return t === "" ? null : Number(t); };
@@ -71,9 +75,36 @@ async function loadOverrides({ force = false } = {}) {
   }, { force });
 }
 
+/* ============================================================
+   ⚠ **הקבלה נקראת מ-`value` של עמודת הקובץ ולא מ-`assets`.**
+
+   `assets` מחזיר את **כל** הקבצים של השורה מכל העמודות, ולכן
+   השיוך עובר דרך `value` של העמודה עצמה — JSON ובו `assetId`
+   לכל קובץ. אותו דפוס בדיוק כמו `photoOf` בתקלות (5ג).
+
+   ⚠ ו-`value` פסול או ריק אינו מפיל את המסך: קנייה בלי קבלה
+     היא המצב הרגיל ולא שגיאה.
+   ============================================================ */
+function fileOf(item, colId) {
+  if (!colId) return null;
+  const col = (item.column_values || []).find((x) => x.id === colId);
+  if (!col || !col.value) return null;
+  let want = [];
+  try {
+    want = (JSON.parse(col.value).files || [])
+      .map((f) => ({ id: String(f.assetId ?? f.asset_id ?? ""), name: String(f.name || "קבלה") }))
+      .filter((f) => f.id);
+  } catch { return null; }
+  if (!want.length) return null;
+  const hit = (item.assets || []).find((a) => String(a.id) === want[0].id);
+  return { name: want[0].name, url: hit ? hit.public_url : null };
+}
+
 async function loadOrders({ force = false } = {}) {
   return cached("budget-orders", async () => {
-    const items = await allItems(B.orders);
+    /* ⚠ `assets` נשלף רק בשביל כתובת הקבלה — לעמודת קובץ יש
+       ב-text רק את שם הקובץ, וכתובת להצגה מגיעה מכאן בלבד. */
+    const items = await allItems(B.orders, "assets { id public_url }");
     return items
       .map((i) => ({
         id: String(i.id),
@@ -86,6 +117,12 @@ async function loadOrders({ force = false } = {}) {
         date: val(i, C.orders.date) || null,
         note: val(i, C.orders.note) || null,
         kind: val(i, C.orders.kind) || ORDER_KIND.quarterly,
+        /* ⚠ **הקבלה ומי העלה אותה נקראות תמיד**, גם לפני
+           `npm run seed:receipt` — `fileOf` מחזיר null על
+           עמודה שאין לה מזהה, ו-`val` מחזיר "". כך שורה
+           שנכתבה ביד ב-monday מופיעה מיד. */
+        receipt: fileOf(i, C.orders.receipt),
+        by: val(i, C.orders.by) || null,
       }))
       .filter((x) => x.name && (x.startMonth || x.date));
   }, { force });
@@ -487,6 +524,12 @@ async function handler(req, res, session) {
            ספירה — ראש המכינה ואחראי המטבח; תקציב ומחיר — ראש המכינה. */
         canEditDining: mayEdit(session, "kitchen"),
         canSetDining: Boolean(session.isHead),
+        /* ⚠ **העלאת קבלה — אותה הרשאה של הקנייה עצמה**, ולכן
+           `edit:"kitchen"` שכבר עוטף את נקודת הקצה. מה שנשלח
+           כאן הוא רק האם **העמודות** קיימות: מסך שיציע העלאה
+           לפני `seed:receipt` יקבל 503 אחרי שהמשתמש כבר בחר
+           קובץ, וזה בדיוק מה ש-4יד נועד למנוע. */
+        canUploadReceipt: receiptReady(),
         /* ⚠ **התעריף ליום עשייה קהילתית, ומי רשאי לשנותו.**
            הוא יושב על סוג היום בלוח (עיקרון 1) והוא כבר ניתן
            לעריכה דרך `PUT { typeId, dining }` — מה שחסר היה
@@ -569,6 +612,77 @@ async function handler(req, res, session) {
     }
 
     const body = req.body ?? (await readJson(req));
+
+    /* ============================================================
+       ⚠⚠ **קבלה על קנייה, ומי העלה אותה.**
+
+       הבקשה: *"כשמעלים קבלות אני רוצה שיראו שם ליד בקטן איזה
+       משתמש העלה את הקבלה."*
+
+       ⚠ **השם נכתב בשרת מהסשן ואינו מתקבל מהמסך.** שם שמגיע
+         בגוף הבקשה הוא שם שאפשר לכתוב בו כל דבר, וכל התכלית
+         כאן היא לדעת את מי לשאול על הקנייה. אותו כלל של
+         "מי לקח" בפניות הגיוס (5כו).
+
+       ⚠ **וזה אינו סותר את עיקרון 5.** ההבטחה שם היא שאין
+         מעקב אחרי **עבודת התורנים**; קבלה היא מסמך כספי,
+         ו"מי הגיש אותה" הוא חלק ממנה. אותו נימוק של מי סימן
+         בצ׳ק ליסט ההובלה (5יא).
+
+       ⚠ **העמודות אינן חובה.** בלי `npm run seed:receipt`
+         הקריאה מחזירה 503 מפורש עם שם הסקריפט, ולא נכשלת
+         בשקט ולא מציגה "נשמר" על כלום (עיקרון 6).
+
+       ⚠ **מחיקה היא `receiptFor` בלי קובץ** — היא מנקה גם את
+         השם. קבלה שהוסרה ונשאר לצידה "העלה: דני" אומרת על
+         דני משהו שאינו נכון.
+       ============================================================ */
+    if (req.method === "PUT" && body?.receiptFor !== undefined) {
+      if (!receiptReady()) {
+        return res.status(503).json({
+          error: "עמודות הקבלה טרם הוקמו בלוח הקניות",
+          setupRequired: "npm run seed:receipt",
+        });
+      }
+      const orderId = String(body.receiptFor || "").trim();
+      if (!orderId) return res.status(400).json({ error: "לא צוינה קנייה" });
+      const orders = await loadOrders();
+      if (!orders.some((o) => o.id === orderId)) {
+        return res.status(404).json({ error: "הקנייה אינה נמצאת" });
+      }
+
+      /* ⚠ **הסרה לפני העלאה**, ושתי העמודות יחד. */
+      if (!body.fileData) {
+        await setColumns(B.orders, orderId, {
+          [C.orders.receipt]: { clear_all: true },
+          [C.orders.by]: "",
+        });
+        invalidateBudget();
+        return res.status(200).json({ ok: true, orderId, receipt: null, by: null });
+      }
+
+      /* ⚠ **גבול גודל, ובשרת.** קובץ נשלח כ-base64 ו-base64
+         מנפח בשליש; מעל ~4MB גוף הבקשה נחסם על ידי Vercel
+         עוד לפני שהוא מגיע לכאן, ובשגיאה שאינה מסבירה כלום.
+         ⚠ אותו מספר של הקובץ המצורף לבקשת יציאה (_requests.js)
+           ולתוכן השיעור — שני גבולות שונים לאותה מגבלת
+           פלטפורמה הם שני מסרים שונים על אותה תמונה. */
+      const buf = Buffer.from(String(body.fileData), "base64");
+      if (!buf.length) return res.status(400).json({ error: "הקובץ ריק" });
+      if (buf.length > MAX_RECEIPT) {
+        return res.status(400).json({ error: "הקובץ גדול מ-3.5MB — צלמו שוב או הקטינו" });
+      }
+      const who = actorName(session).slice(0, 120);
+      await uploadFile(orderId, C.orders.receipt,
+        String(body.fileName || "קבלה.jpg").slice(0, 120), buf,
+        String(body.fileMime || "image/jpeg"));
+      /* ⚠ **השם נכתב אחרי ההעלאה ולא לפניה.** כישלון בהעלאה
+         היה משאיר "העלה: דני" בלי קבלה — כלומר טענה שגויה על
+         אדם, שאיש לא יידע לתקן. */
+      await setColumns(B.orders, orderId, { [C.orders.by]: who });
+      invalidateBudget();
+      return res.status(200).json({ ok: true, orderId, by: who });
+    }
 
     if (req.method === "PUT") {
       /* ============================================================

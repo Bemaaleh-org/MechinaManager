@@ -166,6 +166,74 @@ try {
     r.s === 403 && /ראש המכינה/.test(r.b.error || ""),
     `${r.s} ${r.b.error || ""}`);
 
+  /* ============================================================
+     ⚠⚠ **הקבלה, ומי העלה אותה (15.9.2026).**
+
+     ⚠ **על קניית הבדיקה שנוצרה למעלה בלבד** — היא נמחקת
+       ב-finally לפי המזהה שחזר מהיצירה, ולכן גם קובץ
+       שיעלה אליה נעלם איתה. העלאה לשורה אמיתית הייתה
+       משאירה קבלה מזויפת על קנייה של המכינה.
+
+     ⚠⚠ **ושני הכיוונים באותה הרצה:** השם נכתב מהסשן,
+       ו**שם ששולחים בגוף הבקשה מתעלמים ממנו**. בלי
+       הטענה השנייה הבדיקה הייתה ירוקה גם אילו אפשר
+       היה לחתום קבלה בשם של מישהו אחר.
+     ============================================================ */
+  console.log("\n=== קבלה על קנייה ===");
+  const { receiptReady } = await import("../../shared/budget-boards.js");
+  if (!receiptReady()) {
+    ok("עמודות הקבלה טרם הוקמו — הריצו npm run seed:receipt", false, "setupRequired");
+  } else if (!madeId) {
+    ok("אין קניית בדיקה — אי אפשר לבדוק קבלה", false, "היצירה נכשלה למעלה");
+  } else {
+    /* GIF שקוף בן פיקסל אחד — הקובץ הקטן ביותר שהוא באמת קובץ. */
+    const GIF = "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+    r = await call(M, "PUT", "/api/kitchen?action=budget",
+      { receiptFor: madeId, fileData: GIF, fileName: "קבלה-בדיקה.gif", fileMime: "image/gif" });
+    ok("הקבלה עולה", r.s === 200, `${r.s} ${r.b.error || ""}`);
+    ok("והשם חוזר מהשרת", Boolean(r.b.by), r.b.by || "—");
+
+    /* ⚠ **ההמתנה היא על תנאי ולא על זמן** — מטמון השרת
+       יושב בתהליך אחר, ו-`invalidate` שבבדיקה אינו נוגע בו. */
+    let row = null;
+    for (let i = 0; i < 20 && !row; i++) {
+      const g = await call(M, "GET", "/api/kitchen?action=budget");
+      row = (g.b.orders || []).find((x) => x.id === madeId && x.receipt);
+      if (!row) await new Promise((s) => setTimeout(s, 500));
+    }
+    ok("והיא חוזרת בשליפה", Boolean(row), row ? row.receipt.name : "לא חזרה");
+    ok("עם שם מי שהעלה", Boolean(row && row.by), row ? row.by || "—" : "—");
+    /* ⚠ עמודת קובץ מחזירה כתובת רק דרך `assets` — בלי זה
+       המסך מציג שם בלי קישור, וזה נראה כמו קבלה שאבדה. */
+    ok("ועם כתובת להצגה", Boolean(row && row.receipt && row.receipt.url),
+      row && row.receipt ? String(row.receipt.url).slice(0, 40) : "—");
+
+    /* ⚠⚠ הכיוון השני: שם שנשלח מהמסך אינו נכתב. */
+    r = await call(M, "PUT", "/api/kitchen?action=budget",
+      { receiptFor: madeId, fileData: GIF, fileName: "שוב.gif", fileMime: "image/gif",
+        by: "מישהו אחר לגמרי" });
+    ok("ושם שנשלח מהמסך אינו נכתב",
+      r.s === 200 && r.b.by !== "מישהו אחר לגמרי", r.b.by || "—");
+
+    /* ⚠ והסרה מנקה **גם את השם** — "העלה: דני" בלי קבלה
+       הוא טענה שגויה על אדם. */
+    r = await call(M, "PUT", "/api/kitchen?action=budget", { receiptFor: madeId, fileData: null });
+    ok("הסרה מחזירה 200", r.s === 200, `${r.s} ${r.b.error || ""}`);
+    let gone = false;
+    for (let i = 0; i < 20 && !gone; i++) {
+      const g = await call(M, "GET", "/api/kitchen?action=budget");
+      const x = (g.b.orders || []).find((y) => y.id === madeId);
+      gone = Boolean(x) && !x.receipt && !x.by;
+      if (!gone) await new Promise((s) => setTimeout(s, 500));
+    }
+    ok("והקבלה והשם ירדו יחד", gone);
+
+    /* ⚠ 404 על קנייה שאינה קיימת, ולא 500 גנרי. */
+    r = await call(M, "PUT", "/api/kitchen?action=budget",
+      { receiptFor: "999999999", fileData: GIF });
+    ok("קנייה לא קיימת מקבלת 404", r.s === 404, `${r.s} ${r.b.error || ""}`);
+  }
+
   console.log("\n=== ניקוי ===");
   await cleanup();
   const left = (await allItems(B.orders)).filter((x) => String(x.name || "").includes("בדיקה"));
