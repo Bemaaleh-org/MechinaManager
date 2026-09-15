@@ -3358,8 +3358,15 @@ html,body{margin:0;padding:0;background:#012E58}
   padding:14px 15px}
 .ch-sec-n{flex:1;min-width:0}
 .ch-sec-n b{display:block;font-size:15.5px;font-weight:800;line-height:1.4}
+/* ⚠⚠ **שמות התורנים נשברים לשורות ואינם נחתכים.**
+   היה כאן white-space:nowrap עם שלוש נקודות, ובגזרה של
+   חמישה-שישה תורנים בטלפון זה חתך את מחצית השמות
+   — כלומר **חניך ששובץ פשוט לא הופיע**, ומי שמחפש
+   את עצמו הסיק שאינו משובץ (דווח ראש המכינה, 15.9.2026).
+   ⚠ וזו אותה משפחה של החיתוך השקט של 4ק — טקסט
+     שנעלם בלי שום רמז שיש עוד. */
 .ch-sec-n span{display:block;font-size:12.5px;color:var(--muted);font-weight:600;
-  margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  margin-top:3px;line-height:1.5}
 .ch-sec-c{flex:0 0 auto;font-size:20px;font-weight:800;color:var(--accent);
   font-variant-numeric:tabular-nums}
 .ch-sec-b{padding:0 15px 15px}
@@ -3402,6 +3409,11 @@ html,body{margin:0;padding:0;background:#012E58}
 .ch-day-d span{display:block;font-size:11px;color:var(--faint);font-weight:700;margin-top:2px;
   font-variant-numeric:tabular-nums}
 .ch-day-n{flex:1;min-width:0;font-size:13.5px;font-weight:700;line-height:1.5}
+/* ⚠ מונה התורנים ליום, כמו בגזרות הערב. הוא היה קיים
+   שם וחסר כאן, וזה בדיוק המספר שאומר אם היום מלא. */
+.ch-day-c{flex:0 0 auto;font-size:17px;font-weight:800;color:var(--accent);
+  font-variant-numeric:tabular-nums}
+.ch-day-c.short{color:var(--amber)}
 .ch-day-empty{color:var(--faint);font-weight:600}
 .ch-day-from{display:flex;flex-wrap:wrap;gap:4px 8px;margin-top:5px;
   font-size:11px;font-weight:700;color:var(--faint)}

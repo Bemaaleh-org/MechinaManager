@@ -455,6 +455,16 @@ function Daily({ d, say, reload, goWeek }) {
                   </div>
                 )}
               </div>
+              {/* ⚠ **מונה ליום, כמו בגזרות הערב.** הוא היה שם
+                  וחסר כאן, והוא המספר שאומר אם היום מלא
+                  בלי לספור שמות (דווח ראש המכינה, 15.9.2026).
+                  ⚠ וענבר כשחסר — זה מצב שצריך לראות בסריקה,
+                    ולא אדום: יום שטרם שובץ אינו תקלה (4צ). */}
+              {day.on.length > 0 && (
+                <b className={"ch-day-c" + (day.on.length < (daily.cap || 3) ? " short" : "")}>
+                  {day.on.length}
+                </b>
+              )}
               {d.me.assignDaily && <CI.chev style={{ transform: isOpen ? "rotate(-90deg)" : "none", color: "var(--line2)" }} />}
             </button>
 

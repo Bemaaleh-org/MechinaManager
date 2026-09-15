@@ -192,8 +192,14 @@ ok("איש צוות מעדכן זרוע", r.s === 200, `${r.s} ${r.b.error || ""
 const { MECHINA_BOARDS: MBb, MECHINA_COLS: MCb } = await import("../../shared/mechina-boards.js");
 const rost = (await gql(`{ boards(ids:[${MBb.roster}]){ items_page(limit:100){items{id name column_values(ids:["${MCb.roster.tz}","${MCb.roster.active}"]){id text}}} } }`))
   .boards[0].items_page.items.filter((x) => cv(x, MCb.roster.tz) && cv(x, MCb.roster.active) === "v");
+/* ⚠⚠ **שם וסיסמה ולא ת"ז.** `?action=login` בת"ז פתוח רק
+   לחניך שטרם נרשם (4ע), וביום שהחניך שנבחר כאן
+   נרשם הוא מקבל 409 וכל הטענות נופלות ב-401.
+   חשבון הבדיקה אינו נספר בשום מונה (4לא) ויש לו
+   סיסמה — זו הדרך שכתובה ב-4ע לסגירת הפער. */
 const S = jar();
-await call(S, "POST", "/api/students?action=login", { tz: cv(rost[0], MCb.roster.tz) });
+await call(S, "POST", "/api/auth?action=signin",
+  { user: "bdika", password: process.env.DEMO_PASS || "mechina2026" });
 r = await call(S, "GET", "/api/students?action=alumni");
 ok("חניך אינו מגיע למסך הבוגרים כלל", r.s === 403, `${r.s} ${r.b.error || ""}`);
 r = await call(D, "PUT", "/api/students?action=alumni",

@@ -15,6 +15,7 @@ import { ROLES_COL, ROLE_CONTAINER } from "../../shared/lessons-boards.js";
 import { PLACEMENT_BOARDS, PLACEMENT_COLS, CATEGORY } from "../../shared/placements.js";
 import { allItems } from "../../api/_monday.js";
 import { DUTY_BOARDS } from "../../shared/duty-ids.js";
+import { DUTIES } from "../../shared/duties.js";
 import { boardColumn } from "../../api/_board-col.js";
 
 const B = "http://localhost:5173";
@@ -133,10 +134,24 @@ try {
   const chair = (hub.duties || []).find((d) => d.scope === cmt.id);
   ok("אחראי מכולה מהתפקידים", Boolean(cont), cont?.label);
   ok("ויו״ר מהוועדה", Boolean(chair), chair?.label);
-  /* ⚠ האחריות נושאת את המסכים שהיא פותחת — אותה רשימה
-     שמזינה את המגירה, כדי ששתיהן לא יוכלו להיפרד. */
-  ok("ולמכולה יש קיצורים למסכים", (cont?.tabs || []).length === 2,
-    cont?.tabs?.map((t) => t.label).join(" · "));
+  /* ============================================================
+     ⚠ האחריות נושאת את המסכים שהיא פותחת — אותה
+     רשימה שמזינה את המגירה, כדי ששתיהן לא יוכלו
+     להיפרד (4ק).
+
+     ⚠⚠ **מול `DUTIES` ולא מול מספר מקובע.** הטענה דרשה
+       בדיוק שניים, ונכשלה ביום שמסך קניות המכינה
+       נוסף לאחראי המכולה (5מ) — על **התנהגות נכונה**.
+       מספר מקובע אינו התכונה שנבדקת; מה שנבדק הוא
+       שהמרכז מקבל את **אותם** מסכים ש-`DUTIES` מצהיר,
+       וזו טענה שעובדת גם כשנוסף מסך שלישי — ונופלת
+       אם המרכז והמגירה יתפצלו, שזה כל העניין.
+     ============================================================ */
+  const wantTabs = (DUTIES[ROLE_CONTAINER]?.tabs || []).map((t) => t.tab).sort();
+  const gotTabs = (cont?.tabs || []).map((t) => t.tab).sort();
+  ok("ולמכולה יש בדיוק המסכים ש-DUTIES מצהיר",
+    wantTabs.length > 0 && JSON.stringify(wantTabs) === JSON.stringify(gotTabs),
+    cont?.tabs?.map((t) => t.label).join(" · ") + `  (${gotTabs.length}/${wantTabs.length})`);
   ok("ולכל אחריות מפתח ייחודי",
     new Set(hub.duties.map((d) => d.key)).size === hub.duties.length,
     hub.duties.map((d) => d.key).join(" | "));

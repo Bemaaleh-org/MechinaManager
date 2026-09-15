@@ -46,7 +46,13 @@ console.log(`נבדק: ${st.name} · מדריך: ${ownGuide ? ownGuide.short : "
 
 console.log("=== תפריט זמין לכולם ===");
 const S = jar();
-let r = await call(S, "POST", "/api/students?action=login", { tz: cv(st, MC.roster.tz) });
+/* ⚠⚠ **שם וסיסמה ולא ת"ז.** `?action=login` בת"ז פתוח רק
+   לחניך שטרם נרשם (4ע), וביום שהחניך שנבחר כאן
+   נרשם הוא מקבל 409 וכל הטענות נופלות ב-401.
+   חשבון הבדיקה אינו נספר בשום מונה (4לא) ויש לו
+   סיסמה — זו הדרך שכתובה ב-4ע לסגירת הפער. */
+let r = await call(S, "POST", "/api/auth?action=signin",
+  { user: "bdika", password: process.env.DEMO_PASS || "mechina2026" });
 ok("חניך נכנס", r.s === 200, r.b.error);
 r = await call(S, "GET", "/api/kitchen?action=menu");
 ok("ורואה את התפריט", r.s === 200, r.s === 200 ? `${r.b.dishes.length} מנות` : r.b.error);
