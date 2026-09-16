@@ -707,7 +707,11 @@ function NewMeeting({ sheet, meeting, onDone, onCancel, say }) {
                 ? "הזזה לתאריך הזה תשאיר שני מפגשים באותו יום."
                 : "שני שיעורים באותו יום הם מצב תקין. להוסיף בכל זאת?"}
             </div>
-            <button type="button" className="btn btn-sm" style={{ marginTop: 8 }}
+            {/* ⚠ **ווריאנט צבע ולא `btn` לבדו** — `.kx button` מאפסת
+                רקע ומסגרת בסגוליות (0,1,1) שגוברת על `.btn` (0,1,0),
+                והכפתור הוצג כטקסט כהה בלי מלבן. נתפס בצילום
+                מסך ולא בבנייה — CSS שגוי אינו שגיאה (4מח, 5יד). */}
+            <button type="button" className="btn btn-primary btn-sm" style={{ marginTop: 8 }}
               disabled={busy} onClick={() => send(true)}>
               {busy ? "שומר…" : meeting ? "כן, להזיז לשם" : "כן, להוסיף מפגש נוסף"}
             </button>
