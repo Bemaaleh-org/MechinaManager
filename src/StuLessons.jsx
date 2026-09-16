@@ -142,9 +142,30 @@ export function StuLessonsPage({ say }) {
 /* ---------- 66 המשבצות ---------- */
 function WhoTable({ d }) {
   const [only, setOnly] = useState(false); // רק מי שחסר לו
+  /* ============================================================
+     ⚠ **סדר כרונולוגי — בקשת ראש המכינה** (16.9.2026):
+     "אפשר גם גיליון שמראה לפי הסדר הכרונולוגי".
+     לפי שם עונה על "מתי פלוני"; לפי תאריך עונה על "מי
+     הבא", וזו שאלה אחרת לגמרי.
+
+     ⚠ **מי שטרם שובץ יורד לסוף ואינו נעלם** — הוא בדיוק מי
+       שהרשימה קיימת בשבילו (עיקרון 6). והשבירה לפי שם,
+       כדי ששני חניכים באותו תאריך ישבו בסדר יציב.
+     ============================================================ */
+  const [byDate, setByDate] = useState(false);
 
   const missing = (s) => STU_KINDS.some((k) => !s.kinds[k] || !s.kinds[k].planned);
-  const list = only ? d.students.filter(missing) : d.students;
+  const base = only ? d.students.filter(missing) : d.students;
+  /* ⚠ המועד הקרוב ביותר מבין שני הסוגים. ריק = אין תאריך. */
+  const firstDate = (s) => STU_KINDS
+    .map((k) => (s.kinds[k] || {}).date).filter(Boolean).sort()[0] || "";
+  const list = !byDate ? base : base.slice().sort((a, b) => {
+    const x = firstDate(a), y = firstDate(b);
+    if (!x && !y) return String(a.name).localeCompare(String(b.name), "he");
+    if (!x) return 1;
+    if (!y) return -1;
+    return x.localeCompare(y) || String(a.name).localeCompare(String(b.name), "he");
+  });
 
   return (
     <>
@@ -181,6 +202,11 @@ function WhoTable({ d }) {
           })}
         </div>
       )}
+
+      <div className="seg">
+        <button className={!byDate ? "on" : ""} onClick={() => setByDate(false)}>לפי שם</button>
+        <button className={byDate ? "on" : ""} onClick={() => setByDate(true)}>לפי תאריך</button>
+      </div>
 
       <label className="stl-only">
         <input type="checkbox" checked={only} onChange={(e) => setOnly(e.target.checked)} />
