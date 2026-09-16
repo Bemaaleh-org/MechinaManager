@@ -143,7 +143,14 @@ if (!head) {
   process.exit(1);
 }
 
+/* ⚠⚠ **כל מזהה שחוזר נשמר, ולא רק מהיצירה הראשונה.**
+   הגרסה הראשונה שמרה את המזהה מה-POST של "חסום" בלבד. בהרצה
+   שנפלה באמצע (באג `subject`) ה-POST של "צפייה" **יצר שורה
+   שנייה** שאיש לא עקב אחריה — והיא נשארה חיה בלוח, כלומר
+   חדר הכביסה היה לצפייה בלבד לכל המכינה עד שנמצאה ביד.
+   זה בדיוק "ניקוי לפי מזהה, ולספור מה נוצר בכל לוח". */
 const made = [];
+const keep = (r) => { if (r && r.b && r.b.id) made.push(String(r.b.id)); return r; };
 const cleanRules = async () => {
   for (const id of made) {
     try { await gql(`mutation($i:ID!){ delete_item(item_id:$i){id} }`, { i: id }); } catch { /* כבר נמחק */ }
@@ -209,10 +216,9 @@ try {
   ok("חדר הכביסה פתוח לפני ההתאמה", openBefore === 200, `${openBefore}`);
 
   /* ---------- חסימה מלאה ---------- */
-  r = await call(H, "POST", "/api/students?action=access",
-    { subject: "kind:student", screen: "laundry", level: "none" });
+  r = keep(await call(H, "POST", "/api/students?action=access",
+    { subject: "kind:student", screen: "laundry", level: "none" }));
   ok("ראש המכינה חוסם את חדר הכביסה לחניכים", r.s === 200, `${r.s} ${r.b.error || ""}`);
-  if (r.b.id) made.push(String(r.b.id));
 
   await waitUntil(async () =>
     (await call(S, "GET", "/api/students?action=laundry")).s === 403, "חסימה");
@@ -236,8 +242,8 @@ try {
   ok("  ומסך אחר לא נפגע", r.s === 200, `${r.s}`);
 
   /* ---------- צפייה בלבד ---------- */
-  r = await call(H, "POST", "/api/students?action=access",
-    { subject: "kind:student", screen: "laundry", level: "view" });
+  r = keep(await call(H, "POST", "/api/students?action=access",
+    { subject: "kind:student", screen: "laundry", level: "view" }));
   ok("שינוי לצפייה בלבד", r.s === 200, `${r.s} ${r.b.error || ""}`);
   ok("  ומעדכן את השורה ואינו יוצר שנייה", r.b.updated === true, JSON.stringify(r.b));
 
@@ -256,10 +262,9 @@ try {
   r = await call(S, "GET", "/api/students?action=alumni");
   const alumniBefore = r.s;
   ok("מסך הבוגרים חסום לחניך ממילא", alumniBefore === 403, `${alumniBefore}`);
-  r = await call(H, "POST", "/api/students?action=access",
-    { subject: "kind:student", screen: "alumni", level: "edit" });
+  r = keep(await call(H, "POST", "/api/students?action=access",
+    { subject: "kind:student", screen: "alumni", level: "edit" }));
   ok('"מלא" על מסך חסום — נשמר ואינו יוצר שורה', r.s === 200, `${r.s} ${r.b.error || ""}`);
-  if (r.b.id) made.push(String(r.b.id));
   r = await call(S, "GET", "/api/students?action=alumni");
   ok("  והמסך נשאר חסום", r.s === 403, `${r.s}`);
 
@@ -301,6 +306,19 @@ try {
   await cleanRules();
   await reg.restore();
   console.log(`  נמחקו ${n} כללים, והרישום הוחזר`);
+
+  /* ⚠⚠ **והלוח נבדק אחרי הניקוי, ולא רק נספר מה נמחק.**
+     שורה שהבדיקה יצרה בלי לעקוב אחריה לא תופיע במונה — היא
+     תופיע רק כאן. בלי הטענה הזו שורה תקועה משאירה מסך חסום
+     לכל המכינה, וזה בדיוק מה שקרה פעם אחת. */
+  try {
+    const { allItems } = await import("../../api/_monday.js");
+    const left = await allItems(ACCESS_BOARDS.board);
+    ok("ולוח ההרשאות נשאר ריק", left.length === 0,
+      left.map((i) => i.name).join(" · ") || "ריק");
+  } catch (e) {
+    ok("ולוח ההרשאות נשאר ריק", false, e.message);
+  }
 }
 
 console.log(`\n${pass} עברו, ${fail} נכשלו`);
