@@ -174,7 +174,60 @@ export async function lessonsWorkbook() {
   d.merge(foot, 0, foot, 7).set(foot, 0,
     `הופק ממערכת ניהול מכינת ניר עוז · ${subjects.length} שיעורים פעילים`, S.note);
 
-  return { sheets: [d, ...out], stamp: foot };
+  /* ============================================================
+     לשונית תקני השיעורים
+     ------------------------------------------------------------
+     הבקשה: *"גיליון מסודר של כל הדברים כמה בוצע
+     מכל אחד מתוך התקן ובנוסף כמה מתוכננים."*
+
+     ⚠⚠ **התקן הוא מספר מועתק וכל השאר נוסחאות.**
+       התקן יושב בלוח (עיקרון 1) ואין מאין לחשב אותו
+       בגיליון; השאר — התקיים, קבועים, צפי וחסרים —
+       מצביע על לשוניות הנושא. מספר מועתק היה מתיישן
+       ברגע שמישהו עורך שורה ביד (4מג).
+
+     ⚠ **גיליון בלי תקן מופיע ואינו מסונן** — רשימה
+       שמסתירה אותו אומרת שהכול מתוקנן כשבדיוק
+       הוא מה שחסר (עיקרון 6).
+     ============================================================ */
+  const q = sheetBuilder("תקני שיעורים", 1);
+  [230, 90, 100, 110, 90, 100, 150].forEach((px, c) => q.width(c, px));
+  q.merge(0, 0, 0, 6).height(0, 46)
+    .set(0, 0, "תקני שיעורים — כמה התקיים מתוך הנדרש", S.title);
+
+  const QTH = ["שיעור", "תקן", "התקיים", "קבועים בלו״ז", "צפי", "חסרים", "מצב"];
+  q.row(2, QTH, (c) => (c >= 2 && c <= 4 ? S.thDone : S.th)).height(2, 28).freeze(3);
+
+  subjects.forEach((sub, i) => {
+    const r = 3 + i;
+    const odd = i % 2 === 1;
+    const rows = Math.max(sub.rows.length, 1);
+    const R = (col) => `${ref(sub.tab)}!${col}5:${col}${4 + rows}`;
+    /* ⚠ `Number.isFinite` ולא `!= null`: תוכן לא-מספרי בעמודה
+       נותן NaN, ו-NaN בתא נוסחה נראה כמו תקן של אפס (4נ). */
+    const quota = Number.isFinite(Number(sub.quota)) && sub.quota !== null
+      ? Number(sub.quota) : null;
+    q.set(r, 0, sub.subject, zebra(S.cell, odd));
+    q.set(r, 1, quota == null ? "—" : quota, zebra(S.cellBold, odd));
+    q.set(r, 2, `=COUNTIF(${R("F")},"כן")`, { ...S.good });
+    /* ⚠ "קבועים בלו״ז" = מתוכננים שטרם דווח עליהם. */
+    q.set(r, 3, `=MAX(0,COUNTIF(${R("C")},"כן")-COUNTA(${R("F")}))`, zebra(S.cell, odd));
+    const cell = (col) => `${colLetter(col)}${r + 1}`;
+    q.set(r, 4, `=${cell(2)}+${cell(3)}`, zebra(S.cellBold, odd));
+    q.set(r, 5, quota == null ? "—" : `=MAX(0,${quota}-${cell(4)})`, zebra(S.cell, odd));
+    q.set(r, 6, quota == null
+      ? "ללא תקן"
+      : `=IF(${cell(5)}>0,"חסרים "&${cell(5)}&" מפגשים","במסלול")`,
+      zebra(S.cell, odd));
+  });
+
+  const qFoot = 4 + subjects.length;
+  q.merge(qFoot, 0, qFoot, 6).set(qFoot, 0,
+    "התקן נקבע בעמודת ״תקן שיעורים״ שבלוח הגיליונות. "
+    + "שאר העמודות נוסחאות על לשוניות הנושא ומתעדכנות עם עריכה ידנית.",
+    S.note);
+
+  return { sheets: [d, q, ...out], stamp: foot };
 }
 
 /* ============================================================

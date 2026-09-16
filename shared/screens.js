@@ -60,7 +60,14 @@ export const STAFF_SCREENS = [
   { tab: "hosting", label: "אירוח קבוצות" },
   { tab: "laundry", label: "חדר כביסה" },
 
+  /* ⚠ ארבעת המסכים האלה נבנים במגירה מ-`LESSON_TABS`
+     שב-Lessons.jsx, ולא נכתבים שם אחד-אחד. check:nav קורא
+     גם משם. */
+  { tab: "l-board", label: "שיעורים קרובים" },
   { tab: "l-sheets", label: "גיליונות המרצים" },
+  { tab: "pay", label: "תשלום למרצים" },
+  { tab: "l-quota", label: "תקני שיעורים" },
+  { tab: "l-changes", label: "שינויים בלו״ז" },
   { tab: "l-evals", label: "חוות דעת על מרצים" },
   { tab: "archive", label: "השיעורים שהיו" },
   { tab: "lecturers", label: "מאגר מרצים" },

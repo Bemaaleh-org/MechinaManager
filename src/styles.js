@@ -939,6 +939,23 @@ html,body{margin:0;padding:0;background:#012E58}
   color:var(--muted);opacity:.9}
 
 /* ---- תקציב המטבח ---- */
+/* ---- תקני שיעורים ----
+   ⚠ קידומת q- — נבדקה ב-grep לפני שנכתבה. */
+.q-row{padding:11px 13px;border-bottom:1px solid var(--line)}
+.q-row:last-child{border-bottom:0}
+.q-row.q-none{opacity:.62}
+.q-name{font-size:14px;font-weight:800;margin-bottom:4px}
+.q-nums{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px}
+.q-nums b{font-size:15px;font-weight:800}
+.q-ok{color:#177A45}
+.q-short{color:var(--clay)}
+.q-dim{color:var(--faint);font-weight:700}
+.q-warn{margin:10px 0;padding:10px 13px;border-radius:var(--r-sm);
+  background:var(--t8-s,rgba(158,54,38,.07));border:1px solid var(--line2);
+  font-size:12.5px;font-weight:700;line-height:1.5}
+.q-note{margin-top:12px;font-size:11.5px;font-weight:600;
+  color:var(--faint);line-height:1.6}
+
 /* ---- אישור מחיקת קנייה ----
    ⚠ בתוך המסך ולא confirm() של הדפדפן (4ק). */
 .ord-ask{margin-top:8px;padding:9px 11px;border-radius:var(--r-sm);

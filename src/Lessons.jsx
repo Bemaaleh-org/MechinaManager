@@ -1657,11 +1657,126 @@ export function LessonsBoard({ say, onOpenSheet, onAll, compact = false }) {
      בימים הקרובים ומה טרם דווח; "שלי" רמז שיש בו משהו אישי,
      ואין.
    ============================================================ */
+/* ============================================================
+   תקני שיעורים — טבלה אחת לכל הגיליונות
+   ------------------------------------------------------------
+   הבקשה: *"גיליון מסודר של כל הדברים כמה בוצע מכל
+   אחד מתוך התקן ובנוסף כמה מתוכננים."*
+
+   ⚠⚠ **שלושה מספרים ולא אחד.** "התקיים" הוא עובדה,
+     "מתוכנן" הוא מפגש שקיים בגיליון וטרם התקיים,
+     והצפי הוא סכומם. מספר אחד היה מסתיר את השאלה
+     האמיתית: **האם מה שקבוע בלו״ז יגיע לתקן.**
+     גיליון עם 8 שהתקיימו ו-17 קבועים מול תקן 25 הוא
+     בדיוק במסלול; גיליון עם 8 ו-2 הוא בעיה שצריך
+     לראות באוקטובר ולא במאי.
+
+   ⚠ **גיליון בלי תקן מוצג ואינו מסונן**, בשורה מעומעמת
+     ועם "ללא תקן". רשימה שמסתירה אותו אומרת שהכול
+     מתוקנן כשבדיוק הוא מה שחסר (עיקרון 6).
+
+   ⚠ **הצבע לפי הצפי ולא לפי מה שהתקיים.** בספטמבר
+     כל הגיליונות רחוקים מהתקן, וטבלה שכולה אדומה
+     היא טבלה שמפסיקים להסתכל עליה (4צ).
+   ============================================================ */
+function QuotaTable({ say }) {
+  const { data, err, busy, reload } = useLoad(() => api.getLessonSheets(), []);
+  if (busy && !data) return <Loading what="\u05d8\u05d5\u05e2\u05df \u05ea\u05e7\u05e0\u05d9 \u05d4\u05e9\u05d9\u05e2\u05d5\u05e8\u05d9\u05dd" />;
+  if (err) return <LoadFail msg={err} onRetry={reload} />;
+  if (!data) return null;
+
+  const rows = (data.sheets || [])
+    .filter((s) => s.active !== false)
+    .map((s) => {
+      const c = s.counts || {};
+      const held = c.happened || 0;
+      const ahead = c.pending || 0;
+      const quota = s.quota == null ? null : Number(s.quota);
+      const expected = held + ahead;
+      return { ...s, held, ahead, quota, expected, gap: quota == null ? null : quota - expected };
+    })
+    .sort((a, b) => (a.quota == null) - (b.quota == null)
+      || String(a.subject).localeCompare(String(b.subject), "he"));
+
+  const withQuota = rows.filter((r) => r.quota != null);
+  const sum = withQuota.reduce((a, r) => ({
+    quota: a.quota + r.quota, held: a.held + r.held, ahead: a.ahead + r.ahead,
+  }), { quota: 0, held: 0, ahead: 0 });
+  const short = withQuota.filter((r) => r.gap > 0);
+
+  return (
+    <>
+      <div className="band">
+        <div><b>{sum.held}</b><span>התקיימו</span></div>
+        <div><b>{sum.ahead}</b><span>קבועים בלו״ז</span></div>
+        <div><b>{sum.quota}</b><span>סך התקן</span></div>
+      </div>
+
+      {/* ⚠ אזהרה רק כשהיא נכונה — אזהרה קבועה היא רעש (5לב). */}
+      {short.length > 0 && (
+        <div className="q-warn">
+          <b>{short.length}</b> {short.length === 1 ? "גיליון" : "גיליונות"} לא יגיעו לתקן
+          עם מה שקבוע בלו״ז כרגע — חסרים {short.reduce((a, r) => a + r.gap, 0)} מפגשים.
+        </div>
+      )}
+
+      <div className="rows">
+        {rows.map((r) => (
+          <div className={"q-row" + (r.quota == null ? " q-none" : "")} key={r.id}>
+            <div className="q-name">{r.subject}</div>
+            <div className="q-nums">
+              {r.quota == null ? (
+                <span className="q-dim">ללא תקן</span>
+              ) : (
+                <>
+                  <b className={"num " + (r.gap > 0 ? "q-short" : "q-ok")}>
+                    {r.held}/{r.quota}
+                  </b>
+                  <span className="q-dim num">
+                    {/* ⚠ "קבועים" ולא "מתוכננים" — אלה מפגשים
+                        שכבר יושבים בגיליון וטרם התקיימו. */}
+                    + {r.ahead} קבועים
+                  </span>
+                  {r.gap > 0
+                    ? <span className="pill p-warn">חסרים {r.gap}</span>
+                    : <span className="pill p-ok">במסלול</span>}
+                </>
+              )}
+            </div>
+            {r.quota != null && (
+              <div className="mini-bar" aria-hidden="true">
+                <div className="mini-fill"
+                  style={{ width: Math.min(100, Math.round((r.held / r.quota) * 100)) + "%" }} />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* ⚠ התקן יושב בלוח ולא בקוד (עיקרון 1) — והמסך
+          אומר איפה משנים אותו, אחרת מחפשים כפתור. */}
+      <div className="q-note">
+        התקן נקבע בעמודת "תקן שיעורים" שבלוח הגיליונות —
+        משנים שם והמסך מתעדכן מיד, בלי דיפלוי.
+      </div>
+    </>
+  );
+}
+
 export const LESSON_TABS = [
   { sub: "board", tab: "l-board", label: "שיעורים קרובים" },
-  { sub: "sheets", tab: "l-sheets", label: "גיליונות מרצים" },
-  { sub: "evals", tab: "l-evals", label: "חוות דעת" },
+  /* ⚠⚠ **שם אחד למסך אחד.** שני המסכים האלה מופיעים
+     במגירה פעמיים — בקבוצת "שיעורים" ובקבוצת "קבוצה
+     ותוכן", בכוונה (אותה לשונית ולא עותק שני) — ועד
+     עכשיו הם נקראו שם בשמות אחרים ("גיליונות מרצים"
+     מול "גיליונות המרצים"). מי שמחפש אחד מהם בחיפוש
+     ומוצא שם אחר מסיק שאלה שני מסכים. נתפס ב-check:nav. */
+  { sub: "sheets", tab: "l-sheets", label: "גיליונות המרצים" },
+  { sub: "evals", tab: "l-evals", label: "חוות דעת על מרצים" },
   { sub: "pay", tab: "pay", label: "תשלום למרצים" },
+  /* ⚠ טבלה אחת לכל הגיליונות: כמה התקיימו מתוך התקן,
+     וכמה קבועים בלו״ז וטרם התקיימו (16.9.2026). */
+  { sub: "quota", tab: "l-quota", label: "תקני שיעורים" },
   /* ⚠ באחריות אחראי הלו״ז — הכרטיס "שינוי בלו״ז" במסך הבית
      מוביל לכאן (13.9.2026). */
   { sub: "changes", tab: "l-changes", label: "שינויים בלו״ז" },
@@ -1726,6 +1841,7 @@ export function LessonsPage({ say, sub0, onSub, solo = false }) {
 
       {sub === "evals" && <Evals say={say} />}
       {sub === "pay" && <LessonPay say={say} />}
+      {sub === "quota" && <QuotaTable say={say} />}
       {sub === "changes" && <LessonChangesPage />}
     </>
   );

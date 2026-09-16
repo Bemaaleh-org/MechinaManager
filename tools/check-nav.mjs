@@ -126,6 +126,15 @@ console.log("\n▶ קטלוג החיפוש (shared/screens.js) מול המגיר
   const src = readFileSync("src/App.jsx", "utf8");
   const drawer = new Map(
     [...src.matchAll(/key:\s*"([a-z0-9-]+)",\s*label:\s*"([^"]+)"/g)].map((m) => [m[1], m[2]]));
+  /* ⚠⚠ **ארבעת מסכי השיעורים נבנים במגירה מ-`LESSON_TABS`**
+     (`key: t.tab, label: t.label`) ולא נכתבים שם אחד-אחד, ולכן
+     הרגקס שלמעלה אינו תופס אותם. בלי השורות האלה
+     הבדיקה היתה מדווחת "אינו קיים במעטפת הצוות" על
+     מסך שקיים בהחלט. */
+  const lessons = readFileSync("src/Lessons.jsx", "utf8");
+  for (const m of lessons.matchAll(/sub:\s*"[a-z-]+",\s*tab:\s*"([a-z0-9-]+)",\s*label:\s*"([^"]+)"/g)) {
+    if (!drawer.has(m[1])) drawer.set(m[1], m[2]);
+  }
   let miss = 0;
   for (const sc of STAFF_SCREENS) {
     const label = drawer.get(sc.tab);
