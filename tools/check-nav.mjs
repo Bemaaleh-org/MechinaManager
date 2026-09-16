@@ -154,4 +154,40 @@ if (bad) {
   console.error("  החניך והמנהל מחפשים את אותו מסך בשני מקומות שונים.\n");
   process.exit(1);
 }
+/* ============================================================
+   ⚠⚠ **`LESSON_TABS` מול `DUTIES[אחראי לו״ז]` — אותו מסך, אותה
+     תווית.**
+
+   שתי הרשימות מזינות שתי מגירות: `LESSON_TABS` את רצועת
+   הלשוניות ואת מגירת הצוות, ו-`DUTIES` את מגירת בעל התפקיד.
+   מסך שנוסף לאחת ולא לשנייה **עובד בשתיהן** ופשוט אינו קיים
+   אצל אחד הקהלים — בדיוק 4יט, ובדיוק כך "תקני שיעורים" נעלם
+   מאחראי הלו״ז ביום שנוסף.
+
+   ⚠ ותווית שונה לאותו מסך מלמדת את מי שמחפש שאלה שני מסכים.
+   ============================================================ */
+{
+  const { DUTIES } = await import("../shared/duties.js");
+  const { ROLE_SCHEDULE } = await import("../shared/lessons-boards.js");
+  const duty = new Map((DUTIES[ROLE_SCHEDULE]?.tabs || []).map((t) => [t.tab, t.label]));
+  const lessons2 = readFileSync("src/Lessons.jsx", "utf8");
+  const tabs = [...lessons2.matchAll(
+    /sub:\s*"[a-z-]+",\s*tab:\s*"([a-z0-9-]+)",\s*label:\s*"([^"]+)"/g)];
+  const gone = [];
+  for (const [, tab, label] of tabs) {
+    if (!duty.has(tab)) gone.push(`  ✗ ${label} (${tab}) — ב-LESSON_TABS ואינו ב-DUTIES`);
+    else if (duty.get(tab) !== label) {
+      gone.push(`  ✗ ${tab} — "${label}" ב-LESSON_TABS מול "${duty.get(tab)}" ב-DUTIES`);
+    }
+  }
+  if (gone.length) {
+    bad += gone.length;
+    console.error("\nמסכי השיעורים אינם זהים בין שתי הרשימות:");
+    for (const g of gone) console.error(g);
+    console.error("  להוסיף ל-DUTIES[ROLE_SCHEDULE].tabs, או לתקן את התווית.");
+  } else {
+    console.log(`  ✓ כל ${tabs.length} לשוניות השיעורים ב-DUTIES באותה תווית`);
+  }
+}
+
 console.log("✓ הקבוצות שבחוזה זהות בשתי המעטפות.\n");

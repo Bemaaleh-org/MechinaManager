@@ -1703,26 +1703,63 @@ function QuotaTable({ say }) {
     quota: a.quota + r.quota, held: a.held + r.held, ahead: a.ahead + r.ahead,
   }), { quota: 0, held: 0, ahead: 0 });
   const short = withQuota.filter((r) => r.gap > 0);
+  /* ⚠⚠ **החוסר הוא סכום החוסרים ולא ההפרש הכולל.** 182 צפי מול
+     191 תקן נראה כמו "חסרים 9", אבל בפועל חסרים 18 בארבעה
+     גיליונות ויש עודף בגיליונות אחרים — **ועודף באזרחות אינו
+     ממלא חוסר בציונות.** המספר הנטו מטעה בדיוק בשאלה שהמסך
+     קיים בשבילה. */
+  const missing = short.reduce((a, r) => a + r.gap, 0);
+
+  /* ⚠ מה שחסר עולה לראש: זו הסיבה שנכנסים למסך. אחריו מה שבמסלול,
+     ולבסוף מה שאין לו תקן — והוא מוצג ואינו מסונן (עיקרון 6). */
+  rows.sort((a, b) => {
+    const rank = (x) => (x.quota == null ? 2 : x.gap > 0 ? 0 : 1);
+    return rank(a) - rank(b)
+      || (b.gap || 0) - (a.gap || 0)
+      || String(a.subject).localeCompare(String(b.subject), "he");
+  });
 
   return (
     <>
+      {/* ⚠ המבנה המלא של `.band` — `.band-grid`/`.band-c`/`.band-n`/
+          `.band-l`. הגרסה הראשונה כתבה `<div><b>..</b><span>..</span>`,
+          ושני האלמנטים inline נדבקו לשורה אחת: "6התקיימו". אותה
+          תקלה בדיוק של `.empty` ב-Buy.jsx. */}
       <div className="band">
-        <div><b>{sum.held}</b><span>התקיימו</span></div>
-        <div><b>{sum.ahead}</b><span>קבועים בלו״ז</span></div>
-        <div><b>{sum.quota}</b><span>סך התקן</span></div>
+        <div className="band-h">
+          {withQuota.length} מתוך {rows.length} הגיליונות מתוקננים
+        </div>
+        <div className="band-grid">
+          <div className="band-c">
+            <div className="band-n">{sum.held}</div>
+            <div className="band-l">מפגשים התקיימו</div>
+          </div>
+          <div className="band-c">
+            <div className="band-n">{sum.held + sum.ahead}</div>
+            {/* ⚠ הצפי הוא מה שהופך את זה לכלי תכנון: כמה יהיו
+                אם כל מה שקבוע בלו״ז יתקיים. */}
+            <div className="band-l">צפי מתוך {sum.quota}</div>
+          </div>
+          <div className="band-c">
+            <div className={"band-n" + (missing ? " warn" : " ok")}>{missing}</div>
+            <div className="band-l">מפגשים חסרים</div>
+          </div>
+        </div>
       </div>
 
       {/* ⚠ אזהרה רק כשהיא נכונה — אזהרה קבועה היא רעש (5לב). */}
       {short.length > 0 && (
         <div className="q-warn">
           <b>{short.length}</b> {short.length === 1 ? "גיליון" : "גיליונות"} לא יגיעו לתקן
-          עם מה שקבוע בלו״ז כרגע — חסרים {short.reduce((a, r) => a + r.gap, 0)} מפגשים.
+          עם מה שקבוע בלו״ז כרגע — חסרים {missing} מפגשים.
+          {" "}הם ראשונים ברשימה.
         </div>
       )}
 
       <div className="rows">
         {rows.map((r) => (
-          <div className={"q-row" + (r.quota == null ? " q-none" : "")} key={r.id}>
+          <div className={"q-row" + (r.quota == null ? " q-none" : "")
+            + (r.gap > 0 ? " q-short-row" : "")} key={r.id}>
             <div className="q-name">{r.subject}</div>
             <div className="q-nums">
               {r.quota == null ? (
@@ -1743,9 +1780,23 @@ function QuotaTable({ say }) {
                 </>
               )}
             </div>
+            {/* ============================================================
+                ⚠⚠ **הפס בשתי שכבות: מה שהתקיים ומה שרק קבוע.**
+
+                פס אחד שמתמלא ב-`held` הראה 6/191 ונראה כמו אסון,
+                בעוד 176 מפגשים כבר יושבים בלו״ז. פס אחד שמתמלא
+                ב-`expected` הראה "כמעט מלא" ומחק את ההבחנה בין
+                מה שקרה למה שמתוכנן — וזו בדיוק ההבחנה שכל המסך
+                קיים בשבילה (4ח: "טרם דווח" הוא מצב שלישי).
+
+                הכהה = התקיים · הבהיר = קבוע בלו״ז · הריק = החוסר.
+                ⚠ והחוסר נשאר נראה גם כשהוא קטן, כי הוא התשובה.
+                ============================================================ */}
             {r.quota != null && (
-              <div className="mini-bar" aria-hidden="true">
-                <div className="mini-fill"
+              <div className="q-bar" aria-hidden="true">
+                <div className="q-b-ahead"
+                  style={{ width: Math.min(100, Math.round((r.expected / r.quota) * 100)) + "%" }} />
+                <div className="q-b-held"
                   style={{ width: Math.min(100, Math.round((r.held / r.quota) * 100)) + "%" }} />
               </div>
             )}

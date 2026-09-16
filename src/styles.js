@@ -293,6 +293,9 @@ html,body{margin:0;padding:0;background:#012E58}
    שאינה קיימת אינה שגיאה, בדיוק כמו סאנד ונייבי
    (5יד, 5כא). התגית הייתה מופיעה בלי צבע כלל. */
 .p-bad{background:var(--clay-soft);color:var(--clay)}
+/* ⚠ גם p-warn שימשה ולא הוגדרה. ענבר ולא חימר: חוסר מול תקן
+   הוא משהו לתקן, לא תקלה — אדום שמור למצב (4ג). */
+.p-warn{background:var(--amber-soft);color:var(--amber)}
 /* ⚠ שדרוג — גוון תחום ולא צבע מצב: הוא אינו בעיה
    ואינו תקין, הוא סיווג (4ג). */
 .p-up{background:var(--t5-s);color:var(--t5)}
@@ -956,7 +959,7 @@ html,body{margin:0;padding:0;background:#012E58}
 /* ---- תקציב המטבח ---- */
 /* ---- תקני שיעורים ----
    ⚠ קידומת q- — נבדקה ב-grep לפני שנכתבה. */
-.q-row{padding:11px 13px;border-bottom:1px solid var(--line)}
+.q-row{padding:12px 13px;border-bottom:1px solid var(--line)}
 .q-row:last-child{border-bottom:0}
 .q-row.q-none{opacity:.62}
 .q-name{font-size:14px;font-weight:800;margin-bottom:4px}
@@ -965,6 +968,19 @@ html,body{margin:0;padding:0;background:#012E58}
 .q-ok{color:#177A45}
 .q-short{color:var(--clay)}
 .q-dim{color:var(--faint);font-weight:700}
+/* פס דו-שכבתי: התקיים · קבוע בלו״ז · חסר.
+   ⚠ שתי השכבות באותו מכל ובמיקום מוחלט, הכהה מעל הבהיר —
+   כך "קבוע" נמדד מאפס ולא מסתדר אחרי "התקיים", והחוסר הוא
+   פשוט מה שנשאר ריק. */
+.q-bar{position:relative;height:6px;border-radius:99px;background:var(--line);
+  overflow:hidden;margin-top:9px;direction:ltr}
+.q-b-ahead,.q-b-held{position:absolute;inset-block:0;inset-inline-start:0;
+  border-radius:99px;transition:width .4s var(--ease)}
+.q-b-ahead{background:var(--accent-soft)}
+.q-b-held{background:var(--ok)}
+.q-row.q-short-row .q-b-ahead{background:var(--amber-soft)}
+@media (prefers-reduced-motion:reduce){.q-b-ahead,.q-b-held{transition:none}}
+
 .q-warn{margin:10px 0;padding:10px 13px;border-radius:var(--r-sm);
   background:var(--t8-s,rgba(158,54,38,.07));border:1px solid var(--line2);
   font-size:12.5px;font-weight:700;line-height:1.5}

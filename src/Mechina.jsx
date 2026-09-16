@@ -147,6 +147,7 @@ const TAB_ICON = {
   mark: <MI.tick />, lessons: <MI.book />, gantt: <MI.cal />,
   /* ארבעת מסכי השיעורים — ראו LESSON_TABS ב-Lessons.jsx */
   "l-board": <MI.cal />, "l-sheets": <MI.book />, "l-evals": <MI.check />, "l-changes": <MI.cal />,
+  "l-quota": <MI.check />,
   leadership: <MI.flag />,
   /* ⚠ מסך בלי ערך במפה מקבל ברירת מחדל ואינו נעלם (4יא) —
      אבל שבוע ההובלה הוא לוח שנה, ואייקון של קופסה מטעה. */
@@ -4672,6 +4673,14 @@ export function MechinaApp({ auth, onSignedOut }) {
         {/* ⚠ שינויים בלו״ז — באחריות אחראי הלו״ז (13.9.2026). */}
         {tab === "l-changes" && (auth.isScheduler || auth.isContentTeam)
           && <LessonsPage say={say} solo sub0="changes" />}
+        {/* ⚠⚠ **תקני שיעורים — נוסף למגירה ולא לרינדור** (16.9.2026),
+            ואחראי הלו״ז קיבל פריט במגירה שפתח **מסך לבן**. זה גרוע
+            מלא להוסיף אותו בכלל: מסך ריק נראה כמו תקלה, ובפריט
+            חסר לפחות ברור שאין. שלוש רשימות צריכות להסכים —
+            `LESSON_TABS`, `DUTIES` והרינדור כאן — ו-`check:nav`
+            נועל עכשיו את שתי הראשונות. */}
+        {tab === "l-quota" && (auth.isScheduler || auth.isContentTeam)
+          && <LessonsPage say={say} solo sub0="quota" />}
 
         {tab === "new" && (
           <>
