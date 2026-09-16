@@ -91,6 +91,15 @@ export const STEPS = [
      הצמד ids+ready ולא הקובץ (5לב). */
   { script: "tools/seed-eval-mail.mjs", title: "אימייל בחוות הדעת",
     ids: "shared/lessons-boards.js", ready: "evalMailReady" },
+  { script: "tools/seed-staples.mjs", title: "מצרכים קבועים לשבוע",
+    ids: "shared/staples-ids.js", ready: "staplesReady" },
+  /* ⚠ **אין לו קובץ מזהים משלו** — הוא מוסיף תווית לעמודה
+     קיימת בלוח הקניות הכללי, ולכן `ids` הוא buy-ids.js.
+     ⚠⚠ ו-`ready` הוא `buyCategoryReady` ולא `buyReady`: שני
+     שלבים שחולקים את הצמד ids+ready גורמים לאחד לעצור על
+     הרשומה של השני, וההקמה נעצרת על שלב שהצליח (5לב). */
+  { script: "tools/seed-buy-food.mjs", title: 'קטגוריית "אוכל" ברשימת הקניות',
+    ids: "shared/buy-ids.js", ready: "buyCategoryReady" },
 ];
 
 /**

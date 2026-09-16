@@ -12,9 +12,11 @@
 import React, { useState, useEffect } from "react";
 import { api } from "./api.js";
 import TextBlock from "./TextBlock.jsx";
+import ScrollTabs from "./Tabs.jsx";
 import { useExcel, downloadTable, shareText } from "./excel.js";
 import { parseItems, scaleItems, mergeItems, DEFAULT_BASE } from "../shared/dishes.js";
-import { DAYS, MEALS, DAY_LETTER, dayNameOf } from "../shared/weekmenu.js";
+import { DAYS, MEALS, DAY_LETTER, dayNameOf, shopFromMenu } from "../shared/weekmenu.js";
+import { FOOD_CATEGORY } from "../shared/buy-categories.js";
 import { israelDateStr } from "./testDate.js";
 
 const MI = {
@@ -550,12 +552,17 @@ function WeeklyMeals({ say }) {
           : <b title={data.editHint || ""}>לצפייה בלבד</b>}
       </div>
 
-      <div className="seg wm-seg">
+      {/* ⚠ עטוף ב-`ScrollTabs` — רצועה שנחתכת נראית שלמה, ומי
+          שלא יודע שאפשר להחליק לא מגיע ללשונית האחרונה (4ר). */}
+      <ScrollTabs className="seg wm-seg">
         <button className={view === "day" ? "on" : ""} onClick={() => setView("day")}>יום אחד</button>
         <button className={view === "week" ? "on" : ""} onClick={() => setView("week")}>כל השבוע</button>
-      </div>
+        <button className={view === "shop" ? "on" : ""} onClick={() => setView("shop")}>רשימת קניות</button>
+      </ScrollTabs>
 
-      {view === "day" ? (
+      {view === "shop" ? (
+        <MenuShop grid={data.grid} heads={data.heads} today={today} say={say} />
+      ) : view === "day" ? (
         <>
           <div className="wm-days">
             {data.grid.map((g) => (
@@ -619,6 +626,358 @@ function WeeklyMeals({ say }) {
 
       <WeeklyNote say={say} />
     </>
+  );
+}
+
+/* ============================================================
+   רשימת קניות מהתפריט
+   ------------------------------------------------------------
+   הבקשה: *"בארוחות שבועיות ליצור רשימת קניות — יהיה אפשר
+   לבחור את הימים שנרצה ולפי הימים שנבחר יצור רשימת קניות לפי
+   המצרכים שקיימים שם... בנוסף רשימה קבועה של מצרכים קבועים
+   לשבוע לדוגמא 90 ביצים... הרשימה הזאת מצטרפת לרשימת קניות
+   של הצוות אבל בקטגוריה נפרדת, אוכל."*
+
+   ⚠⚠ **אין לוח רביעי ואין העברת שורות.** מה שנוסף כאן נכתב
+     ל**רשימה הכללית** (`?action=buy`) עם קטגוריה "אוכל",
+     ומופיע במסך קניות המכינה בלשונית משלו. לוח נפרד היה
+     מקור אמת חמישי לאותה שאלה, ואז מי שסימן "נקנה" באחד
+     משאיר את השני פתוח — בדיוק ההפך מהבקשה (api/_shop-all.js).
+
+   ⚠⚠ **כל שורה נבחרת בנפרד, והכול מסומן מראש.** מי שמוסיף
+     שבוע שלם רוצה כמעט הכול; מי שכבר קנה עגבניות מוריד שורה
+     אחת. רשימה שמתחילה ריקה דורשת 40 נגיעות בדיוק כשמנסים
+     לחסוך אותן.
+
+   ⚠ **ארוחה בלי מנה מוצגת ואינה נעלמת.** אי אפשר לגזור
+     כמויות מ"לחם, גבינות" — ולכן היא מופיעה כרשימה שנייה,
+     עם היום והארוחה, כדי שאפשר יהיה להוסיף ידנית. ארוחה
+     שנעלמת בשקט היא חוסר שמתגלה בסופר (4ט, עיקרון 6).
+
+   ⚠ **הכמות נוסעת כטקסט** ("3 ק״ג"), כי זה מה שרשימת הקניות
+     מחזיקה בשלוש הרשימות (5מ). מספר בלי יחידה אינו כמות.
+
+   ⚠ **כפתור ההוספה נשען על `canAdd` מהשרת** — כפתור שמופיע
+     ומקבל 403 אחרי שהמשתמש סימן ארבעים שורות הוא בדיוק
+     4יד. ⚠ ואחרי ההוספה המסך אומר כמה נוספו ומפנה לרשימה,
+     ולא "נשמר".
+   ============================================================ */
+function MenuShop({ grid, heads, today, say }) {
+  const [days, setDays] = useState([today]);
+  const [off, setOff] = useState(() => new Set());   // שורות שהורדו
+  const [picked, setPicked] = useState(() => new Set()); // מצרכים קבועים שנבחרו
+  const [busy, setBusy] = useState(false);
+  const [added, setAdded] = useState(null);
+  const [manage, setManage] = useState(false);
+  const [n, setN] = useState(0);
+
+  const st = useLoad(() => api.getStaples(), [n]);
+  const canAdd = st.data ? st.data.canEdit !== false : false;
+
+  const toggleDay = (d) =>
+    setDays((p) => (p.includes(d) ? p.filter((x) => x !== d) : [...p, d]));
+
+  const flip = (k) => setOff((p) => {
+    const s2 = new Set(p);
+    if (s2.has(k)) s2.delete(k); else s2.add(k);
+    return s2;
+  });
+
+  /* ⚠ הבנייה נעשית ב-`shared/weekmenu.js` — אותה פונקציה
+     בדיוק שהשרת יכול לקרוא. שתי גרסאות היו נפרדות בתיקון
+     הראשון (4יד, 5כד). */
+  const built = React.useMemo(() => {
+    const { meals, free, lists } = shopFromMenu(grid, days);
+    return { meals, free, rows: mergeItems(lists) };
+  }, [grid, days]);
+
+  const staples = (st.data?.rows || []).filter((r) => r.active);
+
+  /* ⚠ מפתח יציב לכל שורה: מצרך מחושב לפי שם ויחידה (כמו
+     `mergeItems`), וטקסט חופשי לפי הטקסט עצמו. */
+  const keyOf = (it) => "c:" + it.name + "|" + (it.unit || "");
+  const freeKey = (f) => "f:" + f.text;
+  const lines = [
+    ...built.rows
+      .filter((it) => !off.has(keyOf(it)))
+      .map((it) => ({
+        name: it.name,
+        qty: it.qty == null ? "" : qty(it.qty) + (it.unit ? " " + it.unit : ""),
+        detail: "מהמנות · " + days.join(" · "),
+      })),
+    /* ⚠ **השורה נשמרת כלשונה** ("3 קג פתיתים") ואינה מפוצלת
+       לשם וכמות — ראו `splitItems` ב-shared/weekmenu.js. */
+    ...built.free
+      .filter((f) => !off.has(freeKey(f)))
+      .map((f) => ({ name: f.text, qty: "", detail: "מהתפריט · " + f.from.join(" · ") })),
+    ...staples.filter((r) => picked.has(r.id)).map((r) => ({
+      name: r.name, qty: r.qty || "",
+      detail: r.note ? "קבוע לשבוע · " + r.note : "קבוע לשבוע",
+    })),
+  ];
+
+  const add = () => {
+    if (busy || !lines.length) return;
+    setBusy(true);
+    /* ⚠ **הקטגוריה נשלחת מהמסך ונבדקת בשרת** מול רשימה סגורה
+       (`cat()` ב-api/_buy.js). תווית שאינה בלוח גורמת ל-monday
+       לדחות את כל השורה, ולכן `npm run seed:buy-food`. */
+    api.addBuy(lines.map((l) => ({ ...l, category: FOOD_CATEGORY })))
+      .then((r) => {
+        setAdded(r.created ?? lines.length);
+        say(`נוספו ${r.created ?? lines.length} שורות לקניות המכינה`);
+      })
+      .catch((e) => say(e.message || "ההוספה נכשלה"))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <>
+      <div className="ms-note">
+        בוחרים ימים, והמצרכים של המנות שבהם מתחברים לרשימה אחת לפי{" "}
+        <b>{heads}</b> סועדים. מה שמסומן נוסף ל<b>קניות המכינה</b> בקטגוריה
+        "{FOOD_CATEGORY}", והכול נשאר ניתן לעריכה שם.
+      </div>
+
+      <div className="wm-days ms-days">
+        {DAYS.map((d) => (
+          <button key={d} className={days.includes(d) ? "on" : ""} onClick={() => toggleDay(d)}>
+            {DAY_LETTER[d]}
+          </button>
+        ))}
+      </div>
+      {/* ⚠ "כל הימים" ולא "כל השבוע" — הלשונית שמעל כבר נקראת
+          "כל השבוע", ושני כפתורים באותו שם באותו מסך הם בדיוק
+          המקום שבו לוחצים על הלא-נכון. */}
+      <div className="ms-all">
+        <button className="btn btn-ghost btn-sm" onClick={() => setDays([...DAYS])}>כל הימים</button>
+        <button className="btn btn-ghost btn-sm" onClick={() => setDays([])}>ניקוי</button>
+        <span className="ms-cnt">{built.meals} ארוחות נבחרו</span>
+      </div>
+
+      {!days.length ? (
+        <div className="empty" style={{ paddingTop: 28 }}>
+          <div className="e-ico"><MI.cart /></div>
+          <b>לא נבחר אף יום</b>
+          <span>בוחרים ימים למעלה, והמצרכים שלהם יופיעו כאן.</span>
+        </div>
+      ) : (
+        <>
+          {/* ---- מצרכים שחושבו ממנות מקושרות ---- */}
+          {built.rows.length > 0 && (
+            <>
+              <div className="sec-label">
+                מצרכים מהמנות
+                <span className="sec-more">מוכפלים ל-{heads} סועדים</span>
+              </div>
+              <div className="card ms-list">
+                {built.rows.map((it) => {
+                  const k = keyOf(it);
+                  const on = !off.has(k);
+                  return (
+                    <button className={"ms-row" + (on ? " on" : "")} key={k}
+                      onClick={() => flip(k)}>
+                      <span className="ms-box">{on ? "✓" : ""}</span>
+                      <span className="ms-n">{it.name}</span>
+                      <b className="num">{qty(it.qty)}{it.unit ? " " + it.unit : ""}</b>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* ---- מה שנכתב בתפריט עצמו ----
+              ⚠ **כלשונו, בלי ניתוח ובלי הכפלה.** "3 קג פתיתים"
+              נכתב לשבוע ולכמות שאחראי המטבח התכוון לה; ניתוח
+              היה נראה סמכותי והיה שגוי (4צ, 4לג). */}
+          <div className="sec-label">
+            מצרכים מהתפריט
+            {built.free.length > 0 && (
+              <span className="sec-more">כפי שנכתבו</span>
+            )}
+          </div>
+          {!built.free.length ? (
+            <div className="ms-empty">
+              {built.rows.length
+                ? "בארוחות שנבחרו לא הוקלדו מצרכים נוספים."
+                : "בימים שנבחרו לא הוזנו מצרכים, ואין מנות מקושרות."}
+            </div>
+          ) : (
+            <div className="card ms-list">
+              {built.free.map((f) => {
+                const k = freeKey(f);
+                const on = !off.has(k);
+                return (
+                  <button className={"ms-row" + (on ? " on" : "")} key={k}
+                    onClick={() => flip(k)}>
+                    <span className="ms-box">{on ? "✓" : ""}</span>
+                    <span className="ms-n">
+                      {f.text}
+                      {/* ⚠ מאיפה השורה באה — מצרך שחוזר בחמש ארוחות
+                          הוא שורה אחת, ומי שקורא צריך לדעת למה. */}
+                      <i> · {f.from.join(" · ")}</i>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ---------- המצרכים הקבועים ---------- */}
+      <div className="sec-label">
+        מצרכים קבועים לשבוע
+        {st.data && st.data.canEdit && (
+          <button className="sec-more ms-link" onClick={() => setManage((v) => !v)}>
+            {manage ? "סיום עריכה" : "עריכת הרשימה"}
+          </button>
+        )}
+      </div>
+
+      {st.err ? (
+        <div className="ms-empty">הרשימה לא נטענה: {st.err.message}</div>
+      ) : st.data && !st.data.ready ? (
+        <div className="note-warn"><MI.warn />
+          הרשימה טרם הוקמה ב-monday. להקמה: <code>{st.data.setup}</code>
+        </div>
+      ) : !staples.length && !manage ? (
+        <div className="ms-empty">
+          עדיין אין מצרכים קבועים.
+          {st.data && st.data.canEdit
+            ? " אפשר להוסיף כאלה שקונים בכל שבוע — 90 ביצים, שני שקי קמח — ואז לסמן אותם כאן."
+            : ""}
+        </div>
+      ) : (
+        <div className="card ms-list">
+          {staples.map((r) => {
+            const on = picked.has(r.id);
+            return (
+              <button className={"ms-row" + (on ? " on" : "")} key={r.id}
+                onClick={() => setPicked((p) => {
+                  const s2 = new Set(p);
+                  if (s2.has(r.id)) s2.delete(r.id); else s2.add(r.id);
+                  return s2;
+                })}>
+                <span className="ms-box">{on ? "✓" : ""}</span>
+                <span className="ms-n">{r.name}{r.note ? <i> · {r.note}</i> : null}</span>
+                <b className="num">{r.qty || "—"}</b>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {manage && <StaplesEditor rows={st.data?.rows || []} say={say}
+        reload={() => setN((x) => x + 1)} />}
+
+      {/* ---------- ההוספה ---------- */}
+      {added != null ? (
+        <div className="alert a-ok" style={{ marginTop: 14 }}>
+          <div style={{ flex: 1 }}>
+            <div className="ttl">נוספו {added} שורות</div>
+            <div className="bd">
+              הן ממתינות ב<b>קניות המכינה</b>, בקטגוריה "{FOOD_CATEGORY}".
+              אפשר לערוך או למחוק אותן שם.
+            </div>
+            <button className="btn btn-ghost btn-sm" style={{ marginTop: 9 }}
+              onClick={() => { setAdded(null); setOff(new Set()); setPicked(new Set()); }}>
+              בניית רשימה נוספת
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="ms-go">
+          <button className="btn btn-primary" disabled={busy || !lines.length || !canAdd}
+            onClick={add}>
+            {busy ? "מוסיף…" : `הוספת ${lines.length} שורות לקניות המכינה`}
+          </button>
+          {/* ⚠ הסיבה נאמרת. כפתור מושבת בלי מילה נראה כמו תקלה. */}
+          {!canAdd && st.data && (
+            <div className="ms-why">{st.data.editHint || "ההוספה היא של ראש המכינה ואחראי המטבח"}</div>
+          )}
+          {canAdd && !lines.length && (
+            <div className="ms-why">אין שורות מסומנות.</div>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ---------- עריכת המצרכים הקבועים ---------- */
+function StaplesEditor({ rows, say, reload }) {
+  const [f, setF] = useState({ name: "", qty: "", note: "" });
+  const [busy, setBusy] = useState(false);
+  const [ask, setAsk] = useState(null);
+
+  const addOne = () => {
+    if (busy || !f.name.trim()) return;
+    setBusy(true);
+    api.addStaple(f)
+      .then(() => { say("נוסף"); setF({ name: "", qty: "", note: "" }); reload(); })
+      .catch((e) => say(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <div className="card ms-edit">
+      <div className="ms-edit-h">עריכת הרשימה הקבועה</div>
+      <div className="ms-edit-f">
+        <input className="in" placeholder="מצרך (למשל: ביצים)" value={f.name}
+          onChange={(e) => setF({ ...f, name: e.target.value })} />
+        <input className="in" placeholder="כמה (90 יחידות)" value={f.qty}
+          inputMode="numeric"
+          onChange={(e) => setF({ ...f, qty: e.target.value })} />
+        <input className="in" placeholder="הערה" value={f.note}
+          onChange={(e) => setF({ ...f, note: e.target.value })} />
+        <button className="btn btn-sm" disabled={busy || !f.name.trim()} onClick={addOne}>
+          <MI.plus />הוספה
+        </button>
+      </div>
+
+      {rows.map((r) => (
+        <div className="ms-edit-r" key={r.id}>
+          <span className="ms-n">{r.name}</span>
+          <b className="num">{r.qty || "—"}</b>
+          {/* ⚠ **כיבוי ולא מחיקה** למה שלא צריך החודש: השורה
+              יורדת מהבורר והכמות נשמרת. מחיקה היא למה שנוסף
+              בטעות, והיא שואלת קודם (4ק). */}
+          <button className="btn btn-ghost btn-sm" disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              api.editStaple({ id: r.id, active: !r.active })
+                .then(() => { say(r.active ? "כובה" : "הודלק"); reload(); })
+                .catch((e) => say(e.message))
+                .finally(() => setBusy(false));
+            }}>
+            {r.active ? "כיבוי" : "הדלקה"}
+          </button>
+          <button className="btn btn-ghost btn-sm" style={{ color: "var(--clay)" }}
+            disabled={busy} onClick={() => setAsk(ask === r.id ? null : r.id)}>
+            {ask === r.id ? "סגירה" : "מחיקה"}
+          </button>
+          {ask === r.id && (
+            <div className="ms-ask">
+              <div>למחוק את "{r.name}" מהרשימה הקבועה?</div>
+              <div className="ms-ask-b">
+                <button className="btn btn-sm" disabled={busy} onClick={() => {
+                  setBusy(true);
+                  api.deleteStaple(r.id)
+                    .then(() => { say("נמחק"); setAsk(null); reload(); })
+                    .catch((e) => say(e.message))
+                    .finally(() => setBusy(false));
+                }}>כן, למחוק</button>
+                <button className="btn btn-ghost btn-sm" disabled={busy}
+                  onClick={() => setAsk(null)}>ביטול</button>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+      {!rows.length && <div className="ms-empty">הרשימה ריקה.</div>}
+    </div>
   );
 }
 
@@ -858,4 +1217,49 @@ export const MENU_CSS = `
    ⚠⚠ ואין בקטיקים בהערות CSS — הבלוק הזה הוא template literal,
    ובקטיק סוגר אותו ומפיל את כל הקובץ (ראו styles.js). */
 .wm-pick{max-height:38vh}
+
+/* ---- רשימת הקניות מהתפריט ---- */
+.ms-note{font-size:12.5px;font-weight:600;color:var(--muted);line-height:1.65;
+  background:var(--soft);border-radius:var(--r-md);padding:11px 13px;margin-bottom:12px}
+.ms-days{margin-bottom:8px}
+.ms-all{display:flex;align-items:center;gap:7px;margin-bottom:14px;flex-wrap:wrap}
+.ms-cnt{margin-inline-start:auto;font-size:11.5px;font-weight:800;color:var(--muted)}
+.ms-list{padding:5px;margin-bottom:12px}
+/* ⚠ הקידומת המלאה .kx — .kx button מאפסת background ו-border
+   בסגוליות גבוהה יותר, וזו המלכודת שתפסה את .task-box ואת
+   תאי לוח הנוכחות (4מח). */
+.kx .ms-row{display:flex;align-items:center;gap:9px;width:100%;padding:10px 9px;
+  background:none;border:0;border-radius:var(--r-sm);text-align:right;cursor:pointer;
+  color:var(--faint);transition:color var(--ease) 120ms}
+.kx .ms-row + .ms-row{border-top:1px solid var(--line)}
+.kx .ms-row.on{color:var(--ink)}
+.ms-box{flex:0 0 21px;height:21px;border-radius:6px;border:1.6px solid var(--line2);
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;
+  color:#fff;background:var(--surface)}
+.ms-row.on .ms-box{background:var(--accent);border-color:transparent}
+.ms-n{flex:1;min-width:0;font-size:13.5px;font-weight:800}
+.ms-n i{font-style:normal;font-weight:600;color:var(--muted);font-size:11.5px}
+.ms-empty{font-size:12.5px;font-weight:600;color:var(--muted);line-height:1.6;
+  background:var(--soft);border-radius:var(--r-md);padding:12px 13px;margin-bottom:12px}
+.ms-free{padding:12px 13px;margin-bottom:12px}
+.ms-free-h{font-size:12px;font-weight:600;color:var(--muted);line-height:1.6;
+  margin-bottom:9px}
+.ms-free-r{display:flex;gap:9px;font-size:12.5px;padding:6px 0}
+.ms-free-r + .ms-free-r{border-top:1px solid var(--line)}
+.ms-free-r span{flex:0 0 33%;font-weight:800;color:var(--muted);font-size:11.5px}
+.ms-free-r div{flex:1;font-weight:700}
+.kx .ms-link{background:none;border:0;padding:0;cursor:pointer;color:var(--accent)}
+.ms-go{margin:14px 0 6px;display:flex;flex-direction:column;gap:7px;align-items:stretch}
+.ms-why{font-size:11.5px;font-weight:700;color:var(--muted);text-align:center}
+.ms-edit{padding:12px;margin-bottom:12px}
+.ms-edit-h{font-size:12px;font-weight:900;letter-spacing:.4px;color:var(--muted);
+  margin-bottom:10px}
+.ms-edit-f{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
+.ms-edit-f .in{flex:1 1 130px;min-width:0}
+.ms-edit-r{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0}
+.ms-edit-r + .ms-edit-r{border-top:1px solid var(--line)}
+.ms-ask{flex:1 1 100%;background:var(--clay-soft);border-radius:var(--r-sm);
+  padding:10px 11px;font-size:12.5px;font-weight:700;color:var(--clay)}
+.ms-ask-b{display:flex;gap:7px;margin-top:8px}
+@media (prefers-reduced-motion:reduce){.kx .ms-row{transition:none}}
 `;

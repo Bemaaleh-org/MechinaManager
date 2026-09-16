@@ -22,6 +22,8 @@
 import React, { useState, useEffect } from "react";
 import { api } from "./api.js";
 import { BUY_STATUS } from "../shared/buy-ids.js";
+import { FOOD_CATEGORY } from "../shared/buy-categories.js";
+import ScrollTabs from "./Tabs.jsx";
 
 const YI = {
   cart: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 4h2l2.4 11h10.2l2-7H6.2"/><circle cx="9" cy="19" r="1.6"/><circle cx="17" cy="19" r="1.6"/></svg>,
@@ -49,7 +51,7 @@ const SRC_TONE = { kitchen: "by-k", container: "by-c", buy: "by-b" };
 /* ⚠ הנתונים נטענים ב-`BuyPage` ולא כאן: הלשוניות עצמן
    נגזרות מ-`canGeneral` שבאותה תשובה, וטעינה שנייה הייתה
    שואלת את השרת את אותה שאלה פעמיים. */
-function AllShopping({ d, say, empty = null, note = null, reload = null }) {
+function AllShopping({ d, say, empty = null, note = null, reload = null, only = null }) {
   const [done, setDone] = useState(() => new Set());
   const [busy, setBusy] = useState(() => new Set());
   /* ⚠ שורה אחת פתוחה לעריכה בכל רגע — שתיים בבת אחת
@@ -104,7 +106,13 @@ function AllShopping({ d, say, empty = null, note = null, reload = null }) {
       .finally(() => setBusy((s2) => { const n = new Set(s2); n.delete(key); return n; }));
   };
 
-  const groups = (d.groups || []).filter((g) => g.rows.length);
+  /* ⚠ **הסינון כאן ולא בשרת.** `?action=allshop` מחזיר את כל
+     מה שפתוח, והלשונית היא חיתוך תצוגה — מי שירצה לראות הכול
+     ביחד מקבל את אותן שורות בלי בקשה שנייה. */
+  const groups = (d.groups || [])
+    .filter((g) => g.rows.length)
+    .filter((g) => (only === "food" ? g.key === FOOD_CATEGORY
+      : only === "gear" ? g.key !== FOOD_CATEGORY : true));
 
   return (
     <>
@@ -131,10 +139,13 @@ function AllShopping({ d, say, empty = null, note = null, reload = null }) {
       ))}
 
       {!groups.length ? (
+        /* ⚠ `.e1` ו-`.e2` ולא `<b>` ו-`<span>` — השניים האחרונים
+           הם inline, והכותרת והמשנה נדבקו לשורה אחת. נראה
+           "בסדר" כשהטקסט קצר, ונשבר ברגע שהוא ארוך. */
         <div className="empty">
           <div className="e-ico"><YI.cart /></div>
-          <b>{empty ? empty.title : "אין כרגע מה לקנות מהמכולה"}</b>
-          <span>{empty ? empty.sub : "מה שנרשם ברשימת הקניות של המכולה יופיע כאן."}</span>
+          <div className="e1">{empty ? empty.title : "אין כרגע מה לקנות מהמכולה"}</div>
+          <div className="e2">{empty ? empty.sub : "מה שנרשם ברשימת הקניות של המכולה יופיע כאן."}</div>
         </div>
       ) : groups.map((g) => (
         <div className="card by-grp" key={g.key}>
@@ -240,10 +251,15 @@ function AllShopping({ d, say, empty = null, note = null, reload = null }) {
         </div>
       ))}
 
-      <div className="tm-sub by-note">
-        {note || <>החלק הזה נלקח מרשימת הקניות של המכולה — מוסיפים אליו ממסך
-        המכולה, וסימון כאן נשמר שם.</>}
-      </div>
+      {/* ⚠ **מוצג רק כשהוא נכון.** ההערה מדברת על רשימת המכולה,
+          ובלשונית "אוכל" היא פשוט לא נכונה — שורה קבועה שאינה
+          מתארת את מה שמעליה מלמדת לא לקרוא אותה. */}
+      {note !== false && (
+        <div className="tm-sub by-note">
+          {note || <>החלק הזה נלקח מרשימת הקניות של המכולה — מוסיפים אליו ממסך
+          המכולה, וסימון כאן נשמר שם.</>}
+        </div>
+      )}
     </>
   );
 }
@@ -484,14 +500,28 @@ function GeneralList({ say, categories = [], formOnly = false, onAdded }) {
 }
 
 /* ============================================================
-   רשימה אחת, בשני חלקים — בלי לשוניות
+   רשימה אחת, ולשונית אחת שיוצאת ממנה
    ------------------------------------------------------------
    הבקשה (12.9.2026): *"רשימה אחת שמחולקת לשתיים — כללי שאפשר
    ישירות להוסיף אליו, ורשימת מכולה שנלקחת מתוך המכולה."*
+   הבקשה (16.9.2026): *"הרשימה הזאת מצטרפת לרשימת קניות של
+   הצוות אבל בקטגוריה נפרדת, אוכל, שזה כרטיסייה נפרדת תיהיה."*
 
-   ⚠ **בלי לשוניות, ובכוונה.** לשונית שנייה היא בדיוק המקום שבו
-     מפספסים: מי שיוצא לקנות רואה את הראשונה ויוצא. שני חלקים
-     באותה גלילה הם רשימה אחת.
+   ⚠⚠ **וזו אינה סתירה לכלל "בלי לשוניות".** הכלל ההוא נקבע על
+     פיצול בין **מי שביקש** — כללי מול מכולה — ושם הוא נכון:
+     כיסא שאב הבית ביקש וכיסא שראש המכינה ביקש נקנים באותה
+     נסיעה ובאותו מקום, ולשונית ביניהם מייצרת שתי נסיעות. אוכל
+     הוא **נסיעה אחרת**: סופר, לא חנות כלי עבודה. פיצול לפי
+     חנות הוא בדיוק הנימוק שבגללו הקיבוץ הוא לפי קטגוריה.
+
+   ⚠ **ולכן המונה של הלשונית השנייה מופיע עליה תמיד.** הסכנה
+     של לשונית היא שמי שיוצא לקנות רואה אחת ויוצא; מספר על
+     הלשונית השנייה הוא מה שמונע את זה.
+
+   ⚠ **שתי הלשוניות קבועות ואינן מופיעות לפי תוכן.** לשונית
+     שמופיעה ונעלמת מלמדת לא לסמוך על הניווט (5לא), ולשונית
+     "אוכל" ריקה שאומרת מאיפה שורות מגיעות עדיפה על היעדרה.
+
    ⚠ **החלק הכללי מוצג לפי `canGeneral` מהשרת** — אחראי המכולה
      ואב הבית רואים את חלק המכולה בלבד (4יד).
    ============================================================ */
@@ -500,6 +530,7 @@ export function BuyPage({ say }) {
   const [err, setErr] = useState(null);
   const [n, setN] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [tab, setTab] = useState("gear");
 
   useEffect(() => {
     let alive = true;
@@ -520,9 +551,18 @@ export function BuyPage({ say }) {
        בקופה היא "מה לקנות" ולא "מי ביקש". זה גם עיקרון 5.
      ⚠ ובלי מזהי שורות — הם חסרי משמעות מחוץ למערכת.
      ============================================================ */
-  const groups = (d?.groups || []).filter((g) => g.rows.length);
+  /* ⚠ **הטקסט לוואטסאפ הוא בדיוק מה שרואים** — אותן קבוצות,
+     אותו סדר, ואותה לשונית. רשימה שנשלחת ומכילה גם את מה
+     שאינו על המסך היא הפתעה בקופה (4מד). */
+  const all = (d?.groups || []).filter((g) => g.rows.length);
+  const foodCount = all.filter((g) => g.key === FOOD_CATEGORY)
+    .reduce((a, g) => a + g.rows.length, 0);
+  const gearCount = all.filter((g) => g.key !== FOOD_CATEGORY)
+    .reduce((a, g) => a + g.rows.length, 0);
+  const groups = all.filter((g) => (tab === "food"
+    ? g.key === FOOD_CATEGORY : g.key !== FOOD_CATEGORY));
   const asText = () => {
-    const lines = ["🛒 קניות המכינה"];
+    const lines = [tab === "food" ? "🛒 קניות — אוכל" : "🛒 קניות המכינה"];
     for (const g of groups) {
       lines.push("", "*" + g.title + "*");
       for (const r of g.rows) {
@@ -558,8 +598,17 @@ export function BuyPage({ say }) {
       <div className="tm-sub">
         רשימה אחת לכל המכינה — מכולה, אב בית, אחראי בטיחות, ציוד מטבח והרשימה
         הכללית — מקובצת לפי <b>סוג הפריט</b>, כדי שמי שיוצא לקניות יראה יחד את
-        מה שנקנה באותו מקום.
+        מה שנקנה באותו מקום. <b>אוכל</b> בלשונית משלו, כי זו נסיעה אחרת.
       </div>
+
+      <ScrollTabs className="seg">
+        <button className={tab === "gear" ? "on" : ""} onClick={() => setTab("gear")}>
+          ציוד וכללי{d ? ` (${gearCount})` : ""}
+        </button>
+        <button className={tab === "food" ? "on" : ""} onClick={() => setTab("food")}>
+          {FOOD_CATEGORY}{d ? ` (${foodCount})` : ""}
+        </button>
+      </ScrollTabs>
 
       {/* ⚠ מוצג רק כשיש מה לשלוח: כפתור שישלח רשימה ריקה
           מלמד לא ללחוץ עליו. */}
@@ -575,8 +624,11 @@ export function BuyPage({ say }) {
       )}
 
       {/* ⚠ הטופס בלבד — השורות שנוספות כאן מופיעות ברשימה
-          המאוחדת למטה, ולא פעמיים (ראו formOnly). */}
-      {d && d.canGeneral && (
+          המאוחדת למטה, ולא פעמיים (ראו formOnly).
+          ⚠ ובלשונית "ציוד וכללי" בלבד: שורת אוכל נכתבת ממסך
+          התפריט השבועי, ושני מסלולי הוספה לאותה קטגוריה הם
+          בדיוק "דלת שנייה". */}
+      {d && d.canGeneral && tab === "gear" && (
         <GeneralList say={say} formOnly categories={d.categories || []}
           onAdded={() => setN((x) => x + 1)} />
       )}
@@ -593,7 +645,18 @@ export function BuyPage({ say }) {
         <><div className="skel skel-card" /><div className="skel skel-card" /></>
       ) : (
         <AllShopping d={d} say={say} reload={() => setN((x) => x + 1)}
-          empty={{ title: "אין כרגע מה לקנות", sub: "כל הרשימות ריקות." }} />
+          only={tab}
+          /* ⚠ ומוצג רק כשיש שורות: כשהלשונית ריקה, מצב הריק
+             כבר אומר את אותו דבר, ושתי אמירות זהות על אותו
+             מסך הן רעש (4ג). */
+          note={tab !== "food" ? undefined : (foodCount > 0
+            ? <>הרשימה הזו נבנית במסך <b>תפריט ארוחות</b> → לשונית <b>רשימת קניות</b>.
+              שם בוחרים ימים, והמצרכים שלהם נוספים לכאן.</>
+            : false)}
+          empty={tab === "food"
+            ? { title: "אין כרגע מה לקנות לאוכל",
+                sub: 'רשימת האוכל נבנית ממסך "תפריט ארוחות" — בוחרים ימים, והמצרכים שלהם נוספים לכאן.' }
+            : { title: "אין כרגע מה לקנות", sub: "כל הרשימות ריקות." }} />
       )}
     </>
   );

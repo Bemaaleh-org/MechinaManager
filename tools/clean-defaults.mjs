@@ -24,6 +24,7 @@ import { BOARD_BOARDS } from "../shared/board-ids.js";
 import { TEAM_BOARDS } from "../shared/team-ids.js";
 import { BUY_BOARDS } from "../shared/buy-ids.js";
 import { PRO_BOARDS } from "../shared/pros-ids.js";
+import { STAPLE_BOARDS } from "../shared/staples-ids.js";
 
 const GO = process.argv.includes("--go");
 
@@ -54,6 +55,8 @@ const TARGETS = {
      אמיתית בשם "Task 1" (5יב). כאן הן היו נראות כמו פריט
      שצריך לקנות. */
   "קניות כלליות": BUY_BOARDS.board,
+  /* ⚠ כאן "Task 1" הייתה נראית כמו מצרך קבוע לשבוע. */
+  "מצרכים קבועים": STAPLE_BOARDS.board,
 };
 
 let found = 0, gone = 0;

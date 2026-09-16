@@ -660,6 +660,18 @@ export const api = {
   clearWeekMenuCell: ({ day, meal }) =>
     del("/api/kitchen?action=weekmenu", { day, meal }),
 
+  /* ---------- מצרכים קבועים לשבוע ----------
+     ⚠ הרשימה ש"בוחרים ממנה ומוסיפים" בבניית הקניות מהתפריט.
+     ⚠ **פירוק מפורש** — שדה שאינו כאן נשמט בשקט (4לג).
+     ⚠ `active` הוא בוליאני ונשלח תמיד כשהוא נמסר, כי `false`
+       הוא ערך אמיתי ולא "לא נשלח". */
+  getStaples: () => get("/api/kitchen?action=staples"),
+  addStaple: ({ name, qty, note }) =>
+    post("/api/kitchen?action=staples", { name, qty, note }),
+  editStaple: ({ id, name, qty, note, active }) =>
+    put("/api/kitchen?action=staples", { id, name, qty, note, active }),
+  deleteStaple: (id) => del("/api/kitchen?action=staples", { id }),
+
   /* ---------- שיעורי חניך ----------
      ⚠ פירוק מפורש — שדה שלא נכתב כאן נשמט בשקט (4לג).
      ⚠ `happened` הוא **שלושה מצבים**: true · false · null
