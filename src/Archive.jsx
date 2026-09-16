@@ -18,6 +18,7 @@
    ============================================================ */
 
 import React, { useState, useEffect, useCallback } from "react";
+import { readUpload } from "./upload-image.js";
 import { api } from "./api.js";
 import ScreenNote from "./ScreenNote.jsx";
 import ScrollTabs from "./Tabs.jsx";
@@ -328,16 +329,12 @@ function ContentForm({ l, say, onDone, onCancel }) {
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const pick = (e) => {
+  const pick = async (e) => {
     const f = e.target.files && e.target.files[0];
+    e.target.value = "";
     if (!f) { setFile(null); return; }
-    if (f.size > 3.5 * 1024 * 1024) { say("הקובץ גדול מדי — עד 3.5MB"); e.target.value = ""; return; }
-    const reader = new FileReader();
-    reader.onload = () => setFile({
-      name: f.name, mime: f.type || "application/octet-stream",
-      data: String(reader.result).split(",")[1] || "",
-    });
-    reader.readAsDataURL(f);
+    const up = await readUpload(f, say);
+    if (up) setFile(up);
   };
 
   const save = () => {

@@ -13,6 +13,7 @@
    ============================================================ */
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { readUpload } from "./upload-image.js";
 import Escalate from "./Escalate.jsx";
 import { BRAND } from "./brand.js";
 import { api } from "./api.js";
@@ -531,16 +532,12 @@ function RequestForm({ days, quota, onDone, say, initial = null }) {
     || needDetail || needTimes || badRange;
 
   /* הקובץ נקרא כ-base64 ועובר בגוף הבקשה. עד 3.5MB. */
-  const pickFile = (e) => {
+  const pickFile = async (e) => {
     const f = e.target.files && e.target.files[0];
+    e.target.value = "";
     if (!f) { setFile(null); return; }
-    if (f.size > 3.5 * 1024 * 1024) { say("הקובץ גדול מדי — עד 3.5MB"); e.target.value = ""; return; }
-    const reader = new FileReader();
-    reader.onload = () => setFile({
-      name: f.name, mime: f.type || "application/octet-stream",
-      data: String(reader.result).split(",")[1] || "",
-    });
-    reader.readAsDataURL(f);
+    const up = await readUpload(f, say);
+    if (up) setFile(up);
   };
 
   const submit = (e) => {

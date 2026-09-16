@@ -12,6 +12,7 @@
    ============================================================ */
 
 import { israelDateStr } from "./testDate.js";
+import { readUpload } from "./upload-image.js";
 import React, { useState, useEffect } from "react";
 import { api } from "./api.js";
 import { useExcel, downloadTable } from "./excel.js";
@@ -43,23 +44,19 @@ function Receipt({ order, canUpload, say, reload }) {
   const [busy, setBusy] = useState(false);
   const ref = React.useRef(null);
 
-  const pick = (e) => {
+  /* ⚠ קבלה מצולמת בטלפון מוקטנת לפני השליחה — ראו
+     src/upload-image.js. קובץ שאינו תמונה (PDF) עובר כמו שהוא. */
+  const pick = async (e) => {
     const f = e.target.files && e.target.files[0];
     e.target.value = "";
     if (!f) return;
-    /* ⚠ אותו גבול של השרת, ונאמר לפני ההמתנה ולא אחריה. */
-    if (f.size > 3.5 * 1024 * 1024) { say("הקובץ גדול מ-3.5MB — צלמו שוב או הקטינו"); return; }
     setBusy(true);
-    const fr = new FileReader();
-    fr.onerror = () => { setBusy(false); say("קריאת הקובץ נכשלה"); };
-    fr.onload = () => {
-      const data = String(fr.result || "").split(",")[1] || "";
-      api.setReceipt({ orderId: order.id, fileData: data, fileName: f.name, fileMime: f.type })
-        .then((r) => { say(`הקבלה הועלתה · ${r.by}`); reload(); })
-        .catch((e) => say(e.message))
-        .finally(() => setBusy(false));
-    };
-    fr.readAsDataURL(f);
+    const up = await readUpload(f, say);
+    if (!up) { setBusy(false); return; }
+    api.setReceipt({ orderId: order.id, fileData: up.data, fileName: up.name, fileMime: up.mime })
+      .then((r) => { say(`הקבלה הועלתה · ${r.by}`); reload(); })
+      .catch((e2) => say(e2.message))
+      .finally(() => setBusy(false));
   };
 
   if (!order.receipt && !canUpload) return null;

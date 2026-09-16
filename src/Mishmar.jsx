@@ -18,6 +18,7 @@
    ⚠ **כשל טעינה ≠ ריק ≠ טרם הוקם.** שלושה מסכים שונים.
    ============================================================ */
 import React, { useState, useEffect, useCallback } from "react";
+import { readUpload } from "./upload-image.js";
 import { api } from "./api.js";
 import ScreenNote from "./ScreenNote.jsx";
 
@@ -126,9 +127,8 @@ const STATUSES_FALLBACK = ["בתכנון", "פורסם", "התקיים", "בוט
 const KINDS_FALLBACK = ["שיעור", "סדנה", "שיח", "הפסקה", "ארוחה", "אחר"];
 const PARTIAL_NAME = { ratings: "הדירוגים", teams: "רשימת הצוותים" };
 
-/* ⚠ base64 מנפח בשליש, ופונקציית Vercel מקבלת גוף עד 4.5MB —
-   קובץ של 3MB הוא הגבול שבו ההעלאה עוד מגיעה לשרת. */
-const MAX_UPLOAD = 3 * 1024 * 1024;
+/* ⚠ התקרה האמיתית וההקטנה יושבות ב-src/upload-image.js,
+   כדי שלא יהיו שבעה רפים בשבעה מסכים. */
 
 /* ============================================================
    המסך
@@ -725,28 +725,19 @@ function RateRow({ s, say }) {
 /* ---------- העלאת דף עזר ---------- */
 function FileUpload({ s, say, onDone }) {
   const [busy, setBusy] = useState(false);
-  const pick = (e) => {
+  const pick = async (e) => {
     const file = e.target.files && e.target.files[0];
+    e.target.value = "";
     if (!file) return;
-    if (file.size > MAX_UPLOAD) {
-      say("הקובץ גדול מדי — עד 3MB. מצגת כבדה עדיף לכווץ ל-PDF.");
-      e.target.value = "";
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setBusy(true);
-      api.uploadMishmarFile({
-        session: s.id,
-        fileData: String(reader.result).split(",")[1] || "",
-        fileName: file.name,
-        fileMime: file.type || "application/octet-stream",
-      })
-        .then(() => { say("הקובץ עלה"); onDone(); })
-        .catch((err) => say(err.message))
-        .finally(() => { setBusy(false); e.target.value = ""; });
-    };
-    reader.readAsDataURL(file);
+    setBusy(true);
+    const up = await readUpload(file, say);
+    if (!up) { setBusy(false); return; }
+    api.uploadMishmarFile({
+      session: s.id, fileData: up.data, fileName: up.name, fileMime: up.mime,
+    })
+      .then(() => { say("הקובץ עלה"); onDone(); })
+      .catch((err) => say(err.message))
+      .finally(() => setBusy(false));
   };
   return (
     <div className="fld" style={{ marginTop: 10, marginBottom: 0 }}>

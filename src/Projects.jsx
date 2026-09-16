@@ -20,6 +20,7 @@
      נפרדים זה מזה ביום הראשון (4יז).
    ============================================================ */
 import React, { useState, useEffect, useCallback } from "react";
+import { readUpload } from "./upload-image.js";
 import { api } from "./api.js";
 import ScrollTabs from "./Tabs.jsx";
 import { useExcel, downloadTable } from "./excel.js";
@@ -1045,20 +1046,12 @@ function Journal({ p, say, reload }) {
        וזו הייתה החלטה — לא פער. הגבול נאכף בשרת (2MB), וגם כאן
        כדי שהמשתמש יידע לפני שהוא ממתין להעלאה שתידחה.
      ============================================================ */
-  const pick = (e) => {
+  const pick = async (e) => {
     const fl = e.target.files && e.target.files[0];
+    e.target.value = "";
     if (!fl) { setFile(null); return; }
-    if (fl.size > 2 * 1024 * 1024) {
-      say("הקובץ גדול מ-2MB. אפשר לצלם באיכות נמוכה יותר.");
-      e.target.value = "";
-      return;
-    }
-    const rd = new FileReader();
-    rd.onload = () => setFile({
-      fileData: String(rd.result).split(",")[1],
-      fileName: fl.name, fileMime: fl.type || "application/octet-stream",
-    });
-    rd.readAsDataURL(fl);
+    const up = await readUpload(fl, say);
+    if (up) setFile({ fileData: up.data, fileName: up.name, fileMime: up.mime });
   };
 
   const del = (e2) => {

@@ -16,6 +16,7 @@
    ============================================================ */
 
 import React, { useState, useEffect } from "react";
+import { readUpload } from "./upload-image.js";
 import { api } from "./api.js";
 import ScrollTabs from "./Tabs.jsx";
 import {
@@ -130,19 +131,18 @@ function FaultForm({ initial, say, onDone, onCancel, reporter = false }) {
   ].filter(Boolean);
   const canSave = missing.length === 0;
 
-  /* התמונה נקראת כ-base64 ועוברת בגוף הבקשה, כמו אישור המחלה
-     בבקשות היציאה. עד 5MB — צילום טלפון רגיל נכנס בקלות. */
-  const pickPhoto = (e) => {
+  /* ⚠ התמונה **מוקטנת בדפדפן** ואז עוברת בגוף הבקשה.
+     עד היום המסך אישר 5MB והשרת החזיר 413 — ראו
+     src/upload-image.js. */
+  const [picking, setPicking] = useState(false);
+  const pickPhoto = async (e) => {
     const file = e.target.files && e.target.files[0];
+    e.target.value = "";
     if (!file) { setPhoto(null); return; }
-    if (file.size > 5 * 1024 * 1024) { say("התמונה גדולה מדי — עד 5MB"); e.target.value = ""; return; }
-    const reader = new FileReader();
-    reader.onload = () => setPhoto({
-      name: file.name, mime: file.type || "image/jpeg",
-      data: String(reader.result).split(",")[1] || "",
-      preview: String(reader.result),
-    });
-    reader.readAsDataURL(file);
+    setPicking(true);
+    const up = await readUpload(file, say);
+    setPicking(false);
+    if (up) setPhoto(up);
   };
 
   const save = () => {
@@ -238,15 +238,15 @@ function FaultForm({ initial, say, onDone, onCancel, reporter = false }) {
                 </a>
                 <label className="file-drop" style={{ marginTop: 8 }}>
                   <FI.camera />
-                  <span>הוספת תמונה נוספת</span>
-                  <input type="file" accept="image/*" disabled={busy} onChange={pickPhoto} />
+                  <span>{picking ? "מכין את התמונה…" : "הוספת תמונה נוספת"}</span>
+                  <input type="file" accept="image/*" disabled={busy || picking} onChange={pickPhoto} />
                 </label>
               </>
             ) : (
               <label className="file-drop">
                 <FI.camera />
-                <span>צילום או בחירת תמונה</span>
-                <input type="file" accept="image/*" disabled={busy} onChange={pickPhoto} />
+                <span>{picking ? "מכין את התמונה…" : "צילום או בחירת תמונה"}</span>
+                <input type="file" accept="image/*" disabled={busy || picking} onChange={pickPhoto} />
               </label>
             )}
           </div>
@@ -668,16 +668,12 @@ function ProsTab({ say }) {
   const live = pros.filter((p) => p.active);
   const off = pros.filter((p) => !p.active);
 
-  const pick = (e) => {
+  const pick = async (e) => {
     const file = e.target.files && e.target.files[0];
+    e.target.value = "";
     if (!file) { setPhoto(null); return; }
-    if (file.size > 5 * 1024 * 1024) { say("התמונה גדולה מדי — עד 5MB"); e.target.value = ""; return; }
-    const reader = new FileReader();
-    reader.onload = () => setPhoto({
-      name: file.name, mime: file.type || "image/jpeg",
-      data: String(reader.result).split(",")[1],
-    });
-    reader.readAsDataURL(file);
+    const up = await readUpload(file, say);
+    if (up) setPhoto(up);
   };
 
   const save = () => {
