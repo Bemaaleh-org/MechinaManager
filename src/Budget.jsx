@@ -846,8 +846,6 @@ function DiningTab({ data, say, reload }) {
   const canSet = Boolean(data.canSetDining);
   /* ⚠ אישור בתוך המסך ולא `confirm()` של הדפדפן — הוא
      נראה זר ובחלק מהדפדפנים במובייל נחסם לגמרי (4ק). */
-  const [moveAsk, setMoveAsk] = useState(false);
-  const [moving, setMoving] = useState(false);
   const [vals, setVals] = useState({});
   const [busyDate, setBusyDate] = useState(null);
   const [bEdit, setBEdit] = useState(false);
@@ -905,17 +903,6 @@ function DiningTab({ data, say, reload }) {
       .finally(() => setSBusy(false));
   };
 
-  /* ⚠ **ההצהרה מגיעה מהשרת** (`r.note`) ואינה מנוסחת כאן —
-     שתי גרסאות של אותה הצהרה מתפצלות בתיקון הראשון (4מד). */
-  const doMove = () => {
-    if (moving) return;
-    setMoving(true);
-    api.moveDiningSurplus(data.month)
-      .then((r) => { say(r.note || "הועבר"); setMoveAsk(false); reload(); })
-      .catch((e) => say(e.message))
-      .finally(() => setMoving(false));
-  };
-
   const used = data.diningUsed || 0;
   const plan = data.diningPlan || 0;
   const budgetN = data.diningBudget != null ? data.diningBudget : plan;
@@ -955,47 +942,28 @@ function DiningTab({ data, say, reload }) {
               המסך אינו מחפש את סוג היום בעצמו.
             ============================================================ */}
         {/* ============================================================
-            ⚠⚠ **העברת היתרה לתקציב הקניות.**
-            הבקשה: *"אחרי שכל אירועי העשייה הקהילתית בחודש
-            התקיימו, שהיתרה תעבור לתקציב הקניות עם הצהרה."*
+            ⚠⚠⚠ **היתרה עוברת מעצמה (16.9.2026).**
 
-            ⚠ השרת מחשב מתי זה אפשרי ומה הסכום; המסך מציג
-              ומבקש אישור. כסף שעובר בלי שאיש החליט הוא
-              בדיוק מה שאי אפשר לשחזר בסוף השנה (4צ).
+            קודם זה היה כפתור שראש המכינה לוחץ עליו בסוף
+            החודש, והדיווח שהתקבל היה "בתקציב הכללי לא
+            מתווסף מה שנשאר מהחד״א" — כלומר הכפתור לא
+            נלחץ. פעולה שמישהו צריך לזכור בסוף כל חודש היא
+            פעולה שלא תיעשה (4כו).
 
-            ⚠ ומה שכבר הועבר מוצג גם אחרי כן — העברה שנעלמת
-              מהמסך היא בדיוק מה שאיש לא יזכור בעוד חודשיים
-              (5ו, הוצאת שיעור מדוח התשלום).
+            ⚠ הנוסח מגיע מהשרת (`diningMoveNote`) ואינו מנוסח
+              כאן — שתי גרסאות של אותה הצהרה מתפצלות (4מד).
             ============================================================ */}
         {data.diningMoved > 0 && (
           <div className="bg-moved">
-            הועברו <b>{shekel(data.diningMoved)} ₪</b> מתקציב החד״א לתקציב הקניות החודש.
+            <b>+{shekel(data.diningMoved)} ₪</b> {data.diningMoveNote
+              || "הוספו לתקציב הקניות, וירדו מתקציב החד״א"}
           </div>
         )}
-        {data.canMoveDining && data.diningMovable > 0 && (
-          moveAsk ? (
-            <div className="bg-move">
-              <div>להעביר <b>{shekel(data.diningMovable)} ₪</b> מיתרת החד״א לתקציב הקניות?</div>
-              <div className="bg-btns">
-                <button className="btn btn-primary btn-sm" disabled={moving} onClick={doMove}>
-                  {moving ? "מעביר…" : "העברה"}
-                </button>
-                <button className="btn btn-ghost btn-sm" onClick={() => setMoveAsk(false)}>ביטול</button>
-              </div>
-            </div>
-          ) : (
-            <div style={{ marginTop: 8 }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => setMoveAsk(true)}>
-                העברת {shekel(data.diningMovable)} ₪ לתקציב הקניות
-              </button>
-            </div>
-          )
-        )}
-        {/* ⚠ וכשאי אפשר — הסיבה במילים, ולא כפתור מושבת (4כב). */}
-        {data.canMoveDining && !data.diningMovable && data.diningMoveReason
-          && data.communityDays > 0 && (
+        {/* ⚠ וכשעוד לא — הסיבה במילים, כדי שיהיה ברור למה
+            הכסף עדיין כאן ומה חסר כדי שיעבור (4כב). */}
+        {!data.diningMoved && data.diningMoveReason && data.communityDays > 0 && (
           <div style={{ fontSize: 12, color: "var(--faint)", fontWeight: 600, marginTop: 6 }}>
-            העברת יתרה לתקציב הקניות: {data.diningMoveReason}.
+            היתרה תעבור לתקציב הקניות מעצמה — {data.diningMoveReason}.
           </div>
         )}
 

@@ -143,6 +143,28 @@ try {
     typeof bd.diningMoved === "number" && typeof bd.diningMovable === "number"
       && typeof bd.canMoveDining === "boolean",
     `moved=${bd.diningMoved} movable=${bd.diningMovable} may=${bd.canMoveDining}`);
+
+  /* ============================================================
+     ⚠⚠ **ההעברה אוטומטית (16.9.2026), ואין כפתור.**
+     הדיווח שהתקבל היה "בתקציב הכללי לא מתווסף
+     מה שנשאר מהחד״א" — כלומר הכפתור לא נלחץ.
+     שלוש הטענות נועלות שלא יוחזר הכפתור בשקט.
+     ============================================================ */
+  ok("והכפתור ירד — canMoveDining הוא false",
+    bd.canMoveDining === false, String(bd.canMoveDining));
+  ok("ומה שעבר הוא מה שניתן להעברה",
+    bd.diningMoved === bd.diningMovable, `${bd.diningMoved} / ${bd.diningMovable}`);
+  /* ⚠ וההצהרה מגיעה מהשרת כשיש מה להצהיר —
+     מספר שגדל בלי הסבר נראה כמו טעות (4לג). */
+  ok("וכשהועבר כסף — יש הצהרה במילים",
+    !bd.diningMoved || /לתקציב הקניות/.test(bd.diningMoveNote || ""),
+    bd.diningMoveNote || "(לא עבר כלום)");
+  /* ⚠ והמסלול הישן נסגר ב-410 ולא בשקט — לקוח ישן
+     שישלח אותו חייב לדעת שלא קרה דבר (5ו). */
+  r = await call(M, "PUT", "/api/kitchen?action=budget",
+    { month: bd.month, diningMove: true });
+  ok("והמסלול הידני מחזיר 410 עם הסבר",
+    r.s === 410 && /מעצמה/.test(r.b.error || ""), `${r.s} ${r.b.error || ""}`);
   /* ⚠ **כשאי אפשר להעביר יש סיבה במילים**, ולא כפתור
      מושבת בלי הסבר (4כב). */
   ok("וכשאין מה להעביר — יש סיבה במילים",

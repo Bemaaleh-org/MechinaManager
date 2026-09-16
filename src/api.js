@@ -233,10 +233,6 @@ export const api = {
   /** תקציב החד״א החודשי — ראש המכינה. "" מנקה. */
   /* ⚠ לחודש אחד — ריק מחזיר את החודש לתקציב הנגזר */
   setDiningBudget: ({ month, amount }) => put("/api/kitchen?action=budget", { month, diningBudget: amount }),
-  /* ⚠⚠ **הסכום אינו נשלח** — השרת מחשב אותו ומחזיר את
-     ההצהרה. מסך ששולח סכום יכול לשלוח כל סכום,
-     והתנאי היה הופך להצעה (עיקרון 3). */
-  moveDiningSurplus: (month) => put("/api/kitchen?action=budget", { month, diningMove: true }),
   /** מחיר חד״א לסועד — ראש המכינה */
   setDiningRate: (diningRate) => put("/api/kitchen?action=budget", { diningRate }),
   /** כמה אכלו בחד״א ביום אחד — השדה הזה בלבד. "" מנקה. */

@@ -23,7 +23,7 @@ import { loadGantt } from "./_lessons-gantt.js";
 import {
   BUDGET_BOARDS as B, BUDGET_COLS as C, budgetReady,
   DEFAULT_HEADCOUNT, SETTING_HEADCOUNT,
-  SETTING_DINING_RATE, SETTING_DINING_BUDGET, SETTING_DINING_MOVED, DEFAULT_DINING_RATE,
+  SETTING_DINING_RATE, SETTING_DINING_BUDGET, DEFAULT_DINING_RATE,
   diningHeadsReady, receiptReady, DAY_COMMUNITY,
   dayCost, perPersonOf, sortTypes, orderShareFor, monthsOf,
   headcountAt, ORDER_KIND, ORDER_KINDS,
@@ -195,7 +195,9 @@ export async function duplicateSettings({ force = false } = {}) {
     תקציב ידני. חודש בלי שורה מקבל את התקציב הנגזר (13.9.2026). */
 const diningBudgetKey = (month) => `${SETTING_DINING_BUDGET} ${month}`;
 /* ⚠ שורה לחודש — ראו shared/budget-boards.js. */
-const diningMovedKey = (month) => `${SETTING_DINING_MOVED} ${month}`;
+/* ⚠ שורות "העברה מחד״א" אינן נקראות עוד — הסכום נגזר
+   מהיתרה עצמה (16.9.2026). השורות שנכתבו בעבר נשארו
+   בלוח כרישום, וקריאה שלהן היתה ספירה כפולה. */
 
 const invalidateBudget = () => {
   invalidate("budget-daytypes"); invalidate("budget-days");
@@ -457,19 +459,48 @@ async function handler(req, res, session) {
          ============================================================ */
       /* ⚠ שעון ישראל ולא שעון השרת — Vercel רצה ב-UTC,
          והגבול "היום עבר" היה זז במוצאי שבת. */
+      /* ============================================================
+         ⚠⚠⚠ **היתרה עוברת מעצמה, ואינה מחכה לכפתור
+         (16.9.2026).**
+
+         עד כאן ההעברה היתה פעולה: השרת חישב כמה אפשר,
+         וראש המכינה לחץ "להעביר". הדיווח שהתקבל היה
+         "בתקציב הכללי לא מתווסף התקציב שנשאר מהחד״א" —
+         כלומר הכפתור לא נלחץ, והכסף פשוט לא היה שם.
+
+         פעולה שמישהו צריך לזכור לעשות בסוף כל חודש היא
+         פעולה שלא תיעשה, והתוצאה היא תקציב קניות שקטן
+         מהאמת. זה בדיוק הנימוק של 4כו — מה שנגזר מהמצב
+         אינו מתיישן, ומה שנשמר בפעולה מתיישן.
+
+         ⚠ **והתנאים לא השתנו**: כל ימי העשייה הקהילתית
+           של החודש עברו **ונספרו**. יום שטרם נספר אינו "חסכון"
+           — הוא פשוט לא ידוע, והעברה על סמך חוסר נתון היא
+           ניפוח של תקציב הקניות (4יח).
+
+         ⚠ **והיא מתקנת את עצמה.** יום שייספר מאוחר יותר, או
+           ספירה שתתוקן, משנים את הסכום מיד — בעוד שורה
+           שנכתבה בלוח היתה נשארת על המספר הישן.
+
+         ⚠ **שורות ההעברה הישנות אינן נקראות עוד** — הסכום
+           נגזר מהיתרה עצמה, וקריאה של שתיהן היתה ספירה
+           כפולה. השורות נשארות בלוח כרישום.
+         ============================================================ */
+      /* ⚠ שעון ישראל ולא שעון השרת — Vercel רצה ב-UTC,
+         והגבול "היום עבר" היה זז במוצאי שבת. */
       const todayIso = israelToday();
-      const moved = await loadSettingNum(diningMovedKey(month));
-      const diningMoved = moved || 0;
       const pastCommunity = b.days.filter((d) => d.community && d.date < todayIso);
       const uncounted = pastCommunity.filter((d) => d.diningHeads == null).length;
       const future = b.days.filter((d) => d.community && d.date >= todayIso).length;
-      const surplus = Math.max(0, Math.round((diningBudget - b.diningUsed - diningMoved) * 100) / 100);
+      const surplus = Math.max(0, Math.round((diningBudget - b.diningUsed) * 100) / 100);
       let diningMoveReason = null;
       if (!b.communityDays) diningMoveReason = "אין ימי עשייה קהילתית בחודש הזה";
       else if (future) diningMoveReason = `נותרו ${future} ימי עשייה קהילתית שטרם הגיעו`;
       else if (uncounted) diningMoveReason = `${uncounted} ימי עשייה קהילתית עברו וטרם נספרו`;
       else if (!surplus) diningMoveReason = "לא נותרה יתרה להעביר";
-      const diningMovable = diningMoveReason ? 0 : surplus;
+      /* ⚠ **מה שעבר בפועל**, ולא "מה אפשר להעביר". */
+      const diningMoved = diningMoveReason ? 0 : surplus;
+      const diningMovable = diningMoved;
 
       /* ⚠ הקניות אינן מוסיפות לתקציב אלא יורדות ממנו: התקציב
          נקבע מסוגי הימים, והקניות הן ההוצאה מולו. ההפרש הוא
@@ -569,7 +600,16 @@ async function handler(req, res, session) {
         diningMoved,
         diningMovable,
         diningMoveReason,
-        canMoveDining: Boolean(session.isHead),
+        /* ⚠ **נשאר בתשובה והוא false תמיד** — לקוח שלא
+           רוענן קורא `undefined` כ"מותר", מציג כפתור העברה,
+           ומקבל 410 אחרי הלחיצה (4יד, 5לד). ההעברה
+           אוטומטית עכשיו — אין מה ללחוץ. */
+        canMoveDining: false,
+        /* ⚠ וההצהרה במילים, מהשרת — כמו שהתבקשה,
+           והמסך אינו מנסח אותה מחדש (4מד). */
+        diningMoveNote: diningMoved
+          ? `הוספו ${Math.round(diningMoved).toLocaleString("he-IL")} שקלים לתקציב הקניות, וירדו מתקציב החד״א`
+          : null,
         diningReady: diningHeadsReady(),
         /* ============================================================
            ⚠⚠ **תקציב הקניות כולל את מה שהועבר מהחד״א.**
@@ -722,58 +762,14 @@ async function handler(req, res, session) {
            — והמסך אינו מנסח אותה מחדש (4מד).
          ============================================================ */
       if (body.diningMove !== undefined) {
-        if (!session.isHead) {
-          return res.status(403).json({ error: "העברת יתרת החד״א נעשית על ידי ראש המכינה" });
-        }
-        const month = String(body.month || "").trim();
-        if (!/^\d{4}-\d{2}$/.test(month)) return res.status(400).json({ error: "לא צוין חודש" });
-
-        /* ⚠ **נבנה מחדש באותה `buildMonth` של ה-GET**, ולא
-           בחישוב שני — שתי הגדרות ל"כמה נותר" היו
-           מתפצלות בתיקון הראשון, והמסך היה מציג סכום
-           אחד והשרת מעביר אחר (4מד). */
-        const [types2, ov2, heads2, cal2, gantt2, rate2] = await Promise.all([
-          loadDayTypes({ force: true }), loadOverrides({ force: true }), loadHeadcount(),
-          loadCalendar(), loadGantt(), loadSettingNum(SETTING_DINING_RATE, { force: true }),
-        ]);
-        const bb = buildMonth(month, {
-          types: types2, overrides: ov2, calendar: cal2, gantt: gantt2, heads: heads2,
-          diningRate: rate2 != null && rate2 > 0 ? rate2 : DEFAULT_DINING_RATE,
-        });
-        const set2 = await loadSettingNum(diningBudgetKey(month));
-        const budget2 = set2 != null ? set2 : bb.diningPlan;
-        const already = (await loadSettingNum(diningMovedKey(month))) || 0;
-        const todayIso2 = israelToday();
-        const future2 = bb.days.filter((d) => d.community && d.date >= todayIso2).length;
-        const uncounted2 = bb.days
-          .filter((d) => d.community && d.date < todayIso2 && d.diningHeads == null).length;
-        const amount = Math.round((budget2 - bb.diningUsed - already) * 100) / 100;
-
-        /* ⚠ ההודעה אומרת **למה** ולא "לא ניתן" (4כב). */
-        if (!bb.communityDays) return res.status(400).json({ error: "אין ימי עשייה קהילתית בחודש הזה" });
-        if (future2) {
-          return res.status(400).json({
-            error: `נותרו ${future2} ימי עשייה קהילתית שטרם הגיעו — היתרה עודיין עשויה להידרש` });
-        }
-        if (uncounted2) {
-          return res.status(400).json({
-            error: `${uncounted2} ימי עשייה קהילתית עברו וטרם נספרו — יש לספור אותם קודם` });
-        }
-        if (amount <= 0) return res.status(400).json({ error: "לא נותרה יתרה להעביר" });
-
-        const key = diningMovedKey(month);
-        const items = await allItems(B.settings);
-        const hit = items.find((i) => String(i.name || "").trim() === key);
-        const total = Math.round((already + amount) * 100) / 100;
-        if (hit) await setCols(B.settings, hit.id, { [C.settings.value]: String(total) });
-        else await createItem(B.settings, key, { [C.settings.value]: String(total) });
-        invalidateBudget();
-
-        const nis = (n) => n.toLocaleString("he-IL", { maximumFractionDigits: 2 });
-        return res.status(200).json({
-          ok: true, month, moved: amount, totalMoved: total,
-          /* ⚠ הנוסח שראש המכינה ביקש, מהשרת ולא מהמסך. */
-          note: `הוספתי ${nis(amount)} שקלים לתקציב הקניות, וירד מתקציב החד״א`,
+        /* ⚠⚠ **המסלול נסגר — ההעברה אוטומטית (16.9.2026).**
+           410 ולא הסרה שקטה: מסלול שנשאר פתוח אחרי שאיש
+           אינו קורא ממנו כותב שורת הגדרה שאיש אינו קורא,
+           ולקוח ישן יראה "הועבר" על משהו שלא קרה (5ו). */
+        return res.status(410).json({
+          error: "יתרת החד״א עוברת לתקציב הקניות מעצמה, "
+            + "ברגע שכל ימי העשייה הקהילתית של החודש עברו ונספרו. "
+            + "אין מה ללחוץ.",
         });
       }
 
