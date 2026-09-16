@@ -2937,7 +2937,7 @@ export function RoleHolders({ say }) {
             autoComplete="off" placeholder="קוד"
             value={lockIn} onChange={(e) => { setLockIn(e.target.value); setLockErr(""); }}
           />
-          <button className="btn" disabled={!lockIn.trim() || lockBusy}>
+          <button className="btn btn-primary" disabled={!lockIn.trim() || lockBusy}>
             {lockBusy ? "בודק…" : "פתיחה"}
           </button>
           {lockErr && <p className="rlk-e">{lockErr}</p>}

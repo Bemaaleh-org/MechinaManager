@@ -210,7 +210,7 @@ function AllShopping({ d, say, empty = null, note = null, reload = null, only = 
                     <div className="by-ask">
                       <span>למחוק את "{r.name}" מהרשימה?</span>
                       <div className="by-btns">
-                        <button className="btn btn-danger btn-sm" onClick={() => remove(r)}
+                        <button className="btn btn-clay btn-sm" onClick={() => remove(r)}
                           disabled={busy.has(key)}>מחיקה</button>
                         <button className="btn btn-ghost btn-sm"
                           onClick={() => setAsk(null)}>ביטול</button>

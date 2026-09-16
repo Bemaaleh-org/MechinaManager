@@ -1651,7 +1651,7 @@ export function BudgetPage({ say, isHead = false }) {
                         {o.kind === ORDER_KIND.quarterly && o.months.length > 1
                           && ` (ומהחודשים ${o.months.map(monthLabel).join(" · ")})`}.</div>
                       <div className="ord-ask-b">
-                        <button className="btn btn-sm" disabled={busyDel}
+                        <button className="btn btn-clay btn-sm" disabled={busyDel}
                           onClick={() => { setBusyDel(true);
                             api.deletePurchase(o.id)
                               .then(() => { say("הקנייה נמחקה"); setDel(null); reload(); })

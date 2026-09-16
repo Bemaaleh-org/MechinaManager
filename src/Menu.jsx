@@ -932,7 +932,7 @@ function StaplesEditor({ rows, say, reload }) {
           onChange={(e) => setF({ ...f, qty: e.target.value })} />
         <input className="in" placeholder="הערה" value={f.note}
           onChange={(e) => setF({ ...f, note: e.target.value })} />
-        <button className="btn btn-sm" disabled={busy || !f.name.trim()} onClick={addOne}>
+        <button className="btn btn-primary btn-sm" disabled={busy || !f.name.trim()} onClick={addOne}>
           <MI.plus />הוספה
         </button>
       </div>
@@ -962,7 +962,7 @@ function StaplesEditor({ rows, say, reload }) {
             <div className="ms-ask">
               <div>למחוק את "{r.name}" מהרשימה הקבועה?</div>
               <div className="ms-ask-b">
-                <button className="btn btn-sm" disabled={busy} onClick={() => {
+                <button className="btn btn-clay btn-sm" disabled={busy} onClick={() => {
                   setBusy(true);
                   api.deleteStaple(r.id)
                     .then(() => { say("נמחק"); setAsk(null); reload(); })
