@@ -149,6 +149,60 @@ try {
   /* ⚠ מזהה שאינו קיים: התשובה מגיעה מהשער ולא מהנתונים, ואף
      שורה לא נוגעת. לצוות זה 404 "המפגש אינו נמצא". */
   ok("מפגש שאינו קיים → 404, ולא נכתב דבר", r.s === 404, `${r.s} ${r.b.error || ""}`);
+
+  /* ============================================================
+     4 · ⚠⚠⚠ **הועדה באמת מסמנת — ואין שער שני**
+     ------------------------------------------------------------
+     הבאג שזה נולד ממנו (16.9.2026): `_lesson-mark.js` החזיק
+     `mayMark` — `isManager || isScheduler || isLeader || leadsAnyWeek` —
+     **לפני** `lessonRights`, והוא אינו כולל את הועדה. כל
+     ששת חברי קבוצה ותוכן הם חניכים בלי תפקיד אחראי
+     הלו״ז, ולכן קיבלו 403 על "התקיים", על "שם המרצה
+     שהגיע" ועל הערת חוות הדעת.
+
+     ⚠⚠ **וטענה על `lessonRights` לבדה לעולם לא היתה תופסת
+       את זה** — ההרשאה שם היתה נכונה כל הזמן. לכן שתי
+       טענות ולא אחת: שהכלל נכון, ושאין שער שני לפניו.
+     ============================================================ */
+  console.log("\n4 · חבר ועדה אמיתי — הכלל, ואין שער שני");
+  const { loadDefinitions, loadAssignments } = await import("../../api/_placements.js");
+  const team = (await loadDefinitions()).find((x) => x.content && !x.archived);
+  const mem = team
+    ? (await loadAssignments()).filter((x) => String(x.placement) === String(team.id))
+    : [];
+  ok("נמצאה ועדה עם חברים", Boolean(team) && mem.length > 0,
+    team ? `${team.name} · ${mem.length}` : "—");
+  if (mem.length) {
+    /* ⚠ סשן של חבר ועדה אמיתי, **בקריאה בלבד** — אף
+       שורה אינה נכתבת ואין שיבוץ זמני לנקות אחריו. */
+    const g = await lessonRights({ isStudent: true, itemId: String(mem[0].student) });
+    ok("לחבר הועדה write פתוח", g.write === true, String(g.write));
+    ok("והוא limited", g.limited === true, String(g.limited));
+    ok("כותב בגיליון שלו", Boolean(mk) && g.mayWrite(mk) === true,
+      mk ? mk.subject : "—");
+    ok("ואינו כותב באחר", Boolean(un) && g.mayWrite(un) === false,
+      un ? un.subject : "—");
+  }
+
+  /* ============================================================
+     ⚠⚠ **וזו הטענה שהייתה תופסת את הבאג: שער אחד.**
+
+     הבדיקה קוראת את הקובץ **בלי ההערות** ומוודאת
+     שאין בו הפניה לדגלי הסשן. זו אינה בדיקת התנהגות
+     והיא מצהירה על עצמה ככזו — אבל היא הדבר היחיד
+     שתופס שער שני שיוחזר לשם, כי אין חשבון בדיקה
+     משובץ לועדה שאפשר להיכנס איתו (ראו ההערה בחלק 2).
+
+     ⚠ הדגלים מופיעים בהערות של הקובץ במכוון — הן
+       מתעדות מה הוסר ולמה — ולכן הן מוסרות לפני הסריקה.
+     ============================================================ */
+  const src = (await import("node:fs")).readFileSync("api/_lesson-mark.js", "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+  const gates = ["isManager", "isScheduler", "isLeader", "leadsAnyWeek"]
+    .filter((f) => src.includes(f));
+  ok("ואין ב-_lesson-mark.js שער שני לפני lessonRights",
+    gates.length === 0, gates.join(" · ") || "שער אחד");
 } finally {
   for (const x of regs) await x.restore();
   invalidate("auth-rows");

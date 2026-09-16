@@ -21,17 +21,39 @@ import {
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+/* ============================================================
+   ⚠⚠⚠ **הצמצום לפי גיליון נשכח כאן לגמרי.**
+
+   `rights.write` הוא בוליאני גורף, והוא היה הבדיקה
+   היחידה בשלושת המסלולים. כלומר חבר ועדה יכול היה
+   **להוסיף, להזיז ולמחוק מפגשים בכל גיליון במכינה** —
+   אימונים, תנ״ך, מליאה.
+
+   `_lesson-mark.js` כן מצמצם (`rights.limited` + `mayWrite`),
+   והקובץ הזה נשאר מאחור — אותו דפוס של "5יז שנשאר
+   מאחור". זה הכלל שכתוב ב-`shared/lessons-boards.js`: הועדה
+   עורכת את הגיליונות שלה ולא את כולם.
+
+   ⚠ **הגיליון נלקח מהמפגש ולא מגוף הבקשה** בעריכה
+     ובמחיקה, אחרת היה אפשר לעקוף בשליחת מזהה
+     של גיליון אחר (4כב).
+
+   ⚠ **404 ולא 403** — 403 מאשר שהשורה קיימת (4נ).
+   ============================================================ */
+const outOfScope = (rights, sheet) => rights.limited && !rights.mayWrite(sheet);
+const NOT_FOUND = { error: "הגיליון אינו נמצא" };
+
 async function handler(req, res, session) {
   const rights = await lessonRights(session);
   if (!rights.write) return res.status(403).json({ error: rights.hint });
 
-  if (req.method === "POST") return create(req, res, session);
-  if (req.method === "PUT") return edit(req, res, session);
-  if (req.method === "DELETE") return remove(req, res, session);
+  if (req.method === "POST") return create(req, res, session, rights);
+  if (req.method === "PUT") return edit(req, res, session, rights);
+  if (req.method === "DELETE") return remove(req, res, session, rights);
   return res.status(405).json({ error: "רק POST, PUT ו-DELETE נתמכים כאן" });
 }
 
-async function create(req, res, session) {
+async function create(req, res, session, rights) {
   try {
     const body = req.body ?? (await readJson(req));
     const sheetId = String(body?.sheetId || "").trim();
@@ -53,7 +75,8 @@ async function create(req, res, session) {
 
     const [sheets, meetings] = await Promise.all([loadSheets(), loadMeetings()]);
     const sheet = sheets.find((s) => s.id === sheetId);
-    if (!sheet) return res.status(404).json({ error: "הגיליון אינו נמצא" });
+    if (!sheet) return res.status(404).json(NOT_FOUND);
+    if (outOfScope(rights, sheet)) return res.status(404).json(NOT_FOUND);
 
     const clash = meetings.find((m) => m.sheetId === sheetId && m.date === date);
     if (clash) {
@@ -74,7 +97,7 @@ async function create(req, res, session) {
 }
 
 /* ---------- עריכה ---------- */
-async function edit(req, res, session) {
+async function edit(req, res, session, rights) {
   try {
     const body = req.body ?? (await readJson(req));
     const meetingId = String(body?.meetingId || "").trim();
@@ -85,7 +108,11 @@ async function edit(req, res, session) {
     if (!meeting) return res.status(404).json({ error: "המפגש אינו נמצא" });
 
     const sheet = sheets.find((s) => s.id === meeting.sheetId);
-    if (!sheet) return res.status(404).json({ error: "הגיליון אינו נמצא" });
+    if (!sheet) return res.status(404).json(NOT_FOUND);
+    /* ⚠ מהמפגש, ולא מגוף הבקשה. */
+    if (outOfScope(rights, sheet)) {
+      return res.status(404).json({ error: "המפגש אינו נמצא" });
+    }
 
     const fields = {};
     if (body?.date !== undefined) {
@@ -139,7 +166,7 @@ async function edit(req, res, session) {
 }
 
 /* ---------- מחיקה ---------- */
-async function remove(req, res, session) {
+async function remove(req, res, session, rights) {
   try {
     const body = req.body ?? (await readJson(req));
     const meetingId = String(body?.meetingId || req.query?.id || "").trim();
@@ -148,6 +175,14 @@ async function remove(req, res, session) {
     const meetings = await loadMeetings();
     const meeting = meetings.find((m) => m.id === meetingId);
     if (!meeting) return res.status(404).json({ error: "המפגש אינו נמצא" });
+
+    /* ⚠ וגם במחיקה — הגיליון מהמפגש. */
+    if (rights.limited) {
+      const sheet = (await loadSheets()).find((x) => x.id === meeting.sheetId);
+      if (!sheet || !rights.mayWrite(sheet)) {
+        return res.status(404).json({ error: "המפגש אינו נמצא" });
+      }
+    }
 
     await removeMeeting(meetingId);
     await stampChange(meeting.sheetId, `המפגש ב-${dm(meeting.date)} נמחק`, session);
