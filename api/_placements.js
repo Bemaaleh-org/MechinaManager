@@ -21,7 +21,7 @@ import { setColumns } from "./_items.js";
 import { activeStudents, assignableStudents } from "./_student-rows.js";
 import {
   PLACEMENT_BOARDS, PLACEMENT_COLS, CATEGORIES, PERIOD, placementsReady, semestersFor,
-  byCategory,
+  byCategory, TEAM_FLAGS,
 } from "../shared/placements.js";
 
 const D = PLACEMENT_COLS.definitions;
@@ -50,11 +50,22 @@ export async function loadDefinitions({ force = false } = {}) {
              שתי עמודות ולא אחת — ראו shared/placements-ids.js */
           chair: val(i, D.chair) || null,
           chairName: val(i, D.chairName) || null,
-          /* ⚠ "זו ועדת הגיוסים" — תיבה בלוח ולא שם מקובע בקוד.
-             ראו ההערה ב-shared/placements-ids.js. */
-          army: val(i, D.army) === "v",
-          /* ⚠ ריק עד שהעמודה תוקם — ואז false לכולן. */
-          content: D.content ? val(i, D.content) === "v" : false,
+          /* ============================================================
+             ⚠⚠ **כל התיבות בלולאה, מ-`TEAM_FLAGS`.**
+
+             "זו ועדת הגיוסים" / "זו ועדת קבוצה ותוכן" —
+             תיבה בלוח ולא שם מקובע בקוד (ראו
+             shared/placements-ids.js).
+
+             ⚠⚠ **שלוש שורות מוקלדות הן הדרך שבה תיבה שלישית
+               נוצרת, מסומנת — ולעולם אינה נקראת.** זה קרה
+               כאן עם `community`, והתוצאה הייתה `mayFlagged` שמחזירה
+               `setup:true` לנצח והודעה שנראית כמו הערת הקמה.
+
+             ⚠ תיבה שטרם הוקמה היא `false` לכולן — הכיוון הבטוח.
+             ============================================================ */
+          ...Object.fromEntries(TEAM_FLAGS.map((f) =>
+            [f, D[f] ? val(i, D[f]) === "v" : false])),
           /* ⚠ סיכום הסדרה. נקרא כאן ונחשף רק במסך הצוות. */
           summary: val(i, D.summary) || null,
           summaryBy: val(i, D.summaryBy) || null,
@@ -133,13 +144,12 @@ export async function chairMap({ force = false } = {}) {
     if (!out.has(d.chair)) out.set(d.chair, []);
     out.get(d.chair).push({
       id: d.id, name: d.name, category: d.category, chairName: d.chairName,
-      /* ⚠ ועדת הגיוסים היא **תיבה בלוח ולא שם בקוד** (5ד),
-         והדגל נוסע הלאה כדי שמרכז התפקיד ייתן ליו״ר שלה את
-         מסך הפניות — ורק לו. */
-      army: Boolean(d.army),
-      /* ⚠ אותו דפוס בדיוק: הדגל נוסע הלאה כדי שמרכז התפקיד
-         ייתן ליו״ר ועדת קבוצה ותוכן את המסכים שלה — ורק לו. */
-      content: Boolean(d.content),
+      /* ⚠ התיבות הן **בלוח ולא שמות בקוד** (5ד),
+         וכולן נוסעות הלאה, כדי שמרכז התפקיד
+         ייתן ליו״ר הועדה את המסכים שלה — ורק לו (4יד).
+         ⚠ בלולאה ולא שורה לכל דגל: דגל שלא יועתק הנה
+         נותן ליו״ר הרשאה בשרת בלי לשונית במסך (5לב). */
+      ...Object.fromEntries(TEAM_FLAGS.map((f) => [f, Boolean(d[f])])),
     });
   }
   return out;

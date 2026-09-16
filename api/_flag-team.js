@@ -1,10 +1,16 @@
 /* ============================================================
    ועדה שמסומנת בתיבה — מי רשאי
    ------------------------------------------------------------
-   שתי ועדות במכינה נושאות תיבה בלוח ההגדרות ולא שם בקוד:
+   שלוש ועדות במכינה נושאות תיבה בלוח ההגדרות ולא שם בקוד:
 
-     `army`    — ועדת הגיוסים / ההכנה לצה״ל
-     `content` — ועדת קבוצה ותוכן
+     `army`      — ועדת הגיוסים / ההכנה לצה״ל
+     `content`   — ועדת קבוצה ותוכן
+     `community` — ועדת קהילה
+
+   ⚠⚠ **זו הרשימה, ואין שנייה.** `_lesson-rights.js`, `_me.js`
+     ו-`tools/flag-team.mjs` כולם נגזרים מ-`FLAG`, ולכן ועדה
+     רביעית היא **שורה אחת כאן** — ולא שלושה מקומות
+     שמי שישכח אחד מהם ייתן לה הרשאה בלי מסלול (5לא, 5לב).
 
    ⚠⚠ **היו כאן שלושה מימושים כמעט־זהים**: `mayContent`,
      `mayRecruit`, ו-`maySeeAll` שב-`_tryouts.js`. השלישי היה
@@ -28,15 +34,28 @@
 
 import { loadDefinitions } from "./_placements.js";
 import { teamsForStudent } from "./_team-data.js";
-import { contentFlagReady } from "../shared/placements.js";
+import { contentFlagReady, communityFlagReady } from "../shared/placements.js";
 
-/** התיבות המוכרות, ומה לומר על כל אחת כשאף ועדה אינה מסומנת. */
+/* ============================================================
+   התיבות המוכרות, ומה לומר על כל אחת כשאף ועדה אינה מסומנת.
+
+   ⚠⚠ **ועדה אחת = שורה אחת, כולל עמודת הגיליונות שלה.**
+     `sheetCol` הוא שם השדה ב-`LESSON_COLS.sheets` שמסמן אילו
+     גיליונות באחריותה. הוא יושב **כאן** ולא במפה שנייה
+     ב-`_lesson-rights.js`, כי שתי רשימות מקבילות של ועדות הן
+     בדיוק מה שהוליד את `_flag-team.js` מלכתחילה (4מד, 5לא).
+
+   ⚠ **ועדה בלי `sheetCol` אינה מוגבלת לגיליונות — היא פשוט
+     אינה נוגעת בהם.** ועדת הגיוסים אינה עוסקת בלו״ז, ולכן
+     אין לה עמודה שם; ההיעדר הוא ההצהרה.
+   ============================================================ */
 export const FLAG = {
   content: {
     label: "ועדת קבוצה ותוכן",
     /* ⚠ העמודה נוצרת ב-seed:stulesson — ההודעה אומרת מה להריץ. */
     seed: "npm run seed:stulesson",
     ready: contentFlagReady,
+    sheetCol: "contentTeam",
   },
   army: {
     label: "ועדת הגיוסים",
@@ -44,11 +63,19 @@ export const FLAG = {
     /* ⚠ `army` קיימת מזמן ואין לה בדיקת מוכנות נפרדת. */
     ready: () => true,
   },
+  /* ⚠ "זמן קהילה" ו"משפחות מאמצות" (בקשת ראש המכינה, 16.9.2026)
+     — אותה צורה בדיוק של ועדת קבוצה ותוכן, עם הגיליונות שלה. */
+  community: {
+    label: "ועדת קהילה",
+    seed: "npm run seed:community -- --go",
+    ready: communityFlagReady,
+    sheetCol: "communityTeam",
+  },
 };
 
 /**
  * @param session  הסשן
- * @param flag     "content" | "army"
+ * @param flag     מפתח מ-`FLAG` — "content" | "army" | "community"
  * @returns {{ok:boolean, why:string|null, setup?:boolean, teams:Array}}
  *   `setup` — התיבה טרם הוקמה או שאף ועדה אינה מסומנת. זה
  *   **אינו** "אין הרשאה": זה מצב שהמסך יודע לתאר, והוא אומר

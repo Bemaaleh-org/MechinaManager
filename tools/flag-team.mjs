@@ -1,10 +1,16 @@
 /* ============================================================
-   סימון ועדה בתיבה — content / army
+   סימון ועדה בתיבה — content / army / community
    ------------------------------------------------------------
-   שתי ועדות במכינה נושאות תיבה בלוח ההגדרות ולא שם בקוד:
+   שלוש ועדות במכינה נושאות תיבה בלוח ההגדרות ולא שם
+   בקוד:
 
-     content  — ועדת קבוצה ותוכן
-     army     — ועדת ההכנה לצה״ל / הגיוסים
+     content    — ועדת קבוצה ותוכן
+     army       — ועדת ההכנה לצה״ל / הגיוסים
+     community  — ועדת קהילה
+
+   ⚠⚠ **הרשימה מיובאת מ-`api/_flag-team.js` ואינה כתובה כאן.**
+     רשימה שנייה הייתה אומרת "העמודה טרם הוקמה" על תיבה
+     שקיימת מצוין — וזה בדיוק 4מד.
 
    `api/_flag-team.js` הוא מי שקורא אותן, וללא סימון **אף אחת
    מההרשאות אינה בתוקף** — המסכים אומרים "אף ועדה אינה מסומנת"
@@ -38,6 +44,7 @@
 import { gql } from "../api/_monday.js";
 import { ensureCycle } from "../api/_cycle.js";
 import { PLACEMENT_BOARDS, PLACEMENT_COLS } from "../shared/placements-ids.js";
+import { FLAG } from "../api/_flag-team.js";
 
 const GO = process.argv.includes("--go");
 
@@ -47,15 +54,29 @@ function arg(name) {
   return i >= 0 && i + 1 < process.argv.length ? process.argv[i + 1] : undefined;
 }
 
-const FLAGS = {
-  content: { label: "ועדת קבוצה ותוכן", opens: [
+/* ⚠ מה כל תיבה פותחת — טקסט לאדם שמריץ את הכלי,
+   ולכן הוא כאן. ⚠ תיבה בלי שורה כאן עדיין עובדת —
+   הרשימה היא `FLAG`, וזו רק התיאור. */
+const OPENS = {
+  content: [
     "שיעורי חניך", "מליאות", "מאגר מרצים",
-    "גיליונות המרצים (קריאה וכתיבה)", "חוות דעת", "יומן השינויים",
-  ] },
-  army: { label: "ועדת ההכנה לצה״ל", opens: [
+    "גיליונות המרצים שלה (קריאה וכתיבה)", "חוות דעת", "יומן השינויים",
+  ],
+  army: [
     "פניות גיוס", "מיונים ושיבוצים של כל החניכים",
-  ] },
+  ],
+  /* ⚠ ולא חוות הדעת: הן לוח נפרד שאינו מצומצם לפי
+     גיליון, ופתיחתן הייתה מוציאה את כל שמות המרצים
+     והטלפונים שלהם (עיקרון 4). */
+  community: [
+    "לוח השיעורים, גיליונות המרצים, תקנים ושינויים",
+    "— וכולם מצומצמים לגיליונות שלה בלבד",
+  ],
 };
+
+/* ⚠ המפתחות מ-`FLAG` ולא מרשימה שנייה — ראו ראש הקובץ. */
+const FLAGS = Object.fromEntries(Object.entries(FLAG).map(([k, cfg]) =>
+  [k, { label: cfg.label, opens: OPENS[k] || [] }]));
 
 /* ⚠⚠ **`ensureCycle` לפני שנוגעים ב-PLACEMENT_BOARDS.** הוא
    אובייקט שנדרס בזמן ריצה (4ל); כלי שקורא אותו כמות שהוא
@@ -85,12 +106,16 @@ async function load() {
   const d = await gql(
     `{ boards(ids:[${board}]){ items_page(limit:200){ items {
          id name column_values(ids:${ids}){ id text } } } } }`);
-  return (d.boards?.[0]?.items_page?.items || []).map((i) => ({
-    id: String(i.id),
-    name: String(i.name || "").trim(),
-    content: cols.content ? val(i, cols.content) === "v" : false,
-    army: cols.army ? val(i, cols.army) === "v" : false,
-  }));
+  return (d.boards?.[0]?.items_page?.items || []).map((i) => {
+    /* ⚠ על פני כל התיבות שב-`FLAG`, ולא שתיים מקובעות:
+       תיבה שלא הייתה כאן נקראת תמיד `false`, כלומר הכלי
+       היה מסמן מחדש מה שכבר מסומן, ומדווח "אף ועדה". */
+    const row = { id: String(i.id), name: String(i.name || "").trim() };
+    for (const f of Object.keys(FLAGS)) {
+      row[f] = cols[f] ? val(i, cols[f]) === "v" : false;
+    }
+    return row;
+  });
 }
 
 const rows = await load();

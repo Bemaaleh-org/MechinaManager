@@ -99,6 +99,16 @@ async function handler(req, res, session) {
       chairName: await createColumn(defsBoard, "יו״ר", "text"),
       /* ⚠ תיבה בלוח ולא שם מקובע — ראו shared/placements-ids.js */
       army: await createColumn(defsBoard, "ועדת גיוסים", "checkbox"),
+      /* ⚠⚠ **שתי התיבות האלה נוצרו ב-seed נפרד ולא היו כאן**,
+         והמחולל היה **מוחק** אותן מקובץ המזהים בהרצה
+         הבאה — ואז `contentFlagReady()` מחזירה false, `mayFlagged`
+         מחזירה `setup:true`, ושתי הועדות מאבדות את כל
+         ההרשאות שלהן **בלי שום שגיאה**. זה בדיוק המוקש
+         של 4מו, שהתרה עליו ההערה שלוש שורות מעל.
+         ⚠ הכותרות זהות לאלה ש-`seed:stulesson` ו-`seed:community`
+           מחפשים, ולכן הם מזהים עמודה קיימת ואינם מכפילים. */
+      content: await createColumn(defsBoard, "ועדת קבוצה ותוכן", "checkbox"),
+      community: await createColumn(defsBoard, "ועדת קהילה", "checkbox"),
       /* ⚠ סיכום הסדרה — נכתב על ידי כל חברי הסדרה */
       summary: await createColumn(defsBoard, "סיכום", "long_text"),
       summaryBy: await createColumn(defsBoard, "סיכום מאת", "text"),
@@ -135,6 +145,7 @@ export const PLACEMENT_COLS = {
     desc: "${D.desc}", hours: "${D.hours}", needs: "${D.needs}", lead: "${D.lead}",
     chair: "${D.chair}", chairName: "${D.chairName}",
     army: "${D.army}",
+    content: "${D.content}", community: "${D.community}",
     summary: "${D.summary}", summaryBy: "${D.summaryBy}",
     archived: "${D.archived}",
   },

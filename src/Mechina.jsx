@@ -165,6 +165,23 @@ const TAB_ICON = {
   pay: <MI.note />,
 };
 
+/* ============================================================
+   ⚠⚠ **ארבעת מסכי הגיליונות — שם אחד למסך אחד.**
+
+   הם מופיעים בשתי קבוצות ניווט — "קבוצה ותוכן"
+   ו"קהילה" — ושתי רשימות של שמות היו מתפצלות
+   בשינוי הראשון, ואז אותו מסך נקרא בשני שמות
+   לשתי ועדות — בדיוק מה שההערה שבראש `LESSON_TABS`
+   מזהירה ממנו (4מד).
+   ============================================================ */
+export const SHEET_SCREENS = [
+  { key: "l-board", label: "לוח השיעורים" },
+  { key: "l-sheets", label: "גיליונות המרצים" },
+  { key: "l-quota", label: "תקני שיעורים" },
+  { key: "l-changes", label: "שינויים בלו״ז" },
+];
+const SHEET_LABEL = Object.fromEntries(SHEET_SCREENS.map((x) => [x.key, x.label]));
+
 const DOW_HE = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
 
 const MON_HE = ["ינו׳","פבר׳","מרץ","אפר׳","מאי","יוני","יולי","אוג׳","ספט׳","אוק׳","נוב׳","דצמ׳"];
@@ -3968,6 +3985,20 @@ export function MechinaApp({ auth, onSignedOut }) {
   /* ⚠ איזו אחריות לפתוח במרכז התפקיד, כשמגיעים מקיצור הדרך
      שבמסך הבית. נצרך פעם אחת ב-DutyPage ואז נשכח. */
   const [dutyKey, setDutyKey] = useState(null);
+  /* ============================================================
+     ⚠⚠ **מי רואה את מסכי הגיליונות — ביטוי אחד.**
+
+     התנאי `isScheduler || isContentTeam` הופיע בחמישה
+     מקומות בקובץ הזה, וכשנוספה ועדת הקהילה
+     (16.9.2026) היה צריך לעדכן את כולם — ומסך שיישכח
+     הוא מסך לבן, לא פריט חסר. זה 4מד במסך.
+
+     ⚠ **וחוות הדעת אינן כאן, במכוון.** הן לוח נפרד
+       שאינו מצומצם לפי גיליון, ופתיחתן לועדה שלא
+       ניתנה לה סמכות עליהן הייתה מוציאה את **כל** שמות
+       המרצים והטלפונים שלהם (עיקרון 4).
+     ============================================================ */
+  const sheetTeam = Boolean(auth.isScheduler || auth.isContentTeam || auth.isCommunityTeam);
   const [toast, setToast] = useState(null);
   const say = useCallback((m) => { setToast(m); setTimeout(() => setToast(null), 2600); }, []);
 
@@ -4300,7 +4331,7 @@ export function MechinaApp({ auth, onSignedOut }) {
               /* ⚠ **גיליונות המרצים — לוועדה בלבד, ומאותה סיבה.**
                  הגיליון נושא טלפון, אימייל ומחיר למפגש, וזו בדיוק
                  הסיבה שהוא אינו פתוח לכל חניך (`lessonRights`). */
-              key: "l-sheets", label: "גיליונות המרצים", icon: <MI.book />,
+              key: "l-sheets", label: SHEET_LABEL["l-sheets"], icon: <MI.book />,
               active: tab === "l-sheets", onClick: () => setTab("l-sheets"),
             }, {
               /* ============================================================
@@ -4316,16 +4347,53 @@ export function MechinaApp({ auth, onSignedOut }) {
                  — והפעם בוועדה השלישית. הקוד היה תקין, המסלול
                  חסר, והמשתמש חייב להסיק שאין לו הרשאה.
                  ============================================================ */
-              key: "l-board", label: "לוח השיעורים", icon: <MI.cal />,
+              key: "l-board", label: SHEET_LABEL["l-board"], icon: <MI.cal />,
               active: tab === "l-board", onClick: () => setTab("l-board"),
             }, {
               /* ⚠ מה זז בלו״ז — הוועדה מתאמת את המרצים
                  המתחלפים, ולכן שיעור שהוזז הוא בדיוק מה
                  שהיא צריכה לדעת (5לח). */
-              key: "l-changes", label: "שינויים בלו״ז", icon: <MI.cal />,
+              key: "l-changes", label: SHEET_LABEL["l-changes"], icon: <MI.cal />,
               active: tab === "l-changes", onClick: () => setTab("l-changes"),
+            }, {
+              /* ⚠ **תקני השיעורים — הרינדור כבר פתח להם אותם
+                 ולא היה פריט במגירה** — הרשאה שאי אפשר
+                 להגיע אליה, בדיוק כמו 5לב. הטבלה מסוננת
+                 לגיליונות שלהם (`?action=list` עובר ב-`mayRead`). */
+              key: "l-quota", label: SHEET_LABEL["l-quota"], icon: TAB_ICON["l-quota"],
+              active: tab === "l-quota", onClick: () => setTab("l-quota"),
             }] : []),
           ] },
+
+          /* ============================================================
+             ⚠⚠ **ועדת קהילה — אותם מסכים, הגיליונות שלה**
+             (בקשת ראש המכינה, 16.9.2026: "גליונות זמן קהילה
+             וגיליון משפחות מאמצות יהיה באחריות קהילה, כמו
+             הגיליון שיש לקבוצה ותוכן רק עם הדברים הרלוונטים").
+
+             ⚠ **הצמצום בשרת ולא כאן.** `lessonRights` מסננת לפי
+               עמודת התיבה של הועדה, ולכן אותם ארבעה מסכים
+               מראים לכל ועדה את שלה. מסך נפרד לכל ועדה היה
+               שני מסלולים לאותו נתון (5יג).
+
+             ⚠ **וחוות הדעת אינן כאן** — לוח נפרד שאינו
+               מצומצם לפי גיליון. ראו `sheetTeam`.
+
+             ⚠ **ומי שבשתי הועדות רואה אותם פעם אחת.** קבוצת
+               "קבוצה ותוכן" כבר נושאת את ארבעתם, ושתי שורות
+               באותו שם במגירה נראות כמו שני מסכים שונים
+               (`LESSON_TABS`: "שם אחד למסך אחד").
+             ============================================================ */
+          ...(auth.isCommunityTeam && !auth.isContentTeam ? [{
+            /* ⚠ מ-`SHEET_SCREENS` ומ-`TAB_ICON`, ולא מוקלדים:
+               אותה לשונית שמופיעה בשתי קבוצות בשני
+               שמות נקראת כמו שני מסכים (`check:nav`). */
+            label: "קהילה",
+            items: SHEET_SCREENS.map((t) => ({
+              key: t.key, label: t.label, icon: TAB_ICON[t.key] || <MI.book />,
+              active: tab === t.key, onClick: () => setTab(t.key),
+            })),
+          }] : []),
 
           /* ⚠ קבוצה משלה, ורק למי שמוביל. ראו leaderTabs. */
           ...(leaderTabs.length ? [{
@@ -4655,14 +4723,14 @@ export function MechinaApp({ auth, onSignedOut }) {
               הבית או התראה שנשמרה מפנים לשם, ומסך שלא יעשה
               כלום נראה כמו תקלה.
             ============================================================ */}
-        {(tab === "l-board" || tab === "lessons") && (auth.isScheduler || auth.isLeader || auth.isContentTeam)
+        {(tab === "l-board" || tab === "lessons") && (sheetTeam || auth.isLeader)
           && <LessonsPage say={say} solo sub0="board" />}
         {/* ⚠ **גיליונות המרצים גם לוועדת קבוצה ותוכן** (החלטת ראש
             המכינה, 10.9.2026): "מדעי המדינה, כישורי חיים ושיעור
             ניר עוז — גלויים וניתנים לעריכה לכל מי שבוועדה, כמו
             לאחראי הלו״ז". ההרשאה עצמה נאכפת ב-`lessonRights`
             שבשרת; כאן זו תצוגה בלבד. */}
-        {tab === "l-sheets" && (auth.isScheduler || auth.isContentTeam)
+        {tab === "l-sheets" && sheetTeam
           && <LessonsPage say={say} solo sub0="sheets" />}
         {/* ⚠ **גם לוועדת קבוצה ותוכן.** הסמכות שנמסרה לה היא
             לכתוב את חוות הדעת על המרצים המתחלפים, והשרת פותח
@@ -4671,7 +4739,7 @@ export function MechinaApp({ auth, onSignedOut }) {
         {tab === "l-evals" && (auth.isScheduler || auth.isContentTeam)
           && <LessonsPage say={say} solo sub0="evals" />}
         {/* ⚠ שינויים בלו״ז — באחריות אחראי הלו״ז (13.9.2026). */}
-        {tab === "l-changes" && (auth.isScheduler || auth.isContentTeam)
+        {tab === "l-changes" && sheetTeam
           && <LessonsPage say={say} solo sub0="changes" />}
         {/* ⚠⚠ **תקני שיעורים — נוסף למגירה ולא לרינדור** (16.9.2026),
             ואחראי הלו״ז קיבל פריט במגירה שפתח **מסך לבן**. זה גרוע
@@ -4679,7 +4747,7 @@ export function MechinaApp({ auth, onSignedOut }) {
             חסר לפחות ברור שאין. שלוש רשימות צריכות להסכים —
             `LESSON_TABS`, `DUTIES` והרינדור כאן — ו-`check:nav`
             נועל עכשיו את שתי הראשונות. */}
-        {tab === "l-quota" && (auth.isScheduler || auth.isContentTeam)
+        {tab === "l-quota" && sheetTeam
           && <LessonsPage say={say} solo sub0="quota" />}
 
         {tab === "new" && (

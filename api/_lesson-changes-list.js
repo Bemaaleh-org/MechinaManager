@@ -41,7 +41,12 @@ async function handler(req, res, session) {
   }
 
   try {
-    const sheets = await loadSheets();
+    const all = await loadSheets();
+    /* ⚠⚠ **ועדה רואה שינויים בגיליונות שלה בלבד.**
+       אותו צמצום שב-`?action=list`: שינוי בגיליון שאינו
+       שלה אינו מטלה שלה, והוא גם נושא שם מרצה ושעה.
+       ⚠ `limited` ולא `mayRead` לבדה — ראו `_lessons-board.js`. */
+    const sheets = rights.limited ? all.filter((x) => rights.mayRead(x)) : all;
     const me = String(session.itemId || "");
     /* ⚠ חלון רחב יותר לדף המלא — רשימה סגורה של ערכים ולא מספר
        חופשי, כדי ששאילתה אחת לא תשלוף שנה שלמה. */

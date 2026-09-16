@@ -46,6 +46,7 @@
     "seed:appeal": "node --env-file=.env tools/seed-appeal.mjs",
     "seed:halfday": "node --env-file=.env tools/seed-halfday.mjs",
     "seed:stulesson": "node --env-file=.env tools/seed-stulesson.mjs",
+    "seed:community": "node --env-file=.env tools/seed-community.mjs",
     "seed:plenary": "node --env-file=.env tools/seed-plenary.mjs",
     "seed:lecturers": "node --env-file=.env tools/seed-lecturers.mjs",
     "seed:lesson-changes": "node --env-file=.env tools/seed-lesson-changes.mjs",

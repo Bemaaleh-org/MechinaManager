@@ -57,6 +57,11 @@ export async function loadSheets({ force = false } = {}) {
            לכולם, והוועדה נחסמת עד שההקמה תרוץ: זה הכיוון
            הבטוח, ולא "פתוח עד שיסומן". */
         contentTeam: Boolean(S.contentTeam) && val(i, S.contentTeam) === "v",
+        /* ⚠ **ואותו דפוס לועדת הקהילה** — "זמן קהילה"
+           ו"משפחות מאמצות" (16.9.2026). ⚠ והוא שדה נפרד
+           ולא ערכים בשדה אחד: שתי ועדות שחולקות עמודה אחת
+           אינן ניתנות להפרדה ביום שבו גיליון עובר בין השתיים. */
+        communityTeam: Boolean(S.communityTeam) && val(i, S.communityTeam) === "v",
         /* ⚠⚠ פרטי אדם חיצוני. נקראים כאן, ו**אינם יוצאים לחניך** —
            ראו `toStudentSheet` ב-api/_lessons-list.js. */
         phone: val(i, S.phone) || null,

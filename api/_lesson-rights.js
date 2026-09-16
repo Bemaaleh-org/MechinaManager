@@ -35,10 +35,40 @@
    ============================================================ */
 
 import { mayEdit } from "../shared/edit-rights.js";
-import { mayContent, contentHint } from "./_content-team.js";
+import { mayFlagged, flagHint, FLAG } from "./_flag-team.js";
 
-const READ_BLOCKED =
-  "לו״ז השיעורים פתוח לצוות, לאחראי הלו״ז ולוועדת קבוצה ותוכן";
+/* ============================================================
+   ⚠⚠ **הוועדות שנוגעות בלו״ז נגזרות מ-`FLAG` ואינן רשימה כאן.**
+
+   ועדה שנושאת `sheetCol` היא ועדה שיש לה גיליונות; מי שיוסיף
+   ועדה רביעית מוסיף שורה אחת ב-`FLAG` וזה הכול. רשימה שנייה
+   כאן הייתה בדיוק 4מד — ובדיוק מה שהוליד את `_flag-team.js`
+   אחרי ש-`mayContent`, `mayRecruit` ו-`maySeeAll` התפצלו (5לא).
+   ============================================================ */
+const SHEET_FLAGS = Object.entries(FLAG)
+  .filter(([, cfg]) => cfg.sheetCol)
+  .map(([key, cfg]) => ({ key, col: cfg.sheetCol, label: cfg.label }));
+
+/* ============================================================
+   ⚠ **ו׳ בראש מילה נכפלת כשמוסיפים לה אות שימוש.**
+
+   כשהשם היה מקובע זה נכתב נכון מעצמו ("לוועדת
+   קבוצה ותוכן"); רגע שהשם מורכב מהתווית שבלוח צריך
+   לומר את הכלל במפורש, אחרת יוצא "לועדת קהילה"
+   — שנקרא כמו שגיאת כתיב בהודעה שהמשתמש רואה.
+
+   ⚠ ו׳ החיבור עצמה אינה מכפילה — "ו" + "ועדת" הוא
+     "וועדת" ולא "ווועדת". הכפילה היא של אות
+     שימוש אחרת (ל׳, ב׳, כ׳, מ׳) על ו׳ שבראש המילה.
+   ============================================================ */
+const pre = (letter, name) =>
+  letter + (letter !== "ו" && name.startsWith("ו") ? "ו" : "") + name;
+/** "לוועדת קבוצה ותוכן ולוועדת קהילה" */
+const L_NAMES = SHEET_FLAGS.map((f) => pre("ל", f.label)).join(" ו");
+/** אותו דבר בלי ה-ל׳ בראשונה: "וועדת קבוצה ותוכן ולוועדת קהילה" */
+const V_NAMES = SHEET_FLAGS
+  .map((f, i) => pre(i === 0 ? "ו" : "ל", f.label)).join(" ו");
+const READ_BLOCKED = `לו״ז השיעורים פתוח לצוות, לאחראי הלו״ז ו${L_NAMES}`;
 
 /**
  * @returns {{read:boolean, write:boolean, why:string|null, hint:string}}
@@ -50,21 +80,28 @@ export async function lessonRights(session) {
   const staff = Boolean(s.isManager);
   const sched = Boolean(s.isScheduler);
 
+  /* ⚠ כל ועדה נבדקת **בנפרד ונתפסת בנפרד** — ועדה שהשליפה שלה
+     נפלה אינה מפילה את האחרות ואינה נועלת את אחראי הלו״ז מחוץ
+     למסך שלו (4כו). */
+  const mine = [];
   let may = { ok: false, why: null };
-  try {
-    may = await mayContent(s);
-  } catch (e) {
-    /* ⚠ תחום שנופל אינו נועל את אחראי הלו״ז מחוץ למסך שלו
-       (4כו). הוועדה מפסידה גישה עד שהשליפה תצליח, והצוות לא. */
-    console.error("[lesson-rights]", e && e.message);
+  for (const f of SHEET_FLAGS) {
+    try {
+      const r = await mayFlagged(s, f.key);
+      /* ⚠⚠ **`ok` הוא "הוא הוועדה" רק כשאינו צוות.** `mayFlagged`
+         מחזירה `ok:true` לכל כניסת צוות — הרף הנכון לפניות
+         ולמיונים, ולא כאן: קריאה של `ok` כמו שהוא נתנה לכל איש
+         צוות כתיבה לגיליונות, וסתרה את הצמצום של 4ע. */
+      if (r.ok && !r.staff) {
+        mine.push(f);
+        if (!may.ok) may = { ...r, key: f.key };
+      }
+    } catch (e) {
+      console.error("[lesson-rights]", f.key, e && e.message);
+    }
   }
-  /* ⚠⚠ **`content` הוא "הוא הועדה", ולא "מותר לו".**
-     `mayFlagged` מחזירה `ok:true` לכל כניסת צוות — וזה
-     הרף הנכון לפניות הגיוס ולמיונים, אבל לא כאן:
-     קריאה של `ok` כמו שהוא נתנה ל**כל איש צוות** כתיבה
-     לגיליונות המרצים, וסתרה את מה שכתוב בראש הקובץ
-     הזה ואת הצמצום של 4ע. ראו api/_flag-team.js. */
-  const content = Boolean(may.ok) && !may.staff;
+  /* ⚠ "הוא באחת מוועדות הלו״ז" — ולא "מותר לו". */
+  const content = mine.length > 0;
 
   /* ============================================================
      ⚠⚠⚠ **הוועדה מוגבלת לגיליונות שסומנו, בקריאה ובכתיבה.**
@@ -89,7 +126,10 @@ export async function lessonRights(session) {
      ============================================================ */
   const write = mayEdit(s, "scheduler") || (content && !s.viewOnly);
   const wide = staff || sched;                       // רואים הכול
-  const scoped = (sheet) => Boolean(sheet && sheet.contentTeam);
+  /* ⚠ הגיליון שייך לי אם הוא מסומן לאחת הוועדות **שלי**.
+     ⚠ **`sheet` שאינו נמסר נחשב "לא מסומן"** — קורא שישכח
+     להעביר אותו יקבל חסימה ולא פתיחה, הכיוון הבטוח. */
+  const scoped = (sheet) => Boolean(sheet) && mine.some((f) => sheet[f.col]);
 
   return {
     read: staff || sched || content,
@@ -101,12 +141,13 @@ export async function lessonRights(session) {
       || (content && !s.viewOnly && scoped(sheet)),
     /** ⚠ true = הוועדה, כלומר צריך לסנן את הרשימה. */
     limited: Boolean(content && !wide),
-    sheetHint: "הגיליון הזה אינו באחריות ועדת קבוצה ותוכן",
+    /* ⚠ ההודעה נוקבת בוועדה שלו ולא ב"ועדה" סתם. */
+    sheetHint: `הגיליון הזה אינו באחריות ${mine.map((f) => f.label).join(" או ") || "הוועדה"}`,
     why: mayEdit(s, "scheduler") ? "אחראי הלו״ז" : content ? may.why : null,
     /* ⚠ ההודעה אומרת **מי כן רשאי** ולא "אין הרשאה" (4ע). */
     hint: content
-      ? contentHint(may)
-      : "עריכת לו״ז השיעורים נעשית על ידי ראש המכינה, אחראי הלו״ז וועדת קבוצה ותוכן",
+      ? flagHint(may, may.key || "content")
+      : `עריכת לו״ז השיעורים נעשית על ידי ראש המכינה, אחראי הלו״ז ${V_NAMES}`,
     readHint: READ_BLOCKED,
   };
 }

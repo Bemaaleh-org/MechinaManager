@@ -124,5 +124,26 @@ export function semestersFor(period) {
      `mayTeam` (4נ) ו-`mayRecruit` (5כו).
    ============================================================ */
 
-/** האם עמודת "ועדת קבוצה ותוכן" כבר הוקמה בלוח ההגדרות. */
-export const contentFlagReady = () => Boolean(PLACEMENT_COLS.definitions.content);
+/* ============================================================
+   ⚠⚠ **התיבות שמסמנות "זו הועדה שאחראית על X".**
+
+   זו הרשימה הקנונית, והיא יושבת ב-shared כדי
+   ש-`api/_placements.js` יוכל לקרוא אותן **בלולאה** ולא
+   בשלוש שורות מוקלדות. `api/_flag-team.js` מחזיק את
+   המידע על כל תיבה (תווית, seed, עמודת גיליונות),
+   ו-`community-test` נועל שהמפתחות זהים.
+
+   ⚠⚠ **ולמה זה נולד:** עמודת `community` נוצרה, הועדה
+     סומנה בלוח — ו-`loadDefinitions` פשוט לא קראה אותה,
+     כלומר `mayFlagged` החזירה `setup:true` לנצח וההרשאה
+     עולם לא היתה נכנסת לתוקף. **בלי שום שגיאה** — המסך
+     אומר "אף ועדה אינה מסומנת", וזו הודעה שנראית
+     כמו הערת הקמה ולא כמו באג (אותה תקלה של "שתי
+     התיבות" בסוף CLAUDE.md).
+   ============================================================ */
+export const TEAM_FLAGS = ["army", "content", "community"];
+
+/** האם עמודת התיבה כבר הוקמה בלוח ההגדרות. */
+export const teamFlagReady = (flag) => Boolean(PLACEMENT_COLS.definitions[flag]);
+export const contentFlagReady = () => teamFlagReady("content");
+export const communityFlagReady = () => teamFlagReady("community");

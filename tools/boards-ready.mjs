@@ -102,6 +102,12 @@ export const STEPS = [
     ids: "shared/buy-ids.js", ready: "buyCategoryReady" },
   { script: "tools/seed-access.mjs", title: "לוח ההרשאות המותאמות",
     ids: "shared/access-ids.js", ready: "accessReady" },
+  /* ⚠ **`--go` במפורש** — הסקריפט הוא הרצה יבשה כברירת
+     מחדל ויוצא 0, כלומר בלעדיו ההקמה היתה מדווחת הצלחה
+     ולא יוצרת כלום — בדיוק התקלה של `clean:defaults` (5כג). */
+  { script: "tools/seed-community.mjs", title: "תיבות ועדת הקהילה",
+    args: ["--go"],
+    ids: "shared/lessons-boards.js", ready: "communitySheetsReady" },
 ];
 
 /**

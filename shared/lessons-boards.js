@@ -55,6 +55,10 @@ export const LESSON_COLS = {
          הצמצום אינו על הלו״ז, הוא על מי שקיבל אחריות חלקית.
        ============================================================ */
     contentTeam: "boolean_mm77fh1b",
+    /* ⚠ ריקה עד ש-`npm run seed:community -- --go` ירוץ.
+       ועדת הקהילה אחראית על "זמן קהילה" ו"משפחות מאמצות"
+       (16.9.2026) — אותו דפוס בדיוק של `contentTeam`. */
+    communityTeam: "boolean_mm781hcj",
 
     /* ============================================================
        פרטי הקשר של המרצה
@@ -385,6 +389,7 @@ export const KNOWN_ROLES = [ROLE_SCHEDULE, ROLE_KITCHEN, ROLE_CONTAINER, ROLE_HO
 
 /** ⚠ ריק עד ש-`npm run seed:content-sheets` ירוץ. */
 export const contentSheetsReady = () => Boolean(LESSON_COLS.sheets.contentTeam);
+export const communitySheetsReady = () => Boolean(LESSON_COLS.sheets.communityTeam);
 
 /* ============================================================
    "יום ושעה" שבגיליון
