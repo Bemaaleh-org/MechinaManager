@@ -4346,7 +4346,26 @@ export function MechinaApp({ auth, onSignedOut }) {
           }] : []),
   ];
 
-  nav.stamp(activeLabel(navGroups));
+  /* ============================================================
+     ⚠⚠ **מסך שראש המכינה חסם יורד מהניווט — וזו תצוגה בלבד.**
+
+     האכיפה האמיתית היא ב-`withAuth` בכל בקשה (עיקרון 3, 4ע);
+     מה שזה נותן הוא שהמסך יסתיר בדיוק את מה שהשרת יחסום,
+     במקום להציג אריח שמחזיר 403 אחרי הלחיצה (4יד).
+
+     ⚠ **"צפייה בלבד" נשאר בניווט** — הוא נפתח וקריא, והחסימה
+       היא על הכתיבה בלבד.
+     ⚠ **וזה נגזר מ-`navGroups` ואינו רשימה שנייה** (4מד,
+       5מב): המגירה, חץ החזרה, הסרגל התחתון ודפי הקיצור כולם
+       קוראים את אותו מערך, ולכן כולם מתעדכנים יחד.
+     ============================================================ */
+  const blocked = auth && auth.access;
+  const navGroupsShown = !blocked || !Object.keys(blocked).length ? navGroups
+    : navGroups
+      .map((g) => ({ ...g, items: (g.items || []).filter((it) => blocked[it.key] !== "none") }))
+      .filter((g) => (g.items || []).length);
+
+  nav.stamp(activeLabel(navGroupsShown));
 
   return (
     <div className="kx has-nv">
@@ -4385,7 +4404,7 @@ export function MechinaApp({ auth, onSignedOut }) {
             .filter(Boolean).join(" · ") || "חניך/ה",
         }}
         onLogout={signOut}
-        groups={navGroups} />
+        groups={navGroupsShown} />
 
       {/* תצוגה מקדימה של ההתראות — הבקשות שהוכרעו */}
       {/* ⚠ שכבה מעל המסך ולא ניווט — ראו src/Search.jsx. */}
@@ -4425,7 +4444,7 @@ export function MechinaApp({ auth, onSignedOut }) {
 
         {tab === "home" && (
           <StudentDash auth={auth} year={year} reqs={reqs} unseen={unseen}
-            go={setTab} say={say} setDutyKey={setDutyKey} navGroups={navGroups} />
+            go={setTab} say={say} setDutyKey={setDutyKey} navGroups={navGroupsShown} />
         )}
 
         {tab === "year" && (

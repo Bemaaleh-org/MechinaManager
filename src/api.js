@@ -660,6 +660,15 @@ export const api = {
   clearWeekMenuCell: ({ day, meal }) =>
     del("/api/kitchen?action=weekmenu", { day, meal }),
 
+  /* ---------- הרשאות מותאמות ----------
+     ⚠ ראש המכינה בלבד; השרת מחזיר 403 לכל אחד אחר.
+     ⚠ **פירוק מפורש** — שדה שאינו כאן נשמט בשקט (4לג).
+     ⚠ ו-`level: "edit"` פירושו **הסרת ההתאמה**, לא הענקה. */
+  getAccessRules: () => get("/api/students?action=access"),
+  setAccessRule: ({ subject, screen, level, note }) =>
+    post("/api/students?action=access", { subject, screen, level, note }),
+  deleteAccessRule: (id) => del("/api/students?action=access", { id }),
+
   /* ---------- מצרכים קבועים לשבוע ----------
      ⚠ הרשימה ש"בוחרים ממנה ומוסיפים" בבניית הקניות מהתפריט.
      ⚠ **פירוק מפורש** — שדה שאינו כאן נשמט בשקט (4לג).

@@ -67,6 +67,7 @@ import pros from "./_pros.js";
 /* ⚠ רשימות הציוד השבועיות — מסך שקורא את לוח רשומות
    הצוות, ולא לוח שני. */
 import gearWeek from "./_gear-week.js";
+import accessRules from "./_access-rules.js";
 import alumni from "./_alumni.js";
 import hosting from "./_hosting.js";
 /* ---- אחריות: מרכז התפקיד, משימות והצפות ----
@@ -140,4 +141,4 @@ export default router({ login, list, year, leader, weeks, role, profile, inciden
   "lead-week": leadWeek, "lead-activity": leadActivity,
   notices, mpoll, mfeedback, search, mydata, trends, laundry, quotes, mishmar, group,
   recruit, bugs, "stu-lessons": stuLessons, plenary, lecturers, pros,
-  "gear-week": gearWeek });
+  "gear-week": gearWeek, access: accessRules });

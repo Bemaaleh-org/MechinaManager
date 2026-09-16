@@ -25,6 +25,7 @@ import { TEAM_BOARDS } from "../shared/team-ids.js";
 import { BUY_BOARDS } from "../shared/buy-ids.js";
 import { PRO_BOARDS } from "../shared/pros-ids.js";
 import { STAPLE_BOARDS } from "../shared/staples-ids.js";
+import { ACCESS_BOARDS } from "../shared/access-ids.js";
 
 const GO = process.argv.includes("--go");
 
@@ -57,6 +58,10 @@ const TARGETS = {
   "קניות כלליות": BUY_BOARDS.board,
   /* ⚠ כאן "Task 1" הייתה נראית כמו מצרך קבוע לשבוע. */
   "מצרכים קבועים": STAPLE_BOARDS.board,
+  /* ⚠ כאן "Task 1" הייתה שורת התאמה בלי נושא ובלי רמה —
+     `loadAccessRules` מסננת אותה, אבל היא נראית בלוח
+     כאילו מישהו חסם משהו. */
+  "הרשאות מותאמות": ACCESS_BOARDS.board,
 };
 
 let found = 0, gone = 0;

@@ -18,7 +18,9 @@
    ⚠ **צוות בלבד.** זו לא מפת סודות — כל שורה בה גלויה ממילא —
      אבל היא מסך תפעולי של הצוות, ואין לה מה לעשות אצל חניך.
    ============================================================ */
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { api } from "./api.js";
+import { LEVELS, subjectKey, parseSubject, SUBJECT } from "../shared/access-rules.js";
 import { roleAccess, STAFF_KINDS, RULES } from "../shared/access-map.js";
 import { ROLE_INFO } from "./roles-info.js";
 
@@ -28,7 +30,219 @@ const AI = {
   no: (p) => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" {...p}><path d="M6 6l12 12M18 6 6 18"/></svg>,
 };
 
-export default function Access() {
+/* ============================================================
+   התאמה ידנית — מה שראש המכינה סוגר
+   ------------------------------------------------------------
+   הבקשה: *"שלכל אחד יש את כל דפי המכינה ומנהל המכינה בוחר איזה
+   הרשאות לתת לו, בכלל לא, צפייה, עריכה, אפשר לתת גם לתפקיד
+   ספציפי וגם לכל משתמש."*
+
+   ⚠⚠⚠ **וזה נאמר במסך, לא רק בקוד: ההתאמה רק מצמצמת.**
+     "מלא" אינה פותחת מסך שהמערכת סוגרת — היא רק מבטלת את
+     ההתאמה. מסך שיבטיח יותר מזה הוא בדיוק "מסך שמשקר על
+     אבטחה" שהכלל של המסך הזה נועד למנוע (5ד).
+
+   ⚠ **רשימת המסכים נגזרת מהשרת** (`allScreens`), שנגזרת
+     מהרשימות הסטטיות ומ-`DUTIES`. מסך שיתווסף מופיע כאן
+     מעצמו — ואם היינו כותבים אותו כאן, זו הייתה רשימה
+     שנייה (4מד).
+
+   ⚠ **וההשהיה נאמרת.** הכללים נטענים עם מטמון של חמש דקות,
+     ושינוי שאינו נכנס מיד נראה כמו כפתור שלא עבד.
+   ============================================================ */
+function CustomAccess({ say }) {
+  const [d, setD] = useState(null);
+  const [err, setErr] = useState(null);
+  const [n, setN] = useState(0);
+  const [kind, setKind] = useState(SUBJECT.role);
+  const [who, setWho] = useState("");
+  const [q, setQ] = useState("");
+  const [busy, setBusy] = useState("");
+
+  useEffect(() => {
+    let live = true;
+    api.getAccessRules()
+      .then((r) => { if (live) { setD(r); setErr(null); } })
+      .catch((e) => { if (live) setErr(e); });
+    return () => { live = false; };
+  }, [n]);
+
+  if (err) return (
+    <div className={"alert " + (err.setupRequired ? "a-amber" : "a-clay")}>
+      <AI.no />
+      <div style={{ flex: 1 }}>
+        <div className="ttl">{err.setupRequired ? "הלוח טרם הוקם" : "לא הצלחנו לטעון"}</div>
+        <div className="bd">{err.message}</div>
+      </div>
+    </div>
+  );
+  if (!d) return <div className="skel skel-card" />;
+
+  /* ⚠ **הבוררים מגיעים מהשרת**, מאותה תשובה — שאילתה נוספת
+     במסך היא רשימה שנייה שעלולה להיפרד מזו שהשרת מאמת
+     מולה (4מד), והיא גם קריאה נוספת בכל פתיחת לשונית (4צ). */
+  const roles = d.roles || [];
+  const students = d.people || [];
+
+  const subject = kind === SUBJECT.kind ? subjectKey(SUBJECT.kind, who)
+    : who ? subjectKey(kind, who) : "";
+
+  const nameOf = (key) => {
+    const p = parseSubject(key);
+    if (!p) return key;
+    if (p.kind === SUBJECT.kind) return p.id === "staff" ? "כל הצוות" : "כל החניכים";
+    if (p.kind === SUBJECT.role) return p.id;
+    const st = students.find((r) => String(r.id) === p.id);
+    /* ⚠ השם נגזר מהמזהה ואינו נשמר — שם שמור אינו מתעדכן
+       כשחניך משנה שם (5ח). */
+    return st ? st.name : "חניך " + p.id;
+  };
+
+  const set = (screen, level) => {
+    if (!subject) { say("בחרו קודם למי"); return; }
+    setBusy(screen);
+    api.setAccessRule({ subject, screen, level })
+      .then(() => { setN((x) => x + 1); say("נשמר"); })
+      .catch((e) => say(e.message || "השמירה נכשלה"))
+      .finally(() => setBusy(""));
+  };
+
+  const current = (screen) => {
+    const hit = (d.rules || []).find((r) => r.subject === subject && r.screen === screen);
+    return hit ? hit.level : "edit";
+  };
+
+  const shown = (d.screens || []).filter((s) =>
+    !q.trim() || s.label.includes(q.trim()) || s.tab.includes(q.trim()));
+
+  const mine = (d.rules || []).filter((r) => !subject || r.subject === subject);
+
+  return (
+    <>
+      {/* ⚠ **מה שלא נטען נאמר** — בורר ריק בלי מילה נראה כמו
+          מכינה בלי תפקידים (4מא). */}
+      {(d.partial || []).length > 0 && (
+        <div className="note-warn">
+          לא נטענו: {d.partial.join(" · ")}. הבורר שלהם יופיע ריק.
+        </div>
+      )}
+
+      <div className="ac-note">
+        כאן ראש המכינה <b>סוגר</b> מסכים — לתפקיד שלם או לאדם אחד.
+        ⚠ <b>ההתאמה רק מצמצמת</b>: "מלא" אינה פותחת מסך שהמערכת סוגרת ממילא,
+        היא רק מבטלת את הסגירה. הרשאה שאין בקוד לא נפתחת משורה בלוח.
+        {" "}שינוי נכנס לתוקף תוך {d.cacheMinutes || 5} דקות.
+      </div>
+
+      {/* ---------- למי ---------- */}
+      <div className="card cx-who">
+        <div className="cx-h">למי</div>
+        <div className="seg cx-seg">
+          <button className={kind === SUBJECT.role ? "on" : ""}
+            onClick={() => { setKind(SUBJECT.role); setWho(""); }}>תפקיד</button>
+          <button className={kind === SUBJECT.user ? "on" : ""}
+            onClick={() => { setKind(SUBJECT.user); setWho(""); }}>אדם</button>
+          <button className={kind === SUBJECT.kind ? "on" : ""}
+            onClick={() => { setKind(SUBJECT.kind); setWho("student"); }}>קבוצה</button>
+        </div>
+
+        {kind === SUBJECT.kind ? (
+          <select className="in" value={who} onChange={(e) => setWho(e.target.value)}>
+            <option value="student">כל החניכים</option>
+            <option value="staff">כל הצוות</option>
+          </select>
+        ) : kind === SUBJECT.role ? (
+          <select className="in" value={who} onChange={(e) => setWho(e.target.value)}>
+            <option value="">בחרו תפקיד…</option>
+            {roles.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+        ) : (
+          <select className="in" value={who} onChange={(e) => setWho(e.target.value)}>
+            <option value="">בחרו חניך…</option>
+            {students.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
+        )}
+        {!roles.length && kind === SUBJECT.role && (
+          <div className="cx-why">לא נמצאו תפקידים בלוח החניכים.</div>
+        )}
+      </div>
+
+      {/* ---------- ההתאמות הקיימות ---------- */}
+      {mine.length > 0 && (
+        <>
+          <div className="sec-label">
+            התאמות קיימות
+            <span className="sec-more">{mine.length}</span>
+          </div>
+          <div className="card cx-list">
+            {mine.map((r) => (
+              <div className="cx-r" key={r.id}>
+                <span className="cx-n">
+                  {nameOf(r.subject)}
+                  <i> · {(d.screens || []).find((s) => s.tab === r.screen)?.label || r.screen}</i>
+                </span>
+                <span className={"pill " + (r.level === "none" ? "p-bad" : "p-new")}>
+                  {(d.levels || []).find((l) => l.key === r.level)?.label || r.level}
+                </span>
+                <button className="btn btn-ghost btn-sm" style={{ color: "var(--clay)" }}
+                  onClick={() => {
+                    setBusy(r.id);
+                    api.deleteAccessRule(r.id)
+                      .then(() => { setN((x) => x + 1); say("ההתאמה הוסרה"); })
+                      .catch((e) => say(e.message))
+                      .finally(() => setBusy(""));
+                  }} disabled={busy === r.id}>הסרה</button>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ---------- המסכים ---------- */}
+      {!subject ? (
+        <div className="cx-why" style={{ textAlign: "center", padding: "18px 0" }}>
+          בחרו למי, והמסכים יופיעו כאן.
+        </div>
+      ) : (
+        <>
+          <div className="sec-label">
+            כל דפי המכינה
+            <span className="sec-more">{shown.length}</span>
+          </div>
+          <input className="in" placeholder="חיפוש מסך…" value={q}
+            onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 9 }} />
+          <div className="card cx-list">
+            {shown.map((s) => {
+              const cur = current(s.tab);
+              return (
+                <div className="cx-r cx-sc" key={s.tab}>
+                  <span className="cx-n">
+                    {s.label}
+                    {/* ⚠ **מסך בלי פעולה משלו נאמר.** חסימה שלו מסתירה
+                        אותו מהניווט ואינה חוסמת מסלול — והצהרה שאינה
+                        מדויקת גרועה מהיעדר הצהרה (5ד). */}
+                    {!s.api && <i> · הסתרה בלבד</i>}
+                  </span>
+                  <div className="cx-lv">
+                    {LEVELS.map((l) => (
+                      <button key={l} className={cur === l ? "on" : ""}
+                        disabled={busy === s.tab}
+                        onClick={() => set(s.tab, l)}>
+                        {(d.levels || []).find((x) => x.key === l)?.label || l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+export default function Access({ isHead = false, say }) {
   const [tab, setTab] = useState("staff");
   const roles = roleAccess();
 
@@ -45,7 +259,16 @@ export default function Access() {
         <button className={tab === "staff" ? "on" : ""} onClick={() => setTab("staff")}>צוות</button>
         <button className={tab === "roles" ? "on" : ""} onClick={() => setTab("roles")}>תפקידי חניכים</button>
         <button className={tab === "rules" ? "on" : ""} onClick={() => setTab("rules")}>גבולות</button>
+        {/* ⚠ **ללא ראש מכינה אין לשונית.** השרת מחזיר 403 על
+            `?action=access`, ולשונית שנפתחת לשגיאה היא 4יד. */}
+        {isHead && (
+          <button className={tab === "custom" ? "on" : ""} onClick={() => setTab("custom")}>
+            התאמה ידנית
+          </button>
+        )}
       </div>
+
+      {tab === "custom" && isHead && <CustomAccess say={say} />}
 
       {tab === "staff" && STAFF_KINDS.map((k) => (
         <div className="card ac-c" key={k.key}>

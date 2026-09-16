@@ -578,8 +578,27 @@ function Staff({ auth, onSignedOut }) {
             { label: "המטבח", items: kitchenItems },
   ];
 
+  /* ============================================================
+     ⚠⚠ **מסך שראש המכינה חסם יורד מהניווט — וזו תצוגה בלבד.**
+
+     האכיפה האמיתית היא ב-`withAuth` בכל בקשה (עיקרון 3, 4ע);
+     מה שזה נותן הוא שהמסך יסתיר בדיוק את מה שהשרת יחסום,
+     במקום להציג אריח שמחזיר 403 אחרי הלחיצה (4יד).
+
+     ⚠ **"צפייה בלבד" נשאר בניווט** — הוא נפתח וקריא, והחסימה
+       היא על הכתיבה בלבד.
+     ⚠ **וזה נגזר מ-`navGroups` ואינו רשימה שנייה** (4מד,
+       5מב): המגירה, חץ החזרה, הסרגל התחתון ודפי הקיצור כולם
+       קוראים את אותו מערך, ולכן כולם מתעדכנים יחד.
+     ============================================================ */
+  const blocked = auth && auth.access;
+  const navGroupsShown = !blocked || !Object.keys(blocked).length ? navGroups
+    : navGroups
+      .map((g) => ({ ...g, items: (g.items || []).filter((it) => blocked[it.key] !== "none") }))
+      .filter((g) => (g.items || []).length);
+
   /* ⚠ נחתם בכל רינדור — ראו src/nav-stack.js. */
-  nav.stamp(activeLabel(navGroups));
+  nav.stamp(activeLabel(navGroupsShown));
 
   return (
     <>
@@ -631,7 +650,7 @@ function Staff({ auth, onSignedOut }) {
           subtitle={`מכינת ניר עוז${auth.cycle ? " · " + auth.cycle : ""}`}
           user={user}
           onLogout={() => api.logout().catch(() => {}).finally(onSignedOut)}
-          groups={navGroups} />
+          groups={navGroupsShown} />
 
         {/* ⚠ פאנל אחד לכל התחומים, ולא רק לבקשות היציאה.
             ראו api/_notify.js: מה שדורש טיפול נגזר מהמצב. */}
@@ -685,7 +704,7 @@ function Staff({ auth, onSignedOut }) {
               goNews={() => setSection("news")}
               goBudget={() => setSection("budget")}
               goAgenda={() => setSection("agenda")}
-              navGroups={navGroups} />
+              navGroups={navGroupsShown} />
           )}
 
           {section === "kitchen" && <KitchenPage say={say} area={kArea} />}
@@ -740,7 +759,7 @@ function Staff({ auth, onSignedOut }) {
               עצמאיים בתפריט.** הראשון הוא לשונית של "מובילי
               שבוע", והשני לשונית של "שיעורים במכינה" — כל אחד
               נשען על המסך שממנו נגזרים הנתונים שלו. */}
-          {section === "access" && <AccessPage />}
+          {section === "access" && <AccessPage isHead={auth.isHead} say={say} />}
           {section === "content" && auth.isHead && <ContentPage say={say} />}
           {/* ⚠⚠ **`go` העביר כל יעד ל-"roles" והתעלם מהארגומנט.**
               זה עבד כל עוד הקורא היחיד היה כפתור ההצפה, ומרגע

@@ -1202,6 +1202,24 @@ html,body{margin:0;padding:0;background:#012E58}
   text-align:left;word-break:break-word;font-family:ui-monospace,monospace}
 
 /* מפת ההרשאות */
+
+/* ---- התאמה ידנית של ההרשאות ---- */
+.cx-who{padding:13px 14px;margin-bottom:12px}
+.cx-h{font-size:12px;font-weight:900;letter-spacing:.4px;color:var(--muted);margin-bottom:9px}
+.cx-seg{margin-bottom:10px}
+.cx-list{padding:5px;margin-bottom:12px}
+.cx-r{display:flex;align-items:center;gap:9px;padding:9px;flex-wrap:wrap}
+.cx-r + .cx-r{border-top:1px solid var(--line)}
+.cx-n{flex:1;min-width:120px;font-size:13.5px;font-weight:800}
+.cx-n i{font-style:normal;font-weight:600;color:var(--muted);font-size:11.5px}
+.cx-why{font-size:11.5px;font-weight:700;color:var(--muted);margin-top:6px}
+.cx-lv{display:flex;gap:4px;flex:0 0 auto}
+.kx .cx-lv button{background:var(--bg);border:1px solid var(--line2);border-radius:var(--r-sm);
+  padding:5px 9px;font-size:11px;font-weight:800;color:var(--muted);cursor:pointer;
+  transition:background var(--ease) 120ms}
+.kx .cx-lv button.on{background:var(--accent);border-color:transparent;color:#fff}
+.kx .cx-lv button:disabled{opacity:.5;cursor:default}
+@media (prefers-reduced-motion:reduce){.kx .cx-lv button{transition:none}}
 .ac-note{font-size:12px;line-height:1.7;color:var(--muted);font-weight:600;
   background:var(--bg);border-radius:var(--r-md);padding:11px 13px;margin-bottom:12px}
 .ac-c{margin-bottom:10px}

@@ -26,6 +26,8 @@ import { ROLE_CONTAINER, ROLE_KITCHEN, ROLE_SAFETY, ROLE_HOUSE, ROLE_DEV } from 
 import { inMarkWindow, leadersForDate, weeksOfStudent } from "./_leader-weeks.js";
 import { parseTestDate } from "./_test-date.js";
 import { mayEdit, editHint, EDIT_AREA } from "../shared/edit-rights.js";
+import { SCREEN_API } from "../shared/screens.js";
+import { levelFor, narrower, DEFAULT_LEVEL, NEVER_BLOCKED } from "../shared/access-rules.js";
 
 const COOKIE = "mk_session";
 const TTL_DAYS = 7;
@@ -330,6 +332,59 @@ export async function requireManager(req, res) {
  *   הרשימות והדיווחים בבת אחת — בלי ששורה אחת בקבצים ההם השתנתה.
  *   פתיחה לחניך היא החלטה מפורשת לכל נקודת קצה בנפרד.
  */
+/* ============================================================
+   ⚠⚠⚠ **ההתאמות של ראש המכינה — שער אחד, וכיוון אחד.**
+
+   `?action=access` נותן לראש המכינה לצמצם מסך לתפקיד או לאדם:
+   "צפייה בלבד" או "חסום". האכיפה כאן ולא בכל נקודת קצה, מאותן
+   שתי סיבות של `viewOnly` (4ע): יש עשרות מסלולי כתיבה ומי
+   שיוסיף את הבא לא יזכור, וההבחנה לפי `req.method` מדויקת
+   ממילא. **מסלול שייכתב מחר מוגן מעצמו** — כל עוד הפעולה שלו
+   ממופה למסך, ו-`npm run check:access` מוודא בדיוק את זה.
+
+   ⚠⚠ **רק מצמצם ולעולם לא מרחיב.** מי שאין לו גישה בקוד לא
+     מקבל אותה משורה בלוח; ההתאמה יושבת **מעל** כל כלל קיים.
+
+   ⚠⚠ **וכישלון בטעינה משאיר את המערכת פתוחה כפי שהייתה.**
+     `loadAccessRules` אינה זורקת ומחזירה רשימה ריקה. הטעות
+     היקרה כאן היא חסימה שגויה של המטבח באמצע שירות, לא
+     היעדר חסימה.
+
+   ⚠ **פעולה בכמה מסכים — הצמצום החזק ביותר מנצח** (`narrower`).
+     חסימת "שיעורים קרובים" לא אמורה להישבר בגלל ש-`list`
+     משרת גם את הארכיון, ולהפך: מי שחסם את שניהם חסם.
+
+   ⚠ **`NEVER_BLOCKED` אינו מקוצר כאן.** מי שיחסום לעצמו את
+     `me` ננעל בלי שום דרך לתקן.
+
+   ⚠ **וייבוא עצל** — `api/_access-rules.js` מייבא את
+     `_session.js` בעצמו, ו-import רגיל היה מעגל.
+   ============================================================ */
+async function accessLevel(req, session) {
+  const action = String(req.query?.action || "").trim();
+  if (!action || NEVER_BLOCKED.has(action)) return DEFAULT_LEVEL;
+  /* ⚠ ראש המכינה אינו נחסם על ידי ההתאמות שהוא עצמו קובע —
+     אחרת טעות אחת נועלת את האדם היחיד שיכול לתקן אותה. */
+  if (session?.isHead) return DEFAULT_LEVEL;
+
+  let rules = [];
+  try {
+    const mod = await import("./_access-rules.js");
+    rules = await mod.loadAccessRules();
+  } catch (e) {
+    console.error("[access]", e);
+    return DEFAULT_LEVEL;
+  }
+  if (!rules.length) return DEFAULT_LEVEL;
+
+  let lvl = DEFAULT_LEVEL;
+  for (const [screen, actions] of Object.entries(SCREEN_API)) {
+    if (!actions.includes(action)) continue;
+    lvl = narrower(lvl, levelFor(session, screen, rules));
+  }
+  return lvl;
+}
+
 export function withAuth(
   handler,
   { manager = false, marker = false, student = false, scheduler = false, container = false, safety = false, house = false, kitchen = false, setup = false, edit = null } = {}
@@ -374,6 +429,20 @@ export function withAuth(
       if (session.viewOnly && req.method && req.method !== "GET") {
         throw new AuthError(
           "החשבון הזה מוגדר לצפייה בלבד — רואה את כל המערכת ואינו משנה בה דבר", 403);
+      }
+
+      /* ⚠ ההתאמות של ראש המכינה — ראו ההסבר מעל `accessLevel`.
+         ⚠ וההודעה אומרת **שזה מכוון ולמי לפנות**, ולא "אין
+           הרשאה": מי שנתקל בה בלי הסבר יסיק שהמערכת שבורה
+           (אותו כלל של 4כב ושל `viewOnly`). */
+      const lvl = await accessLevel(req, session);
+      if (lvl === "none") {
+        throw new AuthError(
+          "המסך הזה נסגר עבורך בהגדרות ההרשאות. אפשר לפנות לראש המכינה.", 403);
+      }
+      if (lvl === "view" && req.method && req.method !== "GET") {
+        throw new AuthError(
+          "המסך הזה פתוח לך לצפייה בלבד. אפשר לפנות לראש המכינה.", 403);
       }
 
       /* ============================================================

@@ -12,6 +12,22 @@ import { ensureCycle } from "./_cycle.js";
 import { teamsForStudent } from "./_team-data.js";
 import { mayFlagged } from "./_flag-team.js";
 
+/* ⚠ ייבוא עצל: `_access-rules.js` מייבא את `_session.js`,
+   ו-import רגיל כאן היה מעגל. ⚠ ולעולם אינו זורק — כישלון
+   מחזיר מפה ריקה, כלומר "בלי שום צמצום". */
+async function narrowed(session) {
+  try {
+    const [{ loadAccessRules }, { narrowedFor }] = await Promise.all([
+      import("./_access-rules.js"),
+      import("../shared/access-rules.js"),
+    ]);
+    return narrowedFor(session, await loadAccessRules());
+  } catch (e) {
+    console.error("[me/access]", e);
+    return {};
+  }
+}
+
 export default async function handler(req, res) {
   try {
     const session = await requireAuth(req, res);
@@ -44,6 +60,22 @@ export default async function handler(req, res) {
         /* ⚠ המסך צריך לדעת מראש — כפתור שמופיע ומקבל 403 אחרי
            שהמשתמש כבר הקליד הוא הדבר שהכלל הזה נועד למנוע (4יד). */
         viewOnly: Boolean(session.viewOnly),
+        /* ============================================================
+           ⚠⚠ **המסכים שראש המכינה צמצם — ורק הם.**
+
+           מפה של 60 מסכים שרובם "מלא" היא רעש בתשובה שנטענת
+           בכל כניסה; מה שחוזר הוא מה שהשתנה, והמסך מניח "מלא"
+           על כל השאר (אותו דפוס של `narrowedFor`).
+
+           ⚠ **וזו תצוגה, לא הגנה.** האכיפה היא ב-`withAuth`
+             בכל בקשה (4ע, עיקרון 3). מה שזה נותן הוא שהמסך
+             יסתיר בדיוק את מה שהשרת יחסום — כפתור שמופיע
+             ומקבל 403 אחרי שהמשתמש הקליד הוא 4יד.
+
+           ⚠ **וכישלון אינו מפיל את הכניסה** — תחום שנופל נתפס
+             בנפרד, כמו כל מקור בפעמון (4כו).
+           ============================================================ */
+        access: await narrowed(session),
         isGuide: Boolean(session.isGuide),
         needsName: session.kind === "trainee" && !session.name,
         roster: session.kind === "trainee" ? await traineeRoster() : [],

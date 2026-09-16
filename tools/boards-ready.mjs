@@ -100,6 +100,8 @@ export const STEPS = [
      הרשומה של השני, וההקמה נעצרת על שלב שהצליח (5לב). */
   { script: "tools/seed-buy-food.mjs", title: 'קטגוריית "אוכל" ברשימת הקניות',
     ids: "shared/buy-ids.js", ready: "buyCategoryReady" },
+  { script: "tools/seed-access.mjs", title: "לוח ההרשאות המותאמות",
+    ids: "shared/access-ids.js", ready: "accessReady" },
 ];
 
 /**
