@@ -7,8 +7,26 @@
    ⚠ שם היום נגזר מהתאריך ולא מתקבל מהלקוח — ראו addMeeting
      ב-_lessons-data.js.
 
-   ⚠ מפגש כפול לאותו תאריך נחסם. בייבוא מהקובץ המקורי היו שתי
-     כפילויות כאלה, והן נראו זהות עד שבדקנו את סיבת הביטול.
+   ⚠⚠ **שני מפגשים באותו יום — מותר, ועם אישור**
+     (בקשת ראש המכינה, 16.9.2026: *"בכל גיליון ובייחוד
+     בגליונות השיעורים המתחלפים אי אפשר להוסיף יותר
+     משיעור אחד ביום מסוים … לפעמים יש שני שיעורי
+     מדעי המדינה באותו היום"*).
+
+     קודם זה היה **409 חוסם**, והנימוק היה הייבוא: בקובץ
+     המקורי היו שתי כפילויות שנראו זהות. אבל שני שיעורים
+     באותו יום הם מצב אמיתי במכינה, וחסימה שלו שלחה
+     את אחראי הלו״ז ל-monday — וזה בדיוק מה שהאפליקציה
+     נועדה למנוע.
+
+     ⚠ **החיכוך נשאר, הקיר ירד.** בלי `same:true` התשובה
+       היא 409 שאומר **כמה כבר יש באותו יום** (`sameDate`),
+       והמסך מבקש אישור ושולח שוב. לחיצה כפולה או
+       ייבוא שמכפיל עדיין נעצרים — אותו דפוס של "החיכוך
+       הוא העניין" (4טז), ולא חסימה שאין לה מוצא.
+
+     ⚠ **והדגל אינו עובר בייבוא ולא בזריעה** — רק מהמסך,
+       אחרי שאדם ראה מה כבר קיים באותו יום.
    ============================================================ */
 
 import { withAuth } from "./_session.js";
@@ -78,9 +96,17 @@ async function create(req, res, session, rights) {
     if (!sheet) return res.status(404).json(NOT_FOUND);
     if (outOfScope(rights, sheet)) return res.status(404).json(NOT_FOUND);
 
-    const clash = meetings.find((m) => m.sheetId === sheetId && m.date === date);
-    if (clash) {
-      return res.status(409).json({ error: "כבר קיים מפגש בתאריך הזה בגיליון" });
+    /* ⚠ אישור מפורש ולא חסימה — ראו ראש הקובץ. */
+    const same = meetings.filter((m) => m.sheetId === sheetId && m.date === date);
+    if (same.length && body?.same !== true) {
+      return res.status(409).json({
+        error: same.length === 1
+          ? "כבר קיים מפגש בתאריך הזה בגיליון"
+          : `כבר קיימים ${same.length} מפגשים בתאריך הזה בגיליון`,
+        /* ⚠ המספר הוא מה שמבדיל בין "אסור" לבין "בטוחה?" —
+           בלעדיו המסך אינו יודע שיש לו מה להציע. */
+        sameDate: same.length,
+      });
     }
 
     const id = await addMeeting({
@@ -120,10 +146,20 @@ async function edit(req, res, session, rights) {
       if (!DATE_RE.test(date)) {
         return res.status(400).json({ error: "תאריך לא תקין. הפורמט: YYYY-MM-DD" });
       }
-      /* ⚠ אין שתי שורות לאותו תאריך באותו גיליון */
-      const clash = meetings.find(
+      /* ⚠ אותו אישור כמו ביצירה: הזזת מפגש ליום שכבר
+         יש בו אחד היא אותה פעולה בדיוק, ושתי התנהגויות
+         שונות היו הדרך לעקוף את הראשונה (5יח: כללים
+         בפונקציה אחת להגשה ולעריכה). */
+      const same = meetings.filter(
         (m) => m.sheetId === meeting.sheetId && m.date === date && m.id !== meetingId);
-      if (clash) return res.status(409).json({ error: "כבר קיים מפגש בתאריך הזה בגיליון" });
+      if (same.length && body?.same !== true) {
+        return res.status(409).json({
+          error: same.length === 1
+            ? "כבר קיים מפגש בתאריך הזה בגיליון"
+            : `כבר קיימים ${same.length} מפגשים בתאריך הזה בגיליון`,
+          sameDate: same.length,
+        });
+      }
       fields.date = date;
     }
 

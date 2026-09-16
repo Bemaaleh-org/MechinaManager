@@ -130,6 +130,10 @@ async function send(method, path, body) {
     /* ⚠ 503 של "טרם הוקם" נושא דגל, כדי שהמסך יציג מצב הקמה
        רגוע ולא באנר כשל — אלה שני מצבים שונים (עיקרון 6). */
     if (data.setupRequired) err.setupRequired = true;
+    /* ⚠ כמה מפגשים כבר יש באותו תאריך (`?action=meeting`).
+       בלעדיו המסך מקבל 409 שנראה כמו איסור ואינו
+       יודע שיש לו מה להציע (עיקרון 6). */
+    if (data.sameDate) err.sameDate = data.sameDate;
     throw err;
   }
   return data;
@@ -160,6 +164,10 @@ async function get(path) {
     /* ⚠ 503 של "טרם הוקם" נושא דגל, כדי שהמסך יציג מצב הקמה
        רגוע ולא באנר כשל — אלה שני מצבים שונים (עיקרון 6). */
     if (data.setupRequired) err.setupRequired = true;
+    /* ⚠ כמה מפגשים כבר יש באותו תאריך (`?action=meeting`).
+       בלעדיו המסך מקבל 409 שנראה כמו איסור ואינו
+       יודע שיש לו מה להציע (עיקרון 6). */
+    if (data.sameDate) err.sameDate = data.sameDate;
     throw err;
   }
   return data;
@@ -1080,13 +1088,15 @@ export const api = {
   markLesson: ({ meetingId, happened, note, lecturer, opinion }) =>
     post("/api/lessons?action=mark", { meetingId, happened, note, lecturer, opinion }),
 
-  /** הוספת מפגש ידנית לגיליון קיים. נשמר ב-monday מיד. */
-  addLessonMeeting: ({ sheetId, date, planned, reason, note }) =>
-    post("/api/lessons?action=meeting", { sheetId, date, planned, reason, note }),
+  /** הוספת מפגש ידנית לגיליון קיים. נשמר ב-monday מיד.
+   *  ⚠ `same:true` מאשר מפגש נוסף באותו תאריך — נשלח
+   *  רק אחרי שהמשתמש אישר במסך, ולעולם לא מייבוא. */
+  addLessonMeeting: ({ sheetId, date, planned, reason, note, same }) =>
+    post("/api/lessons?action=meeting", { sheetId, date, planned, reason, note, same }),
 
   /** עריכת מפגש: תאריך, האם יתקיים, סיבה והערות */
-  editLessonMeeting: ({ meetingId, date, planned, reason, note }) =>
-    put("/api/lessons?action=meeting", { meetingId, date, planned, reason, note }),
+  editLessonMeeting: ({ meetingId, date, planned, reason, note, same }) =>
+    put("/api/lessons?action=meeting", { meetingId, date, planned, reason, note, same }),
 
   /** ⚠ מחיקת מפגש — בלתי הפיך, השורה נמחקת מהלוח */
   deleteLessonMeeting: (meetingId) =>

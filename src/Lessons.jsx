@@ -632,26 +632,50 @@ function NewMeeting({ sheet, meeting, onDone, onCancel, say }) {
   const [note, setNote] = useState(meeting ? meeting.note || "" : "");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+  /* ============================================================
+     ⚠⚠ **שני שיעורים באותו יום — שואלים, ולא חוסמים**
+     (בקשת ראש המכינה, 16.9.2026: "לפעמים יש שני
+     שיעורי מדעי המדינה באותו היום").
+
+     השרת מחזיר 409 עם `sameDate`, והמסך שואל ושולח
+     שוב עם `same:true`. ⚠ **והאישור בתוך המסך ולא
+     `confirm()` של הדפדפן** — הוא נראה זר, ובחלק
+     הדפדפנים במובייל הוא נחסם לגמרי (4ק).
+
+     ⚠ והאישור נמחק בכל שינוי תאריך — אישור שניתן
+       על יום אחד ונשאר על יום אחר הוא בדיוק הכפילות
+       השקטה שהחסימה נועדה למנוע.
+     ============================================================ */
+  const [sameDate, setSameDate] = useState(0);
 
   const blocked = !date || (planned === "לא" && !reason.trim());
 
-  const submit = (e) => {
-    e.preventDefault();
-    if (busy || blocked) return;
+  const send = (same) => {
     setBusy(true); setErr(null);
     const call = meeting
       ? api.editLessonMeeting({
           meetingId: meeting.id, date, planned,
-          reason: reason.trim(), note: note.trim(),
+          reason: reason.trim(), note: note.trim(), same,
         })
       : api.addLessonMeeting({
           sheetId: sheet.id, date, planned,
-          reason: reason.trim(), note: note.trim(),
+          reason: reason.trim(), note: note.trim(), same,
         });
     call
       .then(() => { say(meeting ? "המפגש עודכן" : "המפגש נוסף"); onDone(); })
-      .catch((e2) => setErr(e2.message))
+      .catch((e2) => {
+        /* ⚠ מצב שלישי ולא שגיאה: יש כבר מפגש באותו יום,
+           וזו שאלה שאפשר לענות עליה (עיקרון 6). */
+        if (e2.sameDate) { setSameDate(e2.sameDate); setErr(null); }
+        else setErr(e2.message);
+      })
       .finally(() => setBusy(false));
+  };
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (busy || blocked) return;
+    send(false);
   };
 
   return (
@@ -669,10 +693,31 @@ function NewMeeting({ sheet, meeting, onDone, onCancel, say }) {
           </div>
         )}
 
+        {/* ⚠ אומר כמה כבר יש ומה יקרה, ולא "בטוחה?" —
+            שאלה על פעולה שאי אפשר לענות עליה אינה שאלה. */}
+        {sameDate > 0 && (
+          <div className="alert a-amber" style={{ marginBottom: 12, display: "block" }}>
+            <div className="ttl">
+              {sameDate === 1
+                ? "כבר קיים מפגש אחד בתאריך הזה"
+                : `כבר קיימים ${sameDate} מפגשים בתאריך הזה`}
+            </div>
+            <div style={{ fontSize: 12.5, marginTop: 3 }}>
+              {meeting
+                ? "הזזה לתאריך הזה תשאיר שני מפגשים באותו יום."
+                : "שני שיעורים באותו יום הם מצב תקין. להוסיף בכל זאת?"}
+            </div>
+            <button type="button" className="btn btn-sm" style={{ marginTop: 8 }}
+              disabled={busy} onClick={() => send(true)}>
+              {busy ? "שומר…" : meeting ? "כן, להזיז לשם" : "כן, להוסיף מפגש נוסף"}
+            </button>
+          </div>
+        )}
+
         <div className="fld">
           <label htmlFor="nm-date">תאריך</label>
           <input id="nm-date" type="date" value={date} disabled={busy}
-            onChange={(e) => setDate(e.target.value)} />
+            onChange={(e) => { setDate(e.target.value); setSameDate(0); }} />
         </div>
 
         <div className="fld">

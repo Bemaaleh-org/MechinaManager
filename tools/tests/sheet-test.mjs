@@ -279,6 +279,56 @@ try {
       r.s === 503 && r.b.setupRequired === true, `${r.s} ${r.b.error || ""}`);
   }
 
+  /* ============================================================
+     ⚠⚠ **שני מפגשים באותו יום** (בקשת ראש המכינה,
+     16.9.2026: "לפעמים יש שני שיעורי מדעי המדינה
+     באותו היום").
+
+     ⚠ **שני הכיוונים באותה הרצה:** בלי אישור זה
+       409 עם `sameDate` (ולא שגיאה סתומה), ועם אישור זה
+       נשמר. הטענה השנייה לבדה הייתה נשארת ירוקה גם
+       אילו הוסר החיכוך לגמרי, ואז לחיצה כפולה יוצרת
+       מפגש רפאים בשקט.
+
+     ⚠ שני המפגשים נמחקים **לפי המזהה שחזר מה-POST**
+       ולא לפי סינון — הפעולה נוגעת בלוח שני (מפגשים)
+       ולא רק בלוח הגיליונות.
+     ============================================================ */
+  console.log("\n=== שני מפגשים באותו יום ===");
+  const DAY = "2027-05-11";           /* רחוק, על גיליון הבדיקה בלבד */
+  const mtgs = [];
+  try {
+    r = await call(M, "POST", "/api/lessons?action=meeting",
+      { sheetId: id, date: DAY, planned: "כן" });
+    ok("מפגש ראשון נוצר", r.s === 200 && r.b.id, `${r.s} ${r.b.error || ""}`);
+    if (r.b.id) mtgs.push(r.b.id);
+
+    r = await call(M, "POST", "/api/lessons?action=meeting",
+      { sheetId: id, date: DAY, planned: "כן" });
+    ok("שני בלי אישור → 409 עם sameDate",
+      r.s === 409 && r.b.sameDate === 1, `${r.s} sameDate=${r.b.sameDate}`);
+
+    r = await call(M, "POST", "/api/lessons?action=meeting",
+      { sheetId: id, date: DAY, planned: "כן", same: true });
+    ok("ועם אישור נשמר", r.s === 200 && r.b.id, `${r.s} ${r.b.error || ""}`);
+    if (r.b.id) mtgs.push(r.b.id);
+
+    /* ⚠ והמספר גדל עם כל מפגש — הודעה שאומרת "אחד"
+       על שלושה היא הסיבה שהספירה בתשובה ולא בוליאני. */
+    r = await call(M, "POST", "/api/lessons?action=meeting",
+      { sheetId: id, date: DAY, planned: "כן" });
+    ok("והמניין עולה לשניים", r.s === 409 && r.b.sameDate === 2,
+      `${r.s} sameDate=${r.b.sameDate}`);
+  } finally {
+    for (const mid of mtgs) {
+      await call(M, "DELETE", "/api/lessons?action=meeting", { meetingId: mid });
+    }
+  }
+  r = await call(M, "GET", "/api/lessons?action=sheet&id=" + id);
+  ok("ושני מפגשי הבדיקה נמחקו",
+    !(r.b.meetings || []).some((m) => m.date === DAY),
+    (r.b.meetings || []).filter((m) => m.date === DAY).length + " נשארו");
+
   console.log("\n=== ניקוי ===");
   await cleanup();
   const left = (await allItems(LB.sheets)).filter((x) => x.name.includes("בדיקה"));
