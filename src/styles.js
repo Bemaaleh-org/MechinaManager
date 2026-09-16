@@ -278,6 +278,10 @@ html,body{margin:0;padding:0;background:#012E58}
 .p-low{background:var(--clay-soft);color:var(--clay)}
 .p-ok{background:var(--ok-soft);color:var(--ok)}
 .p-new{background:var(--amber-soft);color:var(--amber)}
+/* ⚠ היה חסר. p-bad שימשה במסך ולא הוגדרה — ומחלקה
+   שאינה קיימת אינה שגיאה, בדיוק כמו סאנד ונייבי
+   (5יד, 5כא). התגית הייתה מופיעה בלי צבע כלל. */
+.p-bad{background:var(--clay-soft);color:var(--clay)}
 /* ⚠ שדרוג — גוון תחום ולא צבע מצב: הוא אינו בעיה
    ואינו תקין, הוא סיווג (4ג). */
 .p-up{background:var(--t5-s);color:var(--t5)}
@@ -982,6 +986,25 @@ html,body{margin:0;padding:0;background:#012E58}
 .kx .rc-add{color:var(--accent)}
 .kx .rc-x{color:var(--clay)}
 .kx .rc-add:disabled,.kx .rc-x:disabled{opacity:.55;cursor:default}
+
+/* רצועת חודש בלשונית הקבלות.
+   הרצועה עצמה היא button, ולכן הקידומת המלאה .kx —
+   .kx button מאפסת background ו-border בסגוליות גבוהה יותר. */
+.rc-months{display:flex;flex-direction:column;gap:9px;margin-bottom:12px}
+.rc-mo{border-radius:var(--r-md);overflow:hidden;box-shadow:var(--sh-1);
+  border:1px solid var(--line2);background:var(--surface)}
+.kx .rc-bar{display:flex;align-items:center;gap:9px;width:100%;padding:13px 14px;
+  background:var(--surface);border:0;border-radius:0;text-align:right;cursor:pointer;
+  transition:background var(--ease) 120ms;color:var(--ink)}
+.kx .rc-bar:hover{background:var(--bg)}
+.rc-mo.on .rc-bar{background:var(--bg);border-bottom:1px solid var(--line2)}
+.rc-bar svg{flex:0 0 auto;color:var(--muted);transition:transform var(--ease) 120ms}
+.rc-mo-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.rc-mo-h{display:flex;align-items:center;gap:6px}
+.rc-mo-n{font-size:15px;font-weight:900;letter-spacing:-.2px}
+.rc-mo-s{font-size:11.5px;font-weight:700;color:var(--muted)}
+.rc-mo-b{padding:8px;gap:8px}
+@media (prefers-reduced-motion:reduce){.rc-bar svg{transition:none}}
 .bg-nav{display:flex;align-items:center;gap:8px;margin-bottom:14px}
 .bg-nav select{flex:1;min-height:46px;background:var(--surface);border:1px solid var(--line2);
   border-radius:11px;padding:0 13px;font-size:15px;font-weight:700;outline:none;text-align:center}

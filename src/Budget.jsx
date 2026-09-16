@@ -15,6 +15,7 @@ import { israelDateStr } from "./testDate.js";
 import React, { useState, useEffect } from "react";
 import { api } from "./api.js";
 import { useExcel, downloadTable } from "./excel.js";
+import ScrollTabs from "./Tabs.jsx";
 import { monthLabel, ORDER_KIND, consecutiveMonths, DAY_COMMUNITY } from "../shared/budget-boards.js";
 
 const BI = {
@@ -748,6 +749,170 @@ function YearChart({ rows }) {
   );
 }
 
+/* ============================================================
+   הקבלות — חודש-חודש, וההווה פתוח
+   ------------------------------------------------------------
+   הבקשה: *"לגבי קבלות לקנייה, אני רוצה שיהיה שם לפי חודשים,
+   לדוגמא ברגע שספטמבר נגמר אז יהיה כזה bar ספטמבר ויפתח
+   אוקטובר."*
+
+   הקבלות ישבו עד כאן **בתוך תצוגת החודש בלבד**, כלומר כדי
+   לראות אם לספטמבר יש קבלות היה צריך לדפדף לספטמבר, ולזכור
+   מה היה שם כשמדפדפים הלאה. השאלה "מה עוד חסר" — שהיא כל
+   הסיבה שהעמודה קיימת — לא הייתה ניתנת לשאילה בשום מסך.
+
+   ⚠ **החודש הנוכחי פתוח והשאר רצועות.** רשימה של עשרה חודשים
+     פתוחים היא גלילה של מאה שורות; רשימה של עשר רצועות סגורות
+     מסתירה בדיוק את מה שעובדים עליו היום. ⚠ ולכן זו בחירה
+     ראשונית ולא כפייה בכל רינדור: מי שפתח את אוקטובר נשאר בו
+     (אותו דפוס של `mi === null` בלוח הנוכחות, 4פ).
+
+   ⚠ **החודש נגזר מתאריך הקנייה ולא מהחודשים שהיא נזקפת בהם.**
+     קנייה רבעונית מתחלקת לשלושה חודשים בתקציב — אבל הקבלה
+     שלה היא מסמך אחד מיום אחד, והופעתה בשלושה חודשים הייתה
+     נראית כמו שלוש קבלות חסרות.
+
+   ⚠ **הרצועה אומרת כמה חסר ולא רק כמה יש.** "4 קניות · 2,180 ₪"
+     נקרא כחודש מתועד; המספר שבגללו נכנסים למסך הוא כמה
+     מהן בלי קבלה (4יח, 4לג).
+
+   ⚠ **וחודש בלי קניות אינו מוצג כלל** — רצועה ריקה נראית כמו
+     תקלה, ושורה "0 קניות" בעשרה חודשים היא רעש.
+   ============================================================ */
+function ReceiptsTab({ say }) {
+  const { data, err, busy, reload } = useLoad(() => api.getBudgetYear(), []);
+  const [open, setOpen] = useState(null);
+
+  /* ⚠ שעון ישראל ו-`?date=` ולא `new Date()` גולמי — אחרת
+     בערב וב-UTC נפתח החודש הלא-נכון (4פ). */
+  const nowMonth = israelDateStr().slice(0, 7);
+
+  const groups = React.useMemo(() => {
+    if (!data) return [];
+    const by = new Map();
+    for (const o of data.orders || []) {
+      const m = String(o.date || "").slice(0, 7)
+        || (Array.isArray(o.months) && o.months[0]) || o.startMonth || "";
+      if (!m) continue;
+      if (!by.has(m)) by.set(m, []);
+      by.get(m).push(o);
+    }
+    return [...by.entries()]
+      .map(([month, rows]) => ({
+        month,
+        rows: rows.slice().sort((a, b) => String(b.date || "").localeCompare(String(a.date || ""))),
+        total: rows.reduce((a, o) => a + (Number(o.amount) || 0), 0),
+        missing: rows.filter((o) => !o.receipt).length,
+      }))
+      .sort((a, b) => b.month.localeCompare(a.month));
+  }, [data]);
+
+  /* ⚠ בחירה ראשונית בלבד, ו-`open === null` פירושו "עוד לא
+     נבחר". ברירת מחדל קשיחה הייתה מחזירה את המשתמש לחודש
+     הנוכחי בכל טעינה מחדש אחרי העלאת קבלה. */
+  useEffect(() => {
+    if (open !== null || !groups.length) return;
+    setOpen(groups.some((g) => g.month === nowMonth) ? nowMonth : groups[0].month);
+  }, [groups, open, nowMonth]);
+
+  if (busy && !data) return <div className="empty" style={{ paddingTop: 40 }}><div className="e1">טוען…</div></div>;
+  if (err) return <div className="alert a-clay"><BI.warn /><div style={{ flex: 1 }}>
+    <div className="ttl">לא הצלחנו לטעון</div><div className="bd">{err.message}</div></div></div>;
+  if (!data) return null;
+
+  const missing = groups.reduce((a, g) => a + g.missing, 0);
+  const count = groups.reduce((a, g) => a + g.rows.length, 0);
+
+  if (!count) {
+    return (
+      <div className="empty" style={{ paddingTop: 34 }}>
+        <div className="e-ico"><BI.clip /></div>
+        <div className="e1">עדיין לא נרשמה שום קנייה</div>
+        <div className="e2">קנייה נרשמת בלשונית "חודש", והקבלה נטענת עליה.</div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="band">
+        <div className="band-h">קבלות על הקניות</div>
+        <div className="band-grid">
+          <div className="band-c">
+            <div className="band-n">{count}</div>
+            <div className="band-l">קניות נרשמו</div>
+          </div>
+          <div className="band-c">
+            <div className={"band-n" + (count - missing ? " ok" : "")}>{count - missing}</div>
+            <div className="band-l">עם קבלה</div>
+          </div>
+          <div className="band-c">
+            <div className={"band-n" + (missing ? " warn" : "")}>{missing}</div>
+            <div className="band-l">בלי קבלה</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ⚠ נאמר רק כשהוא נכון. "0 בלי קבלה" בכל טעינה הוא
+          בדיוק השורה שמפסיקים לקרוא. */}
+      {missing === 0 && (
+        <div className="q-note" style={{ marginBottom: 10 }}>
+          לכל הקניות שנרשמו יש קבלה.
+        </div>
+      )}
+
+      <div className="rc-months">
+        {groups.map((g) => {
+          const isOpen = open === g.month;
+          return (
+            <div className={"rc-mo" + (isOpen ? " on" : "")} key={g.month}>
+              {/* ⚠ שתי שורות ולא אחת. שם החודש, שתי התגיות והסיכום
+                  בשורה אחת נדחסים בטלפון ונשברים לשלוש שורות
+                  לא מיושרות — רצועה שנראית כמו תקלה. */}
+              <button className="rc-bar" onClick={() => setOpen(isOpen ? "" : g.month)}>
+                <BI.chev style={{ transform: isOpen ? "rotate(-90deg)" : "rotate(180deg)" }} />
+                <span className="rc-mo-t">
+                  <span className="rc-mo-h">
+                    <span className="rc-mo-n">{monthLabel(g.month)}</span>
+                    {g.month === nowMonth && <span className="pill p-new">החודש</span>}
+                  </span>
+                  <span className="rc-mo-s num">
+                    {g.rows.length} קניות · {shekel(g.total)} ₪
+                  </span>
+                </span>
+                {g.missing > 0
+                  ? <span className="pill p-bad num">{g.missing} בלי קבלה</span>
+                  : <span className="pill p-ok">הכול מתועד</span>}
+              </button>
+
+              {isOpen && (
+                <div className="rows rc-mo-b">
+                  {g.rows.map((o) => (
+                    <div className="st-row" key={o.id} style={{ cursor: "default" }}>
+                      <div className="st-main">
+                        <div className="st-n">{o.name}</div>
+                        <div className="st-m">
+                          <span className={"pill " + (o.kind === ORDER_KIND.weekly ? "p-ok" : "p-new")}>
+                            {o.kind}
+                          </span>
+                          <span className="num">{shekel(o.amount)} ₪</span>
+                          {o.date && <span className="num">· {dm(o.date)}</span>}
+                        </div>
+                        <Receipt order={o} canUpload={data.canUploadReceipt}
+                          say={say} reload={reload} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 function YearView({ say, onMonth }) {
   const { data, err, busy } = useLoad(() => api.getBudgetYear(), []);
   if (busy && !data) return <div className="empty" style={{ paddingTop: 40 }}><div className="e1">טוען…</div></div>;
@@ -1237,18 +1402,24 @@ export function BudgetPage({ say, isHead = false }) {
         </div>
       )}
 
-      <div className="seg">
+      {/* ⚠ עטוף ב-`ScrollTabs` מרגע שיש חמש לשוניות: רצועה
+          שנחתכת נראית שלמה, ומי שלא יודע שאפשר להחליק לא
+          מגיע ללשונית האחרונה — כלומר היא אינה קיימת (4ר). */}
+      <ScrollTabs className="seg">
         <button className={view === "month" ? "on" : ""} onClick={() => setView("month")}>חודש</button>
         <button className={view === "year" ? "on" : ""} onClick={() => setView("year")}>כל השנה</button>
         <button className={view === "prices" ? "on" : ""} onClick={() => setView("prices")}>תקציב</button>
         <button className={view === "dining" ? "on" : ""} onClick={() => setView("dining")}>חד״א</button>
-      </div>
+        <button className={view === "receipts" ? "on" : ""} onClick={() => setView("receipts")}>קבלות</button>
+      </ScrollTabs>
 
       {view === "prices" ? (
         <PriceTab types={data.types} headcount={data.headcount} say={say}
           onChanged={reload} isHead={isHead} />
       ) : view === "year" ? (
         <YearView say={say} onMonth={(m) => { setMonth(m); setView("month"); }} />
+      ) : view === "receipts" ? (
+        <ReceiptsTab say={say} />
       ) : view === "dining" ? (
       <>
         {monthNav}

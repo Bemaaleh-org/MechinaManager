@@ -426,6 +426,10 @@ async function handler(req, res, session) {
           spent: sum("spent"),
           left: sum("purchases") - sum("spent"),
           orders: orders.map((o) => ({ ...o, months: monthsOf(o) })),
+          /* ⚠ אותו דגל בדיוק שבתצוגת החודש. לשונית הקבלות
+             נשענת על התצוגה השנתית, וכפתור העלאה שמופיע
+             שם ומחזיר 403 הוא בדיוק 4יד. */
+          canUploadReceipt: receiptReady() && mayEdit(session, "kitchen"),
         });
       }
 
