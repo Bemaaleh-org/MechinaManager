@@ -214,6 +214,18 @@ try {
     .filter((f) => src.includes(f));
   ok("ואין ב-_lesson-mark.js שער שני לפני lessonRights",
     gates.length === 0, gates.join(" · ") || "שער אחד");
+
+  /* ⚠⚠ **והכיוון ההפוך: `?action=meeting` לא צימצם כלל.**
+     שלושת הפועלים שם נשענו על `rights.write` הגורף בלבד,
+     ולכן חבר ועדה יכול היה להוסיף, להזיז ולמחוק מפגשים
+     בכל גיליון במכינה — אימונים, תנ״ך, מליאה.
+     ⚠ וזה נבדק במקור ולא ברשת מאותה סיבה — אין חשבון
+       בדיקה משובץ לועדה, ולצוות `limited` כבוי במילא. */
+  const msrc = (await import("node:fs")).readFileSync("api/_lesson-meeting.js", "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+  ok("ו-_lesson-meeting.js מצמצם לפי גיליון בשלושת הפועלים",
+    (msrc.match(/outOfScope\(|rights\.limited/g) || []).length >= 3,
+    (msrc.match(/outOfScope\(|rights\.limited/g) || []).length + " בדיקות צמצום");
 } finally {
   for (const x of regs) await x.restore();
   invalidate("auth-rows");
