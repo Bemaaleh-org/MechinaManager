@@ -210,50 +210,49 @@ async function searchDishes(q, session) {
    ⚠ **הרשימה נגזרת מ-`DUTIES` ומהניווט ואינה כתובה כאן שוב.**
      רשימה שנייה של מסכים מתפצלת מהניווט בתיקון הראשון (4מד).
    ============================================================ */
-const COMMON = [
-  { tab: "home", label: "בית", who: "all" },
-  { tab: "profile", label: "הפרופיל שלי", who: "all" },
-  { tab: "board", label: "לוח מודעות", who: "all" },
-  { tab: "year", label: "הנוכחות שלי", who: "student" },
-  { tab: "requests", label: "בקשות יציאה", who: "student" },
-  { tab: "tryouts", label: "מיונים ושיבוצים", who: "student" },
-  { tab: "leadership", label: "המובילשיות שלי", who: "student" },
-  { tab: "projects", label: "הפרויקטים שלי", who: "student" },
-  { tab: "agenda", label: "הלו״ז שלי", who: "all" },
-  { tab: "gantt", label: "גאנט שנתי", who: "all" },
-  { tab: "chores", label: "תורנויות", who: "all" },
-  { tab: "menu", label: "תפריט ארוחות", who: "all" },
-  { tab: "rules", label: "נהלים במכינה", who: "all" },
-  { tab: "faults", label: "דיווח תקלה", who: "all" },
-  { tab: "placements", label: "השיבוצים שלי", who: "student" },
-  { tab: "teams", label: "ועדות וסדרות", who: "all" },
-];
+/* ⚠ הקטלוג עבר ל-shared/screens.js, ו-check:nav מוודא שהוא
+   מתאים למגירה. ראו ההערה בראש הקובץ ההוא. */
 
 async function searchScreens(q, session) {
   const out = [];
-  for (const s of COMMON) {
-    if (s.who === "student" && !session.isStudent) continue;
-    if (!hit(s.label, q)) continue;
-    out.push(row({ kind: "מסך", title: s.label, tab: s.tab, score: score(s.label, "", q) + 30 }));
+  const seen = new Set();
+  const push = (tab, label, sub) => {
+    if (seen.has(tab) || !hit(label, q)) return;
+    seen.add(tab);
+    out.push(row({ kind: "\u05de\u05e1\u05da", title: label, sub: sub || null, tab,
+      score: score(label, "", q) + 30 }));
+  };
+
+  const { STAFF_SCREENS, STUDENT_SCREENS } = await import("../shared/screens.js");
+
+  /* ============================================================
+     \u26a0\u26a0 **\u05dc\u05e6\u05d5\u05d5\u05ea \u05de\u05d2\u05d9\u05e2\u05d9\u05dd \u05db\u05dc \u05d4\u05de\u05e1\u05db\u05d9\u05dd, \u05d5\u05dc\u05d0 \u05e9\u05d9\u05e9\u05d4\u05f4\u05e2\u05e9\u05e8.**
+
+     \u05e2\u05d3 \u05db\u05d0\u05df \u05e8\u05e9\u05d9\u05de\u05ea \u05d4\u05de\u05e1\u05db\u05d9\u05dd \u05d4\u05d9\u05ea\u05d4 \u05d0\u05d7\u05ea \u05dc\u05db\u05d5\u05dc\u05dd, \u05d5\u05de\u05e1\u05db\u05d9 \u05d4\u05ea\u05e4\u05e7\u05d9\u05d3\u05d9\u05dd
+     \u05e0\u05d1\u05e0\u05d5 \u05d1\u05ea\u05d5\u05da `if (session.isStudent)` \u05d1\u05dc\u05d1\u05d3. \u05db\u05dc\u05d5\u05de\u05e8 \u05e8\u05d0\u05e9
+     \u05d4\u05de\u05db\u05d9\u05e0\u05d4 \u05d4\u05e7\u05dc\u05d9\u05d3 "\u05de\u05db\u05d5\u05dc\u05d4" \u05d5\u05e7\u05d9\u05d1\u05dc \u05ea\u05e7\u05dc\u05d4 \u05d0\u05d7\u05ea \u2014 \u05de\u05e1\u05da
+     "\u05de\u05db\u05d5\u05dc\u05d4" \u05e4\u05ea\u05d5\u05d7 \u05dc\u05d5 \u05dc\u05d2\u05de\u05e8\u05d9 \u05d5\u05e4\u05e9\u05d5\u05d8 \u05dc\u05d0 \u05d4\u05d9\u05d4 \u05d1\u05e9\u05d5\u05dd \u05e8\u05e9\u05d9\u05de\u05d4
+     \u05e9\u05d4\u05d7\u05d9\u05e4\u05d5\u05e9 \u05e7\u05d5\u05e8\u05d0.
+
+     \u26a0 \u05d5\u05d4\u05de\u05e4\u05ea\u05d7\u05d5\u05ea \u05e9\u05d5\u05e0\u05d9\u05dd \u05d1\u05d9\u05df \u05d4\u05de\u05e2\u05d8\u05e4\u05d5\u05ea (`c-container` \u05de\u05d5\u05dc
+       `container`), \u05d5\u05dc\u05db\u05df \u05e9\u05ea\u05d9 \u05e8\u05e9\u05d9\u05de\u05d5\u05ea \u05d5\u05dc\u05d0 \u05d0\u05d7\u05ea \u05e2\u05dd \u05d3\u05d2\u05dc \u2014
+       \u05e0\u05d9\u05d5\u05d5\u05d8 \u05dc\u05de\u05e4\u05ea\u05d7 \u05e9\u05d0\u05d9\u05e0\u05d5 \u05e7\u05d9\u05d9\u05dd \u05d1\u05de\u05e2\u05d8\u05e4\u05ea \u05de\u05e9\u05d0\u05d9\u05e8 \u05d1\u05de\u05e7\u05d5\u05dd, \u05d1\u05e9\u05e7\u05d8.
+     ============================================================ */
+  if (!session.isStudent) {
+    for (const s2 of STAFF_SCREENS) push(s2.tab, s2.label);
+    return out;
   }
-  /* ⚠ ומסכי התפקידים — מ-`DUTIES`, שהוא גם מה שמזין את המגירה. */
-  if (session.isStudent) {
-    try {
-      const { dutiesForStudent } = await import("./_duty-data.js");
-      const { DUTIES } = await import("../shared/duties.js");
-      const seen = new Set(out.map((r) => r.tab));
-      for (const d of await dutiesForStudent(String(session.itemId || ""))) {
-        for (const t of (DUTIES[d.name] || {}).tabs || []) {
-          if (seen.has(t.tab) || !hit(t.label, q)) continue;
-          seen.add(t.tab);
-          out.push(row({
-            kind: "מסך", title: t.label, sub: d.label,
-            tab: t.tab, score: score(t.label, "", q) + 30,
-          }));
-        }
-      }
-    } catch (e) { console.error("[search:screens]", e && e.message); }
-  }
+
+  for (const s2 of STUDENT_SCREENS) push(s2.tab, s2.label);
+
+  /* \u26a0 \u05d5\u05de\u05e1\u05db\u05d9 \u05d4\u05ea\u05e4\u05e7\u05d9\u05d3\u05d9\u05dd \u2014 \u05de-`DUTIES`, \u05e9\u05d4\u05d5\u05d0 \u05d2\u05dd \u05de\u05d4 \u05e9\u05de\u05d6\u05d9\u05df \u05d0\u05ea \u05d4\u05de\u05d2\u05d9\u05e8\u05d4. */
+  try {
+    const { dutiesForStudent } = await import("./_duty-data.js");
+    const { DUTIES } = await import("../shared/duties.js");
+    for (const d of await dutiesForStudent(String(session.itemId || ""))) {
+      for (const t of (DUTIES[d.name] || {}).tabs || []) push(t.tab, t.label, d.label);
+    }
+  } catch (e) { console.error("[search:screens]", e && e.message); }
   return out;
 }
 

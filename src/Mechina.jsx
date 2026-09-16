@@ -3685,11 +3685,26 @@ function StudentDash({ auth, year, reqs, unseen, go, say, setDutyKey, navGroups 
         <div className="h2-txt">
           <div className="h2-greet">{greet()}{first ? `, ${first}` : ""}</div>
           <div className="h2-date">{longDate(new Date())}</div>
-          {/* ⚠ **מתחת לברכה, ורק לאחראי בינה.** הרכיב מחזיר
-              null לכל השאר — ראו src/DevSwitch.jsx. */}
-          <DevSwitch isDev={auth.isDev} devMode={auth.devMode} name={first} />
         </div>
       </div>
+
+      {/* ============================================================
+          ⚠⚠ **הבורר **מתחת** לכרטיס ולא בתוכו.**
+
+          הוא ישב בתוך `.h2-txt`, ו-`.hero2` הוא
+          `overflow:hidden` — כלומר הכפתור הוצג, הלחיצה
+          נקלטה, **והתפריט נחתך לגמרי**: הוא נפתח
+          מתחת לכפתור, שיושב 14px מתחתית הכרטיס.
+
+          למשתמש זה נראה בדיוק כמו כפתור מת, וזה הדיווח
+          שהתקבל: "חסומה מבחינת UI". הקוד היה תקין —
+          `overflow:hidden` על אב קוטע כל ילד מוחלט, גם כשהוא
+          יוצא מגבולותיו.
+
+          ⚠ והחלופה אינה להסיר את `overflow:hidden` — הוא מה
+            שמעגל את התמונה ואת הצעיף. הבורר עבר החוצה.
+          ============================================================ */}
+      <DevSwitch isDev={auth.isDev} devMode={auth.devMode} name={first} />
 
       {year.err && <LoadFail msg={year.err} onRetry={year.reload} />}
 

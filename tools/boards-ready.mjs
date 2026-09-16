@@ -87,6 +87,10 @@ export const STEPS = [
      הסועדים בחד״א) — הזיהוי הוא הצמד ids+ready ולא הקובץ (5לב). */
   { script: "tools/seed-receipt.mjs", title: "קבלה ומי העלה אותה בלוח הקניות",
     ids: "shared/budget-boards.js", ready: "receiptReady" },
+  /* ⚠ שלב חמישי על shared/lessons-boards.js — הזיהוי הוא
+     הצמד ids+ready ולא הקובץ (5לב). */
+  { script: "tools/seed-eval-mail.mjs", title: "אימייל בחוות הדעת",
+    ids: "shared/lessons-boards.js", ready: "evalMailReady" },
 ];
 
 /**

@@ -108,6 +108,37 @@ for (const c of CONTRACT) {
   }
 }
 
+/* ============================================================
+   ⚠⚠ **קטלוג החיפוש מול המגירה.**
+
+   `shared/screens.js` הוא רשימה שנייה של מסכים, ורשימה
+   שנייה מתפצלת בתיקון הראשון (4מד). השרת אינו יכול
+   לייבא את המגירה (JSX עם אייקונים ותנאי הרשאה), ולכן
+   מה שמחזיק את השתיים צמודות הוא הבדיקה הזו.
+
+   ⚠ מסך שאינו בקטלוג פשוט **אינו נמצא בחיפוש** — בלי
+     שגיאה ובלי רמז, וזה בדיוק מה שדווח ("מכולה" החזיר
+     תקלה אחת).
+   ============================================================ */
+console.log("\n▶ קטלוג החיפוש (shared/screens.js) מול המגירה\n");
+{
+  const { STAFF_SCREENS } = await import("../shared/screens.js");
+  const src = readFileSync("src/App.jsx", "utf8");
+  const drawer = new Map(
+    [...src.matchAll(/key:\s*"([a-z0-9-]+)",\s*label:\s*"([^"]+)"/g)].map((m) => [m[1], m[2]]));
+  let miss = 0;
+  for (const sc of STAFF_SCREENS) {
+    const label = drawer.get(sc.tab);
+    if (!label) { miss++; console.log(`  ✗ ${sc.tab} ("${sc.label}") אינו קיים במעטפת הצוות`); continue; }
+    if (label !== sc.label) {
+      miss++;
+      console.log(`  ✗ ${sc.tab}: בקטלוג "${sc.label}" ובמגירה "${label}"`);
+    }
+  }
+  if (miss) bad += miss;
+  else console.log(`  ✓ כל ${STAFF_SCREENS.length} המסכים קיימים במגירה באותה תווית`);
+}
+
 console.log("");
 if (bad) {
   console.error("✗ הניווט אינו זהה בשתי המעטפות (4יט).");

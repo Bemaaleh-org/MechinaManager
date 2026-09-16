@@ -194,6 +194,9 @@ async function add(req, res, session) {
     if (opinion) cols[E.opinion] = opinion.slice(0, 2000);
     if (body?.topic) cols[E.topic] = String(body.topic).slice(0, 200);
     if (body?.phone) cols[E.phone] = String(body.phone).slice(0, 40);
+    /* ⚠ נכתב רק כשהעמודה קיימת — כתיבה למזהה ריק
+       נדחית על ידי monday ומפילה את כל השמירה. */
+    if (body?.mail && E.mail) cols[E.mail] = String(body.mail).slice(0, 120);
     /* ⚠ תחום חדש מותר להיווצר כאן: המכינה מוסיפה תחומים לאורך
        השנה, ורשימה סגורה הייתה מחייבת דיפלוי לכל תחום. */
     if (body?.field) cols[E.field] = { label: String(body.field) };
@@ -316,6 +319,7 @@ async function edit(req, res, session, g) {
     if (body.opinion !== undefined) cols[E.opinion] = String(body.opinion).slice(0, 2000);
     if (body.topic !== undefined) cols[E.topic] = String(body.topic).slice(0, 200);
     if (body.phone !== undefined) cols[E.phone] = String(body.phone).slice(0, 40);
+    if (body.mail !== undefined && E.mail) cols[E.mail] = String(body.mail).slice(0, 120);
     if (body.field !== undefined && body.field) cols[E.field] = { label: String(body.field) };
 
     /* ---------- תאריך השיעור ----------

@@ -81,13 +81,18 @@ export const DEVSWITCH_CSS = `
 /* ⚠ קידומת dvs- — נבדקה ב-grep לפני שנכתבה.
    ⚠ ו-.kx מלא על הכפתורים: .kx button מאפסת רקע ומסגרת
      בסגוליות גבוהה יותר (4מח). */
-.dvs{position:relative;margin-top:6px}
+/* ⚠⚠ **הרכיב יושב מתחת לכרטיס הפתיח ולא בתוכו.**
+   כשהוא היה בפנים, overflow:hidden של הכרטיס חתך את
+   התפריט לגמרי — הכפתור נראה ולא עשה כלום. ולכן
+   הצבעים כאן הם של רקע **בהיר** ולא לבן-על-כהה:
+   כפתור לבן על קרם היה בלתי נראה — אותה תקלה, מראה אחר. */
+.dvs{position:relative;margin:-8px 0 14px}
 .kx .dvs-btn{display:inline-flex;align-items:center;gap:7px;
-  padding:5px 11px;border-radius:999px;
-  background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);
-  color:#fff;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
-.dvs-dot{width:7px;height:7px;border-radius:99px;background:rgba(255,255,255,.55)}
-.dvs-dot.on{background:#7BE3A8}
+  padding:6px 13px;border-radius:999px;
+  background:var(--surface);border:1px solid var(--line2);box-shadow:var(--sh-1);
+  color:var(--ink);font:inherit;font-size:12.5px;font-weight:800;cursor:pointer}
+.dvs-dot{width:7px;height:7px;border-radius:99px;background:var(--faint)}
+.dvs-dot.on{background:#177A45}
 .dvs-chev{font-size:13px;line-height:1;transition:transform .12s var(--ease)}
 .dvs-chev.open{transform:rotate(180deg)}
 .dvs-menu{position:absolute;z-index:30;inset-inline-start:0;top:calc(100% + 6px);

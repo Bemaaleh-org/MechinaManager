@@ -258,6 +258,12 @@ export const LESSON_COLS = {
     topic: "text_mm6c6c2j",
     field: "color_mm6cat6r",
     phone: "text_mm6cmh47",
+    /* ⚠ אימייל המרצה — ריק עד `npm run seed:eval-mail`.
+       ⚠⚠ **על השורה ולא על הגיליון.** שלושת הגיליונות
+         של ועדת קבוצה ותוכן הם "מרצה מתחלף" — לכל מפגש
+         מרצה אחר, ולגיליון עצמו אין מרצה כלל. פרטי הקשר
+         שייכים לשורה. */
+    mail: "text_mm78pj48",
     opinion: "long_text_mm6cj09h",
     cycle: "color_mm6cgcad",
     by: "text_mm6cbjmt",
@@ -430,6 +436,11 @@ export const hebDayOf = (iso) =>
 export const payFilterReady = () => Boolean(LESSON_COLS.sheets.noPay);
 
 /** ⚠ בלי העמודה המסך פשוט אינו מציג תקן — ולא נופל (עיקרון 6). */
+/** האם עמודת האימייל בחוות הדעת הוקמה (npm run seed:eval-mail).
+    ⚠ בלעדיה המסך פשוט אינו מציג את השדה — הטלפון ממשיך
+      לעבוד כרגיל, ושום דבר אינו נופל (עיקרון 6). */
+export const evalMailReady = () => Boolean(LESSON_COLS.evals.mail);
+
 export const quotaReady = () => Boolean(LESSON_COLS.sheets.quota);
 
 /**

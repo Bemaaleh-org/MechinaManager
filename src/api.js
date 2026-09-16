@@ -1144,9 +1144,9 @@ export const api = {
   /* ⚠ `rate` — לפתוח את המפגש לדירוג החניכים. **דלוק כברירת
      מחדל בשרת**, ולכן הוא נשלח רק כדי לכבות; השמטה = לפתוח.
      ⚠ ופירוק מפורש: שדה שלא נכתב כאן נשמט בשקט (4לג). */
-  addLessonEval: ({ name, topic, field, phone, opinion, cycle, meetingId, lessonDate, rate }) =>
+  addLessonEval: ({ name, topic, field, phone, mail, opinion, cycle, meetingId, lessonDate, rate }) =>
     post("/api/lessons?action=evals",
-      { name, topic, field, phone, opinion, cycle, meetingId, lessonDate, rate }),
+      { name, topic, field, phone, mail, opinion, cycle, meetingId, lessonDate, rate }),
 
   /** עריכת חוות דעת — בעיקר ההערה על שורה שנפתחה אוטומטית */
   /** ⚠ manualScore: מספר 1–10, או null לניקוי. השמטה = בלי שינוי. */
@@ -1154,9 +1154,9 @@ export const api = {
      מחזיר 403 לכל אחד אחר, ו-`canMoveCycle` בתשובת ה-GET הוא
      מה שהמסך אמור לבדוק לפני שהוא מציג בורר (4יד).
      ⚠ ופירוק מפורש: שדה שלא נכתב כאן נשמט בשקט (4לג). */
-  editLessonEval: ({ evalId, name, topic, field, phone, opinion, manualScore, lessonDate, cycle }) =>
+  editLessonEval: ({ evalId, name, topic, field, phone, mail, opinion, manualScore, lessonDate, cycle }) =>
     put("/api/lessons?action=evals",
-      { evalId, name, topic, field, phone, opinion, manualScore, lessonDate, cycle }),
+      { evalId, name, topic, field, phone, mail, opinion, manualScore, lessonDate, cycle }),
 
   /** ⚠ מחזור ב׳ בלבד. השרת דוחה מחיקה של מחזור א׳ ב-403 ואומר למה. */
   deleteLessonEval: (evalId) =>

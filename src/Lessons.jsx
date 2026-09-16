@@ -893,6 +893,10 @@ function EvalCard({ e, say, onSaved, cycles = [], current = null, canMoveCycle =
     manual: e.manual == null ? "" : String(e.manual),
     lessonDate: e.lessonDate || "",
     cycle: e.cycle || "",
+    /* ⚠ פרטי הקשר על השורה ולא על הגיליון: בגיליון
+       "מרצה מתחלף" לכל מפגש מרצה אחר. */
+    phone: e.phone || "",
+    mail: e.mail || "",
   });
   const [busy, setBusy] = useState(false);
   /* ⚠ אישור בתוך המסך ולא confirm() של הדפדפן — הוא נראה זר,
@@ -917,6 +921,7 @@ function EvalCard({ e, say, onSaved, cycles = [], current = null, canMoveCycle =
     setBusy(true);
     api.editLessonEval({
       evalId: e.id, name: f.name.trim(), opinion: f.opinion.trim(),
+      phone: f.phone.trim(), mail: f.mail.trim(),
       manualScore: raw === "" ? null : Number(raw),
       /* ⚠ נשלח רק כשאין מפגש מאחורי השורה. כשיש — התאריך נגזר
          מהמפגש, והשדה נעול. */
@@ -954,6 +959,28 @@ function EvalCard({ e, say, onSaved, cycles = [], current = null, canMoveCycle =
               <input value={f.manual} disabled={busy} inputMode="decimal"
                 placeholder="ריק = בלי דירוג"
                 onChange={(ev) => setF({ ...f, manual: ev.target.value })} />
+            </div>
+          </div>
+          {/* ============================================================
+              ⚠⚠ **פרטי הקשר של המרצה, על שורת חוות הדעת.**
+
+              הגיליון נושא טלפון ואימייל של המרצה הקבוע שלו,
+              אבל שלושת הגיליונות של ועדת קבוצה ותוכן הם
+              "מרצה מתחלף" — לכל מפגש מרצה אחר, ולגיליון עצמו
+              אין מרצה כלל. לכן הפרטים על השורה.
+              ============================================================ */}
+          <div className="two">
+            <div className="fld">
+              <label>טלפון</label>
+              <input value={f.phone} disabled={busy} inputMode="tel" dir="ltr"
+                placeholder="לא חובה"
+                onChange={(ev) => setF({ ...f, phone: ev.target.value })} />
+            </div>
+            <div className="fld">
+              <label>אימייל</label>
+              <input value={f.mail} disabled={busy} inputMode="email" dir="ltr"
+                placeholder="לא חובה"
+                onChange={(ev) => setF({ ...f, mail: ev.target.value })} />
             </div>
           </div>
           {/* ============================================================
@@ -1090,7 +1117,11 @@ function EvalCard({ e, say, onSaved, cycles = [], current = null, canMoveCycle =
             ("מתי זה היה"), והתאריך שבו נכתבה אינו. */}
         {e.lessonDate && <span className="ev-date">השיעור: {e.lessonDate}</span>}
         {e.cycle && <span>{e.cycle}</span>}
-        {e.phone && <span>· {e.phone}</span>}
+        {/* ⚠ קישור ולא טקסט: מי שקורא חוות דעת ורוצה להזמין
+            את המרצה שוב עושה זאת מהטלפון. ⚠ ו-dir=ltr, אחרת
+            מספר טלפון מוצג הפוך. */}
+        {e.phone && <span>· <a href={"tel:" + e.phone} dir="ltr">{e.phone}</a></span>}
+        {e.mail && <span>· <a href={"mailto:" + e.mail} dir="ltr">{e.mail}</a></span>}
         {e.by && <span>· {e.by}</span>}
         {e.votes > 0 && <span>· {e.votes} מדרגים</span>}
         {/* ⚠ מוצג גם כשההצבעות גוברות — כדי שלא ייעלם בשקט */}
@@ -1226,7 +1257,7 @@ function LecturerContact({ sheet, canEdit, say, onSaved }) {
 
 function NewEval({ fields, onDone, onCancel, say, preset }) {
   const [f, setF] = useState({
-    name: "", topic: "", field: "", phone: "", opinion: "", lessonDate: "",
+    name: "", topic: "", field: "", phone: "", mail: "", opinion: "", lessonDate: "",
     ...(preset || {}),
   });
   const [busy, setBusy] = useState(false);
@@ -1299,9 +1330,19 @@ function NewEval({ fields, onDone, onCancel, say, preset }) {
               disabled={busy} onChange={set("lessonDate")} />
           </div>
         )}
-        <div className="fld">
-          <label htmlFor="ev-phone">טלפון (לא חובה)</label>
-          <input id="ev-phone" value={f.phone} disabled={busy} onChange={set("phone")} inputMode="tel" />
+        {/* ⚠ פרטי הקשר על שורת חוות הדעת ולא על הגיליון —
+            בגיליון "מרצה מתחלף" לכל מפגש מרצה אחר. */}
+        <div className="two">
+          <div className="fld">
+            <label htmlFor="ev-phone">טלפון (לא חובה)</label>
+            <input id="ev-phone" value={f.phone} disabled={busy} onChange={set("phone")}
+              inputMode="tel" dir="ltr" />
+          </div>
+          <div className="fld">
+            <label htmlFor="ev-mail">אימייל (לא חובה)</label>
+            <input id="ev-mail" value={f.mail} disabled={busy} onChange={set("mail")}
+              inputMode="email" dir="ltr" />
+          </div>
         </div>
         {/* ============================================================
             ⚠⚠ **ההערה אינה חובה — השם כן.**
@@ -1423,8 +1464,14 @@ export function LessonsBoard({ say, onOpenSheet, onAll, compact = false }) {
      ⚠ **והסימון אופטימי, ובכישלון חוזר אחורה ואומר** (4י).
        סימון שנשאר על המסך אחרי שהשרת דחה אותו הוא שקר.
      ============================================================ */
-  const canMarkOn = (iso) => {
+  /* ⚠⚠ **ולפי השורה, לא רק לפי התאריך.** השרת שולח
+     `canMark` על כל מפגש — חבר ועדת קבוצה ותוכן מסמן
+     את שלושת הגיליונות שלו ולא את 86 מפגשי האימונים.
+     ⚠ `undefined` נקרא כ"מותר" בכוונה — לקוח שלא רוענן
+       מול שרת ישן ממשיך כשהיה, והשרת הוא שחוסם בכל מקרה. */
+  const canMarkOn = (iso, m) => {
     if (!data) return false;
+    if (m && m.canMark === false) return false;
     if (data.markAll) return true;
     if (data.markToday && iso === data.today) return true;
     return (data.markWeeks || []).some((w) => w.start <= iso && iso <= w.end);
@@ -1483,7 +1530,7 @@ export function LessonsBoard({ say, onOpenSheet, onAll, compact = false }) {
 
     {/* ⚠ מוצג רק על מפגש שאפשר לסמן, ורק כשהוא לא "לא מתקיים":
         לגיליון שכתוב בו "מתוכנן: לא" אין מה לדווח (4כה). */}
-    {!off && canMarkOn(m.date) && (
+    {!off && canMarkOn(m.date, m) && (
       <div className="st-mark">
         {(() => {
           const cur = marked[m.id] !== undefined ? marked[m.id] : m.happened;

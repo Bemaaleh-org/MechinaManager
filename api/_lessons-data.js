@@ -149,6 +149,9 @@ export async function loadEvals({ force = false } = {}) {
         topic: val(i, E.topic) || null,
         field: val(i, E.field) || null,
         phone: val(i, E.phone) || null,
+        /* ⚠ ריק עד `npm run seed:eval-mail` — `val` על עמודה
+           שאין לה מזהה מחזיר "" ולא נופל. */
+        mail: val(i, E.mail) || null,
         opinion: val(i, E.opinion) || null,
         cycle: val(i, E.cycle) || null,
         by: val(i, E.by) || null,
