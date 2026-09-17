@@ -206,6 +206,74 @@ try {
     return s && s.members.length === 2;
   });
 
+  /* ============================================================
+     ⚠⚠⚠ **2ב · ריקון של גזרה מאויישת נעצר**
+
+     הדיווח (ראש המכינה, 17.9.2026): *"יש עוד תקלה
+     בתורני מטבח משום מה לפעמים כשמכניסים תורנים,
+     קרה בשלישי ורביעי הם נעלמים מהתורונות והיא
+     הופכת להיות ריקה"*.
+
+     מערך ריק עבר **בלי אף בדיקה**: כל הולידציה
+     עוברת בטריוויאל על רשימה ריקה, ואז `drop = current`
+     — כלומר כל המשובצים נמחקים והתשובה 200.
+
+     ⚠⚠ **שני הכיוונים באותה הרצה.** טענה אחת
+       ("נחסם") הייתה נשארת ירוקה גם אילו כל שמירה
+       נחסמה — ואז אי אפשר לנקות גזרה בכוונה,
+       שזו התקלה ההפוכה.
+
+     ⚠ **והשורות נבדקות בלוח ולא רק הסטטוס** — 409
+       שמגיע אחרי מחיקה מוצלחת נראה בדיוק כמו
+       הגנה שעבדה (4ס).
+
+     ⚠ **על הגזרה שהבדיקה יצרה ובשבוע שאיש לא נגע
+       בו** — הכלל זהה לשתי הגזרות, וניסוי על תורנות
+       המטבח האמיתית היה נוגע ביום שהמכינה עובדת
+       לפיו (5א).
+     ============================================================ */
+  console.log("\n2ב · ריקון דורש כוונה מפורשת");
+  const secRows = async () => (await allItems(CHORE_BOARDS.roster))
+    .filter((i) => cv(i, R.sector) === String(SEC) && cv(i, R.week) === String(week.id));
+
+  r = await call(MGR, "POST", "/api/chores?action=assign",
+    { sector: SEC, week: week.id, students: [] });
+  ok("שמירה ריקה על גזרה מאויישת נעצרת ב-409",
+    r.s === 409 && r.b.needsClear === true, `${r.s} ${r.b.error || ""}`);
+  ok("וההודעה אומרת את מי עומדים למחוק",
+    (r.b.current || []).length === 2
+      && two.every((id) => (r.b.current || []).some((x) => String(x.id) === String(id))),
+    JSON.stringify(r.b.current));
+  ok("והשורות שרדו בלוח", (await secRows()).length === 2,
+    String((await secRows()).length));
+
+  /* ⚠ והכיוון השני: עם אישור מפורש הניקוי עובר. */
+  r = await call(MGR, "POST", "/api/chores?action=assign",
+    { sector: SEC, week: week.id, students: [], clear: true });
+  ok("ועם clear:true הניקוי עובר", r.s === 200 && r.b.total === 0,
+    `${r.s} ${r.b.error || r.b.total}`);
+  ok("והגזרה באמת ריקה", (await secRows()).length === 0,
+    String((await secRows()).length));
+
+  /* ⚠ שמירה ריקה על גזרה שכבר ריקה אינה נחסמת —
+     אין מה לאבד, ואישור על כלום מלמד ללחוץ "כן". */
+  r = await call(MGR, "POST", "/api/chores?action=assign",
+    { sector: SEC, week: week.id, students: [] });
+  ok("ושמירה ריקה על גזרה ריקה עוברת בלי אישור", r.s === 200,
+    `${r.s} ${r.b.error || ""}`);
+
+  /* ⚠ ומחזירים את השיבוץ — כל הסעיפים שאחרי כאן
+     (מעקב, התאמה, המלצה) נשענים עליו. */
+  r = await call(MGR, "POST", "/api/chores?action=assign",
+    { sector: SEC, week: week.id, students: two });
+  ok("והשיבוץ הוחזר", r.s === 200 && r.b.added === 2, `${r.s} ${r.b.error || ""}`);
+  await until("השיבוץ נראה שוב", async () => {
+    const x = await call(MGR, "GET", "/api/chores?action=view&admin=1&week=" + encodeURIComponent(week.id));
+    const sc = ((x.b.periods || []).find((y) => y.id === week.id) || {}).sectors || [];
+    const sec = sc.find((y) => y.id === SEC);
+    return sec && sec.members.length === 2;
+  });
+
   /* ============ 3 · המונים והגוונים ============ */
   console.log("\n3 · מעקב");
   r = await call(MGR, "GET", "/api/chores?action=view&admin=1");

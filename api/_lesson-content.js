@@ -36,6 +36,7 @@ import { withAuth, actorName } from "./_session.js";
 import { gql, uploadFile, allItems } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
 import { mayEdit, editHint } from "../shared/edit-rights.js";
+import { lessonRights } from "./_lesson-rights.js";
 import { todayFor } from "./_attendance-data.js";
 import {
   LESSON_BOARDS, LESSON_COLS, HAPPENED, PLANNED, contentReady,
@@ -188,7 +189,12 @@ async function archive(req, res, session) {
       },
       /* ⚠ המסך אומר כמה חסר תוכן — "שיעורים שהיו" בלי סיכומים
          נראה כמו מסך שבור, וזה מספר שאחראי הלו״ז צריך לראות. */
-      canWrite: mayEdit(session, "scheduler"),
+      /* ⚠ **מאותו שער שהכתיבה נאכפת בו** (`lessonRights`),
+         אחרת הכפתור אינו מופיע לועדה שכן רשאית — או גרוע
+         מכך, מופיע למי שאינו ומקבל 403 אחרי הלחיצה (4יד).
+         ⚠ ברמת המסך זה "יש לך משהו לכתוב"; איזה שיעור בדיוק
+           נבדק לפי הגיליון בשמירה עצמה. */
+      canWrite: (await lessonRights(session)).write,
       ready: contentReady(),
       me: { id: me, isStudent: Boolean(session.isStudent) },
     });
@@ -203,9 +209,6 @@ async function archive(req, res, session) {
    ============================================================ */
 async function content(req, res, session) {
   if (!contentReady()) return notReady(res);
-  if (!mayEdit(session, "scheduler")) {
-    return res.status(403).json({ error: editHint("scheduler") });
-  }
 
   try {
     const body = req.body ?? (await readJson(req));
@@ -219,6 +222,29 @@ async function content(req, res, session) {
       meeting = meetings.find((m) => m.id === meetingId);
     }
     if (!meeting) return res.status(404).json({ error: "המפגש אינו נמצא" });
+
+    /* ============================================================
+       ⚠⚠⚠ **השער הוא `lessonRights`, והוא לפי הגיליון.**
+
+       עד כאן זה היה `mayEdit(session,"scheduler")` בלבד, והתוצאה
+       היא ש**ועדת קבוצה ותוכן לא יכלה לפתוח דירוג על אף
+       שיעור** — גם לא בגיליונות שלה. זה הדיווח "חוות דעת
+       שלא נפתחות, לדוגמא על מור סגל" (17.9.2026): המפגש
+       סומן "התקיים", אבל בלי סיכום ובלי התיבה הדירוג סגור
+       (`lessonRatable`) — ומי שהיה אמור לפתוח אותו נחסם כאן.
+
+       ⚠ **ואין כאן שום "מגבלה על כמה נפתחים במקביל"** —
+         לא היתה מעולם. מה שהיה הוא שאיש מהועדה לא יכול
+         לפתוח אף אחד, וזה נראה כמו מגבלה.
+
+       ⚠ והצמצום לפי גיליון נשמר: הועדה כותבת בשלה בלבד
+         (`mayWrite(sheet)`), כמו בכל שאר מסלולי הלו״ז (5לד).
+       ============================================================ */
+    const rights = await lessonRights(session);
+    const sheet = (await loadSheets()).find((x) => x.id === meeting.sheetId) || null;
+    if (!rights.write || !sheet || !rights.mayWrite(sheet)) {
+      return res.status(403).json({ error: rights.hint });
+    }
 
     if (req.method === "PUT") {
       const cols = {};

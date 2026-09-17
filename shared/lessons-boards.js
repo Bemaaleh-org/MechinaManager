@@ -200,8 +200,29 @@ export const LESSON_COLS = {
     reason: "text_mm6c61qa",
     happened: "color_mm6c1edx",
     note: "long_text_mm6ceyf7",
-    /* ממולאים רק בשיעורי מרצה אורח */
+    /* ============================================================
+       ⚠⚠ **המרצה של המפגש הזה, והפרטים שלו.**
+
+       עד 17.9.2026 אלה מולאו רק בגיליון "מרצה מתחלף".
+       בקשת ראש המכינה: *"בשיעורי ניר עוז יהיה אפשר
+       להכניס שם מרצה ופרטי קשר"* — ושם אין מרצה על
+       הגיליון כלל, כלומר השדה הזה הוא המקום היחיד.
+
+       ⚠ **הפרטים על המפגש ולא על חוות הדעת**, וזו כל
+         הנקודה: מרצה שתואם לעוד שלושה חודשים צריך לשבת
+         במערכת עכשיו, **בלי שתיפתח עליו חוות דעת** שתשב
+         ריקה ברשימה שלושה חודשים.
+
+       ⚠ וכשנפתחת חוות דעת למפגש — הפרטים מועתקים אליה
+         (`ensureEvalForMeeting`), כדי שלא יוקלדו פעמיים.
+
+       ⚠⚠ **ואינם יוצאים לחניך לעולם** — טלפון ואימייל של
+         אדם חיצוני, כמו של הגיליון (עיקרון 4). השם כן.
+       ============================================================ */
     lecturer: "text_mm6chezw",
+    /* ⚠ ריקות עד ש-`npm run seed:meeting-contact` ירוץ. */
+    phone: "text_mm79wqt9",
+    mail: "text_mm79n9xa",
     opinion: "long_text_mm6cfev",
     /* ---- נוכחות אימון ----
        מזהי חניכים מופרדים בפסיק, לפי מצב. מי שלא באף רשימה —
@@ -390,6 +411,9 @@ export const KNOWN_ROLES = [ROLE_SCHEDULE, ROLE_KITCHEN, ROLE_CONTAINER, ROLE_HO
 /** ⚠ ריק עד ש-`npm run seed:content-sheets` ירוץ. */
 export const contentSheetsReady = () => Boolean(LESSON_COLS.sheets.contentTeam);
 export const communitySheetsReady = () => Boolean(LESSON_COLS.sheets.communityTeam);
+/** ⚠ ריק עד ש-`npm run seed:meeting-contact` ירוץ — פרטי קשר על המפגש. */
+export const meetingContactReady = () =>
+  Boolean(LESSON_COLS.meetings.phone && LESSON_COLS.meetings.mail);
 
 /* ============================================================
    "יום ושעה" שבגיליון

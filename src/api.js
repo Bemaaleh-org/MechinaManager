@@ -134,6 +134,11 @@ async function send(method, path, body) {
        בלעדיו המסך מקבל 409 שנראה כמו איסור ואינו
        יודע שיש לו מה להציע (עיקרון 6). */
     if (data.sameDate) err.sameDate = data.sameDate;
+    /* ⚠⚠ 409 של "השמירה תמחק את כל המשובצים"
+       (`?action=assign`). בלי שני השדות המסך יכול
+       רק לומר "נכשל", ואז אין דרך לנקות יום
+       בכוונה — הגנה שחוסמת גם את מה שהתכוונו אליו. */
+    if (data.needsClear) { err.needsClear = true; err.current = data.current || []; }
     throw err;
   }
   return data;
@@ -168,6 +173,11 @@ async function get(path) {
        בלעדיו המסך מקבל 409 שנראה כמו איסור ואינו
        יודע שיש לו מה להציע (עיקרון 6). */
     if (data.sameDate) err.sameDate = data.sameDate;
+    /* ⚠⚠ 409 של "השמירה תמחק את כל המשובצים"
+       (`?action=assign`). בלי שני השדות המסך יכול
+       רק לומר "נכשל", ואז אין דרך לנקות יום
+       בכוונה — הגנה שחוסמת גם את מה שהתכוונו אליו. */
+    if (data.needsClear) { err.needsClear = true; err.current = data.current || []; }
     throw err;
   }
   return data;
@@ -555,8 +565,12 @@ export const api = {
   /* ⚠ `mirror: false` מכבה את גרירת יום ג׳ ליום ו׳. השמטה =
      ברירת המחדל, כלומר **כן** גורר. ⚠ והשדה חייב להופיע כאן
      במפורש — שדה שאינו נכתב בדלת נשמט בשקט (4לג). */
-  assignChore: ({ sector, week, date, students, mirror }) =>
-    post("/api/chores?action=assign", { sector, week, date, students, mirror }),
+  /** ⚠ `clear:true` מאשר מחיקה של **כל** המשובצים לאותו
+   *  יום/שבוע. נשלח **רק** אחרי שהמשתמש אישר במסך,
+   *  ולעולם לא כברירת מחדל — זו ההגנה מפני המחיקה
+   *  השקטה שהתרחשה בשלישי וברביעי. */
+  assignChore: ({ sector, week, date, students, mirror, clear }) =>
+    post("/api/chores?action=assign", { sector, week, date, students, mirror, clear }),
   saveSector: ({ id, name, kind, cap, detail, order, archived }) =>
     post("/api/chores?action=sector", { id, name, kind, cap, detail, order, archived }),
   addChoreAdjust: ({ student, sector, delta, reason }) =>
@@ -1085,8 +1099,9 @@ export const api = {
 
   /** דיווח אם מפגש התקיים. null מחזיר ל"טרם דווח".
    *  lecturer ו-opinion רלוונטיים בשיעורי מרצה אורח בלבד. */
-  markLesson: ({ meetingId, happened, note, lecturer, opinion }) =>
-    post("/api/lessons?action=mark", { meetingId, happened, note, lecturer, opinion }),
+  /** ⚠ פירוק מפורש — שדה שאינו כתוב כאן נשמט בשקט (4לג). */
+  markLesson: ({ meetingId, happened, note, lecturer, phone, mail, opinion }) =>
+    post("/api/lessons?action=mark", { meetingId, happened, note, lecturer, phone, mail, opinion }),
 
   /** הוספת מפגש ידנית לגיליון קיים. נשמר ב-monday מיד.
    *  ⚠ `same:true` מאשר מפגש נוסף באותו תאריך — נשלח

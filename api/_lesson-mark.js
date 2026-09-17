@@ -15,11 +15,11 @@
      מהועדה או מהתפקיד נחסם מיד (4יט).
    ============================================================ */
 
-import { withAuth, actorName } from "./_session.js";
+import { withAuth } from "./_session.js";
 import { lessonRights } from "./_lesson-rights.js";
 import { HAPPENED } from "../shared/lessons-boards.js";
 import {
-  loadMeetings, loadSheets, setMeeting, ensureEvalForMeeting,
+  loadMeetings, loadSheets, setMeeting, syncEvalLecturer,
 } from "./_lessons-data.js";
 
 const VALUES = [HAPPENED.yes, HAPPENED.no];
@@ -121,39 +121,53 @@ async function handler(req, res, session) {
     const fields = { happened };
     if (body?.note !== undefined) fields.note = body.note;
     if (body?.lecturer !== undefined) fields.lecturer = body.lecturer;
+    /* ⚠⚠ **פרטי הקשר על המפגש, ולא על חוות הדעת**
+       (17.9.2026): מרצה שתואם לעוד שלושה חודשים צריך
+       להירשם עכשיו, וחוות דעת שתשב ריקה ברשימה
+       שלושה חודשים היא בדיוק מה שמלמד להתעלם
+       מהרשימה. כשהיא תיפתח — הפרטים יועתקו אליה. */
+    if (body?.phone !== undefined) fields.phone = body.phone;
+    if (body?.mail !== undefined) fields.mail = body.mail;
     if (body?.opinion !== undefined) fields.opinion = body.opinion;
 
     await setMeeting(meetingId, fields);
 
-    /* ⚠ שיעור מרצה אורח שסומן "התקיים" פותח חוות דעת במחזור ב׳.
-       זה הצינור שהעביר את דירוגי החניכים למסך: בלעדיו הדירוג
-       נשמר בלוח ולא הופיע בשום מקום. אידמפוטנטי — סימון חוזר
-       לא פותח שורה שנייה.
+    /* ============================================================
+       ⚠⚠⚠ **סימון "התקיים" אינו פותח חוות דעת** (בקשת
+       ראש המכינה, 17.9.2026: *"כשמכניסים שם מרצה אז זה לא
+       יפתח חוות דעת אוטומטית אלא אם לחצו על פתיחת חוות דעת"*).
 
-       ⚠ כשל כאן לא מפיל את הסימון עצמו. הדיווח שהשיעור התקיים
-         הוא הפעולה שהמשתמש ביקש; חוות הדעת היא תוצר לוואי,
-         ותיפתח בסימון הבא. */
+       עד כאן כל סימון "התקיים" בגיליון "מרצה מתחלף" פתח
+       שורת חוות דעת ריקה. התוצאה: רשימת חוות הדעת התמלאה
+       בשורות שאיש לא ביקש — וברשימה כזו מפסיקים להבחין במה
+       שבאמת נכתב. פתיחה היא עכשיו פעולה מפורשת במסך.
+
+       ⚠ **והדירוגים אינם אובדים.** הם נשמרים בלוח הדירוגים
+         לפי מפגש, ו-`ensureEvalForMeeting` מעתיקה את הממוצע ואת
+         מניין המדרגים כשהשורה נפתחת בפועל — גם כעבור חודש.
+         מה שהשתנה הוא מתי השורה נולדת, ולא אם הנתון נשמר.
+
+       ⚠ **ושם המרצה כן ממשיך לזרום** — `syncEvalLecturer` למטה
+         מעדכנת שורה שכבר קיימת, כדי שהשם שהועלה עכשיו
+         יופיע בחוות הדעת מעצמו.
+       ============================================================ */
     let evalRow = null;
-    if (happened === HAPPENED.yes) {
+    if (body?.lecturer !== undefined) {
       try {
-        const sheets = await loadSheets();
-        const sheet = sheets.find((s) => s.id === meeting.sheetId);
-        if (sheet && sheet.guestLecturer) {
-          const lecturer = fields.lecturer !== undefined ? fields.lecturer : meeting.lecturer;
-          evalRow = await ensureEvalForMeeting({
-            meeting: { ...meeting, lecturer }, sheet, by: actorName(session),
-          });
-        }
+        evalRow = await syncEvalLecturer(meetingId, String(body.lecturer || "").trim());
       } catch (e) {
-        console.error("[lesson-mark:eval]", e);
+        console.error("[lesson-mark:eval-name]", e);
       }
     }
 
     res.status(200).json({
       ok: true, id: meetingId, happened, date: meeting.date,
       lecturer: meeting.lecturer, opinion: meeting.opinion,
+      phone: meeting.phone ?? null, mail: meeting.mail ?? null,
       evalId: evalRow ? evalRow.id : null,
-      evalCreated: Boolean(evalRow && evalRow.created),
+      /* ⚠ שורה אינה נפתחת עוד מעצמה — ראו מעל. */
+      evalCreated: false,
+      evalRenamed: Boolean(evalRow && evalRow.renamed),
     });
   } catch (e) {
     console.error("[lesson-mark]", e);

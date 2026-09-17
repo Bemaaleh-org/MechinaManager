@@ -35,7 +35,7 @@ import { invalidateContent } from "./_lesson-content.js";
 import { gql } from "./_monday.js";
 import { LESSON_BOARDS, LESSON_COLS, CYCLE } from "../shared/lessons-boards.js";
 import {
-  loadEvals, invalidateEvals, loadRatings, ratingFor, loadMeetings,
+  loadEvals, invalidateEvals, loadRatings, ratingFor, loadMeetings, loadSheets,
 } from "./_lessons-data.js";
 
 const E = LESSON_COLS.evals;
@@ -211,6 +211,33 @@ async function add(req, res, session) {
          מפורשת על הפריט גוברת על קלט — וכאן המפגש הוא הפריט. */
       const m = (await loadMeetings()).find((x) => x.id === String(body.meetingId));
       if (m?.date) cols[E.lessonDate] = { date: m.date };
+
+      /* ============================================================
+         ⚠⚠ **פרטי הקשר נופלים מהמפגש** (17.9.2026).
+
+         מרגע שהטלפון והאימייל נרשמים כבר בשלב שם
+         המרצה — חודשים לפני שהשיעור יתקיים — הטופס
+         הזה נפתח אחריהם, והשארתו ריק הייתה דורשת
+         להקליד אותם פעם שנייה — ושתי גרסאות של אותו
+         מספר מתפצלות בתיקון הראשון.
+
+         ⚠ **מה שנשלח גובר.** מי שהקליד בטופס עשה זאת
+           עכשיו ובכוונה; הנפילה היא למי שהשאיר ריק.
+         ⚠ **והמפגש גובר על הגיליון** — מי שטרח לרשום
+           פרטים על המפגש הזה יודע משהו שהגיליון אינו יודע.
+         ============================================================ */
+      if (m) {
+        const sheet = (await loadSheets()).find((x) => x.id === m.sheetId) || null;
+        const fall = (a, b) => String(a || (sheet ? b : "") || "").trim();
+        if (!cols[E.phone]) {
+          const v = fall(m.phone, sheet && sheet.phone);
+          if (v) cols[E.phone] = v.slice(0, 40);
+        }
+        if (!cols[E.mail] && E.mail) {
+          const v = fall(m.mail, sheet && sheet.mail);
+          if (v) cols[E.mail] = v.slice(0, 120);
+        }
+      }
     }
 
     /* ידני, רק כשאין מפגש מאחורי חוות הדעת */

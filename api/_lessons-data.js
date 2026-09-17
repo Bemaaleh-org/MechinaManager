@@ -96,6 +96,11 @@ export async function loadMeetings({ force = false } = {}) {
         happened: val(i, M.happened) || null, // ⚠ null = טרם דווח
         note: val(i, M.note) || null,
         lecturer: val(i, M.lecturer) || null,
+        /* ⚠ פרטי הקשר על המפגש — והם **אינם יוצאים לחניך**
+           (`toStudentLesson`). עמודה שטרם הוקמה נקראת ""
+           בלי שגיאה, ולכן `val` על מפתח ריק מחזיר null. */
+        phone: (M.phone && val(i, M.phone)) || null,
+        mail: (M.mail && val(i, M.mail)) || null,
         opinion: val(i, M.opinion) || null,
         /* נוכחות אימון — רשימות מזהים. מי שלא באף אחת: לא סומן. */
         tPresent: csv(val(i, M.tPresent)),
@@ -237,6 +242,25 @@ export async function ensureEvalForMeeting({ meeting, sheet, by }) {
   /* ⚠ **התאריך נגזר מהמפגש ואינו נשאל.** זו כל הסיבה שהעמודה
      קיימת: השורה נפתחת מסימון "התקיים", והתאריך כבר ידוע. */
   if (meeting.date) cols[E.lessonDate] = { date: meeting.date };
+
+  /* ============================================================
+     ⚠⚠ **פרטי הקשר עוברים מהמפגש ואינם מוקלדים שוב.**
+
+     מרגע שהטלפון והאימייל נרשמים כבר בשלב שם המרצה
+     (17.9.2026), חוות דעת שנפתחת כעבור שלושה חודשים אמורה
+     למצוא אותם שם. הקלדה שנייה היא בדיוק המקום שבו שתי
+     גרסאות של אותו מספר מתפצלות.
+
+     ⚠ **המפגש גובר על הגיליון**, כמו בשם: מי שטרח לרשום
+       פרטים על המפגש הזה יודע משהו שהגיליון אינו יודע.
+     ⚠ **וריק אינו נכתב** — עמודה שלא נשלחה נשארת ריקה,
+       ולא נדרסת במחרוזת ריקה.
+     ============================================================ */
+  const phone = String(meeting.phone || sheet.phone || "").trim();
+  const mail = String(meeting.mail || sheet.mail || "").trim();
+  if (phone && E.phone) cols[E.phone] = phone.slice(0, 40);
+  if (mail && E.mail) cols[E.mail] = mail.slice(0, 200);
+
   const r = ratingFor(meeting.id, await loadRatings());
   if (r) { cols[E.avg] = String(r.avg); cols[E.votes] = String(r.votes); }
 
@@ -246,6 +270,41 @@ export async function ensureEvalForMeeting({ meeting, sheet, by }) {
   );
   invalidateEvals();
   return { created: true, id: String(d.create_item.id), name };
+}
+
+/* ============================================================
+   ⚠⚠ **שם מרצה שהועלה מאוחר יותר — זורם לחוות הדעת**
+
+   הדיווח (17.9.2026): *"ברגע שמוסיפים שם אני רוצה שזה
+   אוטומטית יופיע בחוות דעת, כרגע זה לא קורה משום מה"*.
+
+   שם השורה נקבע **ברגע היצירה בלבד**, ולכן שורה שנפתחה
+   לפני שהיה שם נשארה "טרם נרשם שם המרצה · …" לנצח — גם
+   אחרי שמישהו הקליד את השם על המפגש.
+
+   ⚠ **מחליף רק שם שממילא אינו שם.** שורה שמישהו כתב לה
+     שם אמיתי אינה נדרסת — דריסה שכזו מוחקת עבודה של אדם
+     בלי לומר מילה, וזה בדיוק מה שאי אפשר לתקן.
+
+   ⚠ **ואינה יוצרת שורה.** אם אין חוות דעת למפגש — זה בדיוק
+     המצב שראש המכינה ביקש: שם נכנס בלי שתיפתח חוות דעת.
+   ============================================================ */
+const PLACEHOLDER = /^\u05d8\u05e8\u05dd \u05e0\u05e8\u05e9\u05dd \u05e9\u05dd \u05d4\u05de\u05e8\u05e6\u05d4/;
+
+export async function syncEvalLecturer(meetingId, name) {
+  const want = String(name || "").trim();
+  if (!want) return null;
+  const row = evalForMeeting(String(meetingId), await loadEvals());
+  if (!row) return null;
+  const cur = String(row.name || "").trim();
+  if (cur === want) return { id: row.id, renamed: false };
+  if (cur && !PLACEHOLDER.test(cur)) return { id: row.id, renamed: false };
+  await gql(
+    `mutation($b:ID!,$i:ID!,$n:String!){ change_simple_column_value(board_id:$b,item_id:$i,column_id:"name",value:$n){ id } }`,
+    { b: LESSON_BOARDS.evals, i: row.id, n: want },
+  );
+  invalidateEvals();
+  return { id: row.id, renamed: true };
 }
 
 const israelDate = () => new Intl.DateTimeFormat("en-CA", {
@@ -297,6 +356,10 @@ export async function setMeeting(meetingId, fields) {
   if ("happened" in fields) cols[M.happened] = fields.happened ? { label: fields.happened } : {};
   if (fields.note !== undefined) cols[M.note] = String(fields.note || "").slice(0, 2000);
   if (fields.lecturer !== undefined) cols[M.lecturer] = String(fields.lecturer || "").slice(0, 200);
+  /* ⚠ לא נכתב לעמודה שטרם הוקמה: `""` כמפתח עמודה
+     מפיל את כל הקריאה, ואז גם שם המרצה לא היה נשמר. */
+  if (fields.phone !== undefined && M.phone) cols[M.phone] = String(fields.phone || "").slice(0, 40);
+  if (fields.mail !== undefined && M.mail) cols[M.mail] = String(fields.mail || "").slice(0, 200);
   if (fields.opinion !== undefined) cols[M.opinion] = String(fields.opinion || "").slice(0, 2000);
 
   await gql(
@@ -335,7 +398,7 @@ export async function patchMeeting(meetingId, fields) {
   const meetings = await loadMeetings(); // אותה הפניה ששמורה במטמון
   const hit = meetings.find((m) => m.id === String(meetingId));
   if (!hit) return null;
-  for (const k of ["happened", "note", "lecturer", "opinion"]) {
+  for (const k of ["happened", "note", "lecturer", "phone", "mail", "opinion"]) {
     if (k in fields) hit[k] = fields[k] || null;
   }
   return hit;
@@ -372,7 +435,7 @@ export async function addMeeting({ sheetId, sheetName, date, planned, reason, no
   meetings.push({
     id, sheetId: String(sheetId), date, day,
     planned, reason: reason || null, happened: null,
-    note: note || null, lecturer: null, opinion: null,
+    note: note || null, lecturer: null, phone: null, mail: null, opinion: null,
   });
   meetings.sort((a, b) => a.date.localeCompare(b.date));
   return id;

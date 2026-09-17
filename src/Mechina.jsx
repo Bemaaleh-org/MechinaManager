@@ -90,6 +90,9 @@ const MI = {
   warn: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3 2 20h20L12 3z"/><path d="M12 9v5M12 17.5h.01"/></svg>,
   lock: (p) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="4" y="10" width="16" height="11" rx="2.2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>,
   chev: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
+  /* ⚠ נוסף לכרטיס דירוג השיעור. `check:icons` תפס את
+     ההפניה לפני שהגיעה לדפדפן — `vite build` עובר עליה. */
+  star: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z"/></svg>,
   book: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22V4.5z"/><path d="M4 17.5h16"/></svg>,
   bell: (p) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M10.3 21a2 2 0 0 0 3.4 0"/></svg>,
   box: (p) => <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 8l9-5 9 5v8l-9 5-9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>,
@@ -2773,6 +2776,24 @@ function RateLessons({ say, onAll, onSettled }) {
       .finally(() => setBusyId(null));
   };
 
+  /* ============================================================
+     ⚠⚠⚠ **הכרטיס צועק, וזו הבקשה** (ראש המכינה,
+     17.9.2026: *"שחוות הדעת תיהיה יותר צועקת בצד
+     החניך, קצת יותר מלל, יותר מודגש"*).
+
+     מה שהיה: שורת כותרת אפורה וכרטיס `.rq` רגיל —
+     בדיוק כמו כל שאר הכרטיסים במסך הבית, ולכן בלתי
+     נראה ביניהם. משימה שנראית כמו נתון אינה נעשית.
+
+     ⚠ **ושם המרצה הוא הכותרת** ולא שורת משנה
+       (*"חשוב גם שבצד החניך יראו את שם המרצה"*).
+       החניך מדרג **אדם**, ונושא השיעור הוא ההקשר.
+       כשאין שם — הנושא הוא הכותרת, ולא מוצג מציין
+       מקום ריק שנראה כמו תקלה (עיקרון 6).
+
+     ⚠ **והמלל אומר מה קורה לדירוג** — מי שאינו יודע
+       אם הציון אישי או מצטרף לממוצע מדרג אחרת.
+     ============================================================ */
   return (
     <>
       <div className="sec-label">
@@ -2784,30 +2805,98 @@ function RateLessons({ say, onAll, onSettled }) {
       {waiting.map((m) => {
         const my = scoreOf(m);
         return (
-          <div className="rq" key={m.id}>
-            <div className="rq-top">
-              <div className="rq-name">{m.subject}</div>
-              <span className="when num">{dm(m.date)}</span>
+          <div className={"rt-card" + (my ? " done" : "")} key={m.id}>
+            <div className="rt-band">
+              <MI.star />
+              <span>{my ? "דירגת — תודה" : "המכינה מבקשת את דעתך על השיעור"}</span>
+              <span className="rt-when num">{dm(m.date)}</span>
             </div>
-            {m.lecturer && <div className="rq-meta"><span>{m.lecturer}</span></div>}
-            <div className="rate-row">
-              {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-                <button key={n} disabled={busyId === m.id}
-                  className={my === n ? "on" : my && n <= my ? "lt" : ""}
-                  onClick={() => rate(m, n)}>{n}</button>
-              ))}
-            </div>
-            {my && (
-              <div style={{ fontSize: 12, color: "var(--muted)", fontWeight: 700, marginTop: 6 }}>
-                הדירוג שלך: {my}/10 · אפשר לשנות ב״השיעורים שהיו״ עוד שבועיים
+            <div className="rt-b">
+              {m.lecturer ? (
+                <>
+                  <div className="rt-lect">{m.lecturer}</div>
+                  <div className="rt-sub">{m.subject}</div>
+                </>
+              ) : (
+                <div className="rt-lect">{m.subject}</div>
+              )}
+
+              {!my && (
+                <div className="rt-ask">
+                  כמה תיתן לשיעור הזה؟
+                </div>
+              )}
+
+              <div className="rate-row rt-row">
+                {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                  <button key={n} disabled={busyId === m.id}
+                    className={my === n ? "on" : my && n <= my ? "lt" : ""}
+                    onClick={() => rate(m, n)}>{n}</button>
+                ))}
               </div>
-            )}
+              <div className="rt-ends">
+                <span>1 — לא היה לי מועיל</span>
+                <span>10 — מצוין</span>
+              </div>
+
+              {my ? (
+                <div className="rt-done">
+                  הדירוג שלך: <b>{my}/10</b>. אפשר לשנותו ב״השיעורים שהיו״
+                  עוד שבועיים.
+                </div>
+              ) : (
+                /* ⚠ נאמר לפני הלחיצה ולא אחריה: מי שחושש
+                   שהשם שלו נרשם פשוט לא ילחץ. */
+                <div className="rt-why">
+                  הציון מצטרף לממוצע הכיתה ועוזר להחליט את מי
+                  להזמין שוב. לוקח שתי שניות.
+                </div>
+              )}
+            </div>
           </div>
         );
       })}
     </>
   );
 }
+
+/* ============================================================
+   הכרטיס הצועק של דירוג השיעור
+   ------------------------------------------------------------
+   ⚠ קידומת `rt-` — נבדק שאינה תפוסה ב-`src/`. `.rate-row`
+     הקיימת נשארת ומקבלת `rt-row` להגדלה, כדי שלא תהיינה
+     שתי הגדרות לאותם עשרה כפתורים (4מד).
+   ⚠ הרצועה נייבי עם טקסט קרם, ו-`--navy` מוגדר ב-`styles.js`
+     מאז 5כא. משתנה שאינו קיים אינו שגיאה — הוא פשוט
+     נפתר לכלום, ואז טקסט קרם יושב על שקוף (5יד, 5כא).
+   ============================================================ */
+export const RATE_CSS = `
+.rt-card{border-radius:var(--r-lg);overflow:hidden;margin-bottom:12px;
+  background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-2)}
+.rt-card.done{box-shadow:var(--sh-1);opacity:.92}
+/* ⚠⚠ **משתנה CSS שאינו קיים אינו שגיאה, וזו הפעם
+   הרביעית.** נכתב כאן --cream, שלא הוגדר מעולם — אחרי
+   --sand (5יד), --navy (5כא) ו---soft (5סא). הצבע נפתר לכלום,
+   הטקסט נפל לצבע היורש — נייבי על נייבי, בלתי קריא
+   לחלוטין. **הבנייה עברה, ורק צילום המסך תפס את זה.**
+   ⚠ לבן קבוע ולא טוקן — הרצועה נייבי בשתי הערכות,
+     כמו .pr-tpl button.on. */
+.rt-band{background:var(--navy);color:#fff;display:flex;align-items:center;gap:8px;
+  padding:10px 14px;font-size:12.5px;font-weight:800;letter-spacing:.2px}
+.rt-band svg{width:17px;height:17px;flex:none}
+.rt-when{margin-inline-start:auto;opacity:.82;font-weight:700;font-size:12px}
+.rt-b{padding:13px 15px 14px}
+.rt-lect{font-size:19px;font-weight:900;line-height:1.25;color:var(--ink)}
+.rt-sub{font-size:13px;font-weight:700;color:var(--muted);margin-top:2px}
+.rt-ask{font-size:14.5px;font-weight:800;color:var(--ink);margin-top:11px}
+.rt-row{margin-top:8px}
+.rt-row button{min-height:46px;font-size:14.5px}
+.rt-ends{display:flex;justify-content:space-between;gap:10px;margin-top:5px;
+  font-size:10.5px;font-weight:700;color:var(--faint)}
+.rt-why{font-size:12px;font-weight:600;color:var(--muted);line-height:1.55;margin-top:9px}
+.rt-done{font-size:12.5px;font-weight:700;color:var(--muted);line-height:1.5;margin-top:9px}
+.rt-done b{color:var(--ink)}
+`;
 
 /* ============================================================
    בעלי תפקידים במכינה

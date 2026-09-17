@@ -108,6 +108,11 @@ export const STEPS = [
   { script: "tools/seed-community.mjs", title: "תיבות ועדת הקהילה",
     args: ["--go"],
     ids: "shared/lessons-boards.js", ready: "communitySheetsReady" },
+  /* ⚠ שלב שביעי על shared/lessons-boards.js — הזיהוי הוא
+     הצמד ids+ready ולא שם הקובץ (5לב). */
+  { script: "tools/seed-meeting-contact.mjs", title: "טלפון ואימייל המרצה על המפגש",
+    args: ["--go"],
+    ids: "shared/lessons-boards.js", ready: "meetingContactReady" },
 ];
 
 /**

@@ -80,6 +80,17 @@ async function ratableMeetings(today) {
       return {
         ...m,
         subject: sheet.subject,
+        /* ============================================================
+           ⚠⚠ **שם המרצה לא הגיע לחניך** (דיווח ראש המכינה,
+           17.9.2026: "חשוב גם שבצד החניך יראו את שם המרצה").
+
+           נשלח רק `m.lecturer`, שממולא **רק בגיליון "מרצה
+           מתחלף"** — ובגיליון רגיל המרצה יושב על הגיליון,
+           כלומר החניך קיבל null ודירג שיעור בלי לדעת את מי הוא
+           מדרג. ⚠ אותה נפילה שכבר קיימת ב-`ensureEvalForMeeting`
+           ובארכיון — שלושה מקומות, וזה היחיד שנשאר מאחור.
+           ============================================================ */
+        lecturer: m.lecturer || sheet.lecturer || null,
         /* ⚠ המסך מציג **למה** השיעור פתוח: תוכן שנכתב הוא
            השגרה, ותיבה שסומנה היא בקשה מפורשת של אחראי הלו״ז. */
         openRate: c.openRate === true,
@@ -103,7 +114,7 @@ async function ratable(req, res, session) {
         id: m.id,
         subject: m.subject,
         date: m.date,
-        lecturer: m.lecturer || null,
+        lecturer: m.lecturer || null,   /* כבר נופל לגיליון ב-ratableMeetings */
         /* ⚠ נשלח כדי שהמסך יבדיל בין השגרה לבין בקשה מפורשת. */
         openRate: Boolean(m.openRate),
         rated: mineRated.has(m.id),

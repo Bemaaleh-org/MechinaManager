@@ -216,6 +216,7 @@ function Sectors({ d, say, reload, goWeek }) {
   const [open, setOpen] = useState(null);
   const [picked, setPicked] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [wipe, setWipe] = useState(null);
 
   const p = d.periods[pi];
   if (!p) return <div className="empty"><b>אין תקופות לשבץ אליהן</b></div>;
@@ -224,17 +225,23 @@ function Sectors({ d, say, reload, goWeek }) {
     setOpen(s.id);
     setPicked(s.members.map((m) => m.id));
   };
-  const save = (s) => {
+  const save = (s, clear) => {
     if (busy) return;
     setBusy(true);
-    api.assignChore({ sector: s.id, week: p.id, students: picked })
+    api.assignChore({ sector: s.id, week: p.id, students: picked, ...(clear ? { clear: true } : {}) })
       .then((r) => {
-        setOpen(null);
+        setOpen(null); setWipe(null);
         (r.warnings || []).forEach(say);
-        say(`נשמר — ${r.total} משובצים`);
+        say(r.total ? `נשמר — ${r.total} משובצים` : "הגזרה נוקתה");
         reload();
       })
-      .catch((e) => say(e.message))
+      /* ⚠ אותה הגנה של התורנות היומית — גזרת ערב
+         שנמחקת בשקט היא אותה אבדה, והשרת עוצר
+         את שתיהן באותה שורה. */
+      .catch((e) => {
+        if (e.needsClear) setWipe({ sector: s, names: (e.current || []).map((x) => x.name) });
+        else say(e.message);
+      })
       .finally(() => setBusy(false));
   };
 
@@ -255,11 +262,15 @@ function Sectors({ d, say, reload, goWeek }) {
     <>
       {/* ⚠ התקופה היא שבוע הובלה ולא שבוע קלנדרי — כשקדנציה
           מתחלפת, מתחלפות גם התורניות. */}
-      <WeekNav d={d} onGo={(id) => { setPi(0); setOpen(null); goWeek(id); }} />
+      <WeekNav d={d} onGo={(id) => { setPi(0); setOpen(null); setPicked([]); goWeek(id); }} />
       {d.periods.length > 1 && (
         <div className="seg ch-seg">
+          {/* ⚠⚠ **`picked` מתאפס עם התקופה.** הוא משותף
+              לכל הימים והגזרות, ונזרע מחדש רק בפתיחה.
+              שארית מהתקופה הקודמת היא רשימה שאינה
+              שייכת לשום דבר שעל המסך. */}
           {d.periods.map((x, i) => (
-            <button key={x.id} className={pi === i ? "on" : ""} onClick={() => { setPi(i); setOpen(null); }}>
+            <button key={x.id} className={pi === i ? "on" : ""} onClick={() => { setPi(i); setOpen(null); setPicked([]); }}>
               שבוע {x.num}
               <i className="seg-n">{dmy(x.start)}</i>
             </button>
@@ -329,15 +340,41 @@ function Sectors({ d, say, reload, goWeek }) {
                   taken={takenBy(s.id)} counts={countsOf(d, s.id)}
                   onToggle={(id) => setPicked((v) =>
                     v.includes(id) ? v.filter((x) => x !== id) : [...v, id])} />
-                <button className="btn btn-primary" style={{ width: "100%", marginTop: 10 }}
+                <button className={"btn " + (!picked.length && s.members.length ? "btn-clay" : "btn-primary")}
+                  style={{ width: "100%", marginTop: 10 }}
                   disabled={busy} onClick={() => save(s)}>
-                  {busy ? "שומר…" : `שמירת השיבוץ (${picked.length})`}
+                  {busy ? "שומר…"
+                    : !picked.length && s.members.length ? "ניקוי הגזרה"
+                    : `שמירת השיבוץ (${picked.length})`}
                 </button>
               </div>
             )}
           </div>
         );
       })}
+
+      {/* ⚠ אישור במסך ולא `confirm()` — ראו ההערה בלשונית המטבח. */}
+      {wipe && (
+        <div className="scrim" onClick={() => !busy && setWipe(null)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-h"><h3>ניקוי הגזרה</h3></div>
+            <div className="sheet-b">
+              <div className="alert a-clay">
+                השמירה תסיר את כל המשובצים ל"{wipe.sector.name}":
+                <b> {wipe.names.join(" · ")}</b>. הגזרה תישאר ריקה.
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <button className="btn btn-ghost" style={{ flex: 1 }}
+                  disabled={busy} onClick={() => setWipe(null)}>ביטול</button>
+                <button className="btn btn-clay" style={{ flex: 1 }}
+                  disabled={busy} onClick={() => save(wipe.sector, true)}>
+                  {busy ? "מנקה…" : "כן, לנקות"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -381,37 +418,50 @@ function Daily({ d, say, reload, goWeek }) {
        לא יאמר זאת, האחראי יניח ששישי סודר והוא לא.
      ============================================================ */
   const [mirror, setMirror] = useState(true);
+  /* ⚠ היום שהשרת ביקש עליו אישור ניקוי — ראו למטה */
+  const [wipe, setWipe] = useState(null);
 
-  const save = (day) => {
+  const save = (day, clear) => {
     if (busy) return;
     setBusy(true);
     api.assignChore({
       sector: daily.id, date: day.date, students: picked,
+      ...(clear ? { clear: true } : {}),
       ...(isTuesday(day.date) ? { mirror } : {}),
     })
       .then((r) => {
-        setOpen(null);
+        setOpen(null); setWipe(null);
         (r.warnings || []).forEach(say);
         if (r.mirror) {
           say(r.mirror.done
             ? `נשמר, ויום שישי (${dmy(r.mirror.date)}) שובץ גם הוא`
             : `נשמר. יום שישי (${dmy(r.mirror.date)}) לא שובץ — ${r.mirror.why}`);
         } else {
-          say(`נשמר — ${r.total} תורנים`);
+          say(r.total ? `נשמר — ${r.total} תורנים` : "התורנות נוקתה");
         }
         reload();
       })
-      .catch((e) => say(e.message))
+      /* ⚠⚠ **409 אינו שגיאה אלא שאלה.** השרת עצר
+         מחיקה של כל המשובצים ואומר את מי — וזה מה
+         שמוצג, במסך ולא ב-`confirm()` של הדפדפן (4ק). */
+      .catch((e) => {
+        if (e.needsClear) setWipe({ day, names: (e.current || []).map((x) => x.name) });
+        else say(e.message);
+      })
       .finally(() => setBusy(false));
   };
 
   return (
     <>
-      <WeekNav d={d} onGo={(id) => { setPi(0); setOpen(null); goWeek(id); }} />
+      <WeekNav d={d} onGo={(id) => { setPi(0); setOpen(null); setPicked([]); goWeek(id); }} />
       {d.periods.length > 1 && (
         <div className="seg ch-seg">
+          {/* ⚠⚠ **`picked` מתאפס עם התקופה.** הוא משותף
+              לכל הימים והגזרות, ונזרע מחדש רק בפתיחה.
+              שארית מהתקופה הקודמת היא רשימה שאינה
+              שייכת לשום דבר שעל המסך. */}
           {d.periods.map((x, i) => (
-            <button key={x.id} className={pi === i ? "on" : ""} onClick={() => { setPi(i); setOpen(null); }}>
+            <button key={x.id} className={pi === i ? "on" : ""} onClick={() => { setPi(i); setOpen(null); setPicked([]); }}>
               שבוע {x.num}
               <i className="seg-n">{dmy(x.start)}</i>
             </button>
@@ -513,15 +563,51 @@ function Daily({ d, say, reload, goWeek }) {
                     </span>
                   </label>
                 )}
-                <button className="btn btn-primary" style={{ width: "100%", marginTop: 10 }}
+                {/* ⚠⚠ **הכפתור אומר מה הוא עומד לעשות.**
+                    "שמירת התורנות (0)" נראה בדיוק כמו שמירה
+                    רגילה, והוא מוחק שלושה תורנים. */}
+                <button className={"btn " + (!picked.length && day.on.length ? "btn-clay" : "btn-primary")}
+                  style={{ width: "100%", marginTop: 10 }}
                   disabled={busy} onClick={() => save(day)}>
-                  {busy ? "שומר…" : `שמירת התורנות (${picked.length})`}
+                  {busy ? "שומר…"
+                    : !picked.length && day.on.length ? "ניקוי התורנות של היום"
+                    : `שמירת התורנות (${picked.length})`}
                 </button>
               </div>
             )}
           </div>
         );
       })}
+
+      {/* ============================================================
+          ⚠⚠ **אישור ניקוי — במסך ולא `confirm()`**
+            של הדפדפן: הוא נראה זר, ובחלק מהדפדפנים
+            במובייל הוא נחסם לגמרי — כלומר הכפתור פשוט
+            אינו עושה דבר (4ק).
+          ⚠ והוא אומר **את מי** מוחקים — מי שלא התכוון
+            צריך לראות מה הוא עומד לאבד.
+          ============================================================ */}
+      {wipe && (
+        <div className="scrim" onClick={() => !busy && setWipe(null)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-h"><h3>ניקוי התורנות</h3></div>
+            <div className="sheet-b">
+              <div className="alert a-clay">
+                השמירה תסיר את כל התורנים מ-{dmy(wipe.day.date)}:
+                <b> {wipe.names.join(" · ")}</b>. היום יישאר ריק.
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <button className="btn btn-ghost" style={{ flex: 1 }}
+                  disabled={busy} onClick={() => setWipe(null)}>ביטול</button>
+                <button className="btn btn-clay" style={{ flex: 1 }}
+                  disabled={busy} onClick={() => save(wipe.day, true)}>
+                  {busy ? "מנקה…" : "כן, לנקות"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

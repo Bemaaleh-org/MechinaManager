@@ -295,6 +295,8 @@ function SheetDetail({ sheet, onBack, say }) {
   const [confirmDel, setConfirmDel] = useState(null);
   const [evalFor, setEvalFor] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  /* ⚠ מפגשים שבהם נפתח טופס המרצה ידנית — ראו למטה */
+  const [lectOpen, setLectOpen] = useState({});
 
   const back = (
     <button className="btn btn-ghost btn-sm" style={{ marginBottom: 14 }} onClick={onBack}>
@@ -310,6 +312,14 @@ function SheetDetail({ sheet, onBack, say }) {
   const guest = data.sheet.guestLecturer;
   const stateOf = (m) => (m.id in patch ? patch[m.id] : m.happened);
   const fieldOf = (m, k) => (fields[m.id] && k in fields[m.id] ? fields[m.id][k] : (m[k] || ""));
+  /* ⚠ הודעה לכל שדה — "נשמר" לבדו אינו אומר **מה** נשמר,
+     ומי שמלא שלושה שדות ברצף רואה אותה הודעה שלוש פעמים. */
+  const SAVED = {
+    lecturer: "שם המרצה נשמר",
+    phone: "הטלפון נשמר",
+    mail: "האימייל נשמר",
+    opinion: "חוות הדעת נשמרה",
+  };
 
   if (adding) {
     return (
@@ -353,21 +363,16 @@ function SheetDetail({ sheet, onBack, say }) {
   };
 
   /* ⚠ הכפתור אינו מחכה לשרת. הסימון מופיע מיד, ואם הקריאה
-     נכשלה הוא חוזר אחורה.
+     נכשלה הוא חוזר אחורה (4י).
 
-     ⚠ בשיעור מרצה אורח, סימון "התקיים" פותח בשרת חוות דעת
-       במחזור ב׳ — שם נאספים דירוגי החניכים. מרעננים כדי שהיא
-       תופיע על המפגש מיד. */
+     ⚠⚠ **ואינו פותח חוות דעת** (17.9.2026). עד כאן סימון
+       "התקיים" בגיליון "מרצה מתחלף" פתח שורה ריקה
+       בלוח חוות הדעת, והרשימה התמלאה במה שאיש לא
+       ביקש. הפתיחה היא עכשיו כפתור מפורש. */
   const mark = (m, value) => {
     const next = stateOf(m) === value ? null : value;
     setPatch((p) => ({ ...p, [m.id]: next }));
     api.markLesson({ meetingId: m.id, happened: next })
-      .then((r) => {
-        if (r && r.evalCreated) {
-          say("נפתחה חוות דעת במחזור ב׳ — דירוגי החניכים ייאספו אליה");
-          setSeq((n) => n + 1);
-        }
-      })
       .catch((e) => { setPatch((p) => ({ ...p, [m.id]: m.happened })); say(e.message); });
   };
 
@@ -380,7 +385,13 @@ function SheetDetail({ sheet, onBack, say }) {
     if (v === (m[k] || "")) return;
     setBusyId(m.id);
     api.markLesson({ meetingId: m.id, happened: stateOf(m), [k]: v })
-      .then(() => say(k === "lecturer" ? "שם המרצה נשמר" : "חוות הדעת נשמרה"))
+      .then((r) => {
+        say(SAVED[k] || "נשמר");
+        /* ⚠ השם זורם לחוות הדעת אם כבר נפתחה אחת
+           (`syncEvalLecturer`) — ואז צריך לרענן כדי שהשם
+           החדש יופיע על הכרטיס ולא רק בלוח. */
+        if (r && r.evalRenamed) setSeq((n) => n + 1);
+      })
       .catch((e) => { setField(m, k, m[k] || ""); say(e.message); })
       .finally(() => setBusyId(null));
   };
@@ -513,55 +524,95 @@ function SheetDetail({ sheet, onBack, say }) {
                 )}
 
                 {/* ============================================================
+                    ⚠⚠⚠ **שם המרצה והפרטים — בכל גיליון, ולפני השיעור**
+                    (בקשת ראש המכינה, 17.9.2026: *"בשיעורי ניר עוז
+                    יהיה אפשר להכניס שם מרצה ופרטי קשר"*).
+
+                    שדה השם היה מותנה ב-`guest`, ושלושת השדות יחד
+                    ב-`s === "כן"` — כלומר בגיליון רגיל אי אפשר היה
+                    לרשום מרצה **בכלל**, ובכל גיליון אי אפשר היה
+                    לרשום אותו **לפני** שהגיע. זה בדיוק המצב
+                    שתואר: *"מרצה שמגיע עוד 3 חודשים אבל כבר תיאמתי
+                    איתו תאריך ויש לי את הפרטים שלו"*.
+
+                    ⚠ **נפתח בלחיצה ואינו פתוח תמיד.** שלושה שדות
+                      פתוחים על כל אחד מ-86 מפגשי האימונים הם רעש
+                      שמפסיקים לראות. ⚠ **ומפגש שכבר יש בו פרט נפתח
+                      מעצמו** — נתון שישב מאחורי כפתור הוא נתון
+                      שאיש אינו יודע עליו.
+
+                    ⚠⚠ **והפרטים אינם פותחים חוות דעת** — זה הבלוק
+                      הנפרד מתחת. שני דברים שונים, וערבוב שלהם
+                      הוא מה שמילא את רשימת חוות הדעת בשורות
+                      ריקות שאיש לא ביקש.
+                    ============================================================ */}
+                {!cancelled && canEdit && (() => {
+                  const has = Boolean(fieldOf(m, "lecturer") || fieldOf(m, "phone") || fieldOf(m, "mail"));
+                  if (!has && !lectOpen[m.id]) {
+                    return (
+                      <button className="btn btn-ghost btn-sm"
+                        style={{ width: "100%", marginTop: 4 }}
+                        onClick={() => setLectOpen((p) => ({ ...p, [m.id]: true }))}>
+                        <LI.plus />מרצה ופרטי קשר
+                      </button>
+                    );
+                  }
+                  return (
+                    <div className="lect-box">
+                      <div className="lect-h">המרצה של המפגש הזה</div>
+                      <input value={fieldOf(m, "lecturer")} placeholder="שם המרצה"
+                        onChange={(e) => setField(m, "lecturer", e.target.value)}
+                        onBlur={() => saveField(m, "lecturer")} />
+                      <div className="lect-two">
+                        {/* ⚠ `dir="ltr"` — בלעדיו מספר טלפון מוצג הפוך */}
+                        <input dir="ltr" inputMode="tel" value={fieldOf(m, "phone")}
+                          placeholder="טלפון"
+                          onChange={(e) => setField(m, "phone", e.target.value)}
+                          onBlur={() => saveField(m, "phone")} />
+                        <input dir="ltr" inputMode="email" value={fieldOf(m, "mail")}
+                          placeholder="אימייל"
+                          onChange={(e) => setField(m, "mail", e.target.value)}
+                          onBlur={() => saveField(m, "mail")} />
+                      </div>
+                      {/* ⚠ מוצהר במפורש — מי שממלא פרטים על מרצה
+                          שיגיע בעוד שלושה חודשים צריך לדעת שלא
+                          נפתחה עליו חוות דעת — אחרת הוא יחפש אותה. */}
+                      <div className="lect-note">
+                        הפרטים נשמרים על המפגש ואינם פותחים חוות דעת.
+                        {" "}כשתיפתח — הם יועתקו אליה. ⚠ אינם יוצאים לחניכים.
+                      </div>
+                      {busyId === m.id && <div className="lect-busy">שומר…</div>}
+                    </div>
+                  );
+                })()}
+
+                {/* ============================================================
                     ⚠⚠ **חוות דעת אינה שמורה למרצה מתחלף בלבד.**
 
-                    כל הבלוק הזה היה מותנה ב-`guest`, ולכן גיליון
+                    הבלוק הזה היה מותנה ב-`guest`, ולכן גיליון
                     רגיל — סדנה, שיעור אורח בתוך גיליון קבוע — לא
-                    יכול היה לקבל חוות דעת **בכלל**: לא אוטומטית
-                    (`ensureEvalForMeeting` בודקת `guestLecturer`)
-                    ולא ביד. זה בדיוק מה ש-5כ הכריז עליו כמסלול
-                    קיים, ובפועל רק **הדירוג** נפתח שם והכתיבה
-                    נשארה מאחור.
+                    יכול היה לקבל חוות דעת **בכלל**.
+
+                    ⚠⚠ **והפתיחה היא פעולה מפורשת** (17.9.2026):
+                      סימון "התקיים" אינו פותח עוד שורה מעצמו,
+                      ולכן הכפתור הזה הוא הדרך היחידה — בכל גיליון.
 
                     ⚠ **ולמפגש בגיליון רגיל — רק אחרי "התקיים".**
                       כפתור על כל אחד מ-86 מפגשי האימונים הוא רעש
                       שמפסיקים לראות; הרגע שבו יש על מה לכתוב הוא
                       הרגע שבו דווח שהשיעור היה. בגיליון "מרצה
-                      מתחלף" הוא נשאר מוצג גם לפני, כדי שאפשר יהיה
-                      לרשום מראש מי אמור להגיע.
+                      מתחלף" הוא נשאר מוצג גם לפני.
                     ============================================================ */}
                 {!cancelled && canEdit && (guest || s === "כן" || m.evalId) && (
                   <div className="abs-note" style={{ padding: "0 0 4px" }}>
-                    {/* ⚠ שם המרצה על **המפגש** קיים רק בגיליון מרצה
-                        מתחלף. בגיליון רגיל המרצה יושב על הגיליון,
-                        ושדה כאן היה מזמין להקליד שם שני. */}
-                    {guest && (
-                    <input value={fieldOf(m, "lecturer")} placeholder="שם המרצה שהגיע"
-                      onChange={(e) => setField(m, "lecturer", e.target.value)}
-                      onBlur={() => saveField(m, "lecturer")} />
-                    )}
-
-                    {/* ⚠ חוות הדעת אינה נשמרת על המפגש אלא בלוח חוות
-                        הדעת של מחזור ב׳, כדי שכל חוות הדעת יישבו
-                        במקום אחד וניתן יהיה לחפש בהן לאורך השנים.
-
-                        בגיליון "מרצה מתחלף" היא נפתחת מעצמה בסימון
-                        "התקיים", ומכאן מוסיפים לה הערה. בגיליון רגיל
-                        אין פתיחה אוטומטית, והכפתור הזה הוא הדרך
-                        היחידה — ולכן הוא מוצג שם. */}
                     {m.evalId ? (
                       <EvalNote meeting={m} say={say} onSaved={() => setSeq((n) => n + 1)} />
                     ) : (
                       <button className="btn btn-ghost btn-sm"
                         style={{ marginTop: 7, width: "100%" }}
                         onClick={() => setEvalFor(m)}>
-                        <LI.star />הוספת חוות דעת
+                        <LI.star />פתיחת חוות דעת
                       </button>
-                    )}
-                    {guest && busyId === m.id && (
-                      <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 700, marginTop: 4 }}>
-                        שומר…
-                      </div>
                     )}
                   </div>
                 )}
@@ -1950,3 +2001,24 @@ export function LessonsPage({ say, sub0, onSub, solo = false }) {
     </>
   );
 }
+
+/* ============================================================
+   פרטי המרצה שעל המפגש
+   ------------------------------------------------------------
+   ⚠ קידומת `lect-` — נבדק שאינה תפוסה ב-`src/`.
+     מאגר של מרצים משתמש ב-`lc-`.
+   ⚠ השדות יורשים מ-`.abs-note input` ואינם חוזרים עליו —
+     העיצוב של שדה במסך הזה מוגדר שם כבר, והגדרה שנייה
+     הייתה מתפצלת ממנו בתיקון הראשון.
+   ============================================================ */
+export const LESSONS_CSS = `
+.lect-box{padding:0 13px 10px;display:flex;flex-direction:column;gap:7px}
+.lect-h{font-size:11.5px;font-weight:800;color:var(--faint);letter-spacing:.2px}
+.lect-box input{width:100%;min-height:44px;background:var(--bg);border:1px solid var(--line2);
+  border-radius:10px;padding:0 12px;outline:none;font-size:14px}
+.lect-box input:focus{border-color:var(--accent)}
+.lect-two{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.lect-note{font-size:11px;font-weight:600;color:var(--faint);line-height:1.5}
+.lect-busy{font-size:11.5px;color:var(--faint);font-weight:700}
+@media(max-width:380px){ .lect-two{grid-template-columns:1fr} }
+`;
