@@ -433,6 +433,33 @@ try {
           r.b.mirror && r.b.mirror.done === false && /כבר משובץ/.test(r.b.mirror.why || ""),
           JSON.stringify(r.b.mirror));
 
+        /* ============================================================
+           ⚠⚠ **ניקוי אינו מראה.** בלי התנאי `ids.length`
+             בבלוק המראה, ניקוי של יום שלישי נכנס לשם,
+             מוצא יום שישי, יוצר **אפס שורות** — ומדווח
+             `done:true`, כלומר המסך אומר "יום שישי שובץ גם
+             הוא" על פעולה שלא קרתה (עיקרון 6).
+           ⚠ ויום שישי **שורד** — המראה היא ברירת מחדל
+             ביצירה ולא קשר קבוע, ומחיקה מתגלגלת הייתה
+             מוחקת גם עריכה שמישהו עשה ביד ביום שישי.
+           ============================================================ */
+        r = await call(MGR, "POST", "/api/chores?action=assign",
+          { sector: dSec.id, date: tue.date, students: [], clear: true });
+        ok("ניקוי יום שלישי אינו מדווח מראה",
+          r.s === 200 && r.b.mirror === null, `${r.s} ${JSON.stringify(r.b.mirror)}`);
+        const friRows = (await allItems(CHORE_BOARDS.roster))
+          .filter((i) => cv(i, R.sector) === String(dSec.id) && cv(i, R.date) === fri);
+        ok("ויום שישי שרד ולא נמחק איתו", friRows.length === 1,
+          String(friRows.length));
+
+        /* ⚠ מחזירים — הטענה הבאה מצפה ליום שלישי מאוייש. */
+        await call(MGR, "POST", "/api/chores?action=assign",
+          { sector: dSec.id, date: tue.date, students: [cand.id], mirror: false });
+        for (const x of (await allItems(CHORE_BOARDS.roster))
+          .filter((i) => cv(i, R.sector) === String(dSec.id) && cv(i, R.date) === tue.date)) {
+          made.rows.push(String(x.id));
+        }
+
         /* ⚠ ואפשר לכבות. */
         const tue2 = days.find((x) => x.date !== tue.date && dowOf(x.date) === TUESDAY
           && !(x.on || []).length);

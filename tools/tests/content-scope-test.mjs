@@ -226,6 +226,43 @@ try {
   ok("ו-_lesson-meeting.js מצמצם לפי גיליון בשלושת הפועלים",
     (msrc.match(/outOfScope\(|rights\.limited/g) || []).length >= 3,
     (msrc.match(/outOfScope\(|rights\.limited/g) || []).length + " בדיקות צמצום");
+
+  /* ============================================================
+     ⚠⚠⚠ **והמקום הרביעי שנשאר מאחור: `?action=content`**
+
+     הדיווח (17.9.2026): *"חוות דעת שלא נפתחות
+     לדוגמא על מור סגל... שלא תיהיה מגבלה על חוות
+     דעת שנפתחות במקביל"*.
+
+     ⚠⚠ **ואין שום מגבלת מקבילות** — `lessonRatable`
+       בודקת מפגש אחד בלבד, וכל מספר שיעורים
+       יכולים להיות פתוחים באותה עת. מה שחסם בפועל
+       הוא ש-`?action=content` — המסלול **היחיד** שמדליק
+       את `openRate` — נשא `mayEdit(session,"scheduler")`, כלומר
+       הועדה לא יכלה לפתוח דירוג על **אף שיעור**.
+
+     זה 5לא/5לד בפעם הרביעית: שלושה מסלולים עברו
+     ל-`lessonRights` והרביעי נשאר. הסריקה היא הדבר היחיד
+     שיתפוס את החמישי.
+     ============================================================ */
+  const csrc = (await import("node:fs")).readFileSync("api/_lesson-content.js", "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+  ok("_lesson-content.js עובר דרך lessonRights", csrc.includes("lessonRights("),
+    String(csrc.includes("lessonRights(")));
+  ok("ואין בו mayEdit כשער שני", !csrc.includes("mayEdit("),
+    csrc.includes("mayEdit(") ? "mayEdit עדיין שם" : "שער אחד");
+  ok("והוא מצמצם לפי גיליון", csrc.includes("rights.mayWrite("),
+    String(csrc.includes("rights.mayWrite(")));
+
+  /* ⚠ והכלל עצמו, טהור: אין מגבלה על כמה שיעורים
+     פתוחים באותה עת, ובאילו גיליונות שהם. */
+  const { lessonRatable } = await import("../../shared/lessons-boards.js");
+  const day = "2026-09-14";
+  const two = ["מדעי המדינה", "כישורי חיים"].map(() =>
+    lessonRatable({ date: day, planned: "כן" }, { openRate: true }, "2026-09-17"));
+  ok("ושני שיעורים נפתחים במקביל — אין מגבלה",
+    two.every(Boolean), JSON.stringify(two));
 } finally {
   for (const x of regs) await x.restore();
   invalidate("auth-rows");
