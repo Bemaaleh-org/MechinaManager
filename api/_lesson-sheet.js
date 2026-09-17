@@ -13,7 +13,9 @@ import {
 import { lessonRights } from "./_lesson-rights.js";
 import { stampChange } from "./_lesson-changes.js";
 import { gql } from "./_monday.js";
-import { LESSON_BOARDS, LESSON_COLS } from "../shared/lessons-boards.js";
+import {
+  LESSON_BOARDS, LESSON_COLS, sheetRated, ratedSubjectsMissing,
+} from "../shared/lessons-boards.js";
 
 const S = LESSON_COLS.sheets;
 
@@ -89,6 +91,17 @@ async function read(req, res, session, rights) {
 
     res.status(200).json({
       sheet,
+      /* ============================================================
+         ⚠⚠ **האם נאסף דירוג בגיליון הזה** (החלטת ראש
+         המכינה, 17.9.2026). מגיע **מהשרת** ואינו נגזר
+         במסך: כפתור שיופיע ויקבל סירוב אחרי הלחיצה
+         הוא בדיוק מה ש-4יד אוסר, ושתי גזירות לאותה
+         שאלה מתפצלות בתיקון הראשון (4מד).
+         ============================================================ */
+      rated: sheetRated(sheet),
+      /* ⚠ שם ברשימה שאינו קיים בלוח — שינוי שם גיליון
+         מכבה את הדירוג בשקט, וזו הדרך היחידה לדעת. */
+      ratedMissing: ratedSubjectsMissing(sheets),
       counts: countFor(id, meetings),
       meetings: meetings
         .filter((m) => m.sheetId === id)

@@ -41,7 +41,7 @@ import { todayFor } from "./_attendance-data.js";
 import {
   LESSON_BOARDS, LESSON_COLS, HAPPENED, PLANNED, contentReady,
   timeOf, minutesOf,
-  lessonRatable, rateFrom,
+  lessonRatable, rateFrom, sheetRated,
 } from "../shared/lessons-boards.js";
 import {
   loadSheets, loadMeetings, loadRatings, ratingFor, invalidateLessons,
@@ -132,7 +132,7 @@ function toStudentLesson(m, sheet, content, rating, myScore, today) {
        התיבה בלבד, ובמסלול השני נבדקו גם "מרצה מתחלף" וגם חלון
        זמן — כלומר הארכיון הציע דירוג על שיעור שהשמירה שלו
        נדחית ב-403. הגדרה אחת, ב-shared. */
-    canRate: lessonRatable(m, content, today),
+    canRate: lessonRatable(m, content, today, sheet),
     /* ⚠ התיבה הגולמית, בנפרד מ-`canRate` הנגזר. טופס הצוות
        מאתחל ממנה — אחרת הוא מכבה תיבה שסומנה ברגע שחלון
        הזמן נסגר. */
@@ -140,8 +140,12 @@ function toStudentLesson(m, sheet, content, rating, myScore, today) {
     /* ⚠ נשלח כדי שהמסך יאמר **למה** סגור: "עברו שבועיים" ו"טרם
        נכתב תוכן" הם שני מצבים שונים, ו"אי אפשר לדרג" לבדו
        נראה כמו תקלה (עיקרון 6). */
-    rateClosed: !lessonRatable(m, content, today)
-      && (m.date < rateFrom(today) ? "late" : content.summary ? null : "nocontent"),
+    /* ⚠ והסיבה מבחינה בין "השיעור הזה אינו מדורג בכלל"
+       לבין "עבר הזמן" — שני מצבים שונים, ו"אי אפשר לדרג"
+       לבדו נראה כמו תקלה (עיקרון 6). */
+    rateClosed: !lessonRatable(m, content, today, sheet)
+      && (!sheetRated(sheet) ? "notrated"
+        : m.date < rateFrom(today) ? "late" : content.summary ? null : "nocontent"),
   };
 }
 

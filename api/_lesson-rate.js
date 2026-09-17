@@ -76,7 +76,9 @@ async function ratableMeetings(today) {
       const sheet = byId.get(m.sheetId);
       if (!sheet) return null;
       const c = content.get(m.id) || {};
-      if (!lessonRatable(m, c, today)) return null;
+      /* ⚠ הגיליון מועבר — דירוג נאסף במקצת השיעורים בלבד
+         (`RATED_SUBJECTS`), והיעדרו סוגר ולא פותח. */
+      if (!lessonRatable(m, c, today, sheet)) return null;
       return {
         ...m,
         subject: sheet.subject,

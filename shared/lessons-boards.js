@@ -556,7 +556,47 @@ export function rateFrom(today, days = RATE_WINDOW_DAYS) {
  * @param m {date, planned}  שורת המפגש
  * @param c {summary, openRate}  התוכן שלו
  */
-export function lessonRatable(m, c, today, days = RATE_WINDOW_DAYS) {
+/* ============================================================
+   ⚠⚠⚠ באילו שיעורים נאסף דירוג בכלל
+   ------------------------------------------------------------
+   ההחלטה (ראש המכינה, 17.9.2026): *"למה יש ציון לשיעור
+   ציונות? וגם לדינמיקה. אני לא רוצה ציונים ודירוגים על
+   שיעורים שהם לא מדעי המדינה או כישורי חיים, אני רוצה
+   רק סיכום שיעורים וזהו"*.
+
+   **מה היה קודם:** כל שיעור שנכתב לו סיכום נפתח לדירוג
+   מעצמו — "התוכן הוא השער" (5כד). משם קיבלו ציונים
+   ציונות ודינמיקה קבוצתית. **הכלל ההוא בוטל כאן**: סיכום
+   הוא תיעוד לכל שיעור, ודירוג הוא שאלה אחרת לגמרי.
+
+   ⚠⚠ **רשימה בקוד ולא תיבה בלוח — בחירה מפורשת של ראש
+     המכינה**, אחרי שהוצגה לו החלופה ונאמר לו ששם שיוחלף
+     בלוח שובר את ההתאמה. זה חריג לעיקרון 1, ולכן:
+
+   ⚠ **`ratedSubjectsMissing` מדווח שם ברשימה שאינו קיים בלוח.**
+     בלעדיו, שינוי שם גיליון מכבה את הדירוג **בשקט** ואיש
+     לא ידע עד שישאל למה אין משוב. כשל רועש עדיף על שקט —
+     אותו נימוק של `create_labels_if_missing:false`.
+   ============================================================ */
+export const RATED_SUBJECTS = ["מדעי המדינה", "כישורי חיים"];
+
+/** האם בגיליון הזה נאסף משוב על המרצה. */
+export const sheetRated = (sheet) =>
+  Boolean(sheet) && RATED_SUBJECTS.includes(String(sheet.subject || "").trim());
+
+/** שמות שברשימה ואינם בלוח — להצגה כאזהרה. */
+export const ratedSubjectsMissing = (sheets) => {
+  const have = new Set((sheets || []).map((s) => String(s.subject || "").trim()));
+  return RATED_SUBJECTS.filter((n) => !have.has(n));
+};
+
+/**
+ * ⚠⚠ **`sheet` חובה, והיעדרו סוגר.** קורא שישכח להעביר
+ *   אותו מקבל `false` ולא "פתוח לכולם" — שער נכשל סגור,
+ *   כמו כל שאר ההרשאות במערכת.
+ */
+export function lessonRatable(m, c, today, sheet, days = RATE_WINDOW_DAYS) {
+  if (!sheetRated(sheet)) return false;
   if (!m || !m.date || !today) return false;
   if (m.planned === PLANNED.no) return false;
   if (m.date > today) return false;

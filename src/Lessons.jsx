@@ -310,6 +310,14 @@ function SheetDetail({ sheet, onBack, say }) {
 
   const { counts, meetings, canEdit } = data;
   const guest = data.sheet.guestLecturer;
+  /* ⚠⚠ **מהשרת ולא נגזר כאן.** דירוג נאסף במקצת
+     השיעורים בלבד (החלטת ראש המכינה, 17.9.2026), ושתי
+     גזירות לאותה שאלה מתפצלות בתיקון הראשון (4מד). */
+  const rated = data.rated !== false;
+  /* ⚠⚠ **שם ברשימת המדורגים שאינו קיים בלוח.** הרשימה
+     יושבת בקוד ומותאמת לפי **שם**, ולכן שינוי שם גיליון
+     מכבה את הדירוג בלי שום שגיאה. זו הדרך היחידה לדעת. */
+  const ratedMissing = data.ratedMissing || [];
   const stateOf = (m) => (m.id in patch ? patch[m.id] : m.happened);
   const fieldOf = (m, k) => (fields[m.id] && k in fields[m.id] ? fields[m.id][k] : (m[k] || ""));
   /* ⚠ הודעה לכל שדה — "נשמר" לבדו אינו אומר **מה** נשמר,
@@ -417,6 +425,17 @@ function SheetDetail({ sheet, onBack, say }) {
         {data.sheet.lecturer || "ללא מרצה"}{data.sheet.dayTime ? " · " + data.sheet.dayTime : ""}
       </div>
 
+      {/* ⚠⚠ **שם ברשימת המדורגים שאינו בלוח.** ללא ההתרעה
+          הזו, שינוי שם גיליון מכבה את איסוף המשוב בשקט,
+          ואיש לא ידע עד שישאל למה אין דירוגים. */}
+      {ratedMissing.length > 0 && (
+        <div className="alert a-clay" style={{ marginBottom: 12 }}>
+          <b>איסוף המשוב מחפש שם שאינו בלוח:</b> {ratedMissing.join(" · ")}.
+          {" "}כל עוד זה כך, לא ייאסף דירוג בשיעור הזה — סביר ששם
+          {" "}הגיליון שונה. צריך לעדכן את הרשימה בקוד.
+        </div>
+      )}
+
       {/* ============================================================
           ⚠⚠ **תקן השיעורים — בראש הגיליון.**
           הבקשה: *"תוסיף לכל גיליון בלמעלה תקן שיעורים,
@@ -501,13 +520,13 @@ function SheetDetail({ sheet, onBack, say }) {
                           על טלפון הוא לא היה קיים. וזה בדיוק הנתון שקובע
                           מה שווה הציון: 8.4 משנים־עשר חניכים ו-8.4 משניים
                           הם שני דברים, ובלי המספר אי אפשר להבדיל (4יח). */}
-                      {m.votes > 0 && (
+                      {rated && m.votes > 0 && (
                         <>
                           <span className="pill pp-ok num">★ {m.avg}</span>
                           <span className="rate-n">{m.votes} מדרגים</span>
                         </>
                       )}
-                      {m.evalId && m.votes === 0 && <span>ממתין לדירוגי החניכים</span>}
+                      {rated && m.evalId && m.votes === 0 && <span>ממתין לדירוגי החניכים</span>}
                       {m.note && <span>{m.note}</span>}
                     </div>
                   </div>
@@ -603,7 +622,7 @@ function SheetDetail({ sheet, onBack, say }) {
                       הרגע שבו דווח שהשיעור היה. בגיליון "מרצה
                       מתחלף" הוא נשאר מוצג גם לפני.
                     ============================================================ */}
-                {!cancelled && canEdit && (guest || s === "כן" || m.evalId) && (
+                {rated && !cancelled && canEdit && (guest || s === "כן" || m.evalId) && (
                   <div className="abs-note" style={{ padding: "0 0 4px" }}>
                     {m.evalId ? (
                       <EvalNote meeting={m} say={say} onSaved={() => setSeq((n) => n + 1)} />

@@ -20,7 +20,15 @@
      השיעור (5כח) — חלון שנמדד מתאריך השיעור היה סוגר אותה
      באותה שנייה שבה נפתחה.
    ============================================================ */
-import { lessonRatable, rateFrom, RATE_WINDOW_DAYS } from "../../shared/lessons-boards.js";
+import {
+  lessonRatable, rateFrom, RATE_WINDOW_DAYS, RATED_SUBJECTS, sheetRated,
+} from "../../shared/lessons-boards.js";
+
+/* ⚠⚠ **כל הטענות שלמטה בודקות את כללי הזמן והתוכן**,
+   ולכן הן רצות על גיליון שכן נאסף בו דירוג. שער הנושא
+   עצמו נבדק בסעיף משלו — אחרת שתי שאלות שונות מתערבבות
+   באותה טענה ואי אפשר לדעת מי מהן נשברה. */
+const RATED = { subject: RATED_SUBJECTS[0] };
 
 const T = "2026-09-08";
 let pass = 0, fail = 0;
@@ -34,44 +42,76 @@ const m = (date, planned = "כן") => ({ date, planned });
 console.log("\n— מתי אפשר לדרג —\n");
 
 /* התוכן הוא השער */
-is(lessonRatable(m("2026-09-05"), { summary: "דיברנו על העלייה השנייה" }, T), true,
+is(lessonRatable(m("2026-09-05"), { summary: "דיברנו על העלייה השנייה" }, T, RATED), true,
   "תוכן נכתב, בתוך שבועיים");
-is(lessonRatable(m("2026-09-05"), {}, T), false,
+is(lessonRatable(m("2026-09-05"), {}, T, RATED), false,
   "בלי תוכן ובלי תיבה — סגור");
-is(lessonRatable(m("2026-09-05"), { summary: "   " }, T), false,
+is(lessonRatable(m("2026-09-05"), { summary: "   " }, T, RATED), false,
   "סיכום של רווחים אינו תוכן");
 
 /* התיבה כעוקף מפורש */
-is(lessonRatable(m("2026-09-05"), { openRate: true }, T), true,
+is(lessonRatable(m("2026-09-05"), { openRate: true }, T, RATED), true,
   "תיבה סומנה בלי תוכן");
 
 /* ⚠⚠ החלון חל על התוכן ולא על התיבה — זה מה שהשתנה, ושתי
    הטענות כאן הן הגבול עצמו. אחת בלי השנייה אינה נועלת אותו. */
-is(lessonRatable(m("2026-08-20"), { summary: "היה" }, T), false,
+is(lessonRatable(m("2026-08-20"), { summary: "היה" }, T, RATED), false,
   "תוכן, אבל עברו שבועיים — סגור");
-is(lessonRatable(m("2026-08-20"), { openRate: true }, T), true,
+is(lessonRatable(m("2026-08-20"), { openRate: true }, T, RATED), true,
   "תיבה סומנה אף שעברו שבועיים — פתוח (חוות דעת מזדמנת)");
-is(lessonRatable(m("2026-01-01"), { openRate: true }, T), true,
+is(lessonRatable(m("2026-01-01"), { openRate: true }, T, RATED), true,
   "תיבה סומנה על שיעור מלפני שמונה חודשים — עדיין פתוח");
-is(lessonRatable(m("2026-08-20"), { summary: "היה", openRate: true }, T), true,
+is(lessonRatable(m("2026-08-20"), { summary: "היה", openRate: true }, T, RATED), true,
   "תיבה גוברת גם כשיש תוכן ישן");
 
 /* הגבולות המדויקים */
-is(lessonRatable(m(rateFrom(T)), { summary: "x" }, T), true,
+is(lessonRatable(m(rateFrom(T)), { summary: "x" }, T, RATED), true,
   `היום ה-${RATE_WINDOW_DAYS} עדיין פתוח`);
-is(lessonRatable(m("2026-08-24"), { summary: "x" }, T), false,
+is(lessonRatable(m("2026-08-24"), { summary: "x" }, T, RATED), false,
   "יום אחד לפני הגבול — סגור");
-is(lessonRatable(m(T), { summary: "x" }, T), true, "היום עצמו");
+is(lessonRatable(m(T), { summary: "x" }, T, RATED), true, "היום עצמו");
 
 /* הצהרה מפורשת גוברת על הכול (4כה) */
-is(lessonRatable(m("2026-09-05", "לא"), { summary: "x", openRate: true }, T), false,
+is(lessonRatable(m("2026-09-05", "לא"), { summary: "x", openRate: true }, T, RATED), false,
   'מתוכנן="לא" גובר גם על תוכן וגם על תיבה');
 
 /* עתיד, וקלט חסר */
-is(lessonRatable(m("2026-09-20"), { summary: "x" }, T), false, "שיעור עתידי");
-is(lessonRatable(m(""), { summary: "x" }, T), false, "בלי תאריך");
-is(lessonRatable(null, { summary: "x" }, T), false, "בלי מפגש");
-is(lessonRatable(m("2026-09-05"), null, T), false, "בלי תוכן כלל");
+is(lessonRatable(m("2026-09-20"), { summary: "x" }, T, RATED), false, "שיעור עתידי");
+is(lessonRatable(m(""), { summary: "x" }, T, RATED), false, "בלי תאריך");
+is(lessonRatable(null, { summary: "x" }, T, RATED), false, "בלי מפגש");
+is(lessonRatable(m("2026-09-05"), null, T, RATED), false, "בלי תוכן כלל");
+
+/* ============================================================
+   ⚠⚠⚠ **שער הנושא — דירוג רק במקצת השיעורים**
+
+   ההחלטה (17.9.2026): *"למה יש ציון לשיעור ציונות? וגם
+   לדינמיקה... אני רוצה רק סיכום שיעורים וזהו"*.
+
+   ⚠⚠ **שני הכיוונים.** טענה שתבדוק רק שציונות נסגרה
+     הייתה נשארת ירוקה גם אילו **הכול** נסגר, ואז אין
+     דירוג בשום מקום ואיש לא ידע — התקלה ההפוכה.
+   ============================================================ */
+console.log("\nשער הנושא");
+const withSummary = { summary: "היה שיעור" };
+for (const name of RATED_SUBJECTS) {
+  is(lessonRatable(m("2026-09-05"), withSummary, T, { subject: name }), true,
+    `נאסף דירוג: ${name}`);
+}
+is(lessonRatable(m("2026-09-05"), withSummary, T, { subject: "ציונות" }), false,
+  "ציונות — סיכום בלבד, בלי דירוג");
+is(lessonRatable(m("2026-09-05"), withSummary, T, { subject: "דינמיקה קבוצתית" }), false,
+  "דינמיקה קבוצתית — בלי דירוג");
+
+/* ⚠⚠ **והתיבה הידנית אינה עוקפת את השער.** אחרת
+   לחיצה אחת בארכיון מחזירה את הדירוג לשיעור שהוחלט
+   שאין בו דירוג, בלי שאיש ישים לב. */
+is(lessonRatable(m("2026-09-05"), { openRate: true }, T, { subject: "ציונות" }), false,
+  "וגם תיבה ידנית אינה עוקפת את השער");
+
+/* ⚠ נכשל סגור: קורא ששכח להעביר גיליון אינו פותח הכול. */
+is(lessonRatable(m("2026-09-05"), withSummary, T, undefined), false,
+  "ובלי גיליון — סגור, ולא פתוח לכולם");
+is(sheetRated({ subject: " מדעי המדינה " }), true, "רווחים מסביב לשם אינם שוברים");
 
 console.log(`\n${pass} עברו, ${fail} נכשלו\n`);
 process.exit(fail ? 1 : 0);

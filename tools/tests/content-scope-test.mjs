@@ -259,8 +259,11 @@ try {
      פתוחים באותה עת, ובאילו גיליונות שהם. */
   const { lessonRatable } = await import("../../shared/lessons-boards.js");
   const day = "2026-09-14";
-  const two = ["מדעי המדינה", "כישורי חיים"].map(() =>
-    lessonRatable({ date: day, planned: "כן" }, { openRate: true }, "2026-09-17"));
+  /* ⚠ שני הנושאים שנאסף בהם דירוג — מיובאים ולא מוקלדים,
+     אחרת הטענה נשברת ביום שהרשימה משתנה. */
+  const { RATED_SUBJECTS } = await import("../../shared/lessons-boards.js");
+  const two = RATED_SUBJECTS.map((subject) =>
+    lessonRatable({ date: day, planned: "כן" }, { openRate: true }, "2026-09-17", { subject }));
   ok("ושני שיעורים נפתחים במקביל — אין מגבלה",
     two.every(Boolean), JSON.stringify(two));
 } finally {
