@@ -34,6 +34,17 @@ const call = async (j, m, p, b) => {
   try { return { s: r.status, b: JSON.parse(t) } } catch { return { s: r.status, b: t.slice(0, 250) } }
 };
 const cv = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
+/* ⚠⚠ **להמתין על תנאי ולא על זמן.** המטמון של השרת
+   יושב בתהליך אחר, וכתיבה ישירה ל-monday אינה נראית לו מיד. */
+const until = async (what, fn, tries = 40, ms = 3000) => {
+  for (let i = 0; i < tries; i++) {
+    try { if (await fn()) return true; } catch { /* ממשיכים */ }
+    if (i && i % 5 === 0) process.stdout.write(`    (ממתין — ${what}… ${i * ms / 1000}s)\n`);
+    await new Promise((r) => setTimeout(r, ms));
+  }
+  ok(what, false, "לא התרחש בזמן שהוקצה");
+  return false;
+};
 
 const users = (await gql(`{ boards(ids:[${AUTH_BOARD}]){ items_page(limit:100){items{id name column_values(ids:["${AUTH_COLS.code}"]){id text}}} } }`))
   .boards[0].items_page.items;
@@ -150,6 +161,77 @@ try {
   e = await evalFor(meetId);
   ok("אבל שם שכבר נכתב אינו נדרס", e && e.name === "שם אמיתי לבדיקה", String(e && e.name));
   ok("והתשובה אינה מצהירה על שינוי", r.b.evalRenamed === false, String(r.b.evalRenamed));
+
+  /* ============================================================
+     ⚠⚠⚠ **הבאג שדווח ב-17.9.2026: שם שהגיע מאוחר מדי**
+
+     *"אני לא מבין למה זה קורה כל פעם, למרות שהשם בפנים"* —
+     כרטיס מסך הבית הציג "טרם נרשם שם המרצה" בעוד
+     שבמפגש עצמו השם כתוב.
+
+     `syncEvalLecturer` מתקנת רק ברגע שמישהו **שומר שם
+     מחדש**. שורה שנולדה עם מציין מקום, והשם נכתב
+     על המפגש אחרי כן, **נשארה שגויה לנצח** — איש לא
+     יקליד אותו שוב. לכן השם **נגזר בקריאה**.
+
+     ⚠⚠ **ושני הכיוונים באותה הרצה**: מציין מקום **כן**
+       נפתר, ושם שאדם כתב **אינו נדרס**. טענה אחת
+       בלבד הייתה נשארת ירוקה גם אילו הגזירה היתה
+       מוחקת עריכות של אנשים.
+     ============================================================ */
+  console.log("\n=== השם נגזר בקריאה, גם לשורה שנולדה בלי שם ===");
+  const listRow = async () => ((await call(M, "GET", "/api/lessons?action=evals")).b.evals || [])
+    .find((x) => String(x.id) === String(evalId)) || null;
+
+  /* ⚠⚠ **המתנה על השרת ולא על monday.** המטמון יושב
+     בתהליך אחר וחי חמש דקות; בדיקה ששואלת את monday
+     עוברת מיד וטוענת על נתון שהשרת עדיין אינו רואה.
+     זה בדיוק מה שהפיל את הגרסה הראשונה של הטענות האלה. */
+  const setRowName = async (n) => {
+    await gql(
+      `mutation($b:ID!,$i:ID!,$n:String!){ change_simple_column_value(board_id:$b,item_id:$i,column_id:"name",value:$n){ id } }`,
+      { b: LB.evals, i: evalId, n },
+    );
+  };
+
+  /* ⚠ השם שעל המפגש כרגע הוא האחרון שנכתב — נגזר
+     מהנתונים ולא מוקלד, אחרת הטענה נשברת בכל
+     שינוי למעלה בקובץ (הכלל של perm-test). */
+  const onMeeting = (await meeting()).lecturer;
+  ok("למפגש יש שם מרצה", Boolean(onMeeting), String(onMeeting));
+
+  await setRowName("טרם נרשם שם המרצה · " + SUBJECT + " · " + DATE);
+  const seen = await until("השרת רואה את השינוי", async () => {
+    const r2 = await listRow();
+    /* הגזירה מחליפה את מציין המקום, ולכן מה שמעיד
+       שהשרת ראה את הכתיבה הוא שהשם הישן נעלם. */
+    return r2 && r2.name !== "שם אמיתי לבדיקה";
+  });
+
+  if (seen) {
+    let lr = await listRow();
+    ok("שורה עם מציין מקום נפתרת לשם שעל המפגש",
+      lr && lr.name === onMeeting, String(lr && lr.name));
+    ok("ואינה מסומנת כחסרת שם", lr && lr.nameProvisional === false,
+      String(lr && lr.nameProvisional));
+    /* ⚠ והכרטיס במסך הבית — המסך שהדיווח הגיע עליו —
+       עובר באותה גזירה ולא בשנייה. */
+    const card = await call(M, "GET", "/api/lessons?action=last-eval");
+    const cl = card.b.latest;
+    ok("והכרטיס אינו מציג מציין מקום",
+      !cl || !/טרם נרשם/.test(cl.name || ""), String(cl && cl.name));
+
+    /* ⚠ והכיוון השני: שם שאדם כתב אינו נגזר מחדש. */
+    await setRowName("שם שאדם כתב");
+    if (await until("השרת רואה את השם האנושי", async () => {
+      const r2 = await listRow();
+      return r2 && r2.name !== onMeeting;
+    })) {
+      lr = await listRow();
+      ok("אבל שם שאדם כתב אינו נדרס על ידי הגזירה",
+        lr && lr.name === "שם שאדם כתב", String(lr && lr.name));
+    }
+  }
 
   console.log("\n=== פרטי הקשר עוברים לחוות דעת שנפתחת אחריהם ===");
   const raw = await gql(

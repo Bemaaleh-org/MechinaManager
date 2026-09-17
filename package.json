@@ -74,7 +74,8 @@
     "seed:lesson-quota": "node --env-file=.env tools/seed-lesson-quota.mjs",
     "seed:fault-kind": "node --env-file=.env tools/seed-fault-kind.mjs",
     "seed:pros": "node --env-file=.env tools/seed-pros.mjs",
-    "seed:meeting-contact": "node --env-file=.env tools/seed-meeting-contact.mjs"
+    "seed:meeting-contact": "node --env-file=.env tools/seed-meeting-contact.mjs",
+    "fix:eval-names": "node --env-file=.env tools/fix-eval-names.mjs"
   },
   "dependencies": {
     "nodemailer": "^9.0.5",

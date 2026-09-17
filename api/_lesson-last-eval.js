@@ -39,7 +39,9 @@
 
 import { withAuth } from "./_session.js";
 import { lessonRights } from "./_lesson-rights.js";
-import { loadEvals, loadRatings, ratingFor } from "./_lessons-data.js";
+import {
+  loadEvals, loadRatings, ratingFor, resolveEvalNames,
+} from "./_lessons-data.js";
 
 /* ⚠ קיצור לכרטיס. הטקסט המלא במסך חוות הדעת — כרטיס בית
    שנושא שלוש פסקאות דוחף למטה את כל מה שמתחתיו. */
@@ -54,7 +56,12 @@ async function handler(req, res, session) {
   if (!g.read) return res.status(403).json({ error: g.hint });
 
   try {
-    const [evals, ratings] = await Promise.all([loadEvals(), loadRatings()]);
+    const [raw, ratings] = await Promise.all([loadEvals(), loadRatings()]);
+    /* ⚠⚠ **הכרטיס הזה הוא שהדיווח הגיע עליו** (17.9.2026):
+       הוא הציג "טרם נרשם שם המרצה" בעוד שבמפגש כתוב
+       "מירב לשם גונן". השם נגזר עכשיו במקום אחד עם
+       רשימת חוות הדעת, כדי שהשתיים לא יוכלו לסתור. */
+    const evals = await resolveEvalNames(raw);
 
     /* ⚠ כללית · עם טקסט · ועם תאריך שאפשר למיין לפיו. */
     const pool = evals.filter((e) => !e.placement && e.opinion && (e.at || e.lessonDate));
@@ -83,6 +90,9 @@ async function handler(req, res, session) {
       latest: {
         id: latest.id,
         name: latest.name,
+        /* ⚠ כשאין ממה לגזור — המסך אומר זאת בשקט ואינו
+           מציג טקסט שנראה כמו שם (עיקרון 6). */
+        nameProvisional: Boolean(latest.nameProvisional),
         topic: latest.topic,
         field: latest.field,
         at: latest.at,

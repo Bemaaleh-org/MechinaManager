@@ -36,6 +36,7 @@ import { gql } from "./_monday.js";
 import { LESSON_BOARDS, LESSON_COLS, CYCLE } from "../shared/lessons-boards.js";
 import {
   loadEvals, invalidateEvals, loadRatings, ratingFor, loadMeetings, loadSheets,
+  resolveEvalNames,
 } from "./_lessons-data.js";
 
 const E = LESSON_COLS.evals;
@@ -106,7 +107,10 @@ async function handler(req, res, session) {
 
 async function list(req, res, g) {
   try {
-    const [evals, ratings] = await Promise.all([loadEvals(), loadRatings()]);
+    const [raw, ratings] = await Promise.all([loadEvals(), loadRatings()]);
+    /* ⚠⚠ שם המרצה נגזר ולא רק נקרא מהשורה — שורה שנפתחה
+       לפני שהיה שם נשארה "טרם נרשם" לנצח (ראו `resolveEvalNames`). */
+    const evals = await resolveEvalNames(raw);
     const wanted = req.query?.cycle ? String(req.query.cycle) : null;
     const shown = wanted ? evals.filter((e) => e.cycle === wanted) : evals;
 

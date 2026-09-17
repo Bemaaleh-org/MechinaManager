@@ -12,7 +12,10 @@
 
 import { allItems, gql } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
-import { LESSON_BOARDS, LESSON_COLS, PLANNED, HAPPENED, CYCLE } from "../shared/lessons-boards.js";
+import {
+  LESSON_BOARDS, LESSON_COLS, PLANNED, HAPPENED, CYCLE,
+  evalDisplayName, isEvalPlaceholder,
+} from "../shared/lessons-boards.js";
 
 const S = LESSON_COLS.sheets;
 const M = LESSON_COLS.meetings;
@@ -226,7 +229,35 @@ export function evalForMeeting(meetingId, evals) {
    ⚠ **ואינה יוצרת שורה.** אם אין חוות דעת למפגש — זה בדיוק
      המצב שראש המכינה ביקש: שם נכנס בלי שתיפתח חוות דעת.
    ============================================================ */
-const PLACEHOLDER = /^\u05d8\u05e8\u05dd \u05e0\u05e8\u05e9\u05dd \u05e9\u05dd \u05d4\u05de\u05e8\u05e6\u05d4/;
+
+/* ============================================================
+   ⚠⚠⚠ **שער אחד לשם המרצה בכל מסך**
+
+   שני מסלולי קריאה מציגים שם מרצה — רשימת חוות הדעת
+   והכרטיס במסך הבית — ושניהם הציגו את `e.name` הגולמי.
+   משם השם מגיע לשישה מקומות במסך (כרטיס, רשימה, חיפוש,
+   ייצוא לאקסל, טופס העריכה ואישור המחיקה), ולכן
+   התיקון יושב **בשרת ובמקום אחד**. שתי גזירות מקבילות
+   מתפצלות בתיקון הראשון — 4מד, 5לא, 5לד.
+
+   ⚠ **אינו כותב ללוח.** כתיבה בתוך קריאה היא בדיוק
+     הסוג של הפתעות שקשה לשחזר. תיקון הלוח עצמו נעשה
+     בכתיבה (`syncEvalLecturer`) וב-`npm run fix:eval-names`.
+
+   ⚠ **שתי השליפות מהמטמון** ואינן מוסיפות עבודה:
+     שתיהן נקראות במילא בכל טעינת מסך של הלו״ז.
+   ============================================================ */
+export async function resolveEvalNames(rows) {
+  const [meets, sheets] = await Promise.all([loadMeetings(), loadSheets()]);
+  const byMeeting = new Map(meets.map((m) => [m.id, m]));
+  const bySheet = new Map(sheets.map((x) => [x.id, x]));
+  return rows.map((e) => {
+    const m = e.meetingId ? byMeeting.get(String(e.meetingId)) : null;
+    const sh = m ? bySheet.get(m.sheetId) : null;
+    const { name, provisional } = evalDisplayName(e, m, sh);
+    return { ...e, name, nameProvisional: provisional };
+  });
+}
 
 export async function syncEvalLecturer(meetingId, name) {
   const want = String(name || "").trim();
@@ -235,7 +266,7 @@ export async function syncEvalLecturer(meetingId, name) {
   if (!row) return null;
   const cur = String(row.name || "").trim();
   if (cur === want) return { id: row.id, renamed: false };
-  if (cur && !PLACEHOLDER.test(cur)) return { id: row.id, renamed: false };
+  if (cur && !isEvalPlaceholder(cur)) return { id: row.id, renamed: false };
   await gql(
     `mutation($b:ID!,$i:ID!,$n:String!){ change_simple_column_value(board_id:$b,item_id:$i,column_id:"name",value:$n){ id } }`,
     { b: LESSON_BOARDS.evals, i: row.id, n: want },
