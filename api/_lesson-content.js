@@ -41,10 +41,11 @@ import { todayFor } from "./_attendance-data.js";
 import {
   LESSON_BOARDS, LESSON_COLS, HAPPENED, PLANNED, contentReady,
   timeOf, minutesOf,
-  lessonRatable, rateFrom, sheetRated,
+  lessonRatable, mayPushRate,
 } from "../shared/lessons-boards.js";
 import {
   loadSheets, loadMeetings, loadRatings, ratingFor, invalidateLessons,
+  loadEvals, evalForMeeting,
 } from "./_lessons-data.js";
 
 const M = LESSON_COLS.meetings;
@@ -111,7 +112,7 @@ const EMPTY = { summary: null, files: [], openRate: false };
      ראו ההערה בראש הקובץ: הגיליון נושא פרטי מרצה חיצוני
      ומחיר, ופריסה הייתה מדליפה אותם.
    ============================================================ */
-function toStudentLesson(m, sheet, content, rating, myScore, today) {
+function toStudentLesson(m, sheet, content, rating, myScore, today, hasEval) {
   return {
     id: m.id,
     date: m.date,
@@ -132,7 +133,7 @@ function toStudentLesson(m, sheet, content, rating, myScore, today) {
        התיבה בלבד, ובמסלול השני נבדקו גם "מרצה מתחלף" וגם חלון
        זמן — כלומר הארכיון הציע דירוג על שיעור שהשמירה שלו
        נדחית ב-403. הגדרה אחת, ב-shared. */
-    canRate: lessonRatable(m, content, today, sheet),
+    canRate: lessonRatable(m, content, today, mayPushRate(sheet, hasEval)),
     /* ⚠ התיבה הגולמית, בנפרד מ-`canRate` הנגזר. טופס הצוות
        מאתחל ממנה — אחרת הוא מכבה תיבה שסומנה ברגע שחלון
        הזמן נסגר. */
@@ -140,12 +141,11 @@ function toStudentLesson(m, sheet, content, rating, myScore, today) {
     /* ⚠ נשלח כדי שהמסך יאמר **למה** סגור: "עברו שבועיים" ו"טרם
        נכתב תוכן" הם שני מצבים שונים, ו"אי אפשר לדרג" לבדו
        נראה כמו תקלה (עיקרון 6). */
-    /* ⚠ והסיבה מבחינה בין "השיעור הזה אינו מדורג בכלל"
-       לבין "עבר הזמן" — שני מצבים שונים, ו"אי אפשר לדרג"
-       לבדו נראה כמו תקלה (עיקרון 6). */
-    rateClosed: !lessonRatable(m, content, today, sheet)
-      && (!sheetRated(sheet) ? "notrated"
-        : m.date < rateFrom(today) ? "late" : content.summary ? null : "nocontent"),
+    /* ⚠⚠ **מצב אחד בלבד עכשיו: טרם נשלח.** קודם היו שלושה
+       נימוקים ("עבר הזמן", "טרם נכתב תוכן", "אינו מדורג")
+       כי הפתיחה היתה נגזרת משלושה תנאים. מרגע שהיא
+       לחיצה אחת, נימוק מפורט הוא הסבר למשהו שאינו קורה. */
+    rateClosed: lessonRatable(m, content, today, mayPushRate(sheet, hasEval)) ? null : "notsent",
   };
 }
 
@@ -156,9 +156,12 @@ async function archive(req, res, session) {
   if (req.method !== "GET") return res.status(405).json({ error: "רק GET נתמך כאן" });
   try {
     const today = todayFor(req);
-    const [sheets, meetings, ratings, content] = await Promise.all([
-      loadSheets(), loadMeetings(), loadRatings(), loadContent(),
+    const [sheets, meetings, ratings, content, evals] = await Promise.all([
+      loadSheets(), loadMeetings(), loadRatings(), loadContent(), loadEvals(),
     ]);
+    /* ⚠ חוות דעת מזדמנת פותחת דירוג גם בגיליון שאינו
+       מדורג — אותה חריגה כמו ב-`?action=rate`. */
+    const evalIds = new Set(evals.map((e) => String(e.meetingId || "")).filter(Boolean));
     const byId = new Map(sheets.map((s) => [s.id, s]));
     const me = String(session.itemId || "");
 
@@ -171,7 +174,8 @@ async function archive(req, res, session) {
         const sheet = byId.get(m.sheetId) || null;
         const c = content.get(m.id) || EMPTY;
         const mine = ratings.find((r) => r.meetingId === m.id && r.studentId === me);
-        return toStudentLesson(m, sheet, c, ratingFor(m.id, ratings), mine ? mine.score : null, today);
+        return toStudentLesson(m, sheet, c, ratingFor(m.id, ratings), mine ? mine.score : null, today,
+          evalIds.has(m.id));
       })
       /* החדש למעלה — מי שמחפש שיעור מחפש את מה שהיה השבוע. */
       .sort((a, b) => b.date.localeCompare(a.date)
@@ -267,8 +271,30 @@ async function content(req, res, session) {
          משוב.
          ============================================================ */
       if (body.openRate !== undefined) {
+        /* ============================================================
+           ⚠⚠⚠ **אותו שער שהמסך מצייר, נאכף כאן.**
+
+           המסך מסתיר את הכפתור לפי `canPush`, והסתרה
+           במסך היא הצעה — הבטחה היא בשרת (עיקרון 3).
+           בלי זה, קריאה ישירה פותחת דירוג על שיעור
+           שהוחלט שאין בו דירוג, והחניכים מקבלים אותו.
+
+           ⚠ **וסגירה מותרת תמיד.** מי ששלח בטעות צריך
+             להיות יכול לבטל גם אם השער השתנה בינתיים —
+             הגנה שחוסמת גם את הביטול נועלת טעות במקום.
+           ============================================================ */
+        if (body.openRate) {
+          /* ⚠ `sheet` כבר נפתר למעלה לצורך בדיקת ההרשאה. */
+          const hasEval = Boolean(evalForMeeting(meetingId, await loadEvals()));
+          if (!mayPushRate(sheet, hasEval)) {
+            return res.status(400).json({
+              error: "בשיעור הזה אין דירוג. ניתן לפתוח חוות דעת מזדמנת "
+                + "ואז לשלוח דירוג.",
+            });
+          }
+        }
         cols[M.openRate] = { checked: body.openRate ? "true" : "false" };
-        changed.push(body.openRate ? "נפתח לדירוג" : "נסגר לדירוג");
+        changed.push(body.openRate ? "נשלח לדירוג" : "הדירוג בוטל");
       }
       if (Object.keys(cols).length) {
         await gql(

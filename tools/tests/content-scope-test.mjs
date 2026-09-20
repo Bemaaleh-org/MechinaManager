@@ -261,9 +261,10 @@ try {
   const day = "2026-09-14";
   /* ⚠ שני הנושאים שנאסף בהם דירוג — מיובאים ולא מוקלדים,
      אחרת הטענה נשברת ביום שהרשימה משתנה. */
-  const { RATED_SUBJECTS } = await import("../../shared/lessons-boards.js");
+  const { RATED_SUBJECTS, mayPushRate } = await import("../../shared/lessons-boards.js");
   const two = RATED_SUBJECTS.map((subject) =>
-    lessonRatable({ date: day, planned: "כן" }, { openRate: true }, "2026-09-17", { subject }));
+    lessonRatable({ date: day, planned: "כן" }, { openRate: true }, "2026-09-17",
+      mayPushRate({ subject }, false)));
   ok("ושני שיעורים נפתחים במקביל — אין מגבלה",
     two.every(Boolean), JSON.stringify(two));
 } finally {

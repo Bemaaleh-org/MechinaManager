@@ -297,6 +297,9 @@ function SheetDetail({ sheet, onBack, say }) {
   const [deleting, setDeleting] = useState(false);
   /* ⚠ מפגשים שבהם נפתח טופס המרצה ידנית — ראו למטה */
   const [lectOpen, setLectOpen] = useState({});
+  /* ⚠ המפגש שהדחיפה שלו באוויר, ומפגשים שנשלחו בסשן הזה */
+  const [pushing, setPushing] = useState(null);
+  const [pushed, setPushed] = useState({});
 
   const back = (
     <button className="btn btn-ghost btn-sm" style={{ marginBottom: 14 }} onClick={onBack}>
@@ -403,6 +406,32 @@ function SheetDetail({ sheet, onBack, say }) {
       .catch((e) => { setField(m, k, m[k] || ""); say(e.message); })
       .finally(() => setBusyId(null));
   };
+
+  /* ============================================================
+     ⚠⚠⚠ **שליחת הדירוג לחניכים — לחיצה, ולא אוטומט**
+
+     הבקשה (20.9.2026): *"כפתור דחיפת דירוג לחניכים,
+     במקום שזה יהיה אוטומטי, ככה שנדע בוודאות שזה עבד"*.
+
+     ⚠ **אינו אופטימי — וזו כל הנקודה.** סימון אופטימי
+       (4י) מראה הצלחה לפני שהשרת אישר, וכאן הבקשה היא
+       לדעת **בוודאות**. הכפתור מחכה לתשובה.
+     ============================================================ */
+  const pushRate = (m, on) => {
+    if (pushing) return;
+    setPushing(m.id);
+    api.setLessonContent({ meetingId: m.id, openRate: on })
+      .then(() => {
+        setPushed((p) => ({ ...p, [m.id]: on }));
+        say(on ? "נשלח לדירוג — השיעור מופיע עכשיו אצל החניכים"
+          : "הדירוג בוטל — השיעור ירד מהרשימה שלהם");
+      })
+      .catch((e) => say(e.message))
+      .finally(() => setPushing(null));
+  };
+  /* ⚠ מה שנשלח בסשן הזה גובר על מה שהשרת החזיר בטעינה,
+     כדי שהכפתור ישקף את הלחיצה בלי לטעון את כל הגיליון. */
+  const sentOf = (m) => (m.id in pushed ? pushed[m.id] : m.rateSent === true);
 
   const shown = meetings.filter((m) =>
     filter === "all" ? true
@@ -526,7 +555,10 @@ function SheetDetail({ sheet, onBack, say }) {
                           <span className="rate-n">{m.votes} מדרגים</span>
                         </>
                       )}
-                      {rated && m.evalId && m.votes === 0 && <span>ממתין לדירוגי החניכים</span>}
+                      {/* ⚠⚠ **שלושה מצבים ולא שניים**: טרם נשלח · נשלח
+                          וטרם דירגו · יש ציון. "ממתין לדירוגים" לבדו לא
+                          אמר אם הוא **נשלח בכלל** — וזו היתה התלונה. */}
+                      {m.votes === 0 && sentOf(m) && <span>נשלח · טרם דירגו</span>}
                       {m.note && <span>{m.note}</span>}
                     </div>
                   </div>
@@ -539,6 +571,40 @@ function SheetDetail({ sheet, onBack, say }) {
                     <button className={s === "לא" ? "on-soon" : ""} onClick={() => mark(m, "לא")}>
                       לא התקיים
                     </button>
+                  </div>
+                )}
+
+                {/* ============================================================
+                    ⚠⚠⚠ **כפתור הדחיפה** (בקשת ראש המכינה,
+                    20.9.2026). עד היום הדירוג נפתח מעצמו מסיכום,
+                    ובפועל שתי חוות דעת על נושאים מדורגים
+                    (מור סגל, מירב לשם גונן) מעולם לא הגיעו
+                    לחניכים — הטקסט נכתב בחוות הדעת ולא בסיכום.
+
+                    ⚠ **מוצג רק אחרי "התקיים"** — אין מה לדרג
+                      בשיעור שלא היה, וכפתור על כל מפגש עתידי
+                      הוא רעש. ⚠ ו-`canPush` מגיע מהשרת (4יד).
+                    ============================================================ */}
+                {!cancelled && canEdit && m.canPush && s === "כן" && (
+                  <div className="push-rate">
+                    <button
+                      className={"btn btn-sm " + (sentOf(m) ? "btn-ghost" : "btn-primary")}
+                      disabled={pushing === m.id}
+                      onClick={() => pushRate(m, !sentOf(m))}>
+                      <LI.star />
+                      {pushing === m.id ? "שולח…"
+                        : sentOf(m) ? "ביטול שליחת הדירוג"
+                        : "שליחת דירוג לחניכים"}
+                    </button>
+                    {/* ⚠ המצב במילים ולא רק בצבע הכפתור — "עבד?" היא
+                        השאלה שהכפתור נולד ממנה. */}
+                    <div className="push-state">
+                      {sentOf(m)
+                        ? m.votes > 0
+                          ? `נשלח · ${m.votes} חניכים כבר דירגו`
+                          : "נשלח · השיעור מופיע אצל החניכים"
+                        : "טרם נשלח — החניכים אינם רואים את השיעור הזה"}
+                    </div>
                   </div>
                 )}
 
@@ -2039,5 +2105,8 @@ export const LESSONS_CSS = `
 .lect-two{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .lect-note{font-size:11px;font-weight:600;color:var(--faint);line-height:1.5}
 .lect-busy{font-size:11.5px;color:var(--faint);font-weight:700}
+.push-rate{padding:0 13px 10px;display:flex;flex-direction:column;gap:5px}
+.push-rate .btn{width:100%}
+.push-state{font-size:11.5px;font-weight:700;color:var(--faint);text-align:center}
 @media(max-width:380px){ .lect-two{grid-template-columns:1fr} }
 `;

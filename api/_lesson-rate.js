@@ -16,11 +16,11 @@
 import { withAuth } from "./_session.js";
 import { gql } from "./_monday.js";
 import {
-  LESSON_BOARDS, LESSON_COLS, PLANNED, lessonRatable,
+  LESSON_BOARDS, LESSON_COLS, PLANNED, lessonRatable, mayPushRate,
 } from "../shared/lessons-boards.js";
 import { loadContent } from "./_lesson-content.js";
 import {
-  loadSheets, loadMeetings, loadRatings, ratingFor, invalidateRatings,
+  loadSheets, loadMeetings, loadRatings, ratingFor, invalidateRatings, loadEvals,
 } from "./_lessons-data.js";
 import { todayFor } from "./_attendance-data.js";
 
@@ -61,10 +61,13 @@ async function handler(req, res, session) {
      בטעות (4כה: ההצהרה על הפריט גוברת).
    ============================================================ */
 async function ratableMeetings(today) {
-  const [sheets, meetings, content] = await Promise.all([
-    loadSheets(), loadMeetings(), loadContent(),
+  const [sheets, meetings, content, evals] = await Promise.all([
+    loadSheets(), loadMeetings(), loadContent(), loadEvals(),
   ]);
   const byId = new Map(sheets.map((s) => [s.id, s]));
+  /* ⚠ חוות דעת מזדמנת פותחת דירוג גם בגיליון שאינו
+     מדורג — זו החריגה המפורשת שבבקשה (20.9.2026). */
+  const evalIds = new Set(evals.map((e) => String(e.meetingId || "")).filter(Boolean));
 
   /* ⚠⚠ **הכלל מיובא ואינו מחושב כאן.** היו כאן שתי הגדרות של
      "ניתן לדירוג" — זו ו-`canRate` בארכיון — והן כבר לא הסכימו
@@ -76,9 +79,9 @@ async function ratableMeetings(today) {
       const sheet = byId.get(m.sheetId);
       if (!sheet) return null;
       const c = content.get(m.id) || {};
-      /* ⚠ הגיליון מועבר — דירוג נאסף במקצת השיעורים בלבד
-         (`RATED_SUBJECTS`), והיעדרו סוגר ולא פותח. */
-      if (!lessonRatable(m, c, today, sheet)) return null;
+      /* ⚠⚠ **רק מה שנשלח במפורש.** אין עוד פתיחה
+         אוטומטית מסיכום — ראו `lessonRatable`. */
+      if (!lessonRatable(m, c, today, mayPushRate(sheet, evalIds.has(m.id)))) return null;
       return {
         ...m,
         subject: sheet.subject,

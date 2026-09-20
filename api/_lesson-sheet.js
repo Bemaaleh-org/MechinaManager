@@ -14,8 +14,9 @@ import { lessonRights } from "./_lesson-rights.js";
 import { stampChange } from "./_lesson-changes.js";
 import { gql } from "./_monday.js";
 import {
-  LESSON_BOARDS, LESSON_COLS, sheetRated, ratedSubjectsMissing,
+  LESSON_BOARDS, LESSON_COLS, sheetRated, ratedSubjectsMissing, mayPushRate,
 } from "../shared/lessons-boards.js";
+import { loadContent } from "./_lesson-content.js";
 
 const S = LESSON_COLS.sheets;
 
@@ -87,7 +88,9 @@ async function read(req, res, session, rights) {
          כבר נפתחה, מציג שוב "הוספת חוות דעת", **ולחיצה שנייה
          פותחת שורה שנייה לאותו מפגש**. ואין כאן חיסכון של ממש —
          שתי הטעינות ממוטמעות ומשותפות לכל הבקשה. */
-    const [evals, ratings] = await Promise.all([loadEvals(), loadRatings()]);
+    const [evals, ratings, content] = await Promise.all([
+      loadEvals(), loadRatings(), loadContent(),
+    ]);
 
     res.status(200).json({
       sheet,
@@ -108,12 +111,25 @@ async function read(req, res, session, rights) {
         .map(({ sheetId, ...rest }) => {
           const ev = evalForMeeting(rest.id, evals);
           const r = ratingFor(rest.id, ratings);
+          const c = content.get(rest.id) || {};
           return {
             ...rest,
             evalId: ev ? ev.id : null,
             evalNote: ev ? ev.opinion : null,
             avg: r ? r.avg : null,
             votes: r ? r.votes : 0,
+            /* ============================================================
+               ⚠⚠ **שלושת השדות שהכפתור צריך** (20.9.2026).
+               הבקשה: *"ככה שנדע בוודאות שזה עבד"*.
+                 canPush   — האם הכפתור מוצג בכלל
+                 rateSent  — האם כבר נשלח
+                 votes     — כמה חניכים כבר דירגו
+               ⚠ בלי השלישי, "נשלח" הוא הבטחה שאי אפשר
+                 לאמת — וזו בדיוק התלונה שהולידה את הכפתור.
+               ⚠ **מהשרת ולא נגזר במסך** (4יד).
+               ============================================================ */
+            canPush: mayPushRate(sheet, Boolean(ev)),
+            rateSent: c.openRate === true,
           };
         }),
       /* ============================================================
