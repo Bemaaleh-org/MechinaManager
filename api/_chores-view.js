@@ -22,6 +22,8 @@ import {
   countedRows,
   onDay, WHEN,
 } from "../shared/chores.js";
+import { weekPublic, weekWarnings } from "./_leader-weeks.js";
+import { weekIndexFor } from "../shared/week-span.js";
 import { israelToday } from "./_attendance-data.js";
 
 /** יום בשבוע בעברית מתאריך ISO */
@@ -55,6 +57,8 @@ function myNext(rows, sectors, me, today, weeks) {
       start: wById.get(evening.week).start,
       end: wById.get(evening.week).end,
       num: wById.get(evening.week).num,
+      /* ⚠ התווית מהשרת — שבועות חופפים הם "שבוע 3-4" (22.9.2026). */
+      label: wById.get(evening.week).spanLabel || null,
     } : null,
   };
 }
@@ -104,8 +108,52 @@ async function handler(req, res, session) {
        ============================================================ */
     const askedId = String(req.query?.week || "").trim();
     const askedIdx = askedId ? weeks.findIndex((w) => w.id === askedId) : -1;
-    const from = askedIdx >= 0 ? askedIdx : (nowIdx >= 0 ? nowIdx : 0);
-    const near = weeks.slice(from, from + 2);
+    /* ⚠⚠ **נפילה לאחור היא "הבא" ולא "הראשון"** (22.9.2026).
+       בין שבוע לשבוע יש פערים בלוח, ובימים האלה `nowIdx` הוא
+       -1 — ואינדקס 0 החזיר את המשתמש לספטמבר בכל פתיחה.
+       ראו `weekIndexFor` ב-shared/week-span.js. */
+    /* ============================================================
+       ⚠⚠⚠ **אשכול אחד = תקופה אחת** (22.9.2026).
+
+       שתי שורות חופפות בלוח הופיעו כאן כשתי תקופות עם **אותה
+       תווית ואותם ימים**: "שבוע 3-4 (22.9–5.10)" ו"שבוע 3-4
+       (27.9–1.10)", והימים 27.9–1.10 הוצגו פעמיים. זה בדיוק
+       מה שראש המכינה תיאר כ"מבלבל בין התאריכים".
+
+       ⚠ **הנציג הוא השורה הרחבה ביותר** (המוקדמת ביותר
+         באשכול, שהיא זו שבולעת) — יציב, ולא תלוי במי שובץ.
+       ⚠⚠ **והשיבוצים נאספים מכל שורות האשכול**, כדי ששיבוץ
+         שנרשם על השורה השנייה יישאר גלוי ויהיה אפשר לנקות
+         אותו. שורה שאין לה מסך היא שורה שלא תימחק לעולם (4צ).
+       ============================================================ */
+    const spanRows = new Map();
+    for (const w of weeks) {
+      const k = w.spanKey || w.id;
+      if (!spanRows.has(k)) spanRows.set(k, []);
+      spanRows.get(k).push(w);
+    }
+    /* נציג לכל אשכול, בסדר הכרונולוגי של `weeks`. */
+    const spanList = [];
+    const seenSpan = new Set();
+    for (const w of weeks) {
+      const k = w.spanKey || w.id;
+      if (seenSpan.has(k)) continue;
+      seenSpan.add(k);
+      spanList.push(w);
+    }
+    /* ⚠ מזהה שנשלח עשוי להיות של השורה המשנית — נופלים לאשכול
+       שלה ולא ל"לא נמצא" (4ר). */
+    const askedKey = askedIdx >= 0 ? (weeks[askedIdx].spanKey || askedId) : "";
+    const askedSpan = askedKey ? spanList.findIndex((w) => (w.spanKey || w.id) === askedKey) : -1;
+    /* ⚠⚠ **נפילה לאחור היא "הבא" ולא "הראשון"** (22.9.2026).
+       בין שבוע לשבוע יש פערים בלוח, ובימים האלה `nowIdx` הוא
+       -1 — ואינדקס 0 החזיר את המשתמש לספטמבר בכל פתיחה.
+       ראו `weekIndexFor` ב-shared/week-span.js. */
+    const from = askedSpan >= 0 ? askedSpan
+      : Math.max(0, weekIndexFor(spanList.map((w) => ({
+        start: w.spanStart || w.start, end: w.spanEnd || w.end,
+      })), today));
+    const near = spanList.slice(from, from + 2);
 
     /* ---------- טבלת המעקב ---------- */
     const byLeader = new Map(weeks.map((w) => [w.id, new Set(w.leaderIds.map(String))]));
@@ -120,22 +168,34 @@ async function handler(req, res, session) {
     }
 
     /* ---------- מי משובץ לאן, בתקופות הקרובות ---------- */
-    const weekRows = (weekId) => roster.list.filter((r) => r.week === weekId);
+    /* ⚠ מכל שורות האשכול ולא מהנציג בלבד — ראו ההערה מעל. */
+    const idsOf = (w) => (spanRows.get(w.spanKey || w.id) || [w]).map((x) => x.id);
+    const weekRows = (w) => {
+      const ids = new Set(idsOf(w));
+      return roster.list.filter((r) => ids.has(r.week));
+    };
     const periods = near.map((w) => {
-      const leaders = byLeader.get(w.id) || new Set();
+      const leaders = new Set();
+      for (const id of idsOf(w)) for (const x of (byLeader.get(id) || [])) leaders.add(x);
       return {
-        id: w.id, num: w.num, name: w.name, start: w.start, end: w.end,
+        ...weekPublic(w),
+        /* ⚠ **כל מזהי האשכול**, כדי שקורא שביקש שורה מסוימת
+           יזהה שהתקופה שחזרה היא שלה. בלעדיו `?week=<משני>`
+           מחזיר תקופה עם מזהה אחר, וזה נראה כמו "לא נמצא". */
+        ids: idsOf(w),
         /* ⚠ מובילי השבוע מסומנים ואינם מוסתרים — חניך שלא יראה
            את עצמו ברשימה יחשוב שנשכח, ולא שהוא פטור. */
         leaders: [...leaders],
         leaderNames: students.filter((s) => leaders.has(s.id)).map((s) => s.name),
         sectors: evening.map((s) => ({
           id: s.id, name: s.name, cap: s.cap,
-          members: weekRows(w.id).filter((r) => r.sector === s.id)
+          members: weekRows(w).filter((r) => r.sector === s.id)
             .map((r) => ({ id: r.student, name: r.studentName })),
         })),
         /* ---------- התורנות היומית של השבוע ---------- */
-        days: eachDay(w.start, w.end).map((iso) => {
+        /* ⚠ ימי **האשכול** ולא של השורה — אחרת חצי מהשבוע
+           המאוחד לא היה מופיע בכלל. */
+        days: eachDay(w.spanStart || w.start, w.spanEnd || w.end).map((iso) => {
           const on = roster.list.filter((r) => r.date === iso && daily && r.sector === daily.id);
           /* ⚠ מאיזו גזרת ערב נלקח כל תורן — זו השאלה שאב הבית
              שואל כשהוא בוחר, ולכן היא מחושבת כאן ולא במסך. */
@@ -250,10 +310,14 @@ async function handler(req, res, session) {
            כדי לדפדף אחורה ולראות מתי הוא כבר עשה תורנות. מיפוי
            מפורש: תאריכים ומספר בלבד, בלי המובילים ובלי ההערות.
          ============================================================ */
-      weeks: weeks.map((w) => ({
-        id: w.id, num: w.num, start: w.start, end: w.end,
-        now: nowIdx >= 0 && weeks[nowIdx].id === w.id,
+      /* ⚠ אשכול אחד = שורה אחת ברשימת הניווט. שתי שורות עם
+         אותה תווית ואותם תאריכים נראות כמו תקלה. */
+      weeks: spanList.map((w) => weekPublic(w, {
+        now: nowIdx >= 0 && (weeks[nowIdx].spanKey || weeks[nowIdx].id) === (w.spanKey || w.id),
       })),
+      /* ⚠ חפיפות בלוח — מדווחות ואינן נבלעות (4ט). המסך אומר
+         לראש המכינה מה לתקן, והתווית חוזרת מעצמה. */
+      weekWarnings: await weekWarnings(),
       /* איפה אנחנו באמת — ולא איפה ביקשו */
       weekAt: near[0] ? near[0].id : null,
       atNow: from === nowIdx,
@@ -295,8 +359,7 @@ async function handler(req, res, session) {
       const mineIds = new Set(mine.map((s) => s.id));
       body.admin = {
         students,
-        weeks: weeks.map((w) => ({
-          id: w.id, num: w.num, name: w.name, start: w.start, end: w.end,
+        weeks: weeks.map((w) => weekPublic(w, {
           leaders: w.leaderIds.map(String),
         })),
         /* ⚠ ההמלצה מחושבת **בלי מובילי השבוע** — הצעה לשבץ את מי

@@ -122,7 +122,8 @@ async function handler(req, res, session) {
           upcoming: session.isStudent
             ? weeks.filter((w) => w.end >= today
                 && (w.leaderIds || []).map(String).includes(String(session.itemId)))
-                .map((w) => ({ num: w.num, start: w.start, end: w.end }))
+                .map((w) => ({ num: w.num, start: w.start, end: w.end,
+                  label: w.spanLabel || null }))
             : [],
         });
       }

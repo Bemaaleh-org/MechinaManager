@@ -211,7 +211,7 @@ export function NextChoreCard({ onOpen }) {
         {evening && (
           <div className="nx-l">
             <b>{evening.sector || "גזרת ערב"}</b>
-            <span>שבוע {evening.num} · {dmy(evening.start)}–{dmy(evening.end)}</span>
+            <span>{evening.label || `שבוע ${evening.num}`} · {dmy(evening.start)}–{dmy(evening.end)}</span>
           </div>
         )}
       </div>

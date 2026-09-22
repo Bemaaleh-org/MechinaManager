@@ -1259,7 +1259,7 @@ function MarkDay({ say, allowPick = false }) {
           {mine.map((w) => (
             <button key={w.id} className={"lw-chip" + (shown >= w.start && shown <= w.end ? " on" : "")}
               onClick={() => { setDate(w.start); setOpen(null); }}>
-              שבוע {w.num}<i>{w.start.slice(8)}.{w.start.slice(5, 7)}–{w.end.slice(8)}.{w.end.slice(5, 7)}</i>
+              {w.label || `שבוע ${w.num}`}<i>{w.start.slice(8)}.{w.start.slice(5, 7)}–{w.end.slice(8)}.{w.end.slice(5, 7)}</i>
             </button>
           ))}
         </div>

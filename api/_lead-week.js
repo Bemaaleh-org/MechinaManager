@@ -42,7 +42,7 @@ import { allItems } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
 import { setColumns, renameItem, createItem, deleteItem } from "./_items.js";
 import { todayFor } from "./_attendance-data.js";
-import { loadLeaderWeeks, weeksOfStudent } from "./_leader-weeks.js";
+import { loadLeaderWeeks, weeksOfStudent, weekPublic } from "./_leader-weeks.js";
 import { assignableStudents } from "./_student-rows.js";
 /* ⚠ יציאות השבוע — ראו ההערה ב-weekView. */
 import { loadRequests } from "./_requests.js";
@@ -337,8 +337,7 @@ async function weekView(req, res, session) {
       staff: !session.isStudent,
     },
     week: {
-      id: week.id, num: week.num, name: week.name,
-      start: week.start, end: week.end,
+      ...weekPublic(week),
       what: week.what, note: week.note, escort: week.escort,
       leaders,
       summary: week.summary,
@@ -351,7 +350,7 @@ async function weekView(req, res, session) {
     },
     /* ⚠ הקודם, גם כשהוא לא שלי. */
     prev: prev
-      ? { id: prev.id, num: prev.num, name: prev.name, handover: handoverOf(prev.id) }
+      ? weekPublic(prev, { handover: handoverOf(prev.id) })
       : null,
     tasks,
     counts: {
@@ -386,8 +385,7 @@ async function weekView(req, res, session) {
     /* ⚠ **כל השבועות מוחזרים**, לא רק שלי: מוביל שרוצה לראות
        מה עשה השבוע שעבר צריך להגיע לשם. מיפוי מפורש — תאריכים
        ומספר בלבד (4ר). */
-    weeks: weeks.map((w) => ({
-      id: w.id, num: w.num, name: w.name, start: w.start, end: w.end,
+    weeks: weeks.map((w) => weekPublic(w, {
       mine: mine.some((m) => String(m.id) === w.id),
     })),
     when: LEAD_WHEN,

@@ -175,7 +175,7 @@ try {
   /* מהסוף אחורה: השבועות הרחוקים הם הפחות משובצים. */
   for (const w of [...allWeeks].reverse()) {
     const v = await call(MGR, "GET", "/api/chores?action=view&admin=1&week=" + encodeURIComponent(w.id));
-    const per = (v.b.periods || []).find((x) => x.id === w.id);
+    const per = (v.b.periods || []).find((x) => (x.ids || [x.id]).includes(String(w.id)));
     if (!per) continue;
     const busy = new Set((w.leaders || []).map(String));
     for (const sec of (per.sectors || [])) {
@@ -200,9 +200,15 @@ try {
     { sector: SEC, week: week.id, students: two });
   ok("שיבוץ תקין נשמר", r.s === 200 && r.b.added === 2, r.b.error || "");
 
+  /* ⚠⚠ **עם `&week=` ולא בלי.** הגרסה הקודמת שאלה את השבוע
+     **הנוכחי** בזמן שהשיבוץ נעשה לשבוע רחוק — כלומר המתינה
+     שלושים שניות למשהו שלא יכול לקרות, ואז המשיכה בשקט.
+     ⚠ וההתאמה היא מול `ids` ולא מול `id`: שתי שורות חופפות
+       הן תקופה אחת, והמזהה שחוזר הוא של הנציג (22.9.2026). */
   await until("השיבוץ נראה", async () => {
-    const x = await call(MGR, "GET", "/api/chores?action=view&admin=1");
-    const s = (x.b.periods[0].sectors || []).find((y) => y.id === SEC);
+    const x = await call(MGR, "GET", "/api/chores?action=view&admin=1&week=" + encodeURIComponent(week.id));
+    const per = (x.b.periods || []).find((y) => (y.ids || [y.id]).includes(String(week.id)));
+    const s = ((per || {}).sectors || []).find((y) => y.id === SEC);
     return s && s.members.length === 2;
   });
 
@@ -269,7 +275,7 @@ try {
   ok("והשיבוץ הוחזר", r.s === 200 && r.b.added === 2, `${r.s} ${r.b.error || ""}`);
   await until("השיבוץ נראה שוב", async () => {
     const x = await call(MGR, "GET", "/api/chores?action=view&admin=1&week=" + encodeURIComponent(week.id));
-    const sc = ((x.b.periods || []).find((y) => y.id === week.id) || {}).sectors || [];
+    const sc = ((x.b.periods || []).find((y) => (y.ids || [y.id]).includes(String(week.id))) || {}).sectors || [];
     const sec = sc.find((y) => y.id === SEC);
     return sec && sec.members.length === 2;
   });

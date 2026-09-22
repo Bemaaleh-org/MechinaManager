@@ -39,7 +39,7 @@ import { invalidate } from "./_cache.js";
 import { MECHINA_BOARDS, MECHINA_COLS } from "../shared/mechina-boards.js";
 import { guideMap, isGuideOf } from "./_guides.js";
 import { loadRequests } from "./_requests.js";
-import { loadLeaderWeeks, leadersForDate } from "./_leader-weeks.js";
+import { loadLeaderWeeks, leadersForDate, weekPublic } from "./_leader-weeks.js";
 import { placementsFor } from "./_placements.js";
 import { identities } from "./_identity.js";
 import { phoneHe } from "../shared/mechina-boards.js";
@@ -204,10 +204,7 @@ async function staffView(student, guide, session) {
       decidedBy: r.decidedBy, decidedAt: r.decidedAt,
       guideDecision: r.guideDecision, guideBy: r.guideBy,
     })),
-    weeks: (weeks || []).map((w) => ({
-      id: w.id, num: w.num, name: w.name,
-      start: w.start, end: w.end, what: w.what,
-    })),
+    weeks: (weeks || []).map((w) => weekPublic(w, { what: w.what })),
 
     /* ⚠ מה **לא** נטען. בלי זה, כשל טעינה נראה בדיוק כמו
        "אין נתונים", וזה ההבדל בין מדריך שמרים טלפון לבין

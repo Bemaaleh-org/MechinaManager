@@ -43,6 +43,7 @@ import { assignableStudents, toPublic } from "./_student-rows.js";
 import { todayFor } from "./_attendance-data.js";
 import { MECHINA_BOARDS, MECHINA_COLS } from "../shared/mechina-boards.js";
 import { guideList } from "./_guides.js";
+import { withSpans } from "../shared/week-span.js";
 
 const W = MECHINA_COLS.leaderWeeks;
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
@@ -54,7 +55,7 @@ const linkedAll = (i, c) => {
 export async function loadLeaderWeeks({ force = false } = {}) {
   return cached("leader-weeks", async () => {
     const items = await allItems(MECHINA_BOARDS.leaderWeeks);
-    return items
+    const rows = items
       .map((i) => ({
         id: String(i.id),
         name: String(i.name || "").trim(),
@@ -73,9 +74,68 @@ export async function loadLeaderWeeks({ force = false } = {}) {
         feedbackAt: val(i, W.feedbackAt) || null,
         summary: val(i, W.summary) || null,
       }))
-      .filter((w) => w.start && w.end)
-      .sort((a, b) => a.start.localeCompare(b.start) || a.num - b.num);
+      .filter((w) => w.start && w.end);
+
+    /* ============================================================
+       ⚠⚠ **שורות שחופפות הן שבוע אחד בתצוגה** (22.9.2026).
+
+       בלוח יש לשבוע 4 טווח של שבועיים שבולע את שבוע 3 כולו,
+       ולכן מיון לפי תאריך התחלה הציב את 4 לפני 3 — וזה נראה
+       כמו באג באפליקציה. `withSpans` נותן לשתי השורות את אותה
+       תווית ("שבוע 3-4") ואת הטווח המאוחד, **בלי לגעת בנתון**:
+       `num`, `start` ו-`end` נשארים כפי שהם בלוח, וכל שיבוץ
+       והרשאה ממשיכים להישען עליהם.
+
+       ⚠ והחפיפה **מדווחת** ב-`weekWarnings` — היא טעות בלוח
+         שראש המכינה צריך לתקן, ומרגע שתתוקן התווית חוזרת
+         מעצמה ל"שבוע 6" בלי דיפלוי (עיקרון 1).
+       ============================================================ */
+    const { weeks, warnings } = withSpans(rows);
+    lastWarnings = warnings;
+    return weeks;
   }, { force, ttl: 5 * 60_000 });
+}
+
+/* ============================================================
+   הצורה של שבוע שיוצאת למסך
+   ------------------------------------------------------------
+   ⚠⚠ **`label` ולא `"שבוע " + num` בכל מסך בנפרד.**
+
+   התווית נבנתה בשמונה מקומות, וכל אחד מהם היה צריך ללמוד
+   בנפרד על שבועות מאוחדים — זה בדיוק הדפוס של 4מד, שחזר
+   כאן כבר חמש פעמים. המקום היחיד שיודע לבנות תווית הוא
+   `shared/week-span.js`, והמקום היחיד שמוציא אותה החוצה
+   הוא כאן.
+
+   ⚠ **`num` ממשיך לצאת** — הוא הנתון שבלוח, והמסכים מסננים
+     ומשווים לפיו. מה שנוסף הוא איך קוראים לזה.
+
+   ⚠ **`spanKey` הוא לאיחוד ברשימות בלבד** ואינו מחליף את
+     `id`: שיבוץ, הרשאה וסימון מצביעים על שורה מסוימת.
+   ============================================================ */
+export const weekPublic = (w, extra = {}) => ({
+  id: String(w.id),
+  num: w.num,
+  name: w.name,
+  start: w.start,
+  end: w.end,
+  label: w.spanLabel || (w.num ? `שבוע ${w.num}` : (w.name || "שבוע")),
+  spanKey: w.spanKey || String(w.id),
+  spanStart: w.spanStart || w.start,
+  spanEnd: w.spanEnd || w.end,
+  merged: Boolean(w.spanMerged),
+  ...extra,
+});
+
+/* ⚠ אזהרות החפיפה נגזרות בשליפה ונשמרות לצד המטמון — הן תיאור
+   של הנתון ולא נתון משלהן, ולכן אין להן לוח ואין להן תור (4כו). */
+let lastWarnings = [];
+
+/** אזהרות על שבועות חופפים בלוח. ⚠ קוראים **אחרי**
+    `loadLeaderWeeks`, אחרת הן עדיין ריקות. */
+export async function weekWarnings() {
+  await loadLeaderWeeks();
+  return lastWarnings;
 }
 
 /**
@@ -117,9 +177,10 @@ export async function weeksOfStudent(studentId) {
   const id = String(studentId);
   return (await loadLeaderWeeks())
     .filter((w) => (w.leaderIds || []).map(String).includes(id))
-    .map((w) => ({ id: w.id, num: w.num, start: w.start, end: w.end, name: w.name,
+    .map((w) => weekPublic(w, {
       /* ⚠ עד מתי אפשר לסמן את השבוע — נשלח למסך כדי שיאמר זאת. */
-      markUntil: markUntil(w) }));
+      markUntil: markUntil(w),
+    }));
 }
 
 /* ============================================================

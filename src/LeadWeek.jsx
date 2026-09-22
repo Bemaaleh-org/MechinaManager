@@ -124,7 +124,8 @@ export default function LeadWeekPage({ say }) {
 
       <div className={"lw-hero lw-" + (state === "עכשיו" ? "now" : state === "לפני" ? "soon" : "past")}>
         <div className="lw-hero-t">
-          <div className="lw-hero-n">שבוע {w.num || w.name}</div>
+          {/* ⚠ התווית מהשרת — שבועות חופפים הם "שבוע 3-4" (22.9.2026). */}
+          <div className="lw-hero-n">{w.label || `שבוע ${w.num || w.name}`}</div>
           <div className="lw-hero-d">
             {dmy(w.start)} – {dmy(w.end)}
             {state === "עכשיו" && <span className="pill p-ok">השבוע</span>}
@@ -204,19 +205,30 @@ function WeekPicker({ d, pick, setPick }) {
   const [open, setOpen] = useState(false);
   const cur = d.weeks.find((w) => w.id === (pick || d.week.id)) || d.week;
   const i = d.weeks.findIndex((w) => w.id === cur.id);
+  /* ⚠⚠ **החץ מדלג לאשכול הבא ולא לשורה הבאה** (22.9.2026).
+     שתי שורות חופפות הן "שבוע 3-4" — מעבר ביניהן מציג בדיוק
+     את אותה כותרת, כלומר נראה כאילו הלחיצה לא נקלטה. */
+  const keyOf = (w) => (w ? (w.spanKey || w.id) : null);
+  const curKey = keyOf(cur);
+  const nextIdx = (n) => {
+    for (let k = i + n; k >= 0 && k < d.weeks.length; k += n) {
+      if (keyOf(d.weeks[k]) !== curKey) return k;
+    }
+    return -1;
+  };
 
   return (
     <div className="lw-pick">
-      <button className="btn btn-ghost btn-sm" disabled={i <= 0}
-        onClick={() => setPick(d.weeks[i - 1].id)} aria-label="השבוע הקודם">
+      <button className="btn btn-ghost btn-sm" disabled={i < 0 || nextIdx(-1) < 0}
+        onClick={() => setPick(d.weeks[nextIdx(-1)].id)} aria-label="השבוע הקודם">
         <I.chev style={{ transform: "rotate(180deg)" }} />
       </button>
       <button className="lw-pick-m" onClick={() => setOpen(!open)}>
-        שבוע {cur.num || cur.name}
+        {cur.label || `שבוע ${cur.num || cur.name}`}
         {cur.mine && <span className="pill p-ok">שלי</span>}
       </button>
-      <button className="btn btn-ghost btn-sm" disabled={i < 0 || i >= d.weeks.length - 1}
-        onClick={() => setPick(d.weeks[i + 1].id)} aria-label="השבוע הבא">
+      <button className="btn btn-ghost btn-sm" disabled={i < 0 || nextIdx(1) < 0}
+        onClick={() => setPick(d.weeks[nextIdx(1)].id)} aria-label="השבוע הבא">
         <I.chev />
       </button>
       {open && (
@@ -224,7 +236,7 @@ function WeekPicker({ d, pick, setPick }) {
           {d.weeks.map((w) => (
             <button key={w.id} className={w.id === cur.id ? "on" : ""}
               onClick={() => { setPick(w.id); setOpen(false); }}>
-              <span>שבוע {w.num || w.name}</span>
+              <span>{w.label || `שבוע ${w.num || w.name}`}</span>
               <span className="tm-faint">{dmy(w.start)}</span>
               {w.mine && <span className="pill p-ok">שלי</span>}
             </button>
@@ -902,7 +914,7 @@ function Handover({ d, say, reload }) {
     <>
       {d.prev && (
         <>
-          <div className="grp-h"><span>מה מסרו לנו · שבוע {d.prev.num || d.prev.name}</span></div>
+          <div className="grp-h"><span>מה מסרו לנו · {d.prev.label || `שבוע ${d.prev.num || d.prev.name}`}</span></div>
           {d.prev.handover
             ? <div className="tm-pre lw-prev">{d.prev.handover}</div>
             : <div className="tm-note" style={{ marginTop: 0 }}>

@@ -246,7 +246,8 @@ async function handler(req, res, session) {
       cancelled,
       unreported,
       markAll,
-      markWeeks: markWeeks.map((w) => ({ start: w.start, end: w.end, num: w.num })),
+      markWeeks: markWeeks.map((w) => ({ start: w.start, end: w.end, num: w.num,
+        label: w.spanLabel || null })),
       markToday,
       counts: {
         upcoming: upcoming.length,

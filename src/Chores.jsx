@@ -178,26 +178,56 @@ function Picker({ students, leaders, picked, onToggle, cap, busy, taken, counts 
 function WeekNav({ d, onGo }) {
   const list = d.weeks || [];
   const at = list.findIndex((w) => w.id === d.weekAt);
-  const go = (n) => { const w = list[at + n]; if (w) onGo(w.id); };
+  /* ============================================================
+     ⚠⚠ **החץ מדלג לאשכול הבא ולא לשורה הבאה** (22.9.2026).
+
+     שתי שורות חופפות הן שבוע אחד בתצוגה ("שבוע 3-4"), ולחיצה
+     על החץ משורה 4 לשורה 3 הייתה מציגה **בדיוק אותה כותרת
+     ואותם תאריכים** — כלומר נראית כאילו הכפתור לא נקלט. זה
+     בדיוק הדבר ש-4י מזהיר ממנו, בגרסת ניווט.
+     ============================================================ */
+  const keyOf = (w) => (w ? (w.spanKey || w.id) : null);
+  const curKey = keyOf(list[at]);
+  const nextIdx = (n) => {
+    for (let i = at + n; i >= 0 && i < list.length; i += n) {
+      if (keyOf(list[i]) !== curKey) return i;
+    }
+    return -1;
+  };
+  const go = (n) => { const i = nextIdx(n); if (i >= 0) onGo(list[i].id); };
   const nowId = (list.find((w) => w.now) || {}).id;
 
   return (
     <div className="ch-wnav">
-      <button className="mv-nav" disabled={at <= 0} aria-label="שבוע קודם"
+      <button className="mv-nav" disabled={at < 0 || nextIdx(-1) < 0} aria-label="שבוע קודם"
         onClick={() => go(-1)}>
         <CI.chev style={{ transform: "rotate(180deg)" }} />
       </button>
       <div className="ch-wnav-m">
+        {/* ============================================================
+            ⚠⚠ **התווית מהשרת, ושבועות חופפים נספרים פעם אחת.**
+
+            שתי שורות חופפות בלוח (שבוע 4 שבולע את 3) הופיעו
+            כאן כ"שבוע 4 · שבוע 3" — לא לפי הסדר, ופעמיים על
+            אותם ימים. `label` הוא "שבוע 3-4" לשתיהן, ולכן
+            האיחוד הוא `Set` על התווית.
+            ⚠ והתאריכים הם של **האשכול** (`spanStart`/`spanEnd`)
+              ולא של השורה, אחרת הכותרת אומרת טווח קצר מזה
+              שהמסך באמת מציג (22.9.2026).
+            ============================================================ */}
         {d.periods.length
-          ? <b>{d.periods.map((p) => "שבוע " + p.num).join(" · ")}</b>
+          ? <b>{[...new Set(d.periods.map((p) => p.label || "שבוע " + p.num))].join(" · ")}</b>
           : <b>אין שבוע</b>}
         <span>
-          {d.periods[0] ? dmy(d.periods[0].start) : ""}
-          {d.periods.length > 1 ? " – " + dmy(d.periods[d.periods.length - 1].end) : ""}
+          {d.periods[0] ? dmy(d.periods[0].spanStart || d.periods[0].start) : ""}
+          {d.periods.length > 1
+            ? " – " + dmy(d.periods[d.periods.length - 1].spanEnd
+              || d.periods[d.periods.length - 1].end)
+            : ""}
           {d.atNow ? " · השבוע" : ""}
         </span>
       </div>
-      <button className="mv-nav" disabled={at < 0 || at >= list.length - 1} aria-label="שבוע הבא"
+      <button className="mv-nav" disabled={at < 0 || nextIdx(1) < 0} aria-label="שבוע הבא"
         onClick={() => go(1)}>
         <CI.chev />
       </button>
@@ -276,7 +306,7 @@ function Sectors({ d, say, reload, goWeek }) {
               שייכת לשום דבר שעל המסך. */}
           {d.periods.map((x, i) => (
             <button key={x.id} className={pi === i ? "on" : ""} onClick={() => { setPi(i); setOpen(null); setPicked([]); }}>
-              שבוע {x.num}
+              {x.label || "שבוע " + x.num}
               <i className="seg-n">{dmy(x.start)}</i>
             </button>
           ))}
@@ -484,7 +514,7 @@ function Daily({ d, say, reload, goWeek }) {
               שייכת לשום דבר שעל המסך. */}
           {d.periods.map((x, i) => (
             <button key={x.id} className={pi === i ? "on" : ""} onClick={() => { setPi(i); setOpen(null); setPicked([]); }}>
-              שבוע {x.num}
+              {x.label || "שבוע " + x.num}
               <i className="seg-n">{dmy(x.start)}</i>
             </button>
           ))}
@@ -1009,6 +1039,24 @@ export default function ChoresPage({ say }) {
 
       {d.warnings.map((w, i) => (
         <div className="note-warn" key={i}><CI.warn />{w}</div>
+      ))}
+
+      {/* ============================================================
+          ⚠⚠ **חפיפות בלוח השבועות — נאמרות, ואינן מתוקנות בקוד.**
+
+          שתי שורות שחולקות יום אינן יכולות שתיהן להיות "השבוע"
+          של אותו יום. התצוגה מאחדת אותן ל"שבוע 3-4", והשורה
+          הזו אומרת בדיוק אילו שורות חופפות — כי התיקון הוא
+          **בלוח** ושייך לראש המכינה (עיקרון 1, 4ט).
+
+          ⚠ **רק למי שמשבץ.** לחניך שרואה את התורנות שלו אין מה
+            לעשות עם זה, והתראה שאי אפשר לפעול לפיה היא רעש
+            (4כו).
+          ============================================================ */}
+      {(d.me.sectors || d.me.daily) && (d.weekWarnings || []).map((w, i) => (
+        <div className="note-warn" key={"wk" + i}><CI.warn />
+          {w.text} — הם מוצגים כשבוע אחד. לתיקון: לעדכן את התאריכים בלוח מובילי השבוע.
+        </div>
       ))}
 
       <ScrollTabs className="tm-tabs ch-tabs">
