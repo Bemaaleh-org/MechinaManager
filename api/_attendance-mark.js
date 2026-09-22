@@ -209,7 +209,7 @@ async function handler(req, res, session) {
 
     /* ⚠ ההרשאה לתקן שורה שמקורה בבקשה מאושרת. מנהל בלבד. */
     const canOverride = session.isManager;
-    const locked = [], created = [], removed = [], changed = [];
+    const locked = [], created = [], removed = [], changed = [], kept = [];
 
     for (const w of clean) {
       const cur = byStudent.get(w.studentId);
@@ -222,6 +222,25 @@ async function handler(req, res, session) {
         continue;
       }
       if (cur.source === ABSENCE_SOURCE.request && !canOverride) { locked.push(w.name); continue; }
+      /* ============================================================
+         ⚠⚠⚠ **מוביל שבוע אינו משנה היעדרות שכבר נרשמה.**
+
+         מאז 22.9.2026 סיבת ההיעדרות אינה יוצאת אליו כלל
+         (ראו api/_attendance-day.js) — ומכאן שהוא אינו יכול
+         להחזיר אותה. בלי השורה הזו הוא היה שולח שורה בלי
+         סוג, וההשוואה שמתחת הייתה **מוחקת ויוצרת מחדש**
+         היעדרות עם סוג אחר ובלי הפירוט. נתון פרטי שנמחק
+         בשקט הוא גרוע מנתון שנחשף.
+
+         ⚠ **הוספה והסרה נשארות פתוחות לו** — זו כל עבודת
+           הסימון היומי. מה שנסגר הוא **שינוי הסיבה** של
+           שורה קיימת. לתקן: לסמן "נוכח/ת" (מוחק) ואז
+           לסמן מחדש — וזה מה שהמסך אומר לו.
+
+         ⚠ **ומדווח ב-`kept` ולא נבלע** (4ט): המסך אומר
+           "נשארו כפי שהיו", ולא "נשמר" על משהו שלא נגע.
+         ============================================================ */
+      if (!canOverride) { kept.push(w.name); continue; }
       if (cur.type !== w.type || (cur.detail || "") !== w.detail) {
         await deleteAbsence(cur.id);
         await createAbsence({
@@ -286,6 +305,9 @@ async function handler(req, res, session) {
       changed: changed.length,
       /* שורות שמקורן בבקשה מאושרת ולא נגענו בהן — המסך מסביר */
       locked: [...new Set(locked)],
+      /* ⚠ היעדרויות קיימות שמוביל שבוע שלח בחזרה ולא שונו —
+         ראו ההערה בלולאה. ריק אצל מנהל. */
+      kept: [...new Set(kept)],
     });
   } catch (e) {
     if (/תאריך בדיקה/.test(e.message)) return res.status(400).json({ error: e.message });

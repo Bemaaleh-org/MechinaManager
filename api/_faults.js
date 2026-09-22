@@ -29,7 +29,7 @@ import { israelToday } from "./_attendance-data.js";
 import {
   FAULTS, FAULTS_COLS as C, faultsReady, toStudentFault,
   FAULT_PLACE, FIXES, URGENCIES, STATUSES, FAULT_STATUS, FAULT_URGENCY,
-  KINDS, FAULT_KIND, faultKindReady,
+  KINDS, FAULT_KIND, faultKindReady, isGear,
 } from "../shared/faults-board.js";
 
 const val = (i, c) => (i.column_values.find((x) => x.id === c) || {}).text || "";
@@ -224,8 +224,16 @@ async function handler(req, res, session) {
     /* ---------- דיווח — פתוח לכל מי שמחובר ---------- */
     if (req.method === "POST") {
       const title = String(body?.title || "").trim().slice(0, 200);
-      if (!title) return res.status(400).json({ error: "לא הוזן סוג הבעיה" });
-      if (!body?.place) return res.status(400).json({ error: "יש לבחור מיקום" });
+      const gear = isGear(body?.kind);
+      if (!title) {
+        return res.status(400).json({
+          error: gear ? "לא הוזן שם הפריט" : "לא הוזן סוג הבעיה",
+        });
+      }
+      /* ⚠ **מיקום חובה בתקלה ובשדרוג, ולא בהמלצה על ציוד** —
+         ראו shared/faults-board.js. הכלל משותף לשרת ולמסך
+         דרך `isGear`, כדי ששניהם יסכימו מה חובה (4יד). */
+      if (!gear && !body?.place) return res.status(400).json({ error: "יש לבחור מיקום" });
 
       /* ⚠ שדות הטיפול אינם מתקבלים בדיווח, גם אם נשלחו: תקלה
          נפתחת "פתוחה" ובלי עלות, ומי שממלא אותם הוא הצוות. */

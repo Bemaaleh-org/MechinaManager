@@ -1342,6 +1342,28 @@ function MarkDay({ say, allowPick = false }) {
     students.filter((s) => s.source === "בקשה מאושרת").map((s) => s.id));
   const locked = canOverride ? new Set() : fromRequest;
 
+  /* ============================================================
+     ⚠⚠⚠ **מוביל שבוע אינו רואה סיבת היעדרות ואינו משנה אותה.**
+
+     בקשת ראש המכינה (22.9.2026). השרת אינו שולח לו `type`
+     ו-`detail` כלל (api/_attendance-day.js), ולכן אין לו מה
+     להחזיר — ושליחה בלי סוג הייתה מוחקת את השורה ויוצרת
+     אותה מחדש בלי הפירוט. `?action=mark` נועל את זה בשרת
+     ומדווח ב-`kept`; כאן זו התצוגה בלבד.
+
+     ⚠ **`seesReason` מגיע מהשרת ואינו נגזר כאן** — אותו כלל
+       של `canEdit` ו-`canDecide` (4יד, 4מד).
+
+     ⚠ **שתי רמות נעילה ולא אחת.** `locked` אוסר לגעת בכלל
+       (בקשה מאושרת); `reasonLocked` מרשה לסמן "נוכח/ת" —
+       שזו כל עבודת הסימון היומי — ואוסר רק לשנות את הסיבה.
+       רמה אחת הייתה מכריחה לבחור בין "המוביל אינו מסמן" לבין
+       "המוביל דורס סיבות שהוא אינו רואה".
+     ============================================================ */
+  const seesReason = data.seesReason !== false;
+  const reasonLocked = seesReason ? new Set()
+    : new Set(students.filter((s) => s.absent && !locked.has(s.id)).map((s) => s.id));
+
   /* מצב החניך: "present" | סוג היעדרות | null = לא סומן */
   const stateOf = (id) => (present.has(id) ? "present" : (draft[id] ? draft[id].type : null));
 
@@ -1498,7 +1520,10 @@ function MarkDay({ say, allowPick = false }) {
                 const st = stateOf(s.id);
                 return [
                   s.name,
-                  st === "present" ? "נוכח" : (st || "לא סומן"),
+                  /* ⚠ למוביל אין סוג, ולכן "נעדר/ת" ולא "לא סומן" —
+                     השורה כן סומנה, רק בלי סיבה שהוא רשאי לראות. */
+                  st === "present" ? "נוכח"
+                    : (st || (draft[s.id] ? "נעדר/ת" : "לא סומן")),
                   (st && st !== "present" && draft[s.id] && draft[s.id].detail) || "",
                 ];
               }),
@@ -1523,6 +1548,8 @@ function MarkDay({ say, allowPick = false }) {
           const cur = draft[s.id];
           const isLocked = locked.has(s.id);
           const isOpen = open === s.id;
+          /* ⚠ נעול לסיבה בלבד — "נוכח" נשאר פתוח. ראו ההערה מעל. */
+          const noReason = reasonLocked;
           return (
             <div key={s.id}>
               <button className="st-row" onClick={() => setOpen(isOpen ? null : s.id)}>
@@ -1536,7 +1563,10 @@ function MarkDay({ say, allowPick = false }) {
                       <span className="pill pp-ok">נוכח/ת</span>
                     ) : cur ? (
                       <>
-                        <span className={"pill " + (TYPE_PILL[cur.type] || "p-low")}>{cur.type}</span>
+                        {/* ⚠ בלי סיבה — "נעדר/ת" ולא תגית ריקה. */}
+                        <span className={"pill " + (cur.type ? (TYPE_PILL[cur.type] || "p-low") : "p-low")}>
+                          {cur.type || "נעדר/ת"}
+                        </span>
                         {cur.detail ? <span>{cur.detail}</span> : null}
                       </>
                     ) : (
@@ -1558,12 +1588,23 @@ function MarkDay({ say, allowPick = false }) {
                         : "מבקשה שאושרה — שינוי כאן מתקן את הרישום בפועל"}
                     </div>
                   )}
+                  {/* ⚠ **המחיר מוצהר במסך.** מי שרואה כפתורים מושבתים
+                      בלי מילה מסיק שהמערכת שבורה (4כב). */}
+                  {noReason.has(s.id) && (
+                    <div className="abs-lock">
+                      <MI.lock />
+                      סיבת ההיעדרות אינה מוצגת למובילי השבוע. לשינוי —
+                      לסמן "נוכח", לשמור, ואז לסמן מחדש
+                    </div>
+                  )}
                   {/* לחיצה חוזרת על מצב פעיל מנקה ל"לא סומן" */}
                   <div className="abs-pick">
                     <button className={st === "present" ? "on here" : ""} disabled={isLocked}
                       onClick={() => setState(s.id, "present")}>נוכח</button>
                     {TYPES.map((t) => (
-                      <button key={t} disabled={isLocked || (t === "חופש" && !day.vacationAllowed)}
+                      <button key={t}
+                        disabled={isLocked || noReason.has(s.id)
+                          || (t === "חופש" && !day.vacationAllowed)}
                         className={(st === t ? "on " : "") + (TYPE_CLASS[t] || "")}
                         onClick={() => setState(s.id, t)}>{t}</button>
                     ))}

@@ -268,6 +268,9 @@ function PlenaryView({ id, canEdit, roster, statuses, say, onBack }) {
   const [anon, setAnon] = useState(false);
   const [summary, setSummary] = useState("");
   const [fileMsg, setFileMsg] = useState(null);
+  /* ⚠ אישור בתוך המסך ולא confirm() של הדפדפן — הוא נראה זר,
+     ובחלק מהדפדפנים במובייל נחסם לגמרי (4ק). */
+  const [askDel, setAskDel] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -298,6 +301,27 @@ function PlenaryView({ id, canEdit, roster, statuses, say, onBack }) {
       .catch((e) => say(e.message))
       .finally(() => setBusy(false));
   };
+  /* ============================================================
+     ⚠⚠ **מחיקת מליאה — רק כשהיא ריקה מפתקים.**
+
+     בקשת ראש המכינה (22.9.2026): *"בלשונית המליאות ישנן שלוש
+     מליאות אבל שתיים מהן היו ניסיון ומאז אי אפשר למחוק אותן"*.
+     השרת כבר ידע למחוק; מה שחסר היה המסלול אליו — הרשאה בלי
+     כפתור, בדיוק הדפוס של 5לא ו-5לב.
+
+     ⚠ **והכלל של 5כח נשאר בתוקף:** מליאה עם פתקים אינה
+       נמחקת. השרת מחזיר 409 ואומר **כמה** פתקים יש ומה לעשות
+       במקום (לסמן "בוטלה") — מחיקה שקטה של עשרים פתקים היא
+       בדיוק סוג הפעולה שאי אפשר לתקן (4ק).
+     ============================================================ */
+  const del = () => {
+    setBusy(true);
+    api.deletePlenary(id)
+      .then(() => { say("המליאה נמחקה"); onBack(); })
+      .catch((e) => { setAskDel(false); say(e.message); })
+      .finally(() => setBusy(false));
+  };
+
   const patchNote = (noteId, b) => {
     setBusy(true);
     api.editPlenaryNote({ noteId, ...b })
@@ -529,6 +553,30 @@ function PlenaryView({ id, canEdit, roster, statuses, say, onBack }) {
             <label>אחראי המליאה (עד שלושה)</label>
             <OwnerPick roster={roster} value={d.owners || []} busy={busy}
               onSave={(ids) => patch({ owners: ids })} />
+          </div>
+
+          <div className="pl-del">
+            {/* ⚠ המספר מוצג **לפני** הלחיצה, כדי שמי שיש לו פתקים
+                יידע מראש למה זה ייחסם ולא יגלה זאת מ-409 (4יד). */}
+            {notes.length > 0 ? (
+              <div className="pl-nm">
+                למליאה הזו {notes.length === 1 ? "פתק אחד" : `${notes.length} פתקים`} —
+                היא אינה נמחקת. אפשר לסמן אותה "בוטלה" למעלה.
+              </div>
+            ) : askDel ? (
+              <>
+                <div className="pl-nm">למחוק את "{p.title}"? הפעולה אינה הפיכה.</div>
+                <div className="pick">
+                  <button type="button" className="btn btn-clay btn-sm"
+                    disabled={busy} onClick={del}>כן, למחוק</button>
+                  <button type="button" className="btn btn-ghost btn-sm"
+                    disabled={busy} onClick={() => setAskDel(false)}>ביטול</button>
+                </div>
+              </>
+            ) : (
+              <button type="button" className="btn btn-ghost btn-sm"
+                disabled={busy} onClick={() => setAskDel(true)}>מחיקת המליאה</button>
+            )}
           </div>
         </div>
       )}
@@ -895,4 +943,7 @@ export const PLENARY_CSS = `
   color:var(--faint);margin-top:4px}
 .pl-na{display:flex;align-items:center;gap:5px;margin-top:8px}
 .pl-read{font-size:13px;font-weight:600;color:var(--ink);line-height:1.7;white-space:pre-wrap}
+/* מחיקת מליאה — מופרדת בקו כדי שלא תיראה כעוד שדה בטופס */
+.pl-del{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.pl-del .pl-nm{margin:0 0 8px}
 `;

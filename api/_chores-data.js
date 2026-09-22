@@ -14,6 +14,7 @@ import { allItems } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
 import { CHORE_BOARDS, CHORE_COLS } from "../shared/chores-ids.js";
 import { KIND, KINDS } from "../shared/chores.js";
+import { parsePart } from "../shared/content.js";
 import { activeStudents } from "./_student-rows.js";
 import { loadLeaderWeeks } from "./_leader-weeks.js";
 
@@ -179,9 +180,18 @@ export async function loadTexts({ force = false } = {}) {
   return cached("chore-texts", async () => {
     const items = await allItems(CHORE_BOARDS.texts);
     const out = new Map();
+    /* ⚠ שורות ההמשך נאספות בנפרד ומתחברות בסוף — הן עשויות
+       לחזור מהלוח לפני השורה הראשונה. */
+    const parts = new Map();
     for (const i of items) {
       const key = String(i.name || "").trim();
       if (!key) continue;
+      const part = parsePart(key);
+      if (part) {
+        if (!parts.has(part.base)) parts.set(part.base, []);
+        parts.get(part.base).push({ n: part.n, id: String(i.id), body: val(i, T.body) || "" });
+        continue;
+      }
       out.set(key, {
         id: String(i.id),
         key,
@@ -190,6 +200,25 @@ export async function loadTexts({ force = false } = {}) {
         by: val(i, T.by) || null,
         at: val(i, T.at) || null,
       });
+    }
+    /* ============================================================
+       ⚠⚠⚠ **חיבור שורות ההמשך** — ראו ההערה ב-shared/content.js.
+         עמודת long_text ב-monday חותכת ב-2000 תווים **בשקט**,
+         ו"נהלים במכינה" נקטע כך באמצע משפט. הטקסט נשמר
+         בשורה בשם המפתח ובהמשכים `מפתח/2`, `מפתח/3`…
+
+       ⚠ **החיבור ב-`\n`** כי monday מסירה שבירת שורה בסוף התא.
+       ⚠ **ושורת המשך יתומה (בלי שורה ראשונה) מדולגת** ואינה
+         הופכת לבלוק משלה — בלוק שאינו ב-CONTENT אין לו מקום
+         במסך (4ט: לא מושמט בשקט, אלא פשוט אינו בלוק).
+       ============================================================ */
+    for (const [base, list] of parts) {
+      const head = out.get(base);
+      if (!head) continue;
+      list.sort((a, b) => a.n - b.n);
+      head.body = [head.body, ...list.map((x) => x.body)].join("\n");
+      /* ⚠ המזהים נשמרים כדי שהכתיבה תדע מה למחוק כשהטקסט מתקצר. */
+      head.partIds = list.map((x) => ({ n: x.n, id: x.id }));
     }
     return out;
   }, { force });

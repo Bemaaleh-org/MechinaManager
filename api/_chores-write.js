@@ -15,6 +15,7 @@
 import { withAuth } from "./_session.js";
 import { gql } from "./_monday.js";
 import { CHORE_BOARDS, CHORE_COLS } from "../shared/chores-ids.js";
+import { splitParts, partKey } from "../shared/content.js";
 import {
   mayChores, mayAssign, choreHint, KIND, KINDS, SAME_SECTOR_WARN,
   fridayAfterTuesday,
@@ -649,21 +650,48 @@ export const text = withAuth(async (req, res, session) => {
   const title = clip(body?.title, 200);
   const content = clip(body?.body, 20000);
 
-  const texts = await loadTexts();
-  const cols = {
-    [T.title]: title, [T.body]: content,
-    [T.by]: String(session.name || ""), [T.at]: new Date().toISOString(),
-  };
+  const texts = await loadTexts({ force: true });
   const cur = texts.get(key);
-  if (cur) {
-    await setColumns(CHORE_BOARDS.texts, cur.id, cols);
-  } else {
+
+  /* ============================================================
+     ⚠⚠⚠ **פיצול לשורות המשך — עמודת long_text מוגבלת ל-2000.**
+
+     monday חותכת בשקט. "נהלים במכינה" נכתב ארוך מזה ונשמר
+     **בדיוק 2000 תווים**, קטוע באמצע משפט — והמסך הציג את
+     החצי כאילו זה הכול (עיקרון 6 בגרסתו הגרועה).
+
+     החלק הראשון יושב בשורה בשם המפתח, וההמשך ב-`מפתח/2`,
+     `מפתח/3`… `loadTexts` מחברת בחזרה. ראו shared/content.js.
+
+     ⚠ **וחלקים שהתייתרו נמחקים.** טקסט שהתקצר משאיר אחרת זנב
+       של השורה הקודמת, והקורא יראה פסקה שמחק.
+     ⚠ **הכותרת והחתימה על השורה הראשונה בלבד** — הן של הבלוק
+       ולא של החלק, ושכפול שלהן בכל שורה היה מזמין עריכה של
+       אחת מהן בלוח.
+     ============================================================ */
+  const parts = splitParts(content);
+  const stamp = { [T.by]: String(session.name || ""), [T.at]: new Date().toISOString() };
+
+  const headCols = { [T.title]: title, [T.body]: parts[0], ...stamp };
+  if (cur) await setColumns(CHORE_BOARDS.texts, cur.id, headCols);
+  else {
     /* ⚠ **בלוק שנמחק נוצר מחדש עם אותו מפתח.** המפתח הוא שם
        הפריט ולא מזהה, ולכן אין מה לתקן בקוד. */
-    await createItem(CHORE_BOARDS.texts, key, cols);
+    await createItem(CHORE_BOARDS.texts, key, headCols);
   }
+
+  const had = new Map(((cur && cur.partIds) || []).map((x) => [x.n, x.id]));
+  for (let n = 2; n <= parts.length; n++) {
+    const id = had.get(n);
+    const cols = { [T.body]: parts[n - 1], ...stamp };
+    if (id) await setColumns(CHORE_BOARDS.texts, id, cols);
+    else await createItem(CHORE_BOARDS.texts, partKey(key, n), cols);
+    had.delete(n);
+  }
+  for (const id of had.values()) await deleteItem(id);
+
   invalidateChores();
-  return res.status(200).json({ ok: true, key });
+  return res.status(200).json({ ok: true, key, parts: parts.length });
 }, { student: true });
 
 async function weekFor(weeks, iso) {

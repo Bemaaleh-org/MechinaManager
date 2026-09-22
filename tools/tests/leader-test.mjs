@@ -21,7 +21,10 @@ import { AUTH_BOARD, AUTH_COLS } from "../../shared/auth-board.js";
 import { studentRows } from "../../api/_student-rows.js";
 import { invalidate } from "../../api/_cache.js";
 import { MECHINA_BOARDS, MECHINA_COLS } from "../../shared/mechina-boards.js";
-import { loadCalendar, isSchoolDay, loadMarked } from "../../api/_attendance-data.js";
+import {
+  loadCalendar, isSchoolDay, loadMarked, loadAbsences,
+  createAbsence, deleteAbsence,
+} from "../../api/_attendance-data.js";
 import { LEAD_BOARDS, LEAD_COLS, leadReady } from "../../shared/lead-ids.js";
 
 const B = "http://localhost:5173";
@@ -88,6 +91,8 @@ const textBefore = {
 };
 /* מה שהבדיקה יצרה — נמחק לפי מזהה, ולא לפי סינון ערכים. */
 const madeLead = [];
+/* ⚠ שורות היעדרות שהבדיקה יצרה — אותו כלל בדיוק. */
+const madeAbs = [];
 
 /* ============================================================
    ⚠⚠ **השיבוץ נעשה דרך ה-API ולא בכתיבה ישירה ללוח.**
@@ -153,6 +158,87 @@ try {
   const second = await call(S, "GET", "/api/attendance?action=day" + T + "&date=" + inside[1]);
   ok("וגם ביום שני בשבוע שלו", second.s === 200 && second.b.canMark === true,
     `${second.s} ${second.b.canMark}`);
+
+  /* ============================================================
+     ⚠⚠⚠ **סיבת ההיעדרות אינה מגיעה למוביל השבוע.**
+
+     בקשת ראש המכינה (22.9.2026): *"זה לא העניין של המובילשים
+     לאן כל חניך שיוצא לחופש... זה פוגע בפרטיותם"*.
+
+     ⚠⚠ **שלושה כיוונים באותה הרצה**, ואחד לבדו היה נשאר ירוק
+       גם אילו הגבול נפל:
+       1. המוביל אינו מקבל `type` ו-`detail` על אף שורה.
+       2. המנהל **כן** מקבל אותם על אותה שורה בדיוק — אחרת
+          "עבר" עשוי לומר רק שאין היעדרות באותו יום.
+       3. והכתיבה נעולה: מוביל ששולח את השורה בחזרה בלי סוג
+          אינו דורס אותה. בלי (3), נתון פרטי שנמחק בשקט הוא
+          גרוע מנתון שנחשף.
+
+     ⚠ **השורה נוצרת כאן ונמחקת לפי מזהה** — לא סינון ערכים,
+       ולא `?action=mark` שדורס את רשימת הנוכחים של היום (5א).
+     ============================================================ */
+  console.log("\n=== סיבת ההיעדרות אינה מגיעה למוביל ===");
+  ok("השרת מצהיר שהמוביל אינו רואה סיבות",
+    day.b.seesReason === false, String(day.b.seesReason));
+  ok("ולמנהל הוא מצהיר שכן",
+    (await call(M, "GET", "/api/attendance?action=day" + T + "&date=" + inside[0]))
+      .b.seesReason === true);
+
+  /* ⚠ חניך שאין לו היעדרות באותו יום — כדי לא לגעת בנתון קיים. */
+  const onThatDay = new Set((await loadAbsences({ force: true }))
+    .filter((a) => a.date === inside[0]).map((a) => a.studentId));
+  const victim = (day.b.students || []).find((x) => !onThatDay.has(String(x.id)));
+  if (!victim) console.log("  (לכל החניכים כבר יש היעדרות ביום הזה — מדולג)");
+  else {
+    const made = await createAbsence({
+      studentId: victim.id, studentName: victim.name, date: inside[0],
+      type: "מוצדקת", detail: "בדיקה אוטומטית — פרטיות מובילי השבוע",
+      source: "סימון ידני",
+    });
+    if (made) madeAbs.push(String(made));
+
+    /* ⚠ ממתינים על **השרת** ולא על monday: המטמון שלו בן חמש
+       דקות ויושב בתהליך אחר (הערה בראש CLAUDE.md). */
+    let mg = null;
+    for (let i = 0; i < 45; i++) {
+      mg = await call(M, "GET", "/api/attendance?action=day" + T + "&date=" + inside[0]);
+      const row = (mg.b.students || []).find((x) => String(x.id) === String(victim.id));
+      if (row && row.absent) break;
+      await new Promise((z) => setTimeout(z, 1000));
+    }
+    const mRow = (mg.b.students || []).find((x) => String(x.id) === String(victim.id));
+    ok("המנהל רואה את הסוג", mRow && mRow.type === "מוצדקת", mRow && String(mRow.type));
+    ok("ואת הפירוט", mRow && /בדיקה אוטומטית/.test(mRow.detail || ""),
+      mRow && String(mRow.detail));
+
+    const ld = await call(S, "GET", "/api/attendance?action=day" + T + "&date=" + inside[0]);
+    const lRow = (ld.b.students || []).find((x) => String(x.id) === String(victim.id));
+    ok("המוביל רואה שהוא נעדר", lRow && lRow.absent === true, lRow && String(lRow.absent));
+    ok("ולא את הסוג", lRow && lRow.type === null, lRow && String(lRow.type));
+    ok("ולא את הפירוט", lRow && lRow.detail === null, lRow && String(lRow.detail));
+    ok("ואף שורה אחרת אינה נושאת סיבה",
+      (ld.b.students || []).every((x) => x.type === null && x.detail === null));
+
+    /* ⚠⚠ הכיוון השלישי — הכתיבה. המוביל שולח את השורה בחזרה
+       עם סוג אחר, וזו בדיוק הבקשה שהמסך שלו היה שולח אילו
+       לא היה נעול. */
+    const w = await call(S, "POST", "/api/attendance?action=mark" + T, {
+      date: inside[0],
+      absences: [{ studentId: String(victim.id), type: "חופש" }],
+      present: [],
+    });
+    ok("סימון של המוביל עובר", w.s === 200, `${w.s} ${w.b.error || ""}`);
+    ok("והשרת מדווח שהשורה נשארה כפי שהיא",
+      (w.b.kept || []).includes(victim.name), JSON.stringify(w.b.kept || []));
+    const still = (await loadAbsences({ force: true }))
+      .find((a) => a.date === inside[0] && String(a.studentId) === String(victim.id));
+    ok("והסוג בלוח לא השתנה", still && still.type === "מוצדקת", still && String(still.type));
+    ok("והפירוט שרד", still && /בדיקה אוטומטית/.test(still.detail || ""),
+      still && String(still.detail));
+    /* ⚠ השורה עשויה להיות אותה שורה או אחרת אם מישהו נגע —
+       שומרים גם את המזהה הנוכחי לניקוי. */
+    if (still && !madeAbs.includes(String(still.id))) madeAbs.push(String(still.id));
+  }
 
   console.log("\n=== מה שמחוץ לטווח ===");
   if (!outsideDay) { console.log("  (אין יום לימוד מחוץ לשבוע — מדולג)"); }
@@ -533,6 +619,12 @@ try {
       typeof mg2.b.template);
   }
 } finally {
+  /* ⚠ שורות ההיעדרות שהבדיקה יצרה — לפי מזהה בלבד. */
+  for (const id of madeAbs) {
+    await deleteAbsence(id).catch((e) => console.log("  ! היעדרות " + id + " לא נמחקה: " + e.message));
+  }
+  if (madeAbs.length) console.log("  נמחקו " + madeAbs.length + " שורות היעדרות של הבדיקה");
+
   /* ⚠ **לספור מה נוצר בלוח שהפעולה נוגעת בו, ולא רק בלוח
      הראשי.** `?action=mark` יוצר שורה בלוח ימי הסימון לכל
      תאריך שנוגעים בו, וגרסה ראשונה של הבדיקה השאירה שם יום

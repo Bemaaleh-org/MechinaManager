@@ -20,7 +20,8 @@ import { readUpload } from "./upload-image.js";
 import { api } from "./api.js";
 import ScrollTabs from "./Tabs.jsx";
 import {
-  FAULT_PLACE, FIXES, URGENCIES, KINDS, FAULT_KIND, STATUSES, FAULT_STATUS, FAULT_URGENCY,
+  FAULT_PLACE, FIXES, URGENCIES, KINDS, FAULT_KIND, isGear,
+  STATUSES, FAULT_STATUS, FAULT_URGENCY,
 } from "../shared/faults-board.js";
 
 const FI = {
@@ -123,11 +124,24 @@ function FaultForm({ initial, say, onDone, onCancel, reporter = false }) {
 
   /* ⚠ אופן התיקון חובה בדיווח חדש בלבד — תקלה ישנה בלי ערך לא
      תינעל לעריכה בגללו. */
+  /* ============================================================
+     ⚠⚠ **המלצה על ציוד — שם הפריט והנימוק, ותו לא.**
+
+     בקשת ראש המכינה (22.9.2026): *"שם הפריט ופירוט מדוע צריך
+     אותו... אופציה שאינה חובה להגשה"*. מיקום, אופן התיקון
+     ודחיפות הם שאלות על **תקלה**; דרישה למלא אותם על המלצה
+     לקנות מקרר מלמדת לבחור ערך שרירותי, וזה מזהם בדיוק את
+     הסינון שאב הבית עובד לפיו.
+
+     ⚠ **והכלל משותף לשרת ולמסך** דרך `isGear` — כפתור שמופיע
+       ומקבל 400 אחרי שהמשתמש כבר הקליד הוא בדיוק 4יד.
+     ============================================================ */
+  const gear = isGear(f.kind);
   const missing = [
-    !f.title.trim() && "סוג הבעיה",
-    !f.place && "מיקום",
-    !editing && !f.fix && "אופן התיקון",
-    !f.urgency && "דחיפות",
+    !f.title.trim() && (gear ? "שם הפריט" : "סוג הבעיה"),
+    !gear && !f.place && "מיקום",
+    !gear && !editing && !f.fix && "אופן התיקון",
+    !gear && !f.urgency && "דחיפות",
   ].filter(Boolean);
   const canSave = missing.length === 0;
 
@@ -184,16 +198,22 @@ function FaultForm({ initial, say, onDone, onCancel, reporter = false }) {
       <div className="screen-title">
         {/* ⚠ הכותרת נגזרת ממה שנבחר, ולא קבועה על "תקלה". */}
         {editing
-          ? (reporter ? "עריכת הדיווח" : `עריכת ${f.kind === FAULT_KIND.upgrade ? "השדרוג" : "התקלה"}`)
-          : (f.kind === FAULT_KIND.upgrade ? "שדרוג חדש" : "תקלה חדשה")}
+          ? (reporter ? "עריכת הדיווח"
+            : `עריכת ${gear ? "ההמלצה" : f.kind === FAULT_KIND.upgrade ? "השדרוג" : "התקלה"}`)
+          : (gear ? "המלצה על ציוד"
+            : f.kind === FAULT_KIND.upgrade ? "שדרוג חדש" : "תקלה חדשה")}
       </div>
 
       <div className="card lift">
         <div className="fld">
-          <label>{f.kind === FAULT_KIND.upgrade ? "מה לשדרג" : "סוג הבעיה"}<Req on={!f.title.trim()} /></label>
+          <label>
+            {gear ? "שם הפריט" : f.kind === FAULT_KIND.upgrade ? "מה לשדרג" : "סוג הבעיה"}
+            <Req on={!f.title.trim()} />
+          </label>
           <input value={f.title} onChange={setT("title")} disabled={busy} autoFocus={!editing}
-            placeholder={f.kind === FAULT_KIND.upgrade
-              ? "מה כדאי לשפר, במשפט" : "מה התקלקל, במשפט"} />
+            placeholder={gear ? "איזה פריט, בשמו"
+              : f.kind === FAULT_KIND.upgrade
+                ? "מה כדאי לשפר, במשפט" : "מה התקלקל, במשפט"} />
         </div>
 
         {/* ⚠⚠ **ראשון בטופס, ולא בסוף.** הוא משנה את משמעות
@@ -202,21 +222,29 @@ function FaultForm({ initial, say, onDone, onCancel, reporter = false }) {
             הכול מבקשת לקרוא את הטופס מחדש. */}
         <Pick label="מה זה" options={KINDS} value={f.kind} onChange={set("kind")} disabled={busy} />
 
-        <Pick label="מיקום" options={FAULT_PLACE} value={f.place} onChange={set("place")} disabled={busy} required />
+        {/* ⚠ **מוסתרים ולא מושבתים.** שדה מושבת שאי אפשר להבין
+            למה הוא שם הוא רעש; הוא חוזר מיד ברגע שבוחרים
+            "תקלה" או "שדרוג". */}
+        {!gear && (
+          <>
+            <Pick label="מיקום" options={FAULT_PLACE} value={f.place} onChange={set("place")} disabled={busy} required />
 
-        <Pick label="אופן התיקון" options={FIXES} value={f.fix} onChange={set("fix")} disabled={busy}
-          required={!editing} sep />
-        <Pick label="דחיפות" options={URGENCIES} value={f.urgency} onChange={set("urgency")} disabled={busy}
-          required sep />
+            <Pick label="אופן התיקון" options={FIXES} value={f.fix} onChange={set("fix")} disabled={busy}
+              required={!editing} sep />
+            <Pick label="דחיפות" options={URGENCIES} value={f.urgency} onChange={set("urgency")} disabled={busy}
+              required sep />
+          </>
+        )}
 
         {staffEdit && (
           <Pick label="סטטוס" options={STATUSES} value={f.status} onChange={set("status")} disabled={busy} />
         )}
 
         <div className="fld">
-          <label>תיאור הבעיה</label>
+          <label>{gear ? "למה צריך אותו" : "תיאור הבעיה"}</label>
           <textarea rows={3} value={f.desc} onChange={setT("desc")} disabled={busy}
-            placeholder="מה בדיוק קרה, ממתי, מה כבר נוסה" />
+            placeholder={gear ? "מה זה יפתור, מי ישתמש בו, ומה עושים בלעדיו היום"
+              : "מה בדיוק קרה, ממתי, מה כבר נוסה"} />
         </div>
 
         {/* ---- תמונה ---- */}
@@ -420,6 +448,9 @@ function FaultCard({ x, onOpen }) {
               בתורניות (4ק). ⚠ ובגוון תחום ולא בצבע מצב
               — שדרוג אינו בעיה ואינו תקין (4ג). */}
           {x.kind === FAULT_KIND.upgrade && <span className="pill p-up">שדרוג</span>}
+          {/* ⚠ תגית משלה — המלצה על ציוד אינה תקלה פתוחה, ומי
+              שסורק את הרשימה צריך להבחין בעין. */}
+          {isGear(x.kind) && <span className="pill p-gear">המלצת ציוד</span>}
           {x.place && <span>{x.place}</span>}
           {x.fix && <span>· {x.fix}</span>}
           <span className="num">{heDate(x.date)}</span>

@@ -17,7 +17,7 @@ import { gql } from "../../api/_monday.js";
 import { tempRegister } from "./_auth.mjs";
 import { AUTH_BOARD, AUTH_COLS } from "../../shared/auth-board.js";
 import { PROFESSIONS, prosReady, PRO_BOARDS } from "../../shared/pros-board.js";
-import { KINDS, FAULT_KIND, faultKindReady } from "../../shared/faults-board.js";
+import { KINDS, FAULT_KIND, faultKindReady, isGear } from "../../shared/faults-board.js";
 
 const B = "http://localhost:5173";
 let pass = 0, fail = 0;
@@ -137,10 +137,13 @@ try {
   ok("אב הבית רשאי", mayPros({ isStudent: true, isHouse: true }) === true);
   ok("וחניך רגיל אינו", mayPros({ isStudent: true }) === false);
 
-  /* ============ 4 · תקלה או שדרוג ============ */
-  console.log("\n4 · תקלה מול שדרוג");
+  /* ============ 4 · תקלה, שדרוג, והמלצה על ציוד ============ */
+  console.log("\n4 · שלושת סוגי הדיווח");
   ok("העמודה הוקמה", faultKindReady());
-  ok("ושני הסוגים מוכרים", KINDS.length === 2 && KINDS[0] === FAULT_KIND.fault,
+  /* ⚠ **"תקלה" ראשונה ונשארת ראשונה** — ריק בשורה נקרא כמוה,
+     ו-40 השורות הישנות נשענות על זה. */
+  ok("ושלושת הסוגים מוכרים",
+    KINDS.length === 3 && KINDS[0] === FAULT_KIND.fault && isGear(FAULT_KIND.gear),
     KINDS.join(" · "));
   r = await call(D, "GET", "/api/students?action=faults");
   const faults = r.b.faults || [];
@@ -151,6 +154,30 @@ try {
   ok("ולכל שורה יש סוג, וריק נקרא כתקלה",
     faults.every((x) => KINDS.includes(x.kind)),
     [...new Set(faults.map((x) => x.kind))].join(" · "));
+
+  /* ============================================================
+     ⚠⚠ **המלצה על ציוד — נשמרת בלי מיקום, ותקלה עדיין דורשת.**
+
+     בקשת ראש המכינה (22.9.2026). שני הכיוונים באותה הרצה:
+     הראשון לבדו היה נשאר ירוק גם אילו המיקום נפתח לכולם,
+     והשני לבדו — גם אילו ההמלצה לא הייתה נשמרת כלל.
+     ============================================================ */
+  const GEAR = "בדיקה — מקרר " + Date.now();
+  r = await call(D, "POST", "/api/students?action=faults",
+    { title: GEAR, kind: FAULT_KIND.gear, desc: "בדיקה אוטומטית" });
+  ok("המלצה על ציוד נשמרת בלי מיקום", r.s === 200 && r.b.id, `${r.s} ${r.b.error || ""}`);
+  if (r.b && r.b.id) made.push(String(r.b.id));
+
+  r = await call(D, "GET", "/api/students?action=faults");
+  const gearRow = (r.b.faults || []).find((x) => x.title === GEAR || x.name === GEAR);
+  ok("והיא חוזרת עם הסוג הנכון", gearRow && gearRow.kind === FAULT_KIND.gear,
+    gearRow ? gearRow.kind : "לא נמצאה");
+
+  r = await call(D, "POST", "/api/students?action=faults",
+    { title: "בדיקה — תקלה בלי מיקום " + Date.now(), kind: FAULT_KIND.fault });
+  ok("ותקלה בלי מיקום עדיין נדחית",
+    r.s === 400 && /מיקום/.test(r.b.error || ""), `${r.s} ${r.b.error || ""}`);
+  if (r.s === 200 && r.b.id) made.push(String(r.b.id));
 } finally {
   await cleanup();
   if (reg) await reg.restore().catch(() => {});
