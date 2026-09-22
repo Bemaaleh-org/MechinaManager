@@ -125,6 +125,11 @@ export const diningHeadsReady = () => Boolean(BUDGET_COLS.days.diningHeads);
 export const receiptReady = () =>
   Boolean(BUDGET_COLS.orders.receipt && BUDGET_COLS.orders.by);
 
+/** האם עמודת "נרשמה על ידי" הוקמה (npm run seed:order-by).
+    ⚠ היעדרה אינו מפיל דבר — השורה פשוט ללא שם,
+      כמו כל הקניות שנרשמו לפני שהעמודה נולדה. */
+export const orderByReady = () => Boolean(BUDGET_COLS.orders.createdBy);
+
 /* ------------------------------------------------------------
    חישוב יום
    ------------------------------------------------------------ */

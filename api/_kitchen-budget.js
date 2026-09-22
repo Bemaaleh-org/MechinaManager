@@ -24,7 +24,7 @@ import {
   BUDGET_BOARDS as B, BUDGET_COLS as C, budgetReady,
   DEFAULT_HEADCOUNT, SETTING_HEADCOUNT,
   SETTING_DINING_RATE, SETTING_DINING_BUDGET, DEFAULT_DINING_RATE,
-  diningHeadsReady, receiptReady, DAY_COMMUNITY,
+  diningHeadsReady, receiptReady, orderByReady, DAY_COMMUNITY,
   dayCost, perPersonOf, sortTypes, orderShareFor, monthsOf,
   headcountAt, ORDER_KIND, ORDER_KINDS,
 } from "../shared/budget-boards.js";
@@ -123,6 +123,9 @@ async function loadOrders({ force = false } = {}) {
            שנכתבה ביד ב-monday מופיעה מיד. */
         receipt: fileOf(i, C.orders.receipt),
         by: val(i, C.orders.by) || null,
+        /* ⚠ מי רשם את הקנייה — ריק בשורות שנרשמו לפני
+           שהעמודה נולדה, והמסך מציג אז רק את מה שיש. */
+        createdBy: (C.orders.createdBy && val(i, C.orders.createdBy)) || null,
       }))
       .filter((x) => x.name && (x.startMonth || x.date));
   }, { force });
@@ -1174,6 +1177,11 @@ async function handler(req, res, session) {
         [C.orders.kind]: { label: kind },
         [C.orders.note]: String(body.note || "").slice(0, 200),
       };
+      /* ⚠⚠ **מי רשם את הקנייה** (בקשת ראש המכינה, 22.9.2026).
+         נפרד מ-`by` — זה מי שהעלה את הקבלה, ושניהם
+         עשויים להיות אנשים שונים. ⚠ נכתב רק אם העמודה
+         הוקמה: מפתח ריק מפיל את כל הקריאה. */
+      if (orderByReady()) cols[C.orders.createdBy] = actorName(session).slice(0, 120);
 
       if (kind === ORDER_KIND.weekly) {
         /* ⚠ שבועית נזקפת כולה לחודש שבו נעשתה — התאריך הוא

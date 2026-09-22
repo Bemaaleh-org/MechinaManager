@@ -221,9 +221,14 @@ function Sectors({ d, say, reload, goWeek }) {
   const p = d.periods[pi];
   if (!p) return <div className="empty"><b>אין תקופות לשבץ אליהן</b></div>;
 
-  const start = (s) => {
-    setOpen(s.id);
-    setPicked(s.members.map((m) => m.id));
+  /* ⚠⚠ **מקבלת את הגזרה החיה (`live`) ולא את ההגדרה.**
+     שתי צורות של "גזרה" נעות במסך הזה — `d.sectors`
+     (שם ומכסה) ו-`p.sectors` (מי משובץ השבוע) — ורק
+     לשנייה יש `members`. קריאה לשניהן `s` היא בדיוק
+     מה שהפיל את המסך ב-22.9. */
+  const start = (live) => {
+    setOpen(live.id);
+    setPicked(live.members.map((m) => m.id));
   };
   const save = (s, clear) => {
     if (busy) return;
@@ -340,11 +345,28 @@ function Sectors({ d, say, reload, goWeek }) {
                   taken={takenBy(s.id)} counts={countsOf(d, s.id)}
                   onToggle={(id) => setPicked((v) =>
                     v.includes(id) ? v.filter((x) => x !== id) : [...v, id])} />
-                <button className={"btn " + (!picked.length && s.members.length ? "btn-clay" : "btn-primary")}
+                {/* ============================================================
+                    ⚠⚠⚠ **`live.members` ולא `s.members`.**
+
+                    הדיווח (ראש המכינה, 22.9.2026): אב הבית
+                    נתקל ב-*"undefined is not an object (evaluating
+                    'S.members.length')"* ברגע שפתח גזרה.
+
+                    ⚠ `s` הוא **הגדרת** הגזרה מ-`d.sectors` — שם,
+                      סוג, מכסה, פירוט — **ואין בה משובצים כלל**.
+                      הרשימה החיה היא `live.members`, והיא אף נופלת
+                      ל-`{ members: [] }` שלושים שורות מעל — כל שאר
+                      הקובץ משתמש בה, ורק השורה הזו נכתבה אחרת.
+
+                    ⚠⚠ **ו-`vite build` לא תפס את זה**, כמו כל שאר
+                      שגיאות זמן הריצה (`check:undef` תופס משתנה
+                      שאינו מוגדר, לא שדה שאינו קיים על אובייקט).
+                    ============================================================ */}
+                <button className={"btn " + (!picked.length && live.members.length ? "btn-clay" : "btn-primary")}
                   style={{ width: "100%", marginTop: 10 }}
                   disabled={busy} onClick={() => save(s)}>
                   {busy ? "שומר…"
-                    : !picked.length && s.members.length ? "ניקוי הגזרה"
+                    : !picked.length && live.members.length ? "ניקוי הגזרה"
                     : `שמירת השיבוץ (${picked.length})`}
                 </button>
               </div>

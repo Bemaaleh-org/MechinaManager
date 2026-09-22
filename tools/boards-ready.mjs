@@ -113,6 +113,12 @@ export const STEPS = [
   { script: "tools/seed-meeting-contact.mjs", title: "טלפון ואימייל המרצה על המפגש",
     args: ["--go"],
     ids: "shared/lessons-boards.js", ready: "meetingContactReady" },
+  /* ⚠ שלב שלישי על shared/budget-boards.js (הקודמים הם
+     ספירת הסועדים והקבלה) — הזיהוי הוא הצמד
+     ids+ready ולא שם הקובץ (5לב). */
+  { script: "tools/seed-order-by.mjs", title: "מי רשם את הקנייה",
+    args: ["--go"],
+    ids: "shared/budget-boards.js", ready: "orderByReady" },
 ];
 
 /**
