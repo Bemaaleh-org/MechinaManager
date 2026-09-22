@@ -193,3 +193,27 @@ export function weekIndexFor(weeks, today) {
   if (ahead >= 0) return ahead;
   return list.length - 1;
 }
+
+/**
+ * כל מזהי השורות שבאותו אשכול עם `weekId`.
+ *
+ * ⚠⚠ **הקריאה והכתיבה חייבות לראות את אותו היקף.** מסך
+ *   התורנויות מציג שיבוצים מכל שורות האשכול (שתי שורות
+ *   חופפות הן שבוע אחד), ואם הכתיבה תסתכל על שורה אחת בלבד
+ *   ייווצר שיבוץ שמוצג ואי אפשר להסיר — שורה שאין לה מסך
+ *   לא תימחק לעולם (4צ).
+ *
+ * ⚠ נופל למזהה עצמו כשאין לו אשכול, ולכן בטוח גם על לוח
+ *   שאין בו שום חפיפה.
+ */
+export function spanIdsOf(weeks, weekId) {
+  const id = String(weekId || "");
+  if (!id) return [];
+  const hit = (weeks || []).find((w) => String(w.id) === id);
+  const key = hit && (hit.spanKey || hit.id);
+  if (!key) return [id];
+  const ids = (weeks || [])
+    .filter((w) => String(w.spanKey || w.id) === String(key))
+    .map((w) => String(w.id));
+  return ids.length ? ids : [id];
+}

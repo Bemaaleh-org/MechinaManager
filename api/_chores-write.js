@@ -15,6 +15,7 @@
 import { withAuth } from "./_session.js";
 import { gql } from "./_monday.js";
 import { CHORE_BOARDS, CHORE_COLS } from "../shared/chores-ids.js";
+import { spanIdsOf } from "../shared/week-span.js";
 import { splitParts, partKey } from "../shared/content.js";
 import {
   mayChores, mayAssign, choreHint, KIND, KINDS, SAME_SECTOR_WARN,
@@ -98,6 +99,21 @@ export const assign = withAuth(async (req, res, session) => {
   const week = weekId ? weeks.find((w) => w.id === weekId) : await weekFor(weeks, date);
   if (weekId && !week) return res.status(404).json({ error: "השבוע אינו נמצא" });
 
+  /* ============================================================
+     ⚠⚠⚠ **ההיקף הוא האשכול ולא השורה** (22.9.2026).
+
+     שתי שורות חופפות בלוח מובילי השבוע הן **שבוע אחד**
+     בתצוגה, ומסך התורנויות מציג את השיבוצים של שתיהן
+     (api/_chores-view.js). אילו הכתיבה הייתה מסתכלת על שורה
+     אחת בלבד, שיבוץ שנרשם על השורה השנייה היה **מוצג ובלתי
+     ניתן להסרה** — בדיוק "שורה שאין לה מסך לא תימחק לעולם"
+     (4צ). הקריאה והכתיבה חולקות את `spanIdsOf`.
+
+     ⚠ **היצירה נשארת על השורה שנשלחה** — היא השורה שהמסך
+       הציע, ואין טעם לפזר שורות חדשות על פני האשכול.
+     ============================================================ */
+  const spanIds = week ? new Set(spanIdsOf(weeks, week.id)) : new Set();
+
   /* ---------- מי מותר ---------- */
   const roster = await assignableStudents();
   const byId = new Map(roster.map((r) => [r.id, r]));
@@ -160,7 +176,7 @@ export const assign = withAuth(async (req, res, session) => {
      ============================================================ */
   {
     const same = (r) => sector.kind === KIND.evening
-      ? r.week === week.id : r.date === date;
+      ? spanIds.has(r.week) : r.date === date;
     const clash = [];
     for (const id of ids) {
       const hit = all.list.find((r) => r.student === id && r.sector !== sector.id && same(r));
@@ -181,7 +197,7 @@ export const assign = withAuth(async (req, res, session) => {
     const evening = eveningSectors(sectors);
     const from = new Map();
     for (const id of ids) {
-      const ev = all.list.find((r) => r.week === week.id && r.student === id
+      const ev = all.list.find((r) => spanIds.has(r.week) && r.student === id
         && evening.some((s) => s.id === r.sector));
       const k = ev ? ev.sectorName : "ללא גזרה";
       from.set(k, (from.get(k) || 0) + 1);
@@ -197,7 +213,7 @@ export const assign = withAuth(async (req, res, session) => {
   }
 
   /* ---------- ההפרש ---------- */
-  const scope = (r) => sector.kind === KIND.evening ? r.week === week.id : r.date === date;
+  const scope = (r) => sector.kind === KIND.evening ? spanIds.has(r.week) : r.date === date;
   const current = all.list.filter((r) => r.sector === sector.id && scope(r));
   const want = new Set(ids);
   const drop = current.filter((r) => !want.has(r.student));

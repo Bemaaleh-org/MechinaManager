@@ -24,7 +24,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { api } from "./api.js";
 import TextBlock from "./TextBlock.jsx";
 import ScrollTabs from "./Tabs.jsx";
-import { KIND, SAME_SECTOR_WARN,
+import { KIND, SAME_SECTOR_WARN, choreHint,
   fridayAfterTuesday, dowOf, TUESDAY,
 } from "../shared/chores.js";
 
@@ -365,6 +365,34 @@ function Sectors({ d, say, reload, goWeek }) {
             {isOpen && (
               <div className="ch-sec-t">
                 <Tally rows={d.tally.filter((t) => t.sector === s.id)} compact />
+              </div>
+            )}
+
+            {/* ============================================================
+                ⚠⚠⚠ **מסך שאינו נותן לשבץ חייב לומר למה** (22.9.2026).
+
+                הדיווח: *"אב הבית לא יכול בכלל לשבץ אנשים לגזרות"*.
+                עד כאן, גזרה שנפתחה בלי בורר הציגה טבלה ותו לא —
+                בלי כפתור, בלי הודעה, ובלי שום דרך לדעת אם זו
+                הרשאה, תקלת טעינה או מסך שבור. זה עיקרון 6 בגרסה
+                הגרועה: מצב כשל שנראה בדיוק כמו מצב ריק.
+
+                שתי סיבות אפשריות, ולכל אחת משפט משלה:
+                ⚠ **אין הרשאה** → `choreHint` אומר **מי כן רשאי**,
+                  ולא "אין הרשאה" (4כב).
+                ⚠ **יש הרשאה ואין `admin`** → זו תקלת טעינה, ולא
+                  החלטה. רענון הוא מה שעוזר, וזה מה שכתוב.
+                ============================================================ */}
+            {isOpen && !d.me.assign && (
+              <div className="ch-sec-b">
+                <div className="note-warn"><CI.warn />{choreHint("assign")}</div>
+              </div>
+            )}
+            {isOpen && d.me.assign && !d.admin && (
+              <div className="ch-sec-b">
+                <div className="note-warn"><CI.warn />
+                  רשימת החניכים לא נטענה. לרענן את הדף — ההרשאה עצמה תקינה.
+                </div>
               </div>
             )}
 

@@ -14,7 +14,7 @@ import { AUTH_BOARD, AUTH_COLS } from "../../shared/auth-board.js";
 import { studentRows } from "../../api/_student-rows.js";
 import { CHORE_BOARDS, CHORE_COLS } from "../../shared/chores-ids.js";
 import { MECHINA_BOARDS } from "../../shared/mechina-boards.js";
-import { ROLES_COL } from "../../shared/lessons-boards.js";
+import { ROLES_COL, ROLE_HOUSE } from "../../shared/lessons-boards.js";
 import { invalidate } from "../../api/_cache.js";
 import {
   KIND, fridayAfterTuesday, dowOf, TUESDAY, mayChores, mayAssign,
@@ -371,6 +371,72 @@ try {
   const vPerm = mayChores({ viewOnly: true, isKitchen: true });
   ok("וצפייה בלבד גוברת על התפקיד",
     mayAssign(vPerm, KIND.daily) === false, JSON.stringify(vPerm));
+
+  /* ============================================================
+     5ג · אב הבית משבץ — מקצה לקצה, ולא רק `mayChores`
+     ------------------------------------------------------------
+     ⚠⚠⚠ הדיווח (ראש המכינה, 22.9.2026): *"אב הבית 'כרמל רשף'
+       לא יכול בכלל לשבץ אנשים לגזרות"*.
+
+     5ב בודק את **הכלל** (`mayChores`), וזה לא מספיק: הכלל היה
+     תקין כל הזמן, והשאלה היא אם המסלול **בפועל** עובד לחניך
+     שנושא את התפקיד הזה **ורק אותו**. חשבון הבדיקה נושא חמישה
+     תפקידים, ולכן כל שאר הבדיקה רצה דרך צירוף שאינו קיים
+     באף חניך אמיתי — בדיוק העיוורון של 5כז.
+
+     ⚠ **וארבעה שלבים, לא אחד.** ההרשאה · בלוק ה-admin עם
+       רשימת החניכים (בלעדיו המסך נפתח בלי בורר, וזה נראה
+       כמו "אי אפשר לשבץ") · שיבוץ · וניקוי.
+     ============================================================ */
+  console.log("\n5ג · אב בית בלבד — מקצה לקצה");
+  await setDemoRoles([ROLE_HOUSE]);
+  await call(PLAIN, "POST", "/api/auth?action=signin",
+    { user: DEMO_USER, password: DEMO_PASS });
+  const sawHouse = await until("השרת רואה אב בית בלבד", async () => {
+    const x = await call(PLAIN, "GET", "/api/chores?action=view&admin=1");
+    return x.s === 200 && x.b.me && x.b.me.role === "house";
+  }, 40);
+  ok("השרת רואה אותו כאב בית", sawHouse);
+
+  let hv = await call(PLAIN, "GET", "/api/chores?action=view&admin=1");
+  ok("המסך נטען לאב בית", hv.s === 200, hv.b.error || "");
+  ok("והוא רשאי לשבץ", hv.b.me.assign === true && hv.b.me.assignDaily === true,
+    JSON.stringify(hv.b.me));
+  /* ⚠⚠ **זו הטענה שהייתה חסרה.** בלי בלוק ה-admin המסך נפתח
+     בלי בורר חניכים וכפתור שמירה — והמשתמש רואה בדיוק
+     "אי אפשר לשבץ", בלי שום הודעה. */
+  ok("ומקבל את בלוק ה-admin עם רשימת החניכים",
+    Boolean(hv.b.admin) && (hv.b.admin.students || []).length > 0,
+    hv.b.admin ? String((hv.b.admin.students || []).length) : "*** חסר ***");
+  ok("ויש לו גזרות ערב לשבץ אליהן",
+    (hv.b.sectors || []).some((x) => x.kind === KIND.evening && !x.archived),
+    String((hv.b.sectors || []).length));
+
+  /* ⚠ שיבוץ אמיתי לשבוע הרחוק שהבדיקה כבר עובדת בו, ולגזרה
+     שהיא יצרה — לא לשורה של המכינה. */
+  const hPick = (hv.b.admin.students || [])
+    .filter((x) => !(hv.b.periods[0].leaders || []).includes(String(x.id)))
+    .slice(0, 1).map((x) => x.id);
+  r = await call(PLAIN, "POST", "/api/chores?action=assign",
+    { sector: SEC, week: week.id, students: hPick });
+  /* ⚠ **הטענה על המצב הסופי (`total`) ולא על `added`.** החניך
+     שנבחר עשוי כבר להיות משובץ מהסעיף הקודם, ואז `added` הוא 0
+     והשמירה בכל זאת עשתה בדיוק את מה שביקשו — בדיקה שנשענת
+     על ההפרש נכשלת על התנהגות נכונה. */
+  ok("ואב הבית באמת משבץ", r.s === 200 && r.b.total === 1,
+    `${r.s} ${r.b.error || JSON.stringify(r.b)}`);
+  ok("והשורה נכתבה בלוח", (await secRows()).length === 1,
+    String((await secRows()).length));
+  r = await call(PLAIN, "POST", "/api/chores?action=assign",
+    { sector: SEC, week: week.id, students: [], clear: true });
+  ok("והוא גם מנקה", r.s === 200 && r.b.total === 0, `${r.s} ${r.b.error || ""}`);
+
+  await setDemoRoles(demoRoles);
+  /* ⚠ ומחזירים את השיבוץ שהסעיפים שאחרי נשענים עליו. */
+  r = await call(MGR, "POST", "/api/chores?action=assign",
+    { sector: SEC, week: week.id, students: two });
+  ok("השיבוץ הוחזר לפני ההמשך", r.s === 200 && r.b.added === 2,
+    `${r.s} ${r.b.error || ""}`);
 
   /* ============ 6 · הצ׳ק ליסט — תורן היום בלבד ============ */
   console.log("\n6 · צ׳ק ליסט");
