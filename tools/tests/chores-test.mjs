@@ -113,6 +113,99 @@ const setDemoRoles = async (list) => {
 const PLAIN = jar();
 
 const made = { sectors: [], rows: [], adjusts: [], done: [], tasks: [] };
+
+/* ============================================================
+   ⚠⚠⚠ **הרצה שנקטעה משאירה שורות בלוח האמיתי.**
+
+   קרה ב-22.9.2026: ההרצה נעצרה באמצע, בלוק ה-`finally` לא רץ,
+   ושתי שורות תורנות מטבח נשארו על **חניכה אמיתית** בשני
+   תאריכים אמיתיים — ראש המכינה ראה אותה משובצת יותר מכולם
+   וביקש תיקון. זה אותו לקח של `| head -N` שכבר כתוב ב-CLAUDE.md,
+   ומאותה סיבה: `finally` אינו רץ כשהתהליך מת.
+
+   ⚠ **הבדיקה נוגעת בגזרה האמיתית ("מטבח וחד״א") ובחניכים
+     אמיתיים**, כי זו הגזרה היחידה שיש לה מראה ליום שישי —
+     ולכן היא חייבת לנקות גם כשמישהו הורג אותה.
+
+   ⚠ **וצילום המזהים לפני** הוא הרשת השנייה: בדיקת השאריות
+     שבסוף מחפשת שמות שמתחילים ב-"בדיקה", והשורות האלה נושאות
+     את **שם החניך** — כלומר היא לעולם לא הייתה רואה אותן.
+   ============================================================ */
+const rosterBefore = new Set(
+  (await allItems(CHORE_BOARDS.roster)).map((i) => String(i.id)));
+
+/* ============================================================
+   ⚠⚠⚠ **רושמים לניקוי רק שורה ש*נוצרה* בהרצה הזו.**
+
+   זה היה הבאג היקר של 22.9.2026. סעיף 6ב אוסף את השורות של
+   `cand` ב"יום שלישי ויום שישי שאחריו" — ואם המכינה שיבצה
+   אותו שם מזמן, **השורה האמיתית שלה נכנסה ל-`made.rows`
+   והניקוי מחק אותה**. כך נמחקו תורני 22.9 ותורנית 25.9.
+
+   הצילום `rosterBefore` נלקח לפני הכול, ולכן הוא התשובה
+   המדויקת ל"מה היה כאן לפניי". כל `push` עובר דרך כאן.
+
+   ⚠ זו בדיוק ההרחבה של 5א: לא די ש"מוחקים רק מה שיצרנו" —
+     צריך גם **לדעת** מה יצרנו, וסינון לפי ערכים אינו יודע.
+   ============================================================ */
+const keepNew = (id) => {
+  const s = String(id);
+  if (!rosterBefore.has(s)) made.rows.push(s);
+};
+
+/* ⚠ תורני **היום** נדרסים בסעיף 6 ומוחזרים כפי שהיו. */
+let todayWas = null;
+let todayKey = null;
+/* ⚠ המזהים שנוצרו **בהחזרה**. הם חדשים בלוח ולכן סריקת
+   השאריות הייתה מוחקת אותם מיד אחרי שהוחזרו — כלומר
+   ההחזרה הייתה מבטלת את עצמה. נתפס בהרצה. */
+const restoredIds = new Set();
+const restoreToday = async () => {
+  if (!todayKey || !todayWas) return;
+  const { sector, date } = todayKey;
+  const now = (await allItems(CHORE_BOARDS.roster))
+    .filter((i) => cv(i, R.sector) === sector && cv(i, R.date) === date);
+  /* ⚠ כל מי שאינו ברשימה המקורית — נמחק (זה חשבון הבדיקה). */
+  for (const i of now) {
+    if (!todayWas.some((x) => x.student === cv(i, R.student))) {
+      await gql(`mutation($i:ID!){ delete_item(item_id:$i){id} }`, { i: String(i.id) }).catch(() => {});
+    }
+  }
+  const left = (await allItems(CHORE_BOARDS.roster))
+    .filter((i) => cv(i, R.sector) === sector && cv(i, R.date) === date);
+  let back = 0;
+  for (const x of todayWas) {
+    if (left.some((i) => cv(i, R.student) === x.student)) continue;
+    const made2 = await gql(
+      `mutation($b:ID!,$n:String!,$v:JSON!){ create_item(board_id:$b,item_name:$n,column_values:$v,create_labels_if_missing:false){ id } }`,
+      { b: CHORE_BOARDS.roster, n: `${x.studentName} · מטבח וחד״א · ${date}`,
+        v: JSON.stringify({
+          [R.student]: x.student, [R.studentName]: x.studentName,
+          [R.sector]: sector, [R.sectorName]: "מטבח וחד״א",
+          [R.date]: { date }, ...(x.by ? { [R.by]: x.by } : {}), ...(x.at ? { [R.at]: x.at } : {}),
+        }) }).catch(() => null);
+    if (made2 && made2.create_item) restoredIds.add(String(made2.create_item.id));
+    back++;
+  }
+  if (back) console.log(`  (הוחזרו ${back} תורני ${date} כפי שהיו)`);
+  todayKey = null;
+};
+
+let cleaning = false;
+const panicClean = async (why) => {
+  if (cleaning) return;
+  cleaning = true;
+  const ids = [...new Set(made.rows.concat(made.sectors, made.adjusts, made.done, made.tasks || []))];
+  console.log(`\n! נקטע (${why}) — מנקה ${ids.length} שורות שנוצרו`);
+  await restoreToday().catch(() => {});
+  for (const id of ids) {
+    await gql(`mutation($i:ID!){ delete_item(item_id:$i){id} }`, { i: id }).catch(() => {});
+  }
+  process.exit(1);
+};
+for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+  process.on(sig, () => { panicClean(sig); });
+}
 const EV = "בדיקה — גזרת בדיקה";
 
 try {
@@ -279,6 +372,56 @@ try {
     const sec = sc.find((y) => y.id === SEC);
     return sec && sec.members.length === 2;
   });
+
+  /* ============================================================
+     2ג · מרוץ בין שני שומרים — `base`
+     ------------------------------------------------------------
+     ⚠⚠⚠ הדיווח (ראש המכינה, 22.9.2026): *"כל הזמן תורני אוכל
+       נמחקים... האם אפשר שהשרת יסתנכרן עוד לפני שהיוזרים
+       יעשו שמירה."*
+
+     הבקשה נושאת את הרשימה **המלאה**, ולכן שני אנשים שפתחו את
+     אותו יום ושמרו בזה אחר זה מוחקים זה את זה — והשני מקבל
+     200 "נשמר". `base` הוא מה שהמסך ראה בפתיחה, והשרת עוצר
+     כשהמציאות כבר אחרת.
+
+     ⚠⚠ **שלושה כיוונים, וכל אחד לבדו היה נשאר ירוק:**
+       1. `base` מיושן → 409, **והשורות שורדות**
+       2. `base` נכון → עובר כרגיל
+       3. `force` → עוקף, כי לפעמים דווקא שלי הנכון
+       ⚠ בלי (1) ההגנה לא קיימת; בלי (2) כל שמירה נחסמת;
+         בלי (3) אין מוצא ממצב תקוע.
+
+     ⚠ **ו-`base` שאינו נשלח פירושו "בלי בדיקה"** — לקוח ישן
+       חייב להמשיך לעבוד, וזו הטענה הרביעית.
+     ============================================================ */
+  console.log("\n2ג · מרוץ בין שני שומרים");
+  /* ⚠ מצב הפתיחה: שני המשובצים מהסעיף הקודם. */
+  r = await call(MGR, "POST", "/api/chores?action=assign",
+    { sector: SEC, week: week.id, students: [two[0]], base: [] });
+  ok("base מיושן נעצר ב-409",
+    r.s === 409 && r.b.stale === true, `${r.s} ${r.b.error || ""}`);
+  ok("וההודעה אומרת מי רשום עכשיו",
+    (r.b.current || []).length === 2, JSON.stringify(r.b.current || []));
+  /* ⚠⚠ **והשורות שרדו** — בלי הטענה הזו, 409 שמגיע אחרי
+     מחיקה מוצלחת נראה בדיוק כמו הגנה שעבדה (4ס). */
+  ok("והשיבוץ לא נגע", (await secRows()).length === 2,
+    String((await secRows()).length));
+
+  r = await call(MGR, "POST", "/api/chores?action=assign",
+    { sector: SEC, week: week.id, students: two, base: two });
+  ok("base נכון עובר", r.s === 200, `${r.s} ${r.b.error || ""}`);
+
+  r = await call(MGR, "POST", "/api/chores?action=assign",
+    { sector: SEC, week: week.id, students: two, base: [], force: true });
+  ok("ו-force עוקף", r.s === 200, `${r.s} ${r.b.error || ""}`);
+
+  r = await call(MGR, "POST", "/api/chores?action=assign",
+    { sector: SEC, week: week.id, students: two });
+  ok("ובלי base אין בדיקה — לקוח ישן ממשיך לעבוד", r.s === 200,
+    `${r.s} ${r.b.error || ""}`);
+  ok("ובסוף הכול עדיין שם", (await secRows()).length === 2,
+    String((await secRows()).length));
 
   /* ============ 3 · המונים והגוונים ============ */
   console.log("\n3 · מעקב");
@@ -467,8 +610,24 @@ try {
        מומצא: תאריך מחוץ לתקופה שהשרת מכיר נדחה מסיבה אחרת
        לגמרי, והבדיקה הייתה עוברת בלי לבדוק כלום. */
     const days = (v.b.periods || []).flatMap((pp) => pp.days || []);
-    const tue = days.find((x) => dowOf(x.date) === TUESDAY && !(x.on || []).length
-      && days.some((y) => y.date === fridayAfterTuesday(x.date) && !(y.on || []).length));
+    /* ============================================================
+       ⚠⚠⚠ **"פנוי" נבדק מול הלוח ולא מול המסך.**
+
+       `days[].on` מגיע מתשובה שעשויה להיות בת דקות, והבדיקה
+       שולחת את **הרשימה המלאה** — כלומר שיבוץ ליום שנראה פנוי
+       ואינו **מוחק את מי שכבר שם**. כך נמחקו שלושת תורני
+       22.9 ב-22.9.2026, כמה דקות אחרי שמישהו שיבץ אותם.
+
+       ⚠ והבדיקה היא **אפס שורות בלוח** לאותו תאריך ולאותה
+         גזרה — לא "אין אף אחד בתשובה".
+       ============================================================ */
+    const busyDates = new Set((await allItems(CHORE_BOARDS.roster))
+      .filter((i) => cv(i, R.sector) === String((dSec || {}).id))
+      .map((i) => cv(i, R.date)).filter(Boolean));
+    const free = (iso) => Boolean(iso) && !busyDates.has(iso)
+      && days.some((y) => y.date === iso && !(y.on || []).length);
+    const tue = days.find((x) => dowOf(x.date) === TUESDAY && free(x.date)
+      && free(fridayAfterTuesday(x.date)));
 
     if (!dSec || !tue) {
       console.log("  (אין יום שלישי פנוי שגם יום שישי שאחריו פנוי — מדולג)");
@@ -493,7 +652,7 @@ try {
           .filter((i) => cv(i, R.sector) === String(dSec.id)
             && cv(i, R.student) === String(cand.id)
             && [tue.date, fri].includes(cv(i, R.date)));
-        for (const x of rows) made.rows.push(String(x.id));
+        for (const x of rows) keepNew(x.id);
         ok("ושתי שורות בלוח — שלישי ושישי", rows.length === 2, String(rows.length));
 
         /* ⚠⚠ **הטענה החשובה: שיבוץ חוזר אינו דורס את יום שישי.**
@@ -529,12 +688,17 @@ try {
           { sector: dSec.id, date: tue.date, students: [cand.id], mirror: false });
         for (const x of (await allItems(CHORE_BOARDS.roster))
           .filter((i) => cv(i, R.sector) === String(dSec.id) && cv(i, R.date) === tue.date)) {
-          made.rows.push(String(x.id));
+          keepNew(x.id);
         }
 
         /* ⚠ ואפשר לכבות. */
+        /* ⚠⚠ **גם יום שישי שאחריו חייב להיות פנוי.** הטענה
+           סופרת את השורות של אותו חניך בשני הימים, ואם המכינה
+           שיבצה אותו ביום שישי הזה מזמן — הבדיקה נכשלת על
+           התנהגות **נכונה לחלוטין**. זה הכלל של 5א: בדיקה
+           בוחרת נתונים שאיש עוד לא נגע בהם. */
         const tue2 = days.find((x) => x.date !== tue.date && dowOf(x.date) === TUESDAY
-          && !(x.on || []).length);
+          && free(x.date) && free(fridayAfterTuesday(x.date)));
         if (tue2) {
           r = await call(MGR, "POST", "/api/chores?action=assign",
             { sector: dSec.id, date: tue2.date, students: [cand.id], mirror: false });
@@ -544,8 +708,10 @@ try {
             .filter((i) => cv(i, R.sector) === String(dSec.id)
               && cv(i, R.student) === String(cand.id)
               && [tue2.date, fridayAfterTuesday(tue2.date)].includes(cv(i, R.date)));
-          for (const x of extra) made.rows.push(String(x.id));
-          ok("ונוצרה שורה אחת בלבד", extra.length === 1, String(extra.length));
+          for (const x of extra) keepNew(x.id);
+          ok("ונוצרה שורה אחת בלבד", extra.length === 1,
+            `${extra.length} · ${tue2.date}→${fridayAfterTuesday(tue2.date)} · `
+            + extra.map((x) => cv(x, R.date)).join(","));
         }
       }
     }
@@ -609,8 +775,37 @@ try {
   const daily = fresh.b.sectors.find((s) => s.kind === KIND.daily);
   const today = fresh.b.today;
   if (daily && item) {
+    /* ============================================================
+       ⚠⚠⚠ **זה מה שמחק את תורני היום, שוב ושוב.**
+
+       הדיווח (ראש המכינה, 22.9.2026): *"כל הזמן תורני אוכל
+       נמחקים"*. והוא צדק: `?action=assign` נושא את **הרשימה
+       המלאה**, ולכן השורה הזו — שמשבצת את חשבון הבדיקה לתורנות
+       **של היום** — מחקה את שלושת התורנים האמיתיים בכל הרצה.
+       הניקוי אחר כך הסיר את חשבון הבדיקה, והיום נשאר **ריק**.
+
+       ⚠ **והמכסה היא שלושה**, ולכן אי אפשר פשוט להוסיף אותו
+         לרשימה — צריך להחליף, ולהחזיר אחר כך.
+
+       ⚠⚠ **ההחזרה בנויה מחדש מהלוח ולא מהשרת**: שמות, `by`
+         ו-`at` המקוריים חוזרים כפי שהיו, כי `?action=assign`
+         היה חותם עליהם את שם הבדיקה — נתון של המכינה שמשתנה
+         בלי שאיש ביקש (אותו לקח של demo-test, 4כט).
+
+       ⚠ **ובתוך `restoreToday`, שנקראת גם ב-`finally` וגם
+         ב-`panicClean`** — הרצה שנקטעת חייבת להחזיר אותם.
+       ============================================================ */
+    todayWas = (await allItems(CHORE_BOARDS.roster))
+      .filter((i) => cv(i, R.sector) === String(daily.id) && cv(i, R.date) === today)
+      .map((i) => ({
+        student: cv(i, R.student), studentName: cv(i, R.studentName),
+        by: cv(i, R.by), at: cv(i, R.at), sector: String(daily.id),
+      }));
+    todayKey = { sector: String(daily.id), date: today };
+    console.log(`  (תורני ${today} נשמרו להחזרה: ${todayWas.map((x) => x.studentName).join(" · ") || "אין"})`);
+
     r = await call(MGR, "POST", "/api/chores?action=assign",
-      { sector: daily.id, date: today, students: [demo.id] });
+      { sector: daily.id, date: today, students: [demo.id], force: true });
     ok("חשבון הבדיקה משובץ לתורנות היום", r.s === 200, r.b.error || "");
 
     await until("השיבוץ נראה בשרת", async () => {
@@ -733,6 +928,9 @@ try {
      עליהם נופלת מסיבה שאינה קשורה אליה. זה הלקח של
      `tools/demo-flag.mjs` (5א), בדיוק אותו דפוס. */
   try { await setDemoRoles(demoRoles); } catch (e) { console.error("⚠ התפקידים לא הוחזרו:", e.message); }
+  /* ⚠ **לפני מחיקת השורות** — ההחזרה צריכה לראות את חשבון
+     הבדיקה כדי להסיר אותו, ולהחזיר את המקוריים במקומו. */
+  try { await restoreToday(); } catch (e) { console.error("⚠ תורני היום לא הוחזרו:", e.message); }
   /* ⚠ ארבעה לוחות, לפי מזהה, ולא סינון לפי ערך. */
   const rows = (await allItems(CHORE_BOARDS.roster))
     .filter((i) => made.sectors.includes(cv(i, R.sector))
@@ -744,8 +942,28 @@ try {
      *מארכבת* אותן (שורות ביצוע נושאות את המזהה), ולכן שורה
      מארכבת שהבדיקה יצרה הייתה נשארת בלוח לנצח ומצטברת בכל
      הרצה. הבדיקה יצרה אותן ולכן היא זו שמוחקת. */
+  /* ============================================================
+     ⚠⚠⚠ **`made.rows` — הרשימה שנרשמה בקפידה ולא נמחקה מעולם.**
+
+     זה היה הבאג, וזו הסיבה שראש המכינה דיווח (22.9.2026)
+     ש"אגם לב-רם משובצת לכל כך הרבה תורנויות אוכל".
+
+     סעיף 6ב משבץ **חניך אמיתי** לגזרת המטבח האמיתית (זו
+     הגזרה היחידה שיש לה מראה ליום שישי), רושם כל שורה
+     ב-`made.rows` — ואז הניקוי בנה את `ids` מ-`rows`, `adj`
+     ו-`dn` בלבד. `made.rows` **לא נכלל בו כלל**.
+
+     והשורות האלה נושאות את **שם החניך** ("אגם לב-רם · מטבח
+     וחד״א · 2026-09-29"), ולכן גם הסינון `startsWith("בדיקה")`
+     לא ראה אותן. כל הרצה השאירה עד שלוש שורות על חניך אמיתי
+     — וכיוון ש-6ב בוחר יום שלישי **פנוי**, כל הרצה בחרה
+     תאריך אחר והן הצטברו.
+     ============================================================ */
   const ids = [...rows, ...adj, ...dn].map((i) => String(i.id))
-    .concat(made.sectors).concat(made.tasks || []);
+    .concat(made.rows).concat(made.sectors).concat(made.tasks || [])
+    /* ⚠⚠ **רשת אחרונה: שורת שיבוץ שהייתה כאן לפני ההרצה אינה
+       נמחקת, נקודה.** גם אם סינון כלשהו למעלה תפס אותה. */
+    .filter((id) => !rosterBefore.has(String(id)));
 
   /* ⚠ ובנוסף: התורנות היומית שהבדיקה יצרה לחשבון הבדיקה. */
   const daily = (await allItems(CHORE_BOARDS.sectors))
@@ -762,6 +980,28 @@ try {
   }
   console.log("  נמחקו " + new Set(ids).size + " שורות");
   await reg.restore();
+
+  /* ============================================================
+     ⚠⚠ **כל שורה חדשה בלוח השיבוץ, ולא רק מה ששמה "בדיקה".**
+
+     שורות שהבדיקה יוצרת בגזרה האמיתית נושאות את **שם החניך**
+     ("אגם לב-רם · מטבח וחד״א · 2026-09-29"), ולכן בדיקת
+     השאריות לפי שם לא ראתה אותן מעולם. ההשוואה היא מול צילום
+     המזהים שנלקח לפני ההרצה — זה הכלל של quota-test, "לספור
+     מה נוצר בכל לוח שהפעולה נוגעת בו" (5א).
+     ============================================================ */
+  const leaked = (await allItems(CHORE_BOARDS.roster))
+    .filter((i) => !rosterBefore.has(String(i.id)) && !restoredIds.has(String(i.id)));
+  if (leaked.length) {
+    console.log("  !! נשארו " + leaked.length + " שורות שיבוץ חדשות — מוחק:");
+    for (const i of leaked) {
+      console.log("     " + i.id + " | " + i.name);
+      await gql(`mutation($i:ID!){ delete_item(item_id:$i){id} }`, { i: String(i.id) })
+        .catch((e) => console.log("     ! לא נמחק: " + e.message.slice(0, 60)));
+    }
+  }
+  ok("לא נשארה אף שורת שיבוץ חדשה בלוח", leaked.length === 0,
+    leaked.length ? leaked.map((i) => i.name).join(" / ") : "נקי");
 
   const leftS = (await allItems(CHORE_BOARDS.sectors)).filter((i) => String(i.name).startsWith("בדיקה"));
   const leftR = (await allItems(CHORE_BOARDS.roster)).filter((i) => String(i.name).startsWith("בדיקה"));

@@ -196,6 +196,57 @@ try {
   }
 
   /* ============================================================
+     4ב · ועדת קהילה — אותו כלל, שני גיליונות אחרים
+     ------------------------------------------------------------
+     ⚠⚠⚠ הבקשה (ראש המכינה, 22.9.2026): *"תפתח בגליונות המרצים
+       את זמן קהילה ומשפחות מאמצות **בלבד** לחברי ועדת קהילה"*.
+
+     ⚠ **הטענה המרכזית היא הכיוון ההפוך** — שחבר ועדת הקהילה
+       **אינו** קורא גיליון שאינו שלו. בלעדיה "עבר" היה אומר
+       רק שהוועדה נפתחה, וגיליון אימונים או תנ״ך, עם טלפון
+       ומחיר למפגש, היה פתוח לה לרווחה (5לא, עיקרון 4).
+
+     ⚠ **וכל ועדה מצומצמת לשלה** — חבר ועדת קהילה אינו קורא
+       את הגיליונות של קבוצה ותוכן ולהפך. שתי ועדות שחולקות
+       את אותו מסך חייבות לראות בו שני דברים שונים.
+     ============================================================ */
+  console.log("\n4ב · ועדת קהילה");
+  const { communitySheetsReady } = await import("../../shared/lessons-boards.js");
+  if (!communitySheetsReady()) {
+    console.log("  (עמודת ועדת הקהילה טרם הוקמה — npm run seed:community -- --go)");
+  } else {
+    const cTeam = (await loadDefinitions()).find((x) => x.community && !x.archived);
+    const cMem = cTeam
+      ? (await loadAssignments()).filter((x) => String(x.placement) === String(cTeam.id))
+      : [];
+    ok("נמצאה ועדת קהילה מסומנת", Boolean(cTeam), cTeam ? cTeam.name : "—");
+    const cOn = all.filter((x) => x.communityTeam);
+    ok("ושני גיליונות מסומנים לה", cOn.length === 2,
+      cOn.map((x) => x.subject).join(" · ") || "(אף אחד)");
+    if (cTeam && cMem.length) {
+      const g = await lessonRights({ isStudent: true, itemId: String(cMem[0].student) });
+      ok("לחבר ועדת הקהילה read פתוח", g.read === true, String(g.read));
+      ok("והוא limited", g.limited === true, String(g.limited));
+      ok("קורא את הגיליונות שלו",
+        cOn.length > 0 && cOn.every((x) => g.mayRead(x) === true),
+        cOn.map((x) => x.subject).join(" · "));
+      ok("וכותב בהם", cOn.length > 0 && cOn.every((x) => g.mayWrite(x) === true));
+      /* ⚠⚠ הכיוון ההפוך — זו הטענה שסוגרת את "בלבד". */
+      const notMine = all.filter((x) => !x.communityTeam);
+      ok("ואינו קורא אף גיליון שאינו שלו",
+        notMine.length > 0 && notMine.every((x) => g.mayRead(x) === false),
+        `${notMine.length} גיליונות אחרים`);
+      ok("ואינו כותב בהם",
+        notMine.length > 0 && notMine.every((x) => g.mayWrite(x) === false));
+      /* ⚠ ושתי הוועדות אינן רואות זו את זו. */
+      if (mk) ok("ואינו קורא את הגיליונות של קבוצה ותוכן",
+        g.mayRead(mk) === false, mk.subject);
+    } else if (cTeam) {
+      console.log("  (אין חברים משובצים לוועדת הקהילה — מדולג)");
+    }
+  }
+
+  /* ============================================================
      ⚠⚠ **וזו הטענה שהייתה תופסת את הבאג: שער אחד.**
 
      הבדיקה קוראת את הקובץ **בלי ההערות** ומוודאת

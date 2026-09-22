@@ -186,6 +186,26 @@ export const SHEET_SCREENS = [
 ];
 const SHEET_LABEL = Object.fromEntries(SHEET_SCREENS.map((x) => [x.key, x.label]));
 
+/* ============================================================
+   ⚠⚠ **שם הגיליונות בקבוצת הקהילה** (בקשת ראש המכינה,
+   22.9.2026: *"אותה אופציה של גליונות המרצים תתווסף תחת שם
+   אחר — תבחר אחד החולש על שני הנושאים"*).
+
+   לחבר ועדת קהילה המסך הזה אינו "גיליונות המרצים": `lessonRights`
+   מסננת אותו לשני הגיליונות שסומנו לוועדה — **זמן קהילה**
+   ו**משפחות מאמצות** — וזה כל מה שיש בו. שם שמתאר מסך אחר
+   מזה שעל המסך הוא בדיוק מה שגורם לאנשים לא למצוא אותו.
+
+   ⚠ **וזה אינו סותר את "שם אחד למסך אחד"** (`LESSON_TABS`):
+     הכלל ההוא נולד משתי קבוצות שאותו אדם רואה **בו-זמנית**
+     בשני שמות. כאן הקבוצות **סותרות** — `isCommunityTeam &&
+     !isContentTeam` — ולכן איש אינו רואה את שניהם.
+
+   ⚠ **והכותרת במסך עוברת איתו.** ניווט שאומר דבר אחד ומסך
+     שאומר אחר נקרא כמו טעות ניווט (4יט).
+   ============================================================ */
+export const COMMUNITY_SHEETS_LABEL = "קהילה ומשפחות";
+
 const DOW_HE = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
 
 const MON_HE = ["ינו׳","פבר׳","מרץ","אפר׳","מאי","יוני","יולי","אוג׳","ספט׳","אוק׳","נוב׳","דצמ׳"];
@@ -4126,6 +4146,11 @@ export function MechinaApp({ auth, onSignedOut }) {
        המרצים והטלפונים שלהם (עיקרון 4).
      ============================================================ */
   const sheetTeam = Boolean(auth.isScheduler || auth.isContentTeam || auth.isCommunityTeam);
+  /* ⚠ **רק ועדת קהילה ותו לא** — מי שהוא גם אחראי לו״ז או גם
+     בוועדת קבוצה ותוכן רואה את כל הגיליונות, ואז השם החלופי
+     היה מתאר פחות ממה שיש על המסך. */
+  const communityOnly = Boolean(auth.isCommunityTeam
+    && !auth.isContentTeam && !auth.isScheduler);
   const [toast, setToast] = useState(null);
   const say = useCallback((m) => { setToast(m); setTimeout(() => setToast(null), 2600); }, []);
 
@@ -4517,7 +4542,10 @@ export function MechinaApp({ auth, onSignedOut }) {
                שמות נקראת כמו שני מסכים (`check:nav`). */
             label: "קהילה",
             items: SHEET_SCREENS.map((t) => ({
-              key: t.key, label: t.label, icon: TAB_ICON[t.key] || <MI.book />,
+              key: t.key,
+              /* ⚠ שם חלופי לגיליונות בלבד — ראו COMMUNITY_SHEETS_LABEL. */
+              label: t.key === "l-sheets" ? COMMUNITY_SHEETS_LABEL : t.label,
+              icon: TAB_ICON[t.key] || <MI.book />,
               active: tab === t.key, onClick: () => setTab(t.key),
             })),
           }] : []),
@@ -4858,7 +4886,8 @@ export function MechinaApp({ auth, onSignedOut }) {
             לאחראי הלו״ז". ההרשאה עצמה נאכפת ב-`lessonRights`
             שבשרת; כאן זו תצוגה בלבד. */}
         {tab === "l-sheets" && sheetTeam
-          && <LessonsPage say={say} solo sub0="sheets" />}
+          && <LessonsPage say={say} solo sub0="sheets"
+            title={communityOnly ? COMMUNITY_SHEETS_LABEL : undefined} />}
         {/* ⚠ **גם לוועדת קבוצה ותוכן.** הסמכות שנמסרה לה היא
             לכתוב את חוות הדעת על המרצים המתחלפים, והשרת פותח
             לה בדיוק את זה (`gate` ב-_lesson-evals.js). התנאי

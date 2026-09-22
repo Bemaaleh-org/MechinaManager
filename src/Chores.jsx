@@ -247,6 +247,12 @@ function Sectors({ d, say, reload, goWeek }) {
   const [picked, setPicked] = useState([]);
   const [busy, setBusy] = useState(false);
   const [wipe, setWipe] = useState(null);
+  /* ⚠⚠ `base` — מה היה משובץ כשהגזרה נפתחה, ו-`stale` — מה
+     שהשרת מצא שם במקום. אותו מרוץ בדיוק של התורנות היומית,
+     ואותו מנגנון: הבקשה נושאת רשימה מלאה, ושני אנשים ששמרו
+     בזה אחר זה מוחקים זה את זה (22.9.2026). */
+  const [base, setBase] = useState(null);
+  const [stale, setStale] = useState(null);
 
   const p = d.periods[pi];
   if (!p) return <div className="empty"><b>אין תקופות לשבץ אליהן</b></div>;
@@ -259,13 +265,19 @@ function Sectors({ d, say, reload, goWeek }) {
   const start = (live) => {
     setOpen(live.id);
     setPicked(live.members.map((m) => m.id));
+    /* ⚠ הצילום נלקח בפתיחה — ראו ההערה על `base`. */
+    setBase(live.members.map((m) => m.id));
   };
-  const save = (s, clear) => {
+  const save = (s, clear, force) => {
     if (busy) return;
     setBusy(true);
-    api.assignChore({ sector: s.id, week: p.id, students: picked, ...(clear ? { clear: true } : {}) })
+    api.assignChore({
+      sector: s.id, week: p.id, students: picked,
+      ...(clear ? { clear: true } : {}),
+      ...(force ? { force: true } : { base: base || [] }),
+    })
       .then((r) => {
-        setOpen(null); setWipe(null);
+        setOpen(null); setWipe(null); setStale(null); setBase(null);
         (r.warnings || []).forEach(say);
         say(r.total ? `נשמר — ${r.total} משובצים` : "הגזרה נוקתה");
         reload();
@@ -274,7 +286,9 @@ function Sectors({ d, say, reload, goWeek }) {
          שנמחקת בשקט היא אותה אבדה, והשרת עוצר
          את שתיהן באותה שורה. */
       .catch((e) => {
-        if (e.needsClear) setWipe({ sector: s, names: (e.current || []).map((x) => x.name) });
+        /* ⚠ `stale` לפני `needsClear` — ראו ההערה בלשונית היומית. */
+        if (e.stale) setStale({ sector: s, now: e.current || [] });
+        else if (e.needsClear) setWipe({ sector: s, names: (e.current || []).map((x) => x.name) });
         else say(e.message);
       })
       .finally(() => setBusy(false));
@@ -297,7 +311,7 @@ function Sectors({ d, say, reload, goWeek }) {
     <>
       {/* ⚠ התקופה היא שבוע הובלה ולא שבוע קלנדרי — כשקדנציה
           מתחלפת, מתחלפות גם התורניות. */}
-      <WeekNav d={d} onGo={(id) => { setPi(0); setOpen(null); setPicked([]); goWeek(id); }} />
+      <WeekNav d={d} onGo={(id) => { setPi(0); setOpen(null); setPicked([]); setBase(null); goWeek(id); }} />
       {d.periods.length > 1 && (
         <div className="seg ch-seg">
           {/* ⚠⚠ **`picked` מתאפס עם התקופה.** הוא משותף
@@ -305,7 +319,8 @@ function Sectors({ d, say, reload, goWeek }) {
               שארית מהתקופה הקודמת היא רשימה שאינה
               שייכת לשום דבר שעל המסך. */}
           {d.periods.map((x, i) => (
-            <button key={x.id} className={pi === i ? "on" : ""} onClick={() => { setPi(i); setOpen(null); setPicked([]); }}>
+            <button key={x.id} className={pi === i ? "on" : ""}
+              onClick={() => { setPi(i); setOpen(null); setPicked([]); setBase(null); }}>
               {x.label || "שבוע " + x.num}
               <i className="seg-n">{dmy(x.start)}</i>
             </button>
@@ -434,6 +449,33 @@ function Sectors({ d, say, reload, goWeek }) {
       })}
 
       {/* ⚠ אישור במסך ולא `confirm()` — ראו ההערה בלשונית המטבח. */}
+      {/* ⚠ אותו מסך בדיוק כמו בלשונית היומית — ראו ההערה שם. */}
+      {stale && (
+        <div className="scrim" onClick={() => !busy && setStale(null)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-h"><h3>הגזרה השתנתה</h3></div>
+            <div className="sheet-b">
+              <div className="alert a-clay">
+                מאז שפתחת את "{stale.sector.name}" מישהו אחר שינה את השיבוץ.
+                {stale.now.length
+                  ? <> משובצים עכשיו: <b>{stale.now.map((x) => x.name).join(" · ")}</b>.</>
+                  : <> כרגע לא משובץ אף אחד.</>}
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <button className="btn btn-primary" style={{ flex: 1 }} disabled={busy}
+                  onClick={() => { setStale(null); setOpen(null); setPicked([]); setBase(null); reload(); }}>
+                  לטעון מחדש
+                </button>
+                <button className="btn btn-ghost" style={{ flex: 1 }} disabled={busy}
+                  onClick={() => save(stale.sector, false, true)}>
+                  {busy ? "שומר…" : `לשמור בכל זאת (${picked.length})`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {wipe && (
         <div className="scrim" onClick={() => !busy && setWipe(null)}>
           <div className="sheet" onClick={(e) => e.stopPropagation()}>
@@ -500,17 +542,40 @@ function Daily({ d, say, reload, goWeek }) {
   const [mirror, setMirror] = useState(true);
   /* ⚠ היום שהשרת ביקש עליו אישור ניקוי — ראו למטה */
   const [wipe, setWipe] = useState(null);
+  /* ============================================================
+     ⚠⚠⚠ **`base` — מה היה רשום כשהמסך נפתח.**
 
-  const save = (day, clear) => {
+     הדיווח (ראש המכינה, 22.9.2026): *"כל הזמן תורני אוכל
+     נמחקים... האם אפשר שהשרת יסתנכרן עוד לפני שהיוזרים
+     יעשו שמירה."*
+
+     הבקשה נושאת את **הרשימה המלאה** של מי שצריך להיות משובץ,
+     ולכן שני אנשים שפתחו את אותו יום ושמרו אחד אחרי השני
+     מוחקים זה את זה — השני מקבל 200 "נשמר", והראשון מגלה
+     שהתורנים שלו נעלמו. זו הדרך היחידה שבה שורות נעלמות כאן.
+
+     ⚠ **הצילום נלקח בפתיחה ולא בשמירה** — הוא צריך לתאר את
+       מה שהמשתמש **ראה** כשבחר, ולא את מה שיש רגע לפני
+       הכתיבה (שזה בדיוק מה שהשרת בודק ממילא).
+
+     ⚠ **והשרת הוא שמכריע** (409 עם `stale`). רענון במסך מצמצם
+       את החלון ואינו סוגר אותו.
+     ============================================================ */
+  const [base, setBase] = useState(null);
+  /* ⚠ היום שהשתנה מתחת לידיים — ראו `stale` למטה. */
+  const [stale, setStale] = useState(null);
+
+  const save = (day, clear, force) => {
     if (busy) return;
     setBusy(true);
     api.assignChore({
       sector: daily.id, date: day.date, students: picked,
       ...(clear ? { clear: true } : {}),
+      ...(force ? { force: true } : { base: base || [] }),
       ...(isTuesday(day.date) ? { mirror } : {}),
     })
       .then((r) => {
-        setOpen(null); setWipe(null);
+        setOpen(null); setWipe(null); setStale(null); setBase(null);
         (r.warnings || []).forEach(say);
         if (r.mirror) {
           say(r.mirror.done
@@ -525,7 +590,10 @@ function Daily({ d, say, reload, goWeek }) {
          מחיקה של כל המשובצים ואומר את מי — וזה מה
          שמוצג, במסך ולא ב-`confirm()` של הדפדפן (4ק). */
       .catch((e) => {
-        if (e.needsClear) setWipe({ day, names: (e.current || []).map((x) => x.name) });
+        /* ⚠ **`stale` לפני `needsClear`** — כששניהם חלים, "מישהו
+           אחר שינה" הוא מה שצריך לראות; הריקון הוא רק התוצאה. */
+        if (e.stale) setStale({ day, now: e.current || [], msg: e.message });
+        else if (e.needsClear) setWipe({ day, names: (e.current || []).map((x) => x.name) });
         else say(e.message);
       })
       .finally(() => setBusy(false));
@@ -533,7 +601,7 @@ function Daily({ d, say, reload, goWeek }) {
 
   return (
     <>
-      <WeekNav d={d} onGo={(id) => { setPi(0); setOpen(null); setPicked([]); goWeek(id); }} />
+      <WeekNav d={d} onGo={(id) => { setPi(0); setOpen(null); setPicked([]); setBase(null); goWeek(id); }} />
       {d.periods.length > 1 && (
         <div className="seg ch-seg">
           {/* ⚠⚠ **`picked` מתאפס עם התקופה.** הוא משותף
@@ -541,7 +609,8 @@ function Daily({ d, say, reload, goWeek }) {
               שארית מהתקופה הקודמת היא רשימה שאינה
               שייכת לשום דבר שעל המסך. */}
           {d.periods.map((x, i) => (
-            <button key={x.id} className={pi === i ? "on" : ""} onClick={() => { setPi(i); setOpen(null); setPicked([]); }}>
+            <button key={x.id} className={pi === i ? "on" : ""}
+              onClick={() => { setPi(i); setOpen(null); setPicked([]); setBase(null); }}>
               {x.label || "שבוע " + x.num}
               <i className="seg-n">{dmy(x.start)}</i>
             </button>
@@ -565,7 +634,10 @@ function Daily({ d, say, reload, goWeek }) {
           <div className={"ch-day card" + (day.on.length ? " has" : "")} key={day.date}>
             <button className="ch-day-h" onClick={() => {
               if (isOpen) { setOpen(null); return; }
-              setOpen(day.date); setPicked(day.on.map((x) => x.id));
+              setOpen(day.date);
+              setPicked(day.on.map((x) => x.id));
+              /* ⚠ הצילום נלקח כאן — ראו ההערה על `base`. */
+              setBase(day.on.map((x) => x.id));
             }}>
               <div className="ch-day-d">
                 <b>{day.dow}</b>
@@ -667,6 +739,39 @@ function Daily({ d, say, reload, goWeek }) {
           ⚠ והוא אומר **את מי** מוחקים — מי שלא התכוון
             צריך לראות מה הוא עומד לאבד.
           ============================================================ */}
+      {/* ============================================================
+          ⚠⚠ **"מישהו אחר שינה" — שני מוצאים, ואין ברירת מחדל.**
+            "לטעון מחדש" הוא הראשון ובכוונה: ברוב המקרים
+            השינוי של השני נכון ושלי מיושן. "לשמור בכל זאת"
+            קיים כי לפעמים ההפך — אבל הוא אומר במפורש מה
+            יימחק, ולא "כן".
+          ============================================================ */}
+      {stale && (
+        <div className="scrim" onClick={() => !busy && setStale(null)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-h"><h3>התורנות השתנתה</h3></div>
+            <div className="sheet-b">
+              <div className="alert a-clay">
+                מאז שפתחת את {dmy(stale.day.date)} מישהו אחר שינה את התורנות.
+                {stale.now.length
+                  ? <> רשומים עכשיו: <b>{stale.now.map((x) => x.name).join(" · ")}</b>.</>
+                  : <> כרגע לא רשום אף אחד.</>}
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <button className="btn btn-primary" style={{ flex: 1 }} disabled={busy}
+                  onClick={() => { setStale(null); setOpen(null); setPicked([]); setBase(null); reload(); }}>
+                  לטעון מחדש
+                </button>
+                <button className="btn btn-ghost" style={{ flex: 1 }} disabled={busy}
+                  onClick={() => save(stale.day, false, true)}>
+                  {busy ? "שומר…" : `לשמור בכל זאת (${picked.length})`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {wipe && (
         <div className="scrim" onClick={() => !busy && setWipe(null)}>
           <div className="sheet" onClick={(e) => e.stopPropagation()}>

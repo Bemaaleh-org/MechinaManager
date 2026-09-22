@@ -139,6 +139,11 @@ async function send(method, path, body) {
        רק לומר "נכשל", ואז אין דרך לנקות יום
        בכוונה — הגנה שחוסמת גם את מה שהתכוונו אליו. */
     if (data.needsClear) { err.needsClear = true; err.current = data.current || []; }
+    /* ⚠⚠ 409 של "מישהו אחר שינה מאז שפתחת" (`?action=assign`).
+       ⚠ **דגל נפרד מ-`needsClear`** — שתי שאלות שונות ושני
+         מסכים שונים; מסך שיתבלבל ביניהם יציג "יימחקו" על
+         מצב שבו דווקא **נוספו** אנשים. */
+    if (data.stale) { err.stale = true; err.current = data.current || []; }
     throw err;
   }
   return data;
@@ -178,6 +183,11 @@ async function get(path) {
        רק לומר "נכשל", ואז אין דרך לנקות יום
        בכוונה — הגנה שחוסמת גם את מה שהתכוונו אליו. */
     if (data.needsClear) { err.needsClear = true; err.current = data.current || []; }
+    /* ⚠⚠ 409 של "מישהו אחר שינה מאז שפתחת" (`?action=assign`).
+       ⚠ **דגל נפרד מ-`needsClear`** — שתי שאלות שונות ושני
+         מסכים שונים; מסך שיתבלבל ביניהם יציג "יימחקו" על
+         מצב שבו דווקא **נוספו** אנשים. */
+    if (data.stale) { err.stale = true; err.current = data.current || []; }
     throw err;
   }
   return data;
@@ -569,8 +579,12 @@ export const api = {
    *  יום/שבוע. נשלח **רק** אחרי שהמשתמש אישר במסך,
    *  ולעולם לא כברירת מחדל — זו ההגנה מפני המחיקה
    *  השקטה שהתרחשה בשלישי וברביעי. */
-  assignChore: ({ sector, week, date, students, mirror, clear }) =>
-    post("/api/chores?action=assign", { sector, week, date, students, mirror, clear }),
+  /* ⚠⚠ `base` — מה שהמסך ראה כשהוא נפתח, ו-`force` — "שמור בכל
+     זאת" אחרי שהוצג מה השתנה. ⚠ שדה שאינו כתוב כאן **נשמט
+     בשקט** ולעולם לא מגיע לשרת (4לג). */
+  assignChore: ({ sector, week, date, students, mirror, clear, base, force }) =>
+    post("/api/chores?action=assign",
+      { sector, week, date, students, mirror, clear, base, force }),
   saveSector: ({ id, name, kind, cap, detail, order, archived }) =>
     post("/api/chores?action=sector", { id, name, kind, cap, detail, order, archived }),
   addChoreAdjust: ({ student, sector, delta, reason }) =>

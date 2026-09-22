@@ -2030,7 +2030,15 @@ const TITLE = Object.fromEntries(LESSON_TABS.map((t) => [t.sub, t.label]));
  *   לשוניות: כל אחד מהם נפתח מסיבה אחרת ואיש אינו עובר ביניהם
  *   באמצע עבודה. הרכיב נשאר אחד כדי שלא יתפצלו.
  */
-export function LessonsPage({ say, sub0, onSub, solo = false }) {
+/**
+ * ⚠⚠ `title` — שם חלופי למסך, ורק כשהוא באמת מסך אחר.
+ *   לוועדת הקהילה "גיליונות המרצים" מציג **שני גיליונות**,
+ *   זמן קהילה ומשפחות מאמצות, כי `lessonRights` מסננת לפי
+ *   עמודת התיבה שלה. כותרת שאומרת "גיליונות המרצים" מתארת
+ *   מסך אחר מזה שעל המסך — ולכן היא באה מהניווט, שכבר יודע
+ *   באיזו קבוצה נמצאים (בקשת ראש המכינה, 22.9.2026).
+ */
+export function LessonsPage({ say, sub0, onSub, solo = false, title }) {
   const [sub, setSub] = useState(sub0 || "sheets");
   /* ⚠ מדווח החוצה כדי שהתפריט יסמן את הדף שנמצאים בו. */
   React.useEffect(() => { if (onSub) onSub(sub); }, [sub, onSub]);
@@ -2046,7 +2054,7 @@ export function LessonsPage({ say, sub0, onSub, solo = false }) {
       {/* ⚠ הכותרת היא של המסך הפתוח, ולא "שיעורים במכינה"
           לכולם: ארבעה דפים נפרדים שנקראים אותו דבר הם ארבעה
           דפים שאי אפשר לדעת באיזה מהם נמצאים. */}
-      <div className="screen-title">{TITLE[sub] || "שיעורים במכינה"}</div>
+      <div className="screen-title">{title || TITLE[sub] || "שיעורים במכינה"}</div>
 
       {!solo && !inner && (
         <div className="seg seg-scroll">
