@@ -154,6 +154,21 @@ export async function leadersForDate(dateIso) {
   return hit ? hit.leaderIds : [];
 }
 
+/**
+ * תחילת **התקופה המוצגת** שהתאריך נופל בה — זה התאריך שממנו
+ * נמדדת חשיפת המובילים (shared/lead-secret.js).
+ *
+ * ⚠ `spanStart` ולא `start`: שבועות חופפים הם תקופה אחת במסך
+ *   ("שבוע 3-4"), ולתקופה אחת יש חשיפה אחת — בתחילתה.
+ * ⚠ מחזיר מחרוזת ריקה כשאין שבוע כזה, ולא נופל: תאריך מחוץ
+ *   ללוח השבועות הוא מצב רגיל (חופשה, לפני תחילת השנה).
+ */
+export async function periodStartForDate(dateIso) {
+  const weeks = await loadLeaderWeeks();
+  const hit = weeks.find((w) => w.start <= dateIso && dateIso <= w.end);
+  return hit ? (hit.spanStart || hit.start || "") : "";
+}
+
 /* ============================================================
    השבועות שחניך מוביל — **כולם**, לא רק הנוכחי
    ------------------------------------------------------------

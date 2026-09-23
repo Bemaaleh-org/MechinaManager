@@ -134,9 +134,17 @@ export default function LeadWeekPage({ say }) {
           </div>
         </div>
         <div className="lw-hero-p">
-          {w.leaders.length
-            ? w.leaders.map((l) => <span key={l.id} className={"lw-who" + (l.id === d.me.id ? " me" : "")}>{l.name}</span>)
-            : <span className="tm-faint">טרם שובצו מובילים</span>}
+          {/* ⚠ **"טרם שובצו" ו"טרם נחשפו" הם שני מצבים** (23.9.2026).
+              המסך פתוח לכל מי שמוביל שבוע כלשהו בשנה, ולכן מוביל
+              של נובמבר יכול לפתוח את השבוע הבא — והשמות אינם
+              יוצאים אליו מהשרת. שורה אחת לשניהם הייתה אומרת לו
+              שאיש לא שובץ, וזה פשוט לא נכון (עיקרון 6). */}
+          {w.leadersHidden
+            ? <span className="tm-faint">{w.leadersNote}</span>
+            : w.leaders.length
+              ? w.leaders.map((l) => <span key={l.id} className={"lw-who" + (l.id === d.me.id ? " me" : "")}>{l.name}</span>)
+              : <span className="tm-faint">טרם שובצו מובילים</span>}
+          {w.leadersPrivate && <span className="pill p-warn">{w.leadersPrivate}</span>}
           {w.escort && <span className="tm-faint">מלווה · {w.escort}</span>}
         </div>
         {w.what && <div className="lw-hero-w">{w.what}</div>}

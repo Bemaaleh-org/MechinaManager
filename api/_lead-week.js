@@ -42,6 +42,8 @@ import { allItems } from "./_monday.js";
 import { cached, invalidate } from "./_cache.js";
 import { setColumns, renameItem, createItem, deleteItem } from "./_items.js";
 import { todayFor } from "./_attendance-data.js";
+import { maySeeLeaders, leadSecretNote, LEAD_SECRET_STAFF }
+  from "../shared/lead-secret.js";
 import { loadLeaderWeeks, weeksOfStudent, weekPublic } from "./_leader-weeks.js";
 import { assignableStudents } from "./_student-rows.js";
 /* ⚠ יציאות השבוע — ראו ההערה ב-weekView. */
@@ -235,7 +237,24 @@ async function weekView(req, res, session) {
   }
 
   const byId = new Map(students.map((s) => [s.id, s]));
-  const leaders = (week.leaderIds || [])
+  /* ============================================================
+     ⚠⚠ **החשיפה בתחילת השבוע חלה גם כאן** (23.9.2026).
+
+     המסך נפתח ל-`leadsAnyWeek` — כלומר **מוביל של שבוע אחר**,
+     ו-`?week=<id>` פותח כל שבוע בלוח (pickWeek). בלי הכלל הזה
+     מי שמוביל בנובמבר היה קורא את שמות מובילי השבוע הבא כמה
+     ימים לפני החשיפה, וזה בדיוק הקהל שהסוד נשמר מפניו.
+
+     ⚠ המובילים של השבוע **הזה** רואים את עצמם ואת שותפיהם —
+       ההכנה מראש היא כל התכלית של המסך (5יא).
+     ============================================================ */
+  const myId = String(session.itemId || "");
+  const iLead = (week.leaderIds || []).map(String).includes(myId);
+  const start = week.spanStart || week.start;
+  const seeLeaders = maySeeLeaders({
+    start, today, staff: !session.isStudent, isLeader: iLead,
+  });
+  const leaders = !seeLeaders ? [] : (week.leaderIds || [])
     .map((id) => byId.get(String(id)))
     .filter(Boolean)
     .map((s) => ({ id: s.id, name: s.name }));
@@ -340,6 +359,13 @@ async function weekView(req, res, session) {
       ...weekPublic(week),
       what: week.what, note: week.note, escort: week.escort,
       leaders,
+      /* ⚠ **נאמר ולא מושמט** — רשימה ריקה נקראת כמו "טרם
+         שובצו" (עיקרון 6). */
+      leadersHidden: !seeLeaders && (week.leaderIds || []).length > 0,
+      leadersNote: !seeLeaders && (week.leaderIds || []).length > 0
+        ? leadSecretNote(start) : null,
+      leadersPrivate: seeLeaders && start && today <= start
+        && (week.leaderIds || []).length > 0 ? LEAD_SECRET_STAFF : null,
       summary: week.summary,
       summarySent: sentOf(week.id),
       handover: handoverOf(week.id),

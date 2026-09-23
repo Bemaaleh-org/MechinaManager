@@ -3488,6 +3488,11 @@ html,body{margin:0;padding:0;background:#012E58}
   padding:10px 13px;margin-bottom:12px}
 .ch-leadbar b{font-weight:900}
 .ch-leadbar svg{flex:0 0 auto}
+/* ⚠ **"טרם נחשפו" בגוון שקט יותר מ"אלה המובילים".** אותה רצועה
+   סגולה בדיוק הייתה נקראת כמו הכרזה על שיבוץ, וזה ההפך ממה
+   שהיא אומרת. ⚠ ו-wrap כי הנוסח כאן ארוך משני שמות. */
+.ch-leadbar{flex-wrap:wrap}
+.ch-leadbar-q{color:var(--muted);background:var(--bg)}
 .kx .ch-lead{display:inline-flex;align-items:center;gap:5px;background:#F3E8F5;
   color:#6B3D7A;font-size:11px;font-weight:800;white-space:nowrap}
 
@@ -4082,6 +4087,10 @@ a.tm-entry-t.tm-link{color:var(--navy);text-decoration:underline;
 .kx[data-theme="dark"] .mv-c.just{background:#1B3350;color:#9CC3F0}
 .kx[data-theme="dark"] .mv-c.vac,
 .kx[data-theme="dark"] .ch-lead{background:#261B38;color:#B79BE0}
+/* ⚠ הרצועה נשארה בהקס הבהיר שלה במצב לילה — אותה מלכודת של
+   5יד, ובאותו זוג צבעים של התגית שמעל. */
+.kx[data-theme="dark"] .ch-leadbar{background:#261B38;color:#B79BE0}
+.kx[data-theme="dark"] .ch-leadbar-q{background:var(--bg);color:var(--muted)}
 .kx[data-theme="dark"] .t-under{background:#3D211C;color:#F09480}
 .kx[data-theme="dark"] .esc-h{color:#E0AC63;background:#33260F}
 .kx[data-theme="dark"] .lw-soon{background:#132539}

@@ -24,7 +24,9 @@ import {
 } from "../shared/chores.js";
 import { weekPublic, weekWarnings } from "./_leader-weeks.js";
 import { weekIndexFor } from "../shared/week-span.js";
-import { israelToday } from "./_attendance-data.js";
+import { todayFor } from "./_attendance-data.js";
+import { maySeeLeaders, leadSecretNote, LEAD_SECRET_STAFF }
+  from "../shared/lead-secret.js";
 
 /** יום בשבוע בעברית מתאריך ISO */
 const DOW = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
@@ -73,7 +75,10 @@ async function handler(req, res, session) {
 
   try {
     const perm = mayChores(session);
-    const today = israelToday();
+    /* ⚠ **`todayFor` ולא `israelToday`.** מרגע שחשיפת המובילים
+       תלויה בתאריך, אי אפשר לבדוק את הגבול בלי להזיז את "היום" —
+       והשער חסום בכל דיפלוי ממילא (api/_test-date.js). */
+    const today = todayFor(req);
 
     const [sectors, roster, adjusts, students, weeks, checklist, doneRows, texts] =
       await Promise.all([
@@ -177,6 +182,34 @@ async function handler(req, res, session) {
     const periods = near.map((w) => {
       const leaders = new Set();
       for (const id of idsOf(w)) for (const x of (byLeader.get(id) || [])) leaders.add(x);
+      /* ============================================================
+         ⚠⚠ **החשיפה בתחילת השבוע** (ראש המכינה, 23.9.2026)
+
+         עד 0:00 של היום שאחרי תחילת התקופה, השמות אינם יוצאים
+         לשאר החניכים — לא כרשימה ולא כמזהים. ⚠ **ומזהים גם
+         הם שמות כאן**: אותה תשובה נושאת את כל המצבה עם
+         `{id, name}`, ולכן החזרת מזהים "בלי שמות" אינה מסתירה
+         דבר.
+
+         שלושה שרואים גם לפני:
+           · צוות — ההרשאה שלו רחבה ממילא.
+           · המובילים עצמם — הם מי שהוכן איתו מראש (5יא).
+           · **מי שמשבץ תורנויות** — מוביל פטור מתורנות והשרת
+             חוסם שיבוץ שלו; אב בית שלא יראה מי הם היה בוחר
+             אחד מהם ומקבל 403 **עם השם בהודעה**. ההסתרה שם לא
+             מסתירה, רק מחליפה חיווי מראש בשגיאה בדיעבד (4יד).
+
+         ⚠ **התקופה ולא השורה**: שבועות חופפים הם תקופה אחת
+           במסך ("שבוע 3-4"), ולתקופה אחת יש חשיפה אחת.
+         ============================================================ */
+      const myId = String(session.itemId || "");
+      const iLead = leaders.has(myId);
+      const assigns = Boolean(perm.assign || perm.assignDaily || perm.daily);
+      const start = w.spanStart || w.start;
+      const see = maySeeLeaders({
+        start, today, staff: !session.isStudent, isLeader: iLead, assigns,
+      });
+      const revealed = !start || today > start;
       return {
         ...weekPublic(w),
         /* ⚠ **כל מזהי האשכול**, כדי שקורא שביקש שורה מסוימת
@@ -185,8 +218,15 @@ async function handler(req, res, session) {
         ids: idsOf(w),
         /* ⚠ מובילי השבוע מסומנים ואינם מוסתרים — חניך שלא יראה
            את עצמו ברשימה יחשוב שנשכח, ולא שהוא פטור. */
-        leaders: [...leaders],
-        leaderNames: students.filter((s) => leaders.has(s.id)).map((s) => s.name),
+        leaders: see ? [...leaders] : [],
+        leaderNames: see
+          ? students.filter((s) => leaders.has(s.id)).map((s) => s.name) : [],
+        /* ⚠ **נאמר ולא מושמט.** רשימה ריקה נקראת כמו "טרם
+           שובצו" ושולחת לשאול את אב הבית (עיקרון 6). */
+        leadersHidden: !see && leaders.size > 0,
+        leadersNote: !see && leaders.size > 0 ? leadSecretNote(start) : null,
+        /* ⚠ ולמי שכן רואה — שזה עדיין אינו פומבי. */
+        leadersPrivate: see && !revealed && leaders.size > 0 ? LEAD_SECRET_STAFF : null,
         sectors: evening.map((s) => ({
           id: s.id, name: s.name, cap: s.cap,
           members: weekRows(w).filter((r) => r.sector === s.id)
@@ -390,6 +430,7 @@ async function handler(req, res, session) {
 
     return res.status(200).json(body);
   } catch (e) {
+    if (/תאריך בדיקה/.test(e.message)) return res.status(400).json({ error: e.message });
     console.error("[chores:view]", e);
     res.status(502).json({ error: "טעינת התורניות נכשלה" });
   }
