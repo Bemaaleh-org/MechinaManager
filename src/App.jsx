@@ -20,6 +20,7 @@ import OfflineBar from "./Offline.jsx";
 import SearchOverlay, { SearchButton } from "./Search.jsx";
 import ExportPage from "./Export.jsx";
 import { MechinaApp, MechinaStaff, WeekLeadersPage, RoleHoldersPage, Loading } from "./Mechina.jsx";
+import StaleBuild from "./StaleBuild.jsx";
 import { LessonsPage, LessonsBoard, LESSON_TABS } from "./Lessons.jsx";
 import { AlumniPage, HostingPage, LoansPage } from "./Extras.jsx";
 import { MenuPage } from "./Menu.jsx";
@@ -606,6 +607,10 @@ function Staff({ auth, onSignedOut }) {
       <div className="kx has-nv">
         {/* ⚠ רצועה קבועה ולא הודעה חד-פעמית: ההגבלה חלה בכל
             מסך ובכל רגע, ומי שיגלול הלאה ישכח אותה. */}
+        {/* ⚠ **לפני הכול, ובשתי המעטפות.** מי שרואה גרסה ישנה
+            רואה מסך שאינו תואם לשום דבר שנאמר לו — ראו
+            src/StaleBuild.jsx. */}
+        <StaleBuild server={auth.build} />
         {auth.viewOnly && (
           <div className="ro-bar">
             החשבון שלכם מוגדר <b>לצפייה בלבד</b> — כל המערכת פתוחה לקריאה,

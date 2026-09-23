@@ -15,6 +15,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { readUpload } from "./upload-image.js";
 import Escalate from "./Escalate.jsx";
+import StaleBuild from "./StaleBuild.jsx";
 import { BRAND } from "./brand.js";
 import { api } from "./api.js";
 import { testDate } from "./testDate.js";
@@ -4642,6 +4643,10 @@ export function MechinaApp({ auth, onSignedOut }) {
 
   return (
     <div className="kx has-nv">
+      {/* ⚠ **גם כאן, ולא רק אצל הצוות.** חניך על חבילה ישנה
+          סובל מאותו דבר בדיוק, ורצועה שקיימת רק במעטפת אחת
+          היא 4יט שחוזר. */}
+      <StaleBuild server={auth.build} />
       <header className="top">
         <div className="top-row">
           <BackButton nav={nav} />

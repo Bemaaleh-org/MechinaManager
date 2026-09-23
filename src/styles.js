@@ -3376,6 +3376,21 @@ html,body{margin:0;padding:0;background:#012E58}
 .ro-bar{background:#FBF3E4;color:#8A5A1E;font-size:12.5px;font-weight:700;
   text-align:center;padding:7px 14px;line-height:1.5;
   border-bottom:1px solid var(--line2)}
+/* ⚠ **גוון חימר ולא הגוון של "צפייה בלבד".** שתיהן רצועות
+   קבועות בראש המסך, והן אומרות דברים שונים לגמרי: אחת מתארת
+   הרשאה, והשנייה אומרת שמה שמתחתיה אינו עדכני. אותו מראה היה
+   מלמד להתעלם משתיהן (4ג). */
+.sb-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+  background:var(--clay-soft);color:var(--clay)}
+.sb-bar span{flex:1;min-width:0}
+.kx .sb-go{flex:0 0 auto;background:var(--clay);color:#fff;border:0;
+  border-radius:var(--r-sm);padding:7px 16px;font-size:13px;font-weight:800;
+  font-family:inherit;cursor:pointer}
+.kx .sb-go:disabled{opacity:.6}
+/* ⚠ שני המזהים קטנים ולא מודגשים — הם לא בשביל המשתמש אלא
+   בשביל מי שיבוא לברר למה "לא מופיע". */
+.sb-sha{flex:0 0 auto;font-size:10.5px;font-weight:700;opacity:.65;
+  font-family:ui-monospace,monospace}
 .ro-bar b{font-weight:900}
 
 /* ---------- אלרגיה — מובלטת ולא שורה ---------- */
