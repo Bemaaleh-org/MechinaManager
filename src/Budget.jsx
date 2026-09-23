@@ -1353,19 +1353,27 @@ export function BudgetPage({ say, isHead = false }) {
       file: "תקציב-מטבח-" + data.month,
       sheet: "תקציב",
       title: `תקציב המטבח — ${monthLabel(data.month)} · ${data.headcount} סועדים`,
-      header: ["תאריך", "יום", "סוג היום", "קייטרינג", "קניות", "סה״כ", "הערה"],
+      /* ⚠⚠ **עמודת "תוספת" ולא רק הערה.** הקובץ נפתח בגיליון
+          ונקרא הרחק מהמסך, ושם "חריגה תקציבית" היא בדיוק מה
+          שמחפשים — הערה לבדה אינה ניתנת לסינון או לסכימה
+          (אותו כלל של הייצוא בדוח התשלום, 5ו). */
+      header: ["תאריך", "יום", "סוג היום", "קייטרינג", "קניות", "תוספת", "סה״כ", "הערה"],
       rows: [
         ...data.days.map((d) => [dm(d.date), dowOf(d.date),
           d.type + (d.type2 ? " + " + d.type2 : ""),
-          Math.round(d.catering), Math.round(d.purchases), Math.round(d.total), d.note || ""]),
+          Math.round(d.catering), Math.round(d.purchases - (d.flat || 0)),
+          d.flat ? Math.round(d.flat) : "",
+          Math.round(d.total), d.note || ""]),
         [],
-        ["תקציב קייטרינג", "", "", Math.round(data.catering), "", "", ""],
-        ["תקציב קניות", "", "", "", Math.round(data.purchases), "", ""],
-        ["נקנה בפועל", "", "", "", Math.round(data.spent), "", ""],
-        ["יתרה בקניות", "", "", "", Math.round(data.left), "", ""],
-        ["סה״כ תקציב החודש", "", "", "", "", Math.round(data.total), ""],
+        ["תקציב קייטרינג", "", "", Math.round(data.catering), "", "", "", ""],
+        ["תקציב קניות", "", "", "", Math.round(data.purchases), "", "", ""],
+        ["נקנה בפועל", "", "", "", Math.round(data.spent), "", "", ""],
+        ["יתרה בקניות", "", "", "", Math.round(data.left), "", "", ""],
+        ["הוצאות אחרות", "", "", "", "",
+          Math.round(data.days.reduce((a, d) => a + (d.flat || 0), 0)), "", ""],
+        ["סה״כ תקציב החודש", "", "", "", "", "", Math.round(data.total), ""],
       ],
-      widths: [10, 6, 16, 11, 10, 10, 22],
+      widths: [10, 6, 16, 11, 10, 9, 10, 22],
     });
     say("הקובץ ירד");
   };
@@ -1598,12 +1606,31 @@ export function BudgetPage({ say, isHead = false }) {
         )}
 
         <div className="sec-label">מה מושך את התקציב</div>
-        <div className="card" style={{ marginBottom: 12 }}>
+        <div className="card bg-types" style={{ marginBottom: 12 }}>
           {data.byType.map((t) => (
-            <div className="bg-row" key={t.type}>
-              <span style={{ flex: 1 }}>{t.type}</span>
-              <span className="num" style={{ color: "var(--muted)" }}>{t.days} ימים</span>
-              <b className="num">{shekel(t.total)} ₪</b>
+            <div key={t.type}>
+              <div className={"bg-row" + (t.other ? " bg-row-other" : "")}>
+                <span style={{ flex: 1 }}>{t.type}</span>
+                <span className="num" style={{ color: "var(--muted)" }}>{t.days} ימים</span>
+                <b className="num">{shekel(t.total)} ₪</b>
+              </div>
+              {/* ============================================================
+                  ⚠⚠ **"באיזה ימים" — התאריכים, ולא רק הסכום.**
+
+                  זו בדיוק השאלה שראש המכינה שאל, ושורה מסוכמת
+                  אינה עונה עליה (4יח). כל תוספת מופיעה עם היום,
+                  הסכום והסיבה שנכתבה לה.
+
+                  ⚠ **ומוצג רק בשורת "אחרות"** — לסוגי היום אין
+                    מה לפרט, והרחבה קבועה בכל שורה היא רעש.
+                  ============================================================ */}
+              {t.other && (t.dates || []).map((x) => (
+                <div className="bg-other-d" key={x.date}>
+                  <span className="num">{dm(x.date)}</span>
+                  <span style={{ flex: 1 }}>{x.note || "בלי סיבה שנרשמה"}</span>
+                  <span className="num">{shekel(x.amount)} ₪</span>
+                </div>
+              ))}
             </div>
           ))}
         </div>
@@ -1716,6 +1743,21 @@ export function BudgetPage({ say, isHead = false }) {
                 </div>
                 <div className="st-m">
                   {d.overridden && <span className="pill p-new">נקבע ידנית</span>}
+                  {/* ============================================================
+                      ⚠⚠ **תוספת תקציבית — בסכומה, ולא רק "נקבע ידנית".**
+
+                      הדיווח (ראש המכינה, 22.9.2026): *"באותו החודש
+                      אי אפשר לדעת באיזה ימים היו חריגות תקציביות."*
+                      התגית "נקבע ידנית" הופיעה על כל יום שנגעו בו —
+                      כולל שינוי סוג — ולכן לא אמרה דבר על כסף.
+
+                      ⚠ **התגית וההערה הן שני דברים**: הראשונה אומרת
+                        כמה, השנייה למה. הערה בלי סכום נקראת כהערה
+                        תפעולית, וסכום בלי הערה הוא מספר בלי סיבה.
+                      ============================================================ */}
+                  {d.flat > 0 && (
+                    <span className="pill p-warn">תוספת {shekel(d.flat)} ₪</span>
+                  )}
                   {d.note && <span>{d.note}</span>}
                   {!d.overridden && !d.note && d.total > 0 && (
                     <span className="num">

@@ -155,6 +155,97 @@ try {
        נשארת ירוקה גם אילו כל איש צוות יכול להעביר כסף
        בין סעיפי תקציב.
      ============================================================ */
+  /* ============================================================
+     תוספת "אחר" ליום — נשמרת, נראית, ומופרדת בפירוט
+     ------------------------------------------------------------
+     ⚠⚠⚠ הדיווח (ראש המכינה, 22.9.2026): *"כשמוסיפים 'אחר' אין
+       פירוט על כמה סכום התווסף והסיבה גם לא כתובה... שיהיה
+       שמור אותו הערך ולא ימחק כמו עכשיו."*
+
+     הסכום **נשמר בלוח כל הזמן** ונכנס לסך הכול — הוא פשוט
+     מעולם לא חזר כשדה משלו, ולכן הטופס נפתח ריק וכל עריכה
+     חוזרת מחקה אותו. שלוש טענות, אחת לכל חלק בבקשה:
+
+       1. `flat` חוזר בשליפה → הטופס נפתח על מה שנשמר
+       2. `byType` מפריד אותו מסוג היום, עם התאריכים
+       3. הסכום הכולל **אינו משתנה** — זו חלוקה מחדש
+
+     ⚠ **הבדיקה בוחרת יום שאיש לא נגע בו** (`overridden:false`)
+       ומוחקת את החריגה בסוף — זה הכלל של 5א, והתקציב הוא
+       נתון שהמכינה עובדת לפיו.
+     ============================================================ */
+  console.log("\n=== תוספת \"אחר\" ליום ===");
+  {
+    const g0 = await call(M, "GET", "/api/kitchen?action=budget");
+    /* ⚠ מהסוף אחורה: ימים רחוקים הם הפחות סבירים להיות ערוכים. */
+    const free = [...(g0.b.days || [])].reverse()
+      .find((d) => !d.overridden && d.total > 0);
+    if (!free) console.log("  (אין יום פנוי בחודש הזה — מדולג)");
+    else {
+      const was = { total: g0.b.total, purchases: g0.b.purchases };
+      const AMT = 137;
+      const NOTE = "בדיקה אוטומטית — תוספת";
+      let r2 = await call(M, "PUT", "/api/kitchen?action=budget",
+        { date: free.date, flat: String(AMT), note: NOTE });
+      ok("התוספת נשמרת", r2.s === 200, `${r2.s} ${r2.b.error || ""}`);
+
+      let g1 = null;
+      for (let i = 0; i < 30; i++) {
+        g1 = await call(M, "GET", "/api/kitchen?action=budget");
+        const d = (g1.b.days || []).find((x) => x.date === free.date);
+        if (d && d.flat === AMT) break;
+        await new Promise((z) => setTimeout(z, 1000));
+      }
+      const d1 = (g1.b.days || []).find((x) => x.date === free.date);
+      /* ⚠⚠ **זו הטענה שהייתה חסרה.** בלעדיה הכול "עבד": הסכום
+         נשמר, נכנס לסך הכול — ופשוט לא חזר. */
+      ok("והיא חוזרת בשליפה", d1 && d1.flat === AMT, d1 ? String(d1.flat) : "—");
+      ok("וגם הסיבה", d1 && d1.note === NOTE, d1 ? String(d1.note) : "—");
+      ok("והיום מסומן כנקבע ידנית", d1 && d1.overridden === true);
+
+      const oth = (g1.b.byType || []).find((t) => t.other);
+      ok("ובפירוט יש שורת הוצאות אחרות", Boolean(oth),
+        (g1.b.byType || []).map((t) => t.type).join(" · "));
+      ok("והיא כוללת את התוספת",
+        Boolean(oth) && oth.total >= AMT, oth ? String(oth.total) : "—");
+      /* ⚠ **התאריכים, ולא רק הסכום** — זו השאלה "באיזה ימים
+         היו חריגות" (4יח). */
+      ok("ומפרטת את היום, הסכום והסיבה",
+        Boolean(oth) && (oth.dates || []).some((x) =>
+          x.date === free.date && x.amount === AMT && x.note === NOTE),
+        JSON.stringify((oth || {}).dates || []));
+      /* ⚠⚠ **והכיוון ההפוך: סוג היום אינו נושא אותה.** בלי זה
+         הפירוט היה סופר את הסכום פעמיים. */
+      const sameType = (g1.b.byType || []).find((t) => !t.other && t.type === free.type);
+      const sumTypes = (g1.b.byType || []).reduce((a, t) => a + t.total, 0);
+      ok("וסוגי היום אינם נושאים אותה",
+        Boolean(sameType) && Math.round(sumTypes) === Math.round(g1.b.total),
+        `${Math.round(sumTypes)} מול ${Math.round(g1.b.total)}`);
+      /* ⚠ הסכום הכולל גדל בדיוק בתוספת — חלוקה מחדש ולא
+         הוצאה שנעלמה. */
+      ok("והסכום החודשי גדל בדיוק בתוספת",
+        Math.round(g1.b.total - was.total) === AMT,
+        `${Math.round(g1.b.total - was.total)}`);
+      ok("וגם תקציב הקניות",
+        Math.round(g1.b.purchases - was.purchases) === AMT,
+        `${Math.round(g1.b.purchases - was.purchases)}`);
+
+      /* ⚠ ניקוי: ריקון מלא מחזיר את היום לגזירה מהלו״ז. */
+      r2 = await call(M, "PUT", "/api/kitchen?action=budget",
+        { date: free.date, type: "", type2: "", cost: "", flat: "", note: "" });
+      ok("והניקוי מחזיר את היום לקדמותו", r2.s === 200, `${r2.s} ${r2.b.error || ""}`);
+      let back = null;
+      for (let i = 0; i < 30; i++) {
+        const g2 = await call(M, "GET", "/api/kitchen?action=budget");
+        back = (g2.b.days || []).find((x) => x.date === free.date);
+        if (back && !back.overridden) break;
+        await new Promise((z) => setTimeout(z, 1000));
+      }
+      ok("והיום נקי", back && back.overridden === false && back.flat === null,
+        back ? `overridden=${back.overridden} flat=${back.flat}` : "—");
+    }
+  }
+
   console.log("\n=== העברת יתרת החד״א ===");
   r = await call(M, "GET", "/api/kitchen?action=budget");
   const bd = r.b;

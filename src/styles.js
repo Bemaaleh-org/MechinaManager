@@ -1064,6 +1064,15 @@ html,body{margin:0;padding:0;background:#012E58}
   border-radius:10px;padding:0 12px;font-size:15px;outline:none;text-align:center}
 .bg-row{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:13.5px;font-weight:700}
 .bg-row+.bg-row{border-top:1px solid var(--line)}
+/* ⚠ שורות הפירוט עטופות ב-div כדי שיוכלו לשאת פירוט מתחתן,
+   ולכן הקו המפריד עבר לעטיפה: הבורר הצמוד בין שתי .bg-row
+   מפסיק להתאים ברגע שיש ביניהן אלמנט. */
+.bg-types > div + div{border-top:1px solid var(--line)}
+/* "הוצאות אחרות" — חלוקה אחרת ולא סוג יום, ולכן גוון ולא צבע מצב */
+.bg-row-other{color:var(--amber)}
+.bg-other-d{display:flex;align-items:center;gap:8px;padding:3px 0 3px 8px;
+  font-size:12px;font-weight:600;color:var(--muted)}
+.bg-other-d:last-child{padding-bottom:7px}
 .bg-day{flex:0 0 46px;display:flex;flex-direction:column;align-items:center;line-height:1.25}
 .bg-day b{font-size:13.5px}
 .bg-day span{font-size:11px;color:var(--faint);font-weight:700}

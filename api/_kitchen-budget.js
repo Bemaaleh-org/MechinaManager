@@ -351,6 +351,23 @@ function buildMonth(month, { types, overrides, calendar, gantt, heads, diningRat
          הסוג שלו עדיין נגזר מהלו״ז (13.9.2026). */
       overridden: Boolean(ov && (ov.type || ov.type2 || ov.cost != null
         || ov.flat != null || ov.note)),
+      /* ============================================================
+         ⚠⚠⚠ **`flat` חוזר החוצה, ובלעדיו הוא נעלם.**
+
+         הדיווח (ראש המכינה, 22.9.2026): *"כשמוסיפים אין פירוט
+         על כמה סכום התווסף והסיבה גם לא כתובה... שיהיה שמור
+         אותו הערך ולא ימחק כמו עכשיו."*
+
+         הסכום **נשמר** בלוח כל הזמן ונכנס ל-`purchases` ול-
+         `total` — אבל מעולם לא נשלח בחזרה כשדה משלו. המסך
+         אתחל את הטופס מ-`day.flat` (הוא כבר עשה זאת!), קיבל
+         `undefined`, והציג שדה ריק — כלומר כל עריכה חוזרת של
+         אותו יום **מחקה** את התוספת בלי לומר מילה.
+
+         ⚠ וזה גם מה שמונע מהמסך להראות "תוספת ₪X" ברשימת
+           הימים, ומה שהסתיר את התוספות מהפירוט החודשי.
+         ============================================================ */
+      flat: ov && ov.flat != null ? ov.flat : null,
       note: ov ? ov.note : null,
       events: (evByDate.get(date) || []).map((e) => e.name),
     };
@@ -519,11 +536,39 @@ async function handler(req, res, session) {
 
       /* פירוט לפי סוג — מה מושך את התקציב */
       const byType = {};
+      /* ============================================================
+         ⚠⚠ **ההוצאות ה"אחרות" מופרדות מסוג היום.**
+
+         הבקשה (ראש המכינה, 22.9.2026): *"בקטגוריה של 'מה מושך
+         את התקציב' יגולם 'אחרות'... כל ההוצאות האחרות שיש על
+         הימים."*
+
+         `dayCost` מוסיף את `flat` ל-`purchases` ול-`total`
+         (4ה), ולכן עד כה תוספת של 800 ₪ ביום שגרה נספרה
+         כ"שגרה" — וסוג היום נראה יקר ממה שהוא. עכשיו היא
+         מופחתת מהסוג ומופיעה בשורה משלה.
+
+         ⚠ **הסכום הכולל אינו משתנה** — רק הייחוס. שורת
+           "הוצאות אחרות" ועמודות הסוגים מסתכמות בדיוק לאותו
+           מספר שהיה קודם, וזו הנקודה: זו חלוקה מחדש ולא
+           הוצאה נוספת.
+
+         ⚠ **והתאריכים נשלחים איתה** — "באיזה ימים היו חריגות"
+           היא בדיוק השאלה ששורה מסוכמת אינה עונה עליה (4יח).
+         ============================================================ */
+      const other = { type: "הוצאות אחרות", days: 0, catering: 0, dining: 0,
+        purchases: 0, total: 0, other: true, dates: [] };
       for (const d of b.days) {
+        const f = Number.isFinite(d.flat) ? d.flat : 0;
         const e = byType[d.type]
           || (byType[d.type] = { type: d.type, days: 0, catering: 0, dining: 0, purchases: 0, total: 0 });
         e.days++; e.catering += d.catering; e.dining += d.dining;
-        e.purchases += d.purchases; e.total += d.total;
+        /* ⚠ בלי ה-flat — הוא יושב בשורה שלו. */
+        e.purchases += d.purchases - f; e.total += d.total - f;
+        if (f > 0) {
+          other.days++; other.purchases += f; other.total += f;
+          other.dates.push({ date: d.date, amount: f, note: d.note || null });
+        }
       }
 
       return res.status(200).json({
@@ -656,7 +701,11 @@ async function handler(req, res, session) {
              שלא ייקראו כמו אותו מספר (4יח).
            ============================================================ */
         committed: b.catering + b.dining + spent,
-        byType: Object.values(byType).sort((a, b2) => b2.total - a.total),
+        /* ⚠ "הוצאות אחרות" **אחרונה תמיד** ולא לפי גודל: היא
+           אינה סוג יום אלא חלוקה אחרת, ומיון משותף היה מציב
+           אותה בין הסוגים כאילו היא אחד מהם. */
+        byType: Object.values(byType).sort((a, b2) => b2.total - a.total)
+          .concat(other.days ? [other] : []),
         orders: orders.map((o) => ({ ...o, months: monthsOf(o), share: orderShareFor(o, month) })),
       });
     }
