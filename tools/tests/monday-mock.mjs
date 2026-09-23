@@ -21,6 +21,10 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
    הזמני, ולכן `../tools/…` ולא `../…`. נתיב שנראה נכון בעץ
    המקור הפיל כאן את **כל** חמישה־עשר הסקריפטים בבת אחת. */
 import COLOR_MAP from "../tools/monday-colors.json" with { type: "json" };
+/* ⚠ המוק יושב כ-api/_monday.js בעותק הזמני, ולכן הנתיב יחסי
+   אליו. `mechina-boards.js` הוא מזהים ותוויות בלבד ואינו
+   מייבא את _monday.js — אין כאן מעגל. */
+import { MECHINA_BOARDS, MECHINA_COLS } from "../shared/mechina-boards.js";
 
 /* ⚠ **enum → var_name, ההפך של הטבלה.** monday מחזירה ב-
    `settings_str` את השם הישן ("green-shadow") ומקבלת ב-API את
@@ -49,12 +53,42 @@ const load = () => (existsSync(need()) ? JSON.parse(readFileSync(FILE, "utf8")) 
 const save = (s) => writeFileSync(need(), JSON.stringify(s, null, 2), "utf8");
 const next = (s) => String(++s.seq);
 
+/* ============================================================
+   ⚠⚠ **עמודות שכבר קיימות אצל המכינה, ולא נוצרות בשום seed.**
+
+   לוח נשאל שאינו קיים נוצר כאן ריק — וזה נכון לרוב השלבים,
+   שיוצרים את העמודה שלהם בעצמם. אבל סקריפט שמוסיף **תווית
+   לעמודת סטטוס קיימת** (seed:suspend על "סוג" שבהיעדרויות)
+   מחפש עמודה שהמוק מעולם לא יצר, ונופל על "אינה בלוח" —
+   כישלון של המוק ולא של הסקריפט.
+
+   ⚠ הרשימה קטנה ומכוונת: רק עמודות שסקריפט רשום **קורא**
+     ואינו יוצר. עמודה שנוספת כאן בלי צורך אמיתי הופכת את
+     המוק למאגר שני שצריך לתחזק.
+   ============================================================ */
+const PREEXISTING = {
+  /* לוח ההיעדרויות — עמודת "סוג" עם שלוש התוויות שקדמו להשעיה */
+  [String(MECHINA_COLS.absence.type)]: {
+    board: String(MECHINA_BOARDS.absence), title: "סוג", type: "status",
+    settings_str: JSON.stringify({ labels: { 1: "חופש", 2: "מחלה", 3: "מוצדקת" } }),
+  },
+};
+
 /* לוח שנשאל עליו לפי מזהה ואינו קיים — נוצר. הסקריפטים של
    העמודות (ערר, ימי חופש, חד״א, תוכן המפגשים) פונים ללוחות
    שכבר קיימים אצל המכינה. */
 function board(s, id, name) {
   const k = String(id);
-  if (!s.boards[k]) s.boards[k] = { id: k, name: name || "לוח קיים " + k, columns: [], items: [] };
+  if (!s.boards[k]) {
+    s.boards[k] = { id: k, name: name || "לוח קיים " + k, columns: [], items: [] };
+    for (const [colId, def] of Object.entries(PREEXISTING)) {
+      if (def.board !== k) continue;
+      s.boards[k].columns.push({
+        id: colId, title: def.title, type: def.type,
+        settings_str: withColors(def.settings_str), revision: 1,
+      });
+    }
+  }
   return s.boards[k];
 }
 

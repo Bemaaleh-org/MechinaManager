@@ -119,6 +119,12 @@ export const STEPS = [
   { script: "tools/seed-order-by.mjs", title: "מי רשם את הקנייה",
     args: ["--go"],
     ids: "shared/budget-boards.js", ready: "orderByReady" },
+  /* ⚠ שני שינויים בשלב אחד: התווית "השעיה" בלוח ההיעדרויות
+     ותיבת "רשאי להשעות" בלוח ההרשאות. ⚠⚠ והוא **אינו מסמן
+     לאיש את התיבה** — זו החלטה של ראש המכינה, ולכן
+     `npm run flag:suspend` בנפרד (5לא). */
+  { script: "tools/seed-suspend.mjs", title: "השעיה, וההרשאה עליה",
+    ids: "shared/auth-board.js", ready: "suspendReady" },
 ];
 
 /**

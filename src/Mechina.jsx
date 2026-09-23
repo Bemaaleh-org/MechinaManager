@@ -222,8 +222,13 @@ const dowDm = (iso) => {
 };
 const initials = (name) => String(name || "").trim().split(/\s+/).slice(0, 2).map((w) => w[0] || "").join("");
 
-const TYPE_CLASS = { "חופש": "vac", "מחלה": "sick", "מוצדקת": "just" };
-const TYPE_PILL = { "חופש": "p-ok", "מחלה": "p-low", "מוצדקת": "p-new" };
+/* ⚠ **"השעיה" בחימר ולא בגוון של היעדרות.** שלוש הראשונות
+   מתארות למה החניך לא הגיע; זו מתארת החלטה של המכינה עליו,
+   ומי שסורק רשימה של 33 צריך להבחין ביניהן בלי לקרוא (4ג).
+   ⚠ וסוג שיתווסף בלוח ואין לו כאן ערך מקבל ברירת מחדל ואינו
+     נעלם (4יא). */
+const TYPE_CLASS = { "חופש": "vac", "מחלה": "sick", "מוצדקת": "just", "השעיה": "susp" };
+const TYPE_PILL = { "חופש": "p-ok", "מחלה": "p-low", "מוצדקת": "p-new", "השעיה": "p-bad" };
 const STATUS_PILL = { "ממתין": "p-new", "מאושר": "p-ok", "נדחה": "p-low" };
 
 /* ============================================================
@@ -430,6 +435,7 @@ function YearBoard({ days, half }) {
         <i><b className="mv-c sick" />מחלה</i>
         <i><b className="mv-c just" />מוצדקת</i>
         <i><b className="mv-c vac" />חופש</i>
+        <i><b className="mv-c susp" />השעיה</i>
         <i><b className="mv-c off" />חופשה</i>
         <i><b className="mv-c noroutine" />לא התקיימה מכינה</i>
         <i><b className="mv-c unmarked" />טרם סומן</i>
@@ -499,6 +505,14 @@ function Summary({ s }) {
       </div>
       <div className="stat"><div className="k">מחלה</div><div className="v num">{s.sick}</div><div className="n">ללא הגבלה</div></div>
       <div className="stat"><div className="k">מוצדקת</div><div className="v num">{s.justified}</div><div className="n">ללא הגבלה</div></div>
+      {/* ⚠ **מוצג רק כשיש.** אריח "השעיה 0" על כל חניך במכינה
+          הוא רעש, ועל רובם הוא גם אמירה מיותרת. ⚠ וכשיש — הוא
+          חייב להופיע, אחרת הוא נבלע בתוך "סה״כ היעדרויות" ואי
+          אפשר לומר ממה הוא מורכב (4ט). */}
+      {s.suspension > 0 && (
+        <div className="stat clay"><div className="k">השעיה</div>
+          <div className="v num">{s.suspension}</div><div className="n">ימים</div></div>
+      )}
     </div>
   );
 }
@@ -508,6 +522,10 @@ function Summary({ s }) {
    ⚠ הכללים נבדקים גם בשרת. החסימה כאן נועדה לחסוך לחניך הגשה
      לחינם, לא להגן. ראו api/_requests.js.
    ============================================================ */
+/* ⚠⚠ **ברירת מחדל בלבד.** הרשימה האמיתית מגיעה מ-`?action=day`
+   כ-`data.types`, ולכן "השעיה" מופיעה רק למי שהשרת פותח לו
+   אותה — אותו כלל של `canEdit` (4יד). הרשימה כאן היא מה
+   שמוצג אם התשובה ישנה או חלקית. */
 const TYPES = ["חופש", "מחלה", "מוצדקת"];
 
 /* ⚠ `initial` — עריכה של בקשה ממתינה. אותו טופס בדיוק, עם
@@ -1355,12 +1373,18 @@ function MarkDay({ say, allowPick = false }) {
 
   const { day, students, marked, canMark, canOverride } = data;
 
-  /* שורות שמקורן בבקשה מאושרת. מנהל רשאי לתקן אותן — המציאות
-     משתנה אחרי ההחלטה — ומוביל שבוע לא. השרת אוכף; כאן זו
-     התצוגה בלבד. */
+  /* ============================================================
+     ⚠⚠⚠ **שורה מבקשה מאושרת אינה נעולה עוד למוביל השבוע**
+     (ראש המכינה, 23.9.2026): *"לעיתים אותו אדם חוזר מוקדם
+     יותר מהצפוי — שלמובילשים תהיה האופציה לסמן נוכח."*
+
+     מה שנשאר נעול הוא **שינוי הסיבה** (`reasonLocked` מתחת),
+     ולא הסימון עצמו. `locked` נשאר כמשתנה כדי שהרמה השלישית
+     הזו תהיה קיימת אם תידרש מחר — והיום היא ריקה לכולם.
+     ============================================================ */
   const fromRequest = new Set(
     students.filter((s) => s.source === "בקשה מאושרת").map((s) => s.id));
-  const locked = canOverride ? new Set() : fromRequest;
+  const locked = new Set();
 
   /* ============================================================
      ⚠⚠⚠ **מוביל שבוע אינו רואה סיבת היעדרות ואינו משנה אותה.**
@@ -1382,7 +1406,10 @@ function MarkDay({ say, allowPick = false }) {
      ============================================================ */
   const seesReason = data.seesReason !== false;
   const reasonLocked = seesReason ? new Set()
-    : new Set(students.filter((s) => s.absent && !locked.has(s.id)).map((s) => s.id));
+    : new Set(students.filter((s) => s.absent).map((s) => s.id));
+  /* ⚠ סוגי ההיעדרות שהקורא רשאי לבחור — מהשרת, ולא רשימה
+     שהמסך מחזיק לעצמו (4מד). */
+  const types = (data.types && data.types.length) ? data.types : TYPES;
 
   /* מצב החניך: "present" | סוג היעדרות | null = לא סומן */
   const stateOf = (id) => (present.has(id) ? "present" : (draft[id] ? draft[id].type : null));
@@ -1439,11 +1466,15 @@ function MarkDay({ say, allowPick = false }) {
 
   const save = () => {
     if (saving) return;
-    /* ⚠ מוצדקת מחייבת פירוט — נבדק גם בשרת; כאן חוסכים שליחה */
-    const missing = Object.entries(draft).find(([, v]) => v.type === "מוצדקת" && !v.detail.trim());
+    /* ⚠ מוצדקת והשעיה מחייבות פירוט — נבדק גם בשרת; כאן
+       חוסכים שליחה. ⚠ השעיה כל שכן: היא החלטה של המכינה על
+       חניך, ובעוד חצי שנה אין שום דרך לשחזר על מה היא הייתה. */
+    const NEED = ["מוצדקת", "השעיה"];
+    const missing = Object.entries(draft)
+      .find(([, v]) => NEED.includes(v.type) && !v.detail.trim());
     if (missing) {
       setOpen(missing[0]);
-      say("היעדרות מוצדקת מחייבת פירוט");
+      say(`${draft[missing[0]].type === "השעיה" ? "השעיה" : "היעדרות מוצדקת"} מחייבת פירוט`);
       return;
     }
     setSaving(true);
@@ -1452,11 +1483,19 @@ function MarkDay({ say, allowPick = false }) {
     }));
     api.markAttendance({ date: day.date, absences, present: [...present], half: [...half] }, td)
       .then((r) => {
-        say(r.locked.length
-          ? `נשמר. ${r.locked.length} מבקשה מאושרת לא שונו`
-          : `נשמר · ${r.present} נוכחים, ${r.absent} חסרים`
-            + (r.half ? `, ${r.half} חצי יום` : "")
-            + `, ${r.unmarked} לא סומנו`);
+        /* ⚠ **`released` נאמר במפורש ולא נבלע ב"נשמר"** (4ט):
+           הסרת היעדרות מאושרת היא הפעולה החריגה כאן, והיא גם
+           מחזירה למכסה את היום. מי שלא יידע שזה קרה יגלה את
+           זה רק כשהמכסה תיראה אחרת. */
+        const rel = (r.released || []).length;
+        say(rel
+          ? `נשמר. ${rel === 1 ? "היעדרות מאושרת הוסרה" : `${rel} היעדרויות מאושרות הוסרו`}`
+            + ` · ${(r.released || []).join(", ")}`
+          : (r.locked || []).length
+            ? `נשמר. ${r.locked.length} מבקשה מאושרת לא שונו`
+            : `נשמר · ${r.present} נוכחים, ${r.absent} חסרים`
+              + (r.half ? `, ${r.half} חצי יום` : "")
+              + `, ${r.unmarked} לא סומנו`);
         reload();
       })
       .catch((e) => say(e.message))
@@ -1605,12 +1644,22 @@ function MarkDay({ say, allowPick = false }) {
                       <MI.lock />
                       {isLocked
                         ? "מבקשה שאושרה — מנהל בלבד רשאי לשנות"
-                        : "מבקשה שאושרה — שינוי כאן מתקן את הרישום בפועל"}
+                        : seesReason
+                          ? "מבקשה שאושרה — שינוי כאן מתקן את הרישום בפועל"
+                          /* ⚠ **נאמר מה בדיוק יקרה, ולא "אפשר לשנות".**
+                             סימון "נוכח" כאן מוחק את שורת ההיעדרות
+                             ומחזיר את היום למכסה — וזה נכון (הוא היה
+                             כאן), אבל זו פעולה שצריך לדעת שעושים.
+                             ⚠ ונאמר גם **למה הסוגים מושבתים** — כפתור
+                               אפור בלי מילה נראה כמו תקלה (4כב). */
+                          : "מבקשה שאושרה — סימון \"נוכח\" מסיר אותה"
+                            + " ומחזיר לחניך את היום במכסה."
+                            + " שינוי הסיבה נעשה על ידי הצוות"}
                     </div>
                   )}
                   {/* ⚠ **המחיר מוצהר במסך.** מי שרואה כפתורים מושבתים
                       בלי מילה מסיק שהמערכת שבורה (4כב). */}
-                  {noReason.has(s.id) && (
+                  {noReason.has(s.id) && !fromRequest.has(s.id) && (
                     <div className="abs-lock">
                       <MI.lock />
                       סיבת ההיעדרות אינה מוצגת למובילי השבוע. לשינוי —
@@ -1621,7 +1670,7 @@ function MarkDay({ say, allowPick = false }) {
                   <div className="abs-pick">
                     <button className={st === "present" ? "on here" : ""} disabled={isLocked}
                       onClick={() => setState(s.id, "present")}>נוכח</button>
-                    {TYPES.map((t) => (
+                    {types.map((t) => (
                       <button key={t}
                         disabled={isLocked || noReason.has(s.id)
                           || (t === "חופש" && !day.vacationAllowed)}

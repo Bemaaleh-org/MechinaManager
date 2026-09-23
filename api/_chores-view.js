@@ -206,8 +206,11 @@ async function handler(req, res, session) {
       const iLead = leaders.has(myId);
       const assigns = Boolean(perm.assign || perm.assignDaily || perm.daily);
       const start = w.spanStart || w.start;
+      /* ⚠ **`isManager` ולא `!isStudent`** — כניסת התורנים
+         המשותפת אינה צוות (5מ), ו-`!isStudent` היה פותח לה את
+         השמות. אותו דגל בדיוק של `seesReason`. */
       const see = maySeeLeaders({
-        start, today, staff: !session.isStudent, isLeader: iLead, assigns,
+        start, today, staff: Boolean(session.isManager), isLeader: iLead, assigns,
       });
       const revealed = !start || today > start;
       return {

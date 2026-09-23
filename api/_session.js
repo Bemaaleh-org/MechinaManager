@@ -48,8 +48,10 @@ export const fingerprint = (code) => b64(hmac("code:" + code)).slice(0, 22);
 /* ---------- מטמון לוח המשתמשים ---------- */
 export async function authRows({ force = false } = {}) {
   return cached("auth-rows", async () => {
+    /* ⚠ `.filter(Boolean)` — עמודה שטרם הוקמה היא `""`, ומזהה
+       ריק ברשימה גורם ל-monday להחזיר את **כל** העמודות (5ו). */
     const cols = JSON.stringify([AUTH_COLS.kind, AUTH_COLS.code, AUTH_COLS.active,
-      AUTH_COLS.role, AUTH_COLS.viewOnly]);
+      AUTH_COLS.role, AUTH_COLS.viewOnly, AUTH_COLS.suspend].filter(Boolean));
     const d = await gql(
       `{ boards(ids:[${AUTH_BOARD}]){ items_page(limit:500){ items {
            id name column_values(ids:${cols}){ id text } } } } }`
@@ -65,6 +67,11 @@ export async function authRows({ force = false } = {}) {
       role: val(i, AUTH_COLS.role) || null,
       /* ⚠ ריק = הרשאה מלאה. ראו shared/auth-board.js. */
       viewOnly: val(i, AUTH_COLS.viewOnly) === "v",
+      /* ⚠ **ריק = אינו רשאי** — הקוטביות ההפוכה מ-`viewOnly`,
+         ובכוונה. ובלי העמודה: `val` מחזיר "" ולכן `false`,
+         כלומר רק ראש המכינה משעה (עיקרון 6). */
+      canSuspend: AUTH_COLS.suspend
+        ? val(i, AUTH_COLS.suspend) === "v" : false,
     }));
   }, { force });
 }
@@ -258,6 +265,9 @@ export async function requireAuth(req, res) {
       isHouse: (row.roles || []).includes(ROLE_HOUSE),
       /* ⚠ תפקידי ההכרעה בבקשות יציאה שייכים לצוות בלבד */
       isHead: false,
+      /* ⚠ חניך אינו משעה, גם בעל תפקיד — `maySuspend` חוסם
+         אותו ממילא, וזה כאן כדי שהשדה יהיה קיים ולא undefined. */
+      canSuspend: false,
       isGuide: false,
     };
   }
@@ -291,6 +301,9 @@ export async function requireAuth(req, res) {
     /* ⚠ נקרא טרי מהלוח בכל בקשה, כמו התפקיד. הסרת הסימון
        פותחת כתיבה מיד ולא בכניסה הבאה. */
     viewOnly: Boolean(row.viewOnly),
+    /* ⚠ גם הוא טרי בכל בקשה — הסרת התיבה סוגרת את ההשעיה
+       מיד ולא בכניסה הבאה. ראו `maySuspend` ב-shared/edit-rights.js. */
+    canSuspend: Boolean(row.canSuspend),
     roles: [],
     isScheduler: false,
     isContainer: false,

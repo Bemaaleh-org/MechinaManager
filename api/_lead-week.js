@@ -251,8 +251,10 @@ async function weekView(req, res, session) {
   const myId = String(session.itemId || "");
   const iLead = (week.leaderIds || []).map(String).includes(myId);
   const start = week.spanStart || week.start;
+  /* ⚠ **`isManager` ולא `!isStudent`** — כניסת התורנים המשותפת
+     אינה צוות (5מ). */
   const seeLeaders = maySeeLeaders({
-    start, today, staff: !session.isStudent, isLeader: iLead,
+    start, today, staff: Boolean(session.isManager), isLeader: iLead,
   });
   const leaders = !seeLeaders ? [] : (week.leaderIds || [])
     .map((id) => byId.get(String(id)))

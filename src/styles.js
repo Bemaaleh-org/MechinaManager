@@ -457,6 +457,11 @@ html,body{margin:0;padding:0;background:#012E58}
 .yr-c.sick{background:#DC2626;border-color:#DC2626}
 .yr-c.just{background:#D97706;border-color:#D97706}
 .yr-c.vac{background:#2563EB;border-color:#2563EB}
+/* ⚠ **השעיה בגרפיט ולא בגוון רביעי של היעדרות.** שלוש
+   האחרות מתארות למה החניך לא הגיע; זו מתארת החלטה של
+   המכינה עליו, ובלוח שנה שלם ההבחנה הזו היא כל העניין.
+   ⚠ ולא אדום — אדום כאן כבר תפוס למחלה (4ג). */
+.yr-c.susp{background:#3F3A4A;border-color:#3F3A4A}
 .yr-c.unmarked{background:repeating-linear-gradient(45deg,#fff,#fff 2px,#E1D9C7 2px,#E1D9C7 4px);
   border-color:var(--line2)}
 .yr-c.sel{outline:2px solid var(--ink);outline-offset:1px}
@@ -506,6 +511,7 @@ html,body{margin:0;padding:0;background:#012E58}
 .abs-pick button.on.vac{background:#1D4ED8;border-color:#1D4ED8;color:#fff}
 .abs-pick button.on.sick{background:#B91C1C;border-color:#B91C1C;color:#fff}
 .abs-pick button.on.just{background:#B45309;border-color:#B45309;color:#fff}
+.abs-pick button.on.susp{background:#332E3D;border-color:#332E3D;color:#fff}
 .abs-pick button:disabled{opacity:.45}
 
 /* מצב החניך בשורה — תגים בצבע מלא, לא פסטל */
@@ -3439,6 +3445,7 @@ html,body{margin:0;padding:0;background:#012E58}
 .kx .mv-c.sick{background:#FBF3E4;color:#8A5A1E}
 .kx .mv-c.just{background:#E7EEF7;color:#2A4E7E}
 .kx .mv-c.vac{background:#F3E8F5;color:#6B3D7A}
+.kx .mv-c.susp{background:#E4E1E9;color:#3F3A4A}
 .kx .mv-c.off{background:var(--sand);color:var(--faint)}
 /* ⚠ "לא התקיימה" נבדל מ"חופשה": חופשה מתוכננת, וזה מתגלה
    בדיעבד. מקווקו ולא צבע אחר — הצבעים תפוסים למצבי החניך. */

@@ -323,6 +323,12 @@ export function summarize(studentId, { absences, marked, byDate }, today = israe
     sick: countCost(ABSENCE.sick),
     justified: countCost(ABSENCE.justified),
     vacation: count(ABSENCE.vacation),
+    /* ⚠ **ספירת שורות, כמו חופש ולא כמו מחלה.** להשעיה אין
+       "כמה ימים לגבות" — היא אינה `isChargeable` ואינה עוברת
+       במסלול הבקשות; כל שורה היא יום שהחניך הושעה בו.
+       ⚠ **ומונה משלה ולא בליעה ב"נעדר"**: בלעדיו היא הייתה
+         מנפחת את סך ההיעדרויות בלי שאיש יוכל לומר ממה (4ט). */
+    suspension: count(ABSENCE.suspension),
     quota: [quota(HALF.first), quota(HALF.second)],
     /* ⚠ שתי המכסות ממשיכות לצאת — מסך הנוכחות מציג את שתיהן,
        וזו התמונה השנתית. מה שנוסף הוא **איזו מהן עכשיו**, כדי

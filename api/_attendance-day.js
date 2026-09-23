@@ -22,6 +22,8 @@ import {
   weeksOfStudent, leadersForDate, canMarkDate, retroDays, periodStartForDate,
 } from "./_leader-weeks.js";
 import { maySeeLeaders } from "../shared/lead-secret.js";
+import { maySuspend } from "../shared/edit-rights.js";
+import { ABSENCE } from "../shared/mechina-boards.js";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -56,7 +58,11 @@ async function handler(req, res, session) {
     const seeCrowns = maySeeLeaders({
       start: await periodStartForDate(asked),
       today,
-      staff: !session.isStudent,
+      /* ⚠ **`isManager` ולא `!isStudent`** — כניסת התורנים
+         המשותפת אינה צוות (5מ). זהה ל-`seesReason` שמוגדר
+         מתחת; אינו משתמש בו כי הוא מוצהר מאוחר יותר בקובץ,
+         ו-`const` ב-TDZ נופל בזמן ריצה בלי ש-vite יתפוס. */
+      staff: Boolean(session.isManager),
       isLeader: dayLeaders.has(String(session.itemId)),
     });
     /* ============================================================
@@ -112,6 +118,10 @@ async function handler(req, res, session) {
     /* ⚠ צוות רואה את סיבת ההיעדרות; מוביל שבוע לא. ראו
        ההערה המלאה מעל מיפוי השורות. */
     const seesReason = Boolean(session.isManager);
+    /* ⚠ **הכפתור יודע מראש** (4יד): מסך שיציע "השעיה" למי שאינו
+       רשאי מקבל 403 אחרי שהמשתמש כבר הקליד פירוט. `canSuspend`
+       נגזר בשרת מאותה `maySuspend` שהשרת אוכף. */
+    const canSuspend = maySuspend(session);
 
     res.status(200).json({
       day: {
@@ -207,9 +217,18 @@ async function handler(req, res, session) {
         ? retroDays(myWeeks, cal.days, (d) => marked.has(d), isSchoolDay, today)
         : [],
 
-      /* ⚠ תיקון שורה שמקורה בבקשה מאושרת — מנהל בלבד.
-         מוביל שבוע רואה אותה נעולה. ראו api/_attendance-mark.js. */
+      /* ⚠⚠ **שינוי הסיבה** של שורה שמקורה בבקשה מאושרת — מנהל
+         בלבד. ⚠ ומאז 23.9.2026 זה **אינו** חל על סימון "נוכח/ת":
+         מוביל שבוע כן משחרר היעדרות מאושרת של מי שחזר מוקדם.
+         שתי פעולות, שתי הרשאות — ראו api/_attendance-mark.js. */
       canOverride: session.isManager,
+
+      /* ⚠ **סוגי ההיעדרות שהקורא הזה רשאי לבחור**, ולא רשימה
+         שהמסך מחזיק לעצמו: סוג שיתווסף כאן מופיע שם מעצמו,
+         וסוג שנחסם אינו מוצע (4מד). */
+      types: [ABSENCE.vacation, ABSENCE.sick, ABSENCE.justified,
+        ...(canSuspend ? [ABSENCE.suspension] : [])],
+      canSuspend,
 
       /* ⚠⚠ **נגזר בשרת ונשלח, ולא מחושב במסך.** המסך צריך
          לדעת מראש שהוא אינו מציג סיבות ושהוא אינו רשאי
