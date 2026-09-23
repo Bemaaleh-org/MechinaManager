@@ -1080,6 +1080,19 @@ html,body{margin:0;padding:0;background:#012E58}
   background:var(--bg);border-radius:11px;padding:11px 13px;margin-bottom:12px;
   font-size:13.5px;font-weight:700;color:var(--muted)}
 .bg-calc b{font-size:17px;color:var(--ink)}
+/* ⚠ **התוספת בשורה משלה, מתחת לפירוט היום.** בתוך השרשרת
+   (קייטרינג · קניות · תוספת) היא נקראת כמו עוד רכיב קבוע של
+   היום; בשורה נפרדת ובגוון ענבר, עם הסיבה לצידה, היא נקראת
+   כמו מה שהיא — חריגה. אותו גוון של התגית ברשימת החודש ושל
+   שורת ההוצאות האחרות, כדי ששלושתם ייקראו כאותו מספר.
+   ⚠ ה-:has מצמיד את השתיים; דפדפן שאינו תומך מקבל רווח
+     רגיל ביניהן, ולא פריסה שבורה. */
+.bg-calc:has(+ .bg-calc-n){margin-bottom:5px}
+.bg-calc-n{display:flex;align-items:center;flex-wrap:wrap;gap:4px;
+  background:var(--amber-soft);color:var(--amber);border-radius:11px;
+  padding:9px 13px;margin-bottom:12px;font-size:13px;font-weight:700}
+.bg-calc-n b{font-size:14px;color:var(--amber)}
+.bg-calc-n i{font-style:normal;opacity:.75}
 .pick.pick-wrap{flex-wrap:wrap}
 
 .bg-bar{height:5px;border-radius:99px;background:var(--line);margin-top:7px;overflow:hidden}

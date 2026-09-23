@@ -17,7 +17,8 @@ import React, { useState, useEffect } from "react";
 import { api } from "./api.js";
 import { useExcel, downloadTable } from "./excel.js";
 import ScrollTabs from "./Tabs.jsx";
-import { monthLabel, ORDER_KIND, consecutiveMonths, DAY_COMMUNITY } from "../shared/budget-boards.js";
+import { monthLabel, ORDER_KIND, consecutiveMonths, DAY_COMMUNITY, DAY_OTHER }
+  from "../shared/budget-boards.js";
 
 const BI = {
   chev: (p) => <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
@@ -202,19 +203,48 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel, dining }) {
               נוסף לו — במקום מחיר ידני שדורס את שניהם ומוחק
               את הסיבה שבגללה היום יקר. */}
         <div className="fld">
-          <label>ועוד — "אחר" (לא חובה)</label>
+          <label>ועוד — {DAY_OTHER} (לא חובה)</label>
           {/* ⚠ רק "אחר". סוג שני שהוא סדרה או שגרה פירושו לחשב
               יום שלם פעמיים, וזה כמעט תמיד טעות. "אחר" הוא
               הסל שנועד בדיוק לזה: משהו שקרה ביום ואין לו שם. */}
           <div className="pick">
             <button type="button" className={!type2 ? "on" : ""} disabled={busy}
               onClick={() => setType2(null)}>בלי</button>
-            <button type="button" className={type2 === "אחר" ? "on" : ""} disabled={busy || type === "אחר"}
-              onClick={() => setType2("אחר")}>אחר</button>
+            <button type="button" className={type2 === DAY_OTHER ? "on" : ""}
+              disabled={busy || type === DAY_OTHER}
+              onClick={() => setType2(DAY_OTHER)}>{DAY_OTHER}</button>
           </div>
+          {/* ============================================================
+              ⚠⚠ **ל"אחר" אין תעריף משלו — הסכום מוקלד ביד.**
+
+              כל סוג יום נושא תעריף בלוח סוגי היום; ל"אחר" יש
+              **אפס** בשלושתם (קייטרינג, קניות, חד״א), כי הוא הסל
+              של מה שאין לו שם וממילא אין לו מחיר קבוע. המשמעות
+              המעשית: בחירה ב"אחר" **לבדה אינה מוסיפה שקל**,
+              והסכום נכנס בשדה "תוספת לאותו יום" שמתחת.
+
+              זה נפל בפועל (22.9.2026): יום שנשמר עם "+ אחר", בלי
+              סכום ובלי הערה — תווית שאומרת "קרה פה עוד משהו"
+              ואינה אומרת מה, כמה ולמה.
+
+              ⚠ **מתריע ואינו חוסם** (4צ): יש אירועים שבאמת אינם
+                עולים כסף, וחסימה הייתה שולחת להקליד מספר מומצא.
+              ============================================================ */}
           {chosen2 && (
             <div className="bg-fixed" style={{ marginTop: 7 }}>
               היום מחושב כ<b>{type}</b> ועוד <b>{type2}</b> — שני הסכומים מתחברים.
+              {" "}ל<b>אחר</b> אין תעריף קבוע: הסכום והסיבה נכתבים מתחת.
+            </div>
+          )}
+          {chosen2 && flatN <= 0 && (
+            <div className="note-warn" style={{ marginTop: 7 }}>
+              <BI.warn />נבחר "אחר" ולא נרשם סכום — היום יישמר בלי שום תוספת.
+            </div>
+          )}
+          {chosen2 && flatN > 0 && !note.trim() && (
+            <div className="note-warn" style={{ marginTop: 7 }}>
+              <BI.warn />תוספת של {shekel(flatN)} ₪ בלי סיבה שנרשמה — בעוד חודשיים
+              איש לא יזכור על מה.
             </div>
           )}
         </div>
@@ -242,11 +272,17 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel, dining }) {
             הסעה של 300 ₪ אינה 300 ₪ לאדם, ואינה מבטלת את
             הארוחות של אותו יום. */}
         <div className="fld">
-          <label>סכום מדויק ליום (לא חובה)</label>
+          {/* ⚠ **"תוספת" ולא "סכום מדויק".** אותה מילה שבתגית
+              שברשימת החודש ובשורת "הוצאות אחרות" שב"מה מושך את
+              התקציב" — שלושה מסכים שמציגים את אותו מספר, ומי
+              שקורא צריך לזהות אותו כאותו מספר. */}
+          <label>תוספת לאותו יום — סכום מדויק (לא חובה)</label>
           <input value={flat} onChange={(e) => setFlat(e.target.value)} disabled={busy}
-            inputMode="decimal" placeholder="ריק = אין" />
+            inputMode="decimal"
+            placeholder={type2 === DAY_OTHER ? "כמה עלה ה״אחר״" : "ריק = אין"} />
           <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 600, marginTop: 4 }}>
             סכום של היום כולו, לא לאדם — <b>מתווסף</b> ואינו מחליף.
+            {type2 === DAY_OTHER && <> זה הסכום של ה<b>{DAY_OTHER}</b> שנבחר למעלה.</>}
           </div>
         </div>
 
@@ -290,22 +326,50 @@ function DayEditor({ day, types, headcount, say, onDone, onCancel, dining }) {
         </div>
 
         <div className="fld">
-          <label>הערה</label>
+          {/* ⚠ **ההערה היא הסיבה, ולא קישוט.** סכום בלי סיבה הוא
+              מספר שאיש לא יוכל להסביר בסוף השנה, ולכן נאמר כאן
+              גם **איפה** היא תופיע — מי שאינו יודע שהיא יוצאת
+              לשני מסכים נוספים כותב בה קיצור שרק הוא מבין. */}
+          <label>הערה{flatN > 0 ? " — למה נוספה התוספת" : ""}</label>
           <input value={note} onChange={(e) => setNote(e.target.value)} disabled={busy}
-            placeholder="למשל: ארוחת חג, אירוח קבוצה" />
+            placeholder={flatN > 0 ? "למשל: פריסה מסע עלייה, ערב צוות"
+                                   : "למשל: ארוחת חג, אירוח קבוצה"} />
+          <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 600, marginTop: 4 }}>
+            מוצגת על היום ברשימת החודש, ולצד הסכום ב״מה מושך את התקציב״.
+          </div>
         </div>
 
+        {/* ============================================================
+            ⚠⚠ **השורה התחתונה של היום אומרת גם כמה נוסף וגם למה.**
+
+            הדיווח (ראש המכינה, 22.9.2026): *"לא הצגת את הנתונים
+            האלה בהערות למטה של כל יום."* השורה אמרה "מדויק 800" —
+            מילה שאינה מופיעה בשום מסך אחר — ולא אמרה דבר על
+            הסיבה שהוקלדה שני שדות מעליה. מי שפתח יום כדי לבדוק
+            חריגה קיבל מספר בלי שם.
+
+            ⚠ **התוספת בשורה משלה ולא בתוך הפירוט.** בתוך השרשרת
+              היא נקראת כמו עוד רכיב של היום; מתחתיה, עם הסיבה
+              לצידה, היא נקראת כמו מה שהיא — חריגה.
+            ============================================================ */}
         <div className="bg-calc">
           <span>
             קייטרינג {shekel(preview.catering)}
             {preview.dining > 0 ? ` · חד״א ${shekel(preview.dining)}` : ""}
             {" · קניות "}{shekel(preview.purchases)}
-            {preview.flat > 0 ? ` · מדויק ${shekel(preview.flat)}` : ""}
+            {preview.flat > 0 ? ` · תוספת ${shekel(preview.flat)}` : ""}
           </span>
           <b className="num">
             {shekel(preview.catering + preview.dining + preview.purchases + preview.flat)} ₪
           </b>
         </div>
+        {preview.flat > 0 && (
+          <div className="bg-calc-n">
+            תוספת <b className="num">{shekel(preview.flat)} ₪</b>
+            {" · "}
+            {note.trim() ? note.trim() : <i>בלי סיבה שנרשמה</i>}
+          </div>
+        )}
 
         <button className="btn btn-primary" disabled={busy} onClick={save}>
           {busy ? "שומר…" : "שמירה"}
@@ -1758,7 +1822,16 @@ export function BudgetPage({ say, isHead = false }) {
                   {d.flat > 0 && (
                     <span className="pill p-warn">תוספת {shekel(d.flat)} ₪</span>
                   )}
-                  {d.note && <span>{d.note}</span>}
+                  {/* ⚠ **"אחר" בלי סכום מוצג ואינו מושמט.** היום נושא
+                      "+ אחר", אינו עולה שקל, ואין בו סיבה — כלומר
+                      תווית שאינה אומרת דבר. זה בדיוק היום שצריך
+                      למלא, והשמטה שקטה היא מה שהשאירה אותו כך (4ט). */}
+                  {d.type2 === DAY_OTHER && !(d.flat > 0) && (
+                    <span className="pill p-bad">{DAY_OTHER} בלי סכום</span>
+                  )}
+                  {d.note
+                    ? <span>{d.note}</span>
+                    : d.flat > 0 ? <span>בלי סיבה שנרשמה</span> : null}
                   {!d.overridden && !d.note && d.total > 0 && (
                     <span className="num">
                       {d.catering > 0 ? `קייטרינג ${shekel(d.catering)}` : ""}

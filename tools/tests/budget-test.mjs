@@ -13,7 +13,7 @@ import {
 } from "../../shared/budget-ids.js";
 import {
   orderMonths, orderShareFor, monthsOf, consecutiveMonths, ORDER_KIND,
-  orderByReady,
+  orderByReady, DAY_OTHER,
 } from "../../shared/budget-boards.js";
 
 const SRV = "http://localhost:5173";
@@ -243,6 +243,99 @@ try {
       }
       ok("והיום נקי", back && back.overridden === false && back.flat === null,
         back ? `overridden=${back.overridden} flat=${back.flat}` : "—");
+    }
+  }
+
+  /* ============================================================
+     ⚠⚠ **"אחר" בלי סכום — המצב השקט שהשאיר יום ריק**
+
+     הדיווח (ראש המכינה, 23.9.2026): *"לא הצגת את הנתונים האלה
+     בהערות למטה של כל יום."* מאחוריו יום אמיתי (22.9.2026)
+     שנשמר עם "+ אחר", בלי סכום ובלי הערה.
+
+     השורש: **ל"אחר" אין תעריף משלו** — אפס בקייטרינג, בקניות
+     ובחד״א — והסכום מוקלד בשדה נפרד. כלומר בחירה ב"אחר" לבדה
+     נשמרת בהצלחה, אינה מוסיפה שקל, ואינה אומרת דבר. אין כאן
+     שגיאה לתפוס, ולכן נדרשת טענה.
+
+     ארבע טענות, וכולן נחוצות:
+       1. `DAY_OTHER` הוא **תו בתו** שם שקיים בלוח סוגי היום.
+          מחרוזת שנכשלת בתו אחד אינה זורקת — היא פשוט לעולם
+          אינה מתאימה, בשקט (מלכודת הגרשיים העבריים).
+       2. `type2` חוזר בשליפה — בלעדיו המסך אינו יכול לדעת
+          שהיום נושא "אחר" ואינו יכול לסמן אותו.
+       3. היום **אינו** בשורת ההוצאות האחרות ואינו מוסיף לסך
+          הכול — זו בדיוק הסיבה שהוא חייב תגית משלו.
+       4. הוספת הסכום מעבירה אותו לשם. הכיוון ההפוך נועל את
+          הראשון: בלעדיו טענה 3 הייתה ירוקה גם אילו התוספת
+          הפסיקה להיספר בכלל.
+     ============================================================ */
+  console.log("\n=== \"אחר\" בלי סכום ===");
+  {
+    const g0 = await call(M, "GET", "/api/kitchen?action=budget");
+    ok("\"אחר\" קיים בלוח סוגי היום תו בתו",
+      (g0.b.types || []).some((t) => t.name === DAY_OTHER),
+      (g0.b.types || []).map((t) => t.name).join(" · "));
+    /* ⚠ יום שאיש לא נגע בו, ולא אותו יום של הבלוק הקודם. */
+    const free = [...(g0.b.days || [])].reverse()
+      .filter((d) => !d.overridden && d.total > 0)[1];
+    if (!free) console.log("  (אין יום פנוי שני בחודש הזה — מדולג)");
+    else {
+      const was = Math.round(g0.b.total);
+      let r2 = await call(M, "PUT", "/api/kitchen?action=budget",
+        { date: free.date, type: free.type, type2: DAY_OTHER, cost: "", flat: "", note: "" });
+      ok("יום נשמר עם \"אחר\" ובלי סכום", r2.s === 200, `${r2.s} ${r2.b.error || ""}`);
+
+      let g1 = null, d1 = null;
+      for (let i = 0; i < 30; i++) {
+        g1 = await call(M, "GET", "/api/kitchen?action=budget");
+        d1 = (g1.b.days || []).find((x) => x.date === free.date);
+        if (d1 && d1.type2 === DAY_OTHER) break;
+        await new Promise((z) => setTimeout(z, 1000));
+      }
+      ok("והסוג הנוסף חוזר בשליפה", d1 && d1.type2 === DAY_OTHER,
+        d1 ? String(d1.type2) : "—");
+      ok("והסכום ריק ולא אפס", d1 && d1.flat === null, d1 ? String(d1.flat) : "—");
+      /* ⚠⚠ זו הטענה שמסבירה למה צריך תגית: היום נראה ערוך
+         ואינו עולה דבר. */
+      ok("והוא אינו מוסיף שקל לחודש", Math.round(g1.b.total) === was,
+        `${Math.round(g1.b.total)} מול ${was}`);
+      const oth0 = (g1.b.byType || []).find((t) => t.other);
+      ok("ואינו נספר בהוצאות האחרות",
+        !oth0 || !(oth0.dates || []).some((x) => x.date === free.date),
+        JSON.stringify((oth0 || {}).dates || []));
+
+      /* ⚠ הכיוון ההפוך — בלעדיו הראשון ירוק גם על תקלה. */
+      const AMT2 = 91;
+      r2 = await call(M, "PUT", "/api/kitchen?action=budget",
+        { date: free.date, type: free.type, type2: DAY_OTHER,
+          cost: "", flat: String(AMT2), note: "בדיקה אוטומטית — אחר" });
+      ok("והוספת הסכום נשמרת", r2.s === 200, `${r2.s} ${r2.b.error || ""}`);
+      let d2 = null, g2 = null;
+      for (let i = 0; i < 30; i++) {
+        g2 = await call(M, "GET", "/api/kitchen?action=budget");
+        d2 = (g2.b.days || []).find((x) => x.date === free.date);
+        if (d2 && d2.flat === AMT2) break;
+        await new Promise((z) => setTimeout(z, 1000));
+      }
+      const oth1 = (g2.b.byType || []).find((t) => t.other);
+      ok("ואז היום נכנס להוצאות האחרות",
+        Boolean(oth1) && (oth1.dates || []).some((x) => x.date === free.date && x.amount === AMT2),
+        JSON.stringify((oth1 || {}).dates || []));
+
+      /* ⚠ ניקוי — היום חוזר לגזירה מהלו״ז. */
+      r2 = await call(M, "PUT", "/api/kitchen?action=budget",
+        { date: free.date, type: "", type2: "", cost: "", flat: "", note: "" });
+      let back = null;
+      for (let i = 0; i < 30; i++) {
+        const g3 = await call(M, "GET", "/api/kitchen?action=budget");
+        back = (g3.b.days || []).find((x) => x.date === free.date);
+        if (back && !back.overridden) break;
+        await new Promise((z) => setTimeout(z, 1000));
+      }
+      ok("והניקוי מחזיר את היום לקדמותו",
+        back && back.overridden === false && back.type2 === null && back.flat === null,
+        back ? `overridden=${back.overridden} type2=${back.type2} flat=${back.flat}` : "—");
     }
   }
 

@@ -24,7 +24,7 @@ import {
   BUDGET_BOARDS as B, BUDGET_COLS as C, budgetReady,
   DEFAULT_HEADCOUNT, SETTING_HEADCOUNT,
   SETTING_DINING_RATE, SETTING_DINING_BUDGET, DEFAULT_DINING_RATE,
-  diningHeadsReady, receiptReady, orderByReady, DAY_COMMUNITY,
+  diningHeadsReady, receiptReady, orderByReady, DAY_COMMUNITY, DAY_OTHER,
   dayCost, perPersonOf, sortTypes, orderShareFor, monthsOf,
   headcountAt, ORDER_KIND, ORDER_KINDS,
 } from "../shared/budget-boards.js";
@@ -220,7 +220,7 @@ const T = {
   friMechina: "שישי מכינה",
   satMechina: "שבת מכינה",
   backFromHome: "חזרה מהבית",
-  other: "אחר",
+  other: DAY_OTHER,
 };
 
 /* ------------------------------------------------------------
