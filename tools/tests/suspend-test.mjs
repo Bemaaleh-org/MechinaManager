@@ -194,21 +194,35 @@ try {
 
   /* ---------- 3ב. ההשעיה עצמה ---------- */
   console.log("\n=== סימון השעיה ===");
-  /* ⚠ **בלי פירוט — 400.** השעיה היא החלטה של המכינה על חניך,
-     ובעוד חצי שנה אין שום דרך לשחזר על מה היא הייתה. */
+  /* ============================================================
+     ⚠⚠ **שתי הטענות התהפכו במכוון** (23.9.2026).
+
+     הגרסה הראשונה דרשה פירוט ונעלה 400. זה היה באג: שדה
+     הפירוט במסך מרונדר רק על "מוצדקת", כלומר בהשעיה לא היה
+     לאן להקליד והשמירה נדחתה תמיד. הבדיקה הייתה **ירוקה על
+     תכונה שאי אפשר להשתמש בה**.
+
+     ⚠ ו"מוצדקת" נשארת חובה — הטענה מתחת נועלת את זה, אחרת
+       הסרת הדרישה כאן הייתה יכולה להסיר גם אותה בלי שאיש ישים
+       לב.
+     ============================================================ */
   r = await call(M, "POST", "/api/attendance?action=mark", {
     date: daySusp, present: [],
     absences: [{ studentId: victim.id, type: ABSENCE.suspension, detail: "" }],
   });
-  ok("בלי פירוט — נדחה", r.s === 400, `${r.s} ${r.b.error || ""}`);
-  ok("וההודעה אומרת מה חסר", /פירוט/.test(r.b.error || ""), String(r.b.error));
+  ok("בלי פירוט — נשמר", r.s === 200, `${r.s} ${r.b.error || ""}`);
+  r = await call(M, "POST", "/api/attendance?action=mark", {
+    date: daySusp, present: [],
+    absences: [{ studentId: victim.id, type: ABSENCE.justified, detail: "" }],
+  });
+  ok("ומוצדקת בלי פירוט עדיין נדחית", r.s === 400 && /פירוט/.test(r.b.error || ""),
+    `${r.s} ${r.b.error || ""}`);
 
   r = await call(M, "POST", "/api/attendance?action=mark", {
     date: daySusp, present: [],
-    absences: [{ studentId: victim.id, type: ABSENCE.suspension,
-      detail: "בדיקה אוטומטית — להתעלם" }],
+    absences: [{ studentId: victim.id, type: ABSENCE.suspension, detail: "" }],
   });
-  ok("עם פירוט — נשמר", r.s === 200, `${r.s} ${r.b.error || ""}`);
+  ok("והשעיה נשמרת", r.s === 200, `${r.s} ${r.b.error || ""}`);
 
   const after = await loadAbsences({ force: true });
   const row = after.find((a) => a.date === daySusp && a.studentId === victim.id);

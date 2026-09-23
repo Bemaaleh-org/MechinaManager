@@ -1467,15 +1467,14 @@ function MarkDay({ say, allowPick = false }) {
 
   const save = () => {
     if (saving) return;
-    /* ⚠ מוצדקת והשעיה מחייבות פירוט — נבדק גם בשרת; כאן
-       חוסכים שליחה. ⚠ השעיה כל שכן: היא החלטה של המכינה על
-       חניך, ובעוד חצי שנה אין שום דרך לשחזר על מה היא הייתה. */
-    const NEED = ["מוצדקת", "השעיה"];
+    /* ⚠ **מוצדקת בלבד** (23.9.2026). שדה הפירוט מרונדר רק
+       עליה, ולכן דרישה על סוג אחר היא שמירה שנדחית תמיד בלי
+       שום דרך להשלים אותה — ראו ההערה ב-api/_attendance-mark.js. */
     const missing = Object.entries(draft)
-      .find(([, v]) => NEED.includes(v.type) && !v.detail.trim());
+      .find(([, v]) => v.type === "מוצדקת" && !v.detail.trim());
     if (missing) {
       setOpen(missing[0]);
-      say(`${draft[missing[0]].type === "השעיה" ? "השעיה" : "היעדרות מוצדקת"} מחייבת פירוט`);
+      say("היעדרות מוצדקת מחייבת פירוט");
       return;
     }
     setSaving(true);
